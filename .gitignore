@@ -1,2 +1,4 @@
 # Symlinked work trees (actual files live in ~/src/worktrees/)
+work-trees
 work-trees/
+work-trees/*
