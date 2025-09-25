@@ -1,21 +1,45 @@
-# CLAUDE.md - Source Directory Coordination
+# CLAUDE.md - ORC Ecosystem Command Center
 
-This repository serves as a coordination layer for multi-repo feature development using Git worktrees.
+This repository serves as the central command and coordination layer for the ORC development ecosystem, managing universal commands, agents, and worktree orchestration.
 
-## Repository Structure
+## ORC Ecosystem Structure
 
 ```
-~/src/
-├── CLAUDE.md              # This file - coordination workflow docs
-├── .gitignore             # Restrictive ignore - only tracks coordination files
-├── worktrees/            # Feature-based worktree isolation
-│   └── [feature-name]/   # Individual feature directories
-├── intercom/             # Main Intercom application repo
-├── infrastructure/       # Terraform infrastructure repo  
-├── muster/              # Deployment and orchestration
-├── event-management-system/  # Event processing system
-└── [other-repos]/       # All other repositories
+/Users/looneym/src/orc/                    # ORC Command Center
+├── CLAUDE.md                              # This file - ecosystem documentation
+├── .claude/
+│   ├── commands/                          # Master command definitions
+│   │   ├── analyze-prompt.md             # Universal prompt analysis
+│   │   ├── bootstrap.md                  # Universal project bootstrap
+│   │   ├── janitor.md                    # Universal maintenance
+│   │   └── tech-plan.md                  # Universal technical planning
+│   ├── agents/                           # Universal agent definitions (planned)
+│   └── tech_plans/                       # Strategic planning documents
+├── spellbook/                            # Detailed procedures and knowledge base
+└── work-trees -> /Users/looneym/src/worktrees   # Symlink to active worktrees
+
+~/.claude/commands/                        # Global command access (symlinks to ORC masters)
+├── analyze-prompt.md -> /Users/looneym/src/orc/.claude/commands/analyze-prompt.md
+├── bootstrap.md -> /Users/looneym/src/orc/.claude/commands/bootstrap.md
+├── janitor.md -> /Users/looneym/src/orc/.claude/commands/janitor.md
+└── tech-plan.md -> /Users/looneym/src/orc/.claude/commands/tech-plan.md
 ```
+
+## Universal Command System
+
+### ORC-Managed Commands
+All universal project management commands are centrally managed in ORC and made globally available through symlinks:
+
+- **`/analyze-prompt`** - Advanced prompt quality assessment using latest Anthropic practices
+- **`/bootstrap`** - Universal project initialization and setup
+- **`/janitor`** - Complete project maintenance (CLAUDE.md validation, tech plan lifecycle, cleanup)
+- **`/tech-plan`** - Structured technical planning with proven templates
+
+### Command Management
+- **Master Definitions**: Stored in `/Users/looneym/src/orc/.claude/commands/`
+- **Global Access**: Symlinked from `~/.claude/commands/` for universal availability
+- **Version Control**: All commands tracked in ORC repository for consistency
+- **Updates**: Edit master files in ORC, changes propagate globally through symlinks
 
 ## Git Worktree Workflow
 
