@@ -2,93 +2,45 @@
 
 **Forest Factory Command Center for El Presidente's Development Ecosystem**
 
-The ORC (Orchestrator) repository serves as the central command and coordination layer for development workflow management, providing universal commands, lightweight tech planning, and efficient worktree orchestration.
+ORC coordinates development workflow through universal commands, lightweight planning, and efficient worktree orchestration. One command system accessible everywhere, one planning approach that scales, one coordination layer that just works.
 
-## Core Systems
+## What ORC Provides
 
-### 🎯 Universal Commands
-- **Global Access**: Commands accessible from any Claude Code session via symlinks
-- **9 Core Commands**: `/tech-plan`, `/bootstrap`, `/janitor`, `/pr-workflow`, `/journal`, etc.
-- **Central Management**: All commands maintained in `global-commands/` directory
+**🎯 Universal Commands** - Access your development toolkit from any Claude Code session  
+**📋 Lightweight Planning** - Simple 3-state planning without ceremony  
+**🌳 Clean Worktrees** - Isolated development environments with automated setup
 
-### 📋 Tech Plans System  
-- **Lightweight Planning**: 3-state system (backlog → in-progress → archive)
-- **Worktree Integration**: Plans symlinked to individual investigations
-- **No Ceremony**: Quick planning without complex project management overhead
+## Quick Examples
 
-### 🌳 Worktree Architecture
-- **Single-Repo Focus**: Clean development environments per investigation
-- **TMux Integration**: Automated workspace setup with `muxup`
-- **Symlinked Plans**: Local `.tech-plans/` directories connect to central storage
-
-## Quick Start
-
-### Command Access
 ```bash
-# Commands are globally accessible via symlinks
-/tech-plan investigation-analysis    # Create new tech plan
-/bootstrap                           # Load project context
-/janitor                             # Maintenance and cleanup
+# Universal commands work everywhere
+/tech-plan new-investigation     # Create focused tech plan
+/bootstrap                       # Load project context  
+/janitor                         # Maintain and cleanup
+
+# Simple planning workflow
+tech-plans/backlog/     → in-progress/     → archive/
+   (future work)        (active projects)    (completed)
+
+# Clean worktree setup
+git worktree add ~/src/worktrees/ml-feature-repo -b ml/feature
+cd ~/src/worktrees/ml-feature-repo
+# Automated tech plan integration via symlinks
 ```
 
-### Tech Planning
-```bash
-# Plans flow through simple states
-tech-plans/backlog/              # Future work
-tech-plans/in-progress/          # Active investigations  
-tech-plans/archive/              # Completed work
-```
+## How It Works
 
-### Worktree Coordination
-```bash
-# Create new investigation
-git worktree add ~/src/worktrees/ml-feature-name-repo -b ml/feature-name
-cd ~/src/worktrees/ml-feature-name-repo
-ln -sf /Users/looneym/src/orc/tech-plans/in-progress/ml-feature-name-repo .tech-plans
-```
+**Commands** (`global-commands/`) are symlinked globally for universal access  
+**Plans** (`tech-plans/`) flow through backlog → in-progress → archive states  
+**Worktrees** link to plans via symlinks for integrated development
 
-## Directory Structure
+## Documentation & Architecture
 
-```
-orc/
-├── docs/                    # Complete ecosystem documentation
-├── global-commands/         # Universal command definitions (symlinked globally)
-├── tech-plans/              # Central planning system
-│   ├── in-progress/         # Active worktree investigations
-│   ├── backlog/            # Future work items
-│   └── archive/            # Completed work
-├── experimental/            # Experimental systems and prototypes
-│   └── mcp-server/         # Rails-based MCP task management system
-├── .claude/
-│   └── commands/           # ORC-specific command definitions
-├── work-trees -> ~/src/worktrees/  # Symlink to active worktrees
-└── CLAUDE.md               # Central ecosystem context
-```
+Complete technical documentation, architecture details, and implementation guides available in the `docs/` directory.
 
-## Documentation
+## Experimental Work
 
-Complete documentation available in `docs/`:
-- **[Architecture Overview](docs/README.md)** - Complete ecosystem overview
-- **[Command System](docs/command-system.md)** - Universal command management
-- **[Tech Plans](docs/tech-plans-system.md)** - Lightweight planning system
-- **[Worktree Architecture](docs/worktree-architecture.md)** - Single-repo worktree patterns
-- **[Orchestrator Workflow](docs/orchestrator-workflow.md)** - Coordination procedures
-
-## Experimental Systems
-
-### MCP Task Management Server
-Rails-based MCP server prototype for Claude Code integration:
-- **Location**: `experimental/mcp-server/`
-- **Purpose**: Native task management with worktree awareness
-- **Status**: Experimental - foundations built, purpose evolving
-
-## Key Principles
-
-- **Lightweight**: Minimal ceremony, maximum workflow efficiency
-- **Universal**: Commands accessible from any development context  
-- **Coordinated**: Orchestrator manages, investigations implement
-- **Preserved**: Core ORC workflow maintained and prioritized
-- **Experimental**: New systems isolated until proven valuable
+The `experimental/` directory contains prototypes and experimental systems, including an MCP task management server for potential future integration.
 
 ---
 

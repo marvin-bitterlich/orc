@@ -13,39 +13,38 @@ The ORC ecosystem solves three core problems:
 
 ## Architecture Components
 
-### [Worktree System](worktree-architecture.md)
-Single-repository worktrees with symlinked tech plans for clean development isolation.
+The ORC ecosystem consists of interconnected systems documented in this directory:
 
-### [Tech Plans System](tech-plans-system.md) 
-Lightweight 3-state planning: `backlog → in-progress → archive`
+**Core Systems**:
+- **Worktree System** - Single-repository worktrees with symlinked tech plans  
+- **Tech Plans System** - Lightweight 3-state planning (backlog → in-progress → archive)
+- **Command System** - Universal slash commands accessible globally via symlinks
+- **Orchestrator Workflow** - Coordination procedures for worktree and TMux management
 
-### [Command System](command-system.md)
-Universal slash commands managed centrally in ORC, accessible globally via symlinks.
+**Supporting Systems**:
+- **Tools Evaluation** - Framework for assessing development tools and workflow enhancements
+- **Integration Patterns** - How all components work together seamlessly
 
-### [Orchestrator Workflow](orchestrator-workflow.md)
-Complete workflow for worktree creation, TMux setup, and investigation coordination.
-
-### [Tools Evaluation](tools-evaluation.md)
-Registry and framework for evaluating potential development tools and workflow enhancements.
-
-### [Integration Patterns](integration-patterns.md)
-How commands, worktrees, and tech plans work together seamlessly.
+*See individual `.md` files in this directory for detailed implementation guidance.*
 
 ## Quick Reference
 
-### Directory Structure
+### Complete Directory Structure
 ```
 orc/
-├── docs/                    # This documentation
-├── global-commands/         # Universal command definitions
+├── docs/                    # Complete ecosystem documentation
+├── global-commands/         # Universal command definitions (symlinked globally)
 ├── tech-plans/              # Central planning system
 │   ├── in-progress/         # Active worktree investigations
 │   ├── backlog/            # Future work items
 │   └── archive/            # Completed work
+├── experimental/            # Experimental systems and prototypes
+│   └── mcp-server/         # Rails-based MCP task management system
 ├── .claude/
-│   └── commands/           # ORC-specific command definitions
+│   └── commands/           # ORC-specific command definitions  
 ├── work-trees -> ~/src/worktrees/  # Symlink to active worktrees
-└── CLAUDE.md               # Central ecosystem context
+├── CLAUDE.md               # Claude session context
+└── README.md               # Project introduction
 ```
 
 ### Key Symlinks
@@ -69,13 +68,21 @@ worktree/.tech-plans → orc/tech-plans/in-progress/[worktree]/  # Local tech pl
 4. **Pause/Resume**: Move worktrees between active and paused states
 5. **Maintain System**: Use `/janitor` for cleanup and organization
 
-## Implementation Status
+## Current Implementation Status
 
-- ✅ **Command System**: 8 universal commands operational
-- ✅ **Symlink Architecture**: Prototype validated with ml-symlink-test-intercom
-- ✅ **Tech Plans Structure**: 3-state organization complete
-- ✅ **Paused Worktrees**: Directory structure and workflow established
-- 🔄 **Integration Work**: Commands need updates for new architecture
-- 🔄 **Migration**: Existing worktrees need conversion to new pattern
+### ✅ **Operational Systems**
+- **Command System**: 9 universal commands fully operational
+- **Symlink Architecture**: Global command access working across all contexts  
+- **Tech Plans Structure**: 3-state organization (backlog/in-progress/archive) complete
+- **Worktree Architecture**: Single-repo focus with symlinked tech plans validated
+- **Documentation**: Complete ecosystem documentation and workflow procedures
 
-See individual documentation files for detailed implementation guidance.
+### 🔄 **Integration & Evolution**
+- **Command Modernization**: Some commands need updates for current architecture patterns
+- **Legacy Migration**: Existing worktrees transitioning to new symlink pattern
+- **Experimental Systems**: MCP task management server foundations built, purpose evolving
+
+### 📋 **Development Priorities**
+- Modernize command implementations for consistency with current architecture
+- Complete migration of legacy worktree patterns to symlink-based approach
+- Evaluate experimental systems for integration or archival decisions
