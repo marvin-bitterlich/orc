@@ -35,8 +35,7 @@ orc/
 ├── docs/                    # Complete ecosystem documentation
 ├── global-commands/         # Universal command definitions (symlinked globally)
 ├── tech-plans/              # Central planning system
-│   ├── in-progress/         # Active worktree investigations
-│   ├── backlog/            # Future work items
+│   ├── backlog/            # Future work items and strategic planning
 │   └── archive/            # Completed work
 ├── experimental/            # Experimental systems and prototypes
 │   └── mcp-server/         # Rails-based MCP task management system
@@ -50,7 +49,7 @@ orc/
 ### Key Symlinks
 ```
 ~/.claude/commands/ → orc/global-commands/      # Global command access
-worktree/.tech-plans → orc/tech-plans/in-progress/[worktree]/  # Local tech plans
+worktree/.tech-plans/   # Local tech plans (actual directories, travel with work)
 ```
 
 ### Worktree States

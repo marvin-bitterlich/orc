@@ -20,7 +20,7 @@ You're helping collaborators stay organized and deliberate while hacking on some
 **Purpose**: Create NEW tech plans only. For managing existing plans (status updates, archiving), use `/janitor tech-plans`.
 
 **File Storage**: Tech plans are context-aware:
-- **Worktree Context**: Saved to `.tech-plans/project_name.md` (symlinked to ORC)
+- **Worktree Context**: Saved to `.tech-plans/project_name.md` (local to investigation)
 - **ORC Context**: Saved to `tech-plans/backlog/project_name.md` for strategic planning
 
 ## Template Structure
@@ -64,9 +64,9 @@ You're helping collaborators stay organized and deliberate while hacking on some
 5. **Collaborative Refinement**: Explore alternatives, dive into technical details
 
 **File Management**: 
-- **Context Detection**: Check for `.tech-plans/` symlink (worktree) vs `tech-plans/` dir (ORC)
-- **Worktree**: Create in `.tech-plans/` (automatically stored in ORC via symlink)
-- **ORC**: Create in `tech-plans/backlog/` for strategic planning
+- **Context Detection**: Check for `.tech-plans/` directory (worktree) vs `tech-plans/` dir (ORC)
+- **Worktree**: Create in `.tech-plans/` (local to investigation, travels with the work)
+- **ORC**: Create in `tech-plans/backlog/` for strategic planning  
 - Start with status: "investigating" (updated lifecycle)
 - For existing plan updates, use `/janitor tech-plans` instead
 

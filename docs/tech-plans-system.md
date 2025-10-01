@@ -19,28 +19,34 @@ The tech plans system provides a lightweight approach to planning development wo
 - **paused**: Blocked or deprioritized
 - **done**: Completed (moves to archive)
 
-### Central Coordination
-- **Individual Access**: Via worktree symlinks for local convenience
-- **Orchestrator Visibility**: Central storage for cross-project awareness
+### Simplified Ownership
+- **Local Ownership**: Each worktree contains its own tech plans locally
+- **Strategic Planning**: ORC backlog for future work and coordination
 - **Historical Context**: Archive preserves completed work for reference
 
 ## Directory Structure
 
 ```
+# Simplified Architecture - Plans Live With Work, Managed Locally
+
+# Individual worktree tech plans (complete local ownership)
+~/src/worktrees/ml-feature-intercom/.tech-plans/
+├── investigation.md         # Active plans in root for easy access
+├── implementation.md        # Current work items
+├── backlog/                 # Local future/paused work  
+│   ├── performance_optimization.md     # Future work for this investigation
+│   └── error_handling_improvements.md  # Paused local work
+└── archive/                 # Local completed work
+    ├── initial_research.md             # Completed phases
+    └── proof_of_concept.md             # Archived work
+
+# ORC central planning (strategic coordination only)
 orc/tech-plans/
-├── in-progress/             # Active worktree investigations
-│   ├── ml-feature-intercom/ # Tech plans for specific worktree
-│   │   ├── investigation.md
-│   │   └── implementation.md
-│   └── ml-perfbot-analysis/ # Another worktree's plans
-│       └── performance.md
-├── backlog/                 # Future work items
-│   ├── orc_ecosystem_refinement.md     # Strategic plans
-│   ├── worktree_symlink_tech_plans.md  # Architecture work
-│   └── WO-004_perfbot_system_enhancements.md  # Converted work orders
-└── archive/                 # Completed work
-    ├── WO-012_dlq_bot_foundations.md   # Finished work orders
-    └── api_optimization_complete.md    # Completed investigations
+├── backlog/                 # System-wide strategic planning
+│   ├── orc_ecosystem_refinement.md     # Cross-system work
+│   └── WO-004_perfbot_system_enhancements.md  # Strategic initiatives
+└── archive/                 # Completed strategic work
+    └── WO-012_dlq_bot_foundations.md   # Finished strategic work
 ```
 
 ## Tech Plan Template
@@ -81,22 +87,30 @@ orc/tech-plans/
 
 ### Local Access Pattern
 ```bash
-# From any worktree
-ls .tech-plans/                    # See all plans for this investigation
-vim .tech-plans/feature-analysis.md  # Edit specific plan
+# From any worktree - complete local management
+ls .tech-plans/                    # Active plans for immediate work
+ls .tech-plans/backlog/            # Future/paused work for this investigation  
+ls .tech-plans/archive/            # Completed work for reference
+vim .tech-plans/feature-analysis.md  # Edit active plan
 ```
 
-### Symlink Architecture
+### Complete Local Architecture  
 ```bash
-# Worktree symlink points to ORC namespace
-worktree/.tech-plans -> orc/tech-plans/in-progress/[worktree-name]/
+# Full local ownership - no external dependencies
+worktree/.tech-plans/              # Real directory, not symlink
+├── feature-analysis.md           # Active work (root level for easy access)
+├── implementation-notes.md       # Current focus items
+├── backlog/                      # Local future work
+│   └── optimization-ideas.md     # Ideas for later
+└── archive/                      # Local completed work  
+    └── initial-research.md       # Finished phases
 ```
 
 ### Creation Workflow
 ```bash
 # From within worktree
 /tech-plan feature-analysis        # Creates .tech-plans/feature-analysis.md
-                                  # Actually stored in orc/tech-plans/in-progress/[worktree]/
+                                  # Actually stored locally, travels with work
 ```
 
 ## Command Integration
@@ -107,14 +121,14 @@ worktree/.tech-plans -> orc/tech-plans/in-progress/[worktree-name]/
 - **Template Application**: Uses lightweight 4-state template
 
 ### `/bootstrap` Command  
-- **Local Plans**: Reads from `.tech-plans/` symlink
-- **Context Loading**: Combines tech plans with git history
-- **Priority Focus**: Shows most relevant plans for current work
+- **Local Plans**: Reads from `.tech-plans/` directory and subdirectories
+- **Context Loading**: Combines local tech plans with git history
+- **Priority Focus**: Shows active plans (root level) and recent activity
 
-### `/janitor` Command
-- **Lifecycle Management**: Helps transition plans between states
-- **Cross-Worktree**: Manages plans across all namespaces  
-- **Archive Management**: Moves completed work to archive
+### `/janitor` Command (Local Focus)
+- **Local Lifecycle Management**: Manages tech plan states based on work evidence
+- **Local Organization**: Organizes loose files and maintains `.tech-plans/` structure
+- **Forest Clearing Guardian**: Keeps individual worktrees focused and organized
 
 ## Lifecycle Management
 
@@ -137,34 +151,34 @@ vim .tech-plans/plan-name.md
 
 #### in_progress → done  
 ```bash
-# Complete the work, then archive the plan
+# Complete the work, then archive locally
 vim .tech-plans/plan-name.md
 # Change: **Status**: in_progress → done
 
-# Archive via janitor or manual move
-mv orc/tech-plans/in-progress/[worktree]/plan-name.md \
-   orc/tech-plans/archive/
+# Archive locally via janitor or manual move
+mv .tech-plans/plan-name.md .tech-plans/archive/
 ```
 
-### Worktree State Coordination
-
-#### Active Worktree → Paused
-```bash
-# Move worktree to paused (tech plans stay in in-progress)
-mv worktrees/ml-feature-intercom worktrees/paused/
-
-# Tech plans remain accessible via:
-# orc/tech-plans/in-progress/ml-feature-intercom/
+#### paused → backlog
+```bash  
+# Move paused work to local backlog to reduce active noise
+mv .tech-plans/paused-plan.md .tech-plans/backlog/
 ```
 
-#### Paused Worktree → Active
-```bash
-# Move worktree back to active
-mv worktrees/paused/ml-feature-intercom worktrees/
+### Local Focus Management
 
-# Symlinks automatically work again
-cd worktrees/ml-feature-intercom
-ls .tech-plans/  # Plans are back
+#### Active → Backlog (Reduce Noise)
+```bash
+# Move future/paused work to backlog to maintain active focus
+mv .tech-plans/future-work.md .tech-plans/backlog/
+# Keep only actively worked plans in .tech-plans/ root
+```
+
+#### Backlog → Active (Resume Work)
+```bash
+# Bring backlogged work back to active when ready
+mv .tech-plans/backlog/ready-to-work.md .tech-plans/
+# Now visible in active plans for immediate work
 ```
 
 ## Migration from Work Orders

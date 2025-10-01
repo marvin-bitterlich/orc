@@ -49,7 +49,8 @@ Check recent git activity:
 
 <step number="4" name="active_plans">
 Scan active tech plans (with priority on recently updated ones):
-- Read all `.md` files in `.tech-plans/` or `tech-plans/in-progress/` (NOT archive)
+- **Worktree Context**: Read all `.md` files in `.tech-plans/` (local to investigation)
+- **ORC Context**: Read all `.md` files in `tech-plans/backlog/` for strategic planning
 - Identify current status: investigating | in_progress | paused | done
 - **Prioritize recently updated plans** - these are likely where work should resume
 - Understand implementation priorities and next steps

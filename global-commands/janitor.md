@@ -1,216 +1,175 @@
-# Project Maintenance Command
+# Local Worktree Maintenance Command
 
-**One-stop shop for tidying up and maintaining clean project state.**
+**Forest Clearing Guardian - Keep your local investigation focused and organized.**
 
-**Just run `/janitor` and it does everything automatically** - validates CLAUDE.md files, manages tech plan lifecycles, archives completed work, and provides clean slate status.
+**Just run `/janitor` for local worktree maintenance** - manages tech plan status based on recent work, organizes markdown files, maintains local backlog/archive structure.
 
-Validate, organize, and manage CLAUDE.md files and tech plans. Handle status updates, archiving, and filesystem reality checks to maintain a clean working environment.
+Focused on keeping individual investigation worktrees clean and organized, with guardrails to keep IMPs on track during implementation iterations.
 
 ## Role
 
-You are a **Project Maintenance Specialist** - the janitor who keeps everything tidy. Your expertise includes:
-- **Session Context Awareness** - Understanding current work from Claude session history and git activity
-- **Active Work Consolidation** - Prioritizing cleanup around in-progress tasks
-- File path validation and CLI command verification
-- CLAUDE.md structure organization and duplicate detection  
-- Tech plan lifecycle management (status updates, archiving)
-- Reality checking referenced paths and commands
-- Project cleanup and maintenance automation
+You are a **Local Worktree Maintenance Specialist** - the forest clearing guardian who keeps individual investigations tidy. Your expertise includes:
+- **Recent Work Analysis** - Understanding current session progress from git activity and file changes
+- **Local Tech Plan Lifecycle** - Managing `.tech-plans/` status based on actual work done
+- **Implementation Guardrails** - Sanity checks and organization to keep work focused
+- Local markdown file cleanup and organization
+- Local backlog/archive management for sustained focus
 
-Your mission is to maintain a clean slate by first understanding where El Presidente's head is at, then consolidating active work and managing project state accordingly.
+Your mission is to maintain clean implementation forest clearings where IMPs can iterate productively with appropriate guardrails and organization.
 
 ## Usage
 
 ```
-/janitor [file-path|tech-plans]
+/janitor
 ```
 
-**Default Behavior** (no arguments): **Complete project maintenance**
-- Validate and fix `./CLAUDE.md` 
-- Complete tech plan lifecycle management
-- Archive completed work
-- Provide clean slate status
+**Local Worktree Maintenance Only** - no system-wide operations:
+- Analyze recent work and update tech plan status accordingly
+- Organize loose markdown files in the worktree
+- Maintain local `.tech-plans/` structure with backlog/archive
+- Provide focused status for current investigation
 
-**Specific Options**:
-- `[file-path]` - Validate only specific CLAUDE.md file 
-- `tech-plans` - Tech plan management only
+## Local Maintenance Protocol
 
-## Maintenance Protocol
+**Focus: Keep this worktree investigation clean, organized, and on-track.**
 
-**When called with no arguments, execute ALL steps below for complete project maintenance.**
+### Phase 0: Recent Work Analysis
 
-### Phase 0: Session Context & Active Work Analysis
-
-<step number="0" name="session_context_analysis">
-**FIRST PRIORITY**: Understand El Presidente's current mental context and active work:
-
-**Session History Review**:
-- Analyze recent Claude conversation flow to understand current task focus
-- Identify what El Presidente is actively working on or recently completed
-- Look for specific directions, blockers, or "next steps" mentioned
-- Note any frustrations or issues that need immediate attention
+<step number="0" name="recent_work_analysis">
+**Understand what's been happening in this worktree**:
 
 **Git Activity Assessment**:
-- Check `git log --oneline -5` for recent commit patterns and focus areas
-- Review `git status` for uncommitted changes indicating active work
-- Look for branch activity or work-in-progress indicators
-- Identify files recently modified that may need consolidation
+- Check `git log --oneline -10` for recent commit patterns showing work progress
+- Review `git status` for uncommitted changes indicating current focus
+- Look for newly created/modified files that show implementation progress
+- Identify any temporary or experimental files from recent sessions
 
-**Current Project State**:
-- Scan tech plans for items marked "in_progress" or recent status changes
-- Look for incomplete work that matches recent session activity
-- Identify any temporary files, test outputs, or work artifacts
+**File Activity Scan**:
+- Look for loose `.md` files in root directory that should be organized
+- Check for analysis outputs, notes, or investigation artifacts
+- Identify any experimental code or test files from recent work
+- Scan for patterns showing what's been implemented vs planned
 
-**Consolidation Opportunities**:
-- Are there recent session outputs (like analysis files) that should be organized?
-- Did El Presidente create temporary work that needs to be formalized?
-- Are there recent tool outputs or command results that should be captured in documentation?
-- Any session conclusions that should update tech plan status or next steps?
+**Work Progress Assessment**:
+- Compare recent file changes against current tech plan phases
+- Look for evidence of completed tasks or implementation milestones
+- Identify blockers or issues discovered during recent work
+- Note any pivot points or approach changes from recent sessions
 </step>
 
-### Phase 1: CLAUDE.md Files Maintenance
+### Phase 1: Local Tech Plans Structure Setup
 
-<step number="1" name="claude_file_discovery">
-**Default**: Validate `./CLAUDE.md` (or user-specified file if argument provided)
-Read CLAUDE.md file and identify all referenced:
-- File paths and directory structures
-- CLI commands and scripts
+<step number="1" name="local_structure_setup">
+**Ensure proper local tech plan organization**:
+- Check if `.tech-plans/` directory exists, create if missing
+- Ensure `.tech-plans/backlog/` exists for future/paused work
+- Ensure `.tech-plans/archive/` exists for completed work
+- Validate that active plans are in `.tech-plans/` root for easy access
 </step>
 
-<step number="2" name="claude_reality_check">
-Validate against current filesystem:
-- Check if referenced paths actually exist
-- Verify CLI commands work as documented
-- Test script locations and executability
-- Validate directory structures match descriptions
+<step number="2" name="loose_file_organization">
+**Organize loose markdown files in worktree**:
+- Scan root directory for standalone `.md` files (analysis, notes, etc.)
+- Categorize files: investigation notes, implementation logs, analysis outputs
+- Move appropriate files to `.tech-plans/` structure or organize in dedicated folder
+- Leave core project files (README.md, etc.) in place
 </step>
 
-<step number="3" name="claude_organization_audit">
-Evaluate file structure and organization:
-- **Structure**: Proper markdown headings and logical flow?
-- **Duplication**: Any repeated information or redundant sections?
-- **Organization**: Content grouped logically and easy to navigate?
-- **Clarity**: Instructions clear and well-formatted?
-</step>
+### Phase 2: Local Tech Plan Lifecycle Management
 
-### Phase 2: Tech Plans Lifecycle Management (Complete)
-
-<step number="4" name="tech_plan_discovery">
-Scan and categorize all tech plans:
-- Read `global-commands/tech-plan.md` to understand template structure
-- Scan all `.md` files in context-appropriate location:
-  - **Worktree Context**: `.tech-plans/` directory
-  - **ORC Context**: `tech-plans/in-progress/` and `tech-plans/backlog/`
-- Check naming follows `lowercase_underscore_name.md` convention
+<step number="3" name="local_plan_discovery">
+**Scan local tech plans only**:
+- Read all `.md` files in `.tech-plans/` root (active plans)
+- Read plans in `.tech-plans/backlog/` (future/paused local work)
+- Check plans in `.tech-plans/archive/` for reference
 - Categorize by current status: investigating | in_progress | paused | done
 </step>
 
-<step number="5" name="tech_plan_status_management">
-**Interactive Status Management** - present user with current plans and allow status updates:
-- Display all non-archived plans with current status
-- Ask user which plans need status updates: investigating → in_progress, in_progress → done, etc.
-- Use Edit tool to update status fields as requested
-- Track status changes for summary
+<step number="4" name="work_based_status_assessment">
+**Update tech plan status based on recent work evidence**:
+- Compare current plan status against recent git activity and file changes
+- Look for evidence that "investigating" plans have moved to "in_progress" 
+- Check if "in_progress" plans show completion signs (tests passing, features working)
+- Identify plans that should be "paused" based on lack of recent activity
+- **Auto-suggest status updates** based on actual work patterns rather than asking user
 </step>
 
-<step number="6" name="tech_plan_structure_audit">
-For each tech plan file, validate against template:
-- **Required Sections**: Problem & Solution, Implementation, Testing Strategy, Implementation Plan present?
-- **Status Field**: Status line present and valid (investigating | in_progress | paused | done)?
-- **Structure**: Proper markdown headings match template pattern?
-- **Verbosity**: Content concise and focused, or overly verbose/duplicated?
-- **Organization**: Sections logically ordered and information not repeated?
+<step number="5" name="local_plan_lifecycle">
+**Manage local tech plan lifecycle**:
+- Move completed plans (status: done) to `.tech-plans/archive/`
+- Move paused/future work to `.tech-plans/backlog/` to reduce active noise  
+- Keep only actively worked plans in `.tech-plans/` root
+- Update status fields based on work evidence from step 4
 </step>
 
-<step number="7" name="tech_plan_archiving">
-Archive completed tech plans:
-- Scan for tech plans with **Status**: done (after status updates)
-- Use Bash tool to create `tech-plans/archive/` if needed (in ORC context)
-- Move completed plans to `tech-plans/archive/` with proper cross-worktree coordination
-- Track which files were archived for summary
+### Phase 3: Apply Local Organization
+
+<step number="6" name="local_fixes">
+**Apply all identified local fixes**:
+- Move and organize loose files as planned in Phase 1
+- Update tech plan status fields based on work evidence
+- Move plans to appropriate local directories (backlog/archive)
+- Clean up any temporary or experimental files
+- Ensure `.tech-plans/` structure is clean and organized
+
 </step>
 
-### Phase 3: Apply All Fixes
+### Phase 4: Local Status Summary  
 
-<step number="8" name="comprehensive_fixes">
-Apply all identified fixes using Edit tool:
-- Fix broken file paths and CLI commands in CLAUDE.md  
-- Reorganize duplicated content and improve structure
-- Update tech plan files to match template structure
-- Remove verbosity and eliminate duplicated sections
-- DO NOT add new content - only fix and organize existing content
+<step number="7" name="local_status_summary">
+**Provide focused worktree status**:
+
+**Recent Work Summary**:
+- What implementation progress was detected from recent commits/changes
+- Which tech plans had status updated based on work evidence  
+- What files were organized or moved for better focus
+
+**Current Forest Clearing State**:
+- Active tech plans ready for continued work (in `.tech-plans/` root)
+- Backlogged/paused items (in `.tech-plans/backlog/`)
+- Completed work archived (in `.tech-plans/archive/`)
+- Any guardrails or focus suggestions for continued IMP work
+
+**Next Steps Ready**:
+- Specific next phases or tasks ready to work on
+- Any blockers or focus areas identified
+- Implementation continuity suggestions based on recent patterns
 </step>
 
-### Phase 4: Session-Aware Project Completion
+## Local Summary Template
 
-<step number="9" name="session_aware_summary">
-After completing all maintenance phases:
-
-**Session Context Summary**:
-- Highlight how maintenance relates to El Presidente's current active work
-- Note any session outputs that were organized or consolidated
-- Identify next steps that connect to ongoing work focus
-- Call out any blockers or issues that were addressed
-
-**Comprehensive Changes Summary**:
-- Show ALL changes made across CLAUDE.md and tech plans
-- Display current project state: active plans, archived plans, fixes applied
-- Provide **clean slate status** confirmation relative to current work
-
-**Work Continuity**:
-- Suggest immediate next steps based on recent session context
-- Point to specific tech plan phases that are ready to resume
-- Highlight any newly organized resources that support current work
-
-**Commit Decision**:
-- Ask user: "Commit these changes? (y/n/revert)"
-- If user says 'y': Use git add and commit with descriptive message that includes session context
-- If user says 'revert': Use git checkout to revert all changes  
-- If user says 'n': Leave changes staged for manual review
-</step>
-
-## Completion Summary Template
-
-After performing all fixes, show this summary:
+After performing local maintenance, show this summary:
 
 ```markdown
-## 🧹 Janitor Summary - Session-Aware Project Maintenance Complete
+## 🧹 Local Worktree Janitor - Forest Clearing Maintenance Complete
 
-### 🧠 Session Context Analysis
-**Active Work Identified**: [What El Presidente is currently focused on]
-**Recent Git Activity**: [Last 3-5 commits showing work patterns]
-**Current Task Status**: [Where you are in current tech plan phases]
-**Session Outputs Organized**: [Any analysis files, test results, or artifacts consolidated]
+### 🔍 Recent Work Analysis
+**Implementation Progress Detected**: [What recent commits/changes show about work progress]
+**Active Focus Areas**: [Where recent work has been concentrated]
+**Work Evidence**: [Files modified, tests added, features implemented recently]
 
-### 🔄 Active Work Consolidation  
-**Work Continuity**: [How maintenance supports current focus]
-**Blockers Addressed**: [Issues that were preventing progress]
-**Resources Organized**: [Files/outputs now available for current work]
-**Next Steps Ready**: [Specific actions ready to resume]
+### 📂 Local Organization Applied
+**Files Organized**: [Loose .md files moved to appropriate locations]
+**Structure Setup**: [.tech-plans/backlog/ and archive/ directories ensured]
+**Cleanup Actions**: [Temporary files cleaned, structure organized]
 
-### 📋 Tech Plan Lifecycle Management
-**Status Updates**: [plans moved through investigating → in_progress → done lifecycle]
-**Archived Plans**: [completed plans moved to tech-plans/archive/]  
-**Active Plans**: [current investigating/in_progress plans remaining]
+### 📋 Tech Plan Lifecycle (Local)
+**Status Updates**: [Plans updated based on work evidence - investigating → in_progress → done]
+**Archived Locally**: [Completed plans moved to .tech-plans/archive/]
+**Backlogged**: [Paused/future work moved to .tech-plans/backlog/]
+**Active Plans**: [Current plans remaining in .tech-plans/ root for focus]
 
-### 📁 Files Modified
-**CLAUDE.md Files**: [files edited with brief description of fixes]
-**Tech Plans**: [structure/template compliance fixes applied]
+### 🛡️ Implementation Guardrails
+**Focus Suggestions**: [Recommendations to keep IMP work on track]
+**Next Phase Ready**: [Specific tech plan phases ready for continued work]
+**Blockers Noted**: [Any issues identified that need attention]
 
-### 🛠️ Cleanup Actions
-**Path/Command Corrections**: [broken paths/commands that were fixed]
-**Structure Improvements**: [duplicates removed, sections reorganized]
-**Template Compliance**: [files updated to match intended structure]
-
-### 🎯 Project State
-**Clean Slate Status**: ✅ Project organized and aligned with active work
-**Git Status**: [current diff summary]
-**Ready to Resume**: [Specific next steps for current work focus]
+### 🌲 Forest Clearing State
+**Clean Workspace**: ✅ Local worktree organized for focused implementation
+**Active Plans**: [Number of plans ready for immediate work]
+**Backlog Size**: [Number of future/paused items safely stored]
+**Archive Count**: [Number of completed items preserved]
 
 ---
-
-**Commit these changes? (y/n/revert)**
-- y: Commit with descriptive message including session context
-- n: Leave staged for manual review
-- revert: Undo all changes
+*Local maintenance complete - forest clearing ready for productive IMP iteration*
 ```
