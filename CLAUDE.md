@@ -36,7 +36,6 @@ gh issue view <number> --repo intercom/intercom
 ### Status Check
 ```bash
 ls ~/src/worktrees/                    # Active investigations
-ls ~/src/worktrees/paused/             # Paused work  
 ls tech-plans/in-progress/             # All active planning
 ```
 

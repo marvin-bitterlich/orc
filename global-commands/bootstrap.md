@@ -51,7 +51,7 @@ Check recent git activity:
 Scan active tech plans (with priority on recently updated ones):
 - **Worktree Context**: Read all `.md` files in `.tech-plans/` (local to investigation)
 - **ORC Context**: Read all `.md` files in `tech-plans/backlog/` for strategic planning
-- Identify current status: investigating | in_progress | paused | done
+- Identify current status: investigating | in_progress | done
 - **Prioritize recently updated plans** - these are likely where work should resume
 - Understand implementation priorities and next steps
 </step>
@@ -92,7 +92,7 @@ After reading all context, provide this briefing:
 **Work in Progress**: [any uncommitted changes]
 
 ## 🎯 **Active Tech Plans** (Prioritized by Recent Updates)
-**[Recently Updated Plan Name]** (Status: [investigating/in_progress/paused/done])
+**[Recently Updated Plan Name]** (Status: [investigating/in_progress/done])
 - [Brief description and current phase]
 - [Key next steps or blockers]
 - **🔥 Priority**: [Why this should be worked on next]

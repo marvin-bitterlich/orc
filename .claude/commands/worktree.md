@@ -217,7 +217,7 @@ The selected tech plan is now in-progress and ready for implementation!
 - **Command Respect**: Never override existing ORC commands, work within established patterns  
 - **Janitor Integration**: Rely on `/janitor` for lifecycle management after creation
 - **Bootstrap Coordination**: Ensure `/bootstrap` works properly in created environments
-- **Tech Plan Lifecycle**: Follow established status progression (investigating → in_progress → paused → done)
+- **Tech Plan Lifecycle**: Follow established status progression (investigating → in_progress → done)
 
 ## Example Workflows
 
@@ -257,6 +257,56 @@ Process:
 3. Set up investigation-specific tech plans
 4. Include relevant Terraform and AWS context in CLAUDE.md
 5. Launch environment focused on infrastructure development patterns
+```
+
+## Resuming Backlogged Work
+
+### Branch Discovery for Old Work
+When El Presidente wants to resume work that was previously moved to backlog:
+
+**Find Old Branches**:
+```bash
+# List all branches with your prefix
+git branch -a | grep "ml/"
+
+# Search for specific topic
+git branch -a | grep "dlq\|perfbot\|auth"
+
+# Check branch history to understand what was worked on
+git log --oneline ml/old-feature-name -10
+```
+
+**Evaluate Branch State**:
+```bash
+# Check if branch has WIP commits
+git log ml/old-feature-name --grep="WIP:" --oneline
+
+# See what files were being worked on
+git show --name-only ml/old-feature-name
+
+# Check branch freshness
+git log ml/old-feature-name --since="1 month ago" --oneline
+```
+
+### Resumption Workflow
+**Create New Worktree from Old Branch**:
+```bash
+# Create worktree from existing branch
+git worktree add /Users/looneym/src/worktrees/ml-resumed-[feature]-[repo] ml/old-feature-name
+
+# Move tech plan back to in-progress
+mv "/Users/looneym/src/orc/tech-plans/backlog/[plan-name].md" \
+   "/Users/looneym/src/orc/tech-plans/in-progress/ml-resumed-[feature]-[repo]/"
+
+# Launch TMux environment  
+tmux new-window -n "resumed-feature" -c "/Users/looneym/src/worktrees/ml-resumed-[feature]-[repo]"
+```
+
+**Clean Up WIP State**:
+```bash
+# If the last commit was a WIP commit, you might want to soft reset to continue editing
+git log --oneline -1  # Check if last commit is WIP
+git reset --soft HEAD~1  # Undo WIP commit to continue editing (optional)
 ```
 
 ## Closing Notes and Success Criteria

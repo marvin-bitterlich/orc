@@ -1,6 +1,6 @@
 # [PROJECT_NAME]
 
-**Status**: investigating | in_progress | paused | done
+**Status**: investigating | in_progress | done
 
 ## Problem & Solution
 **Current Issue:** [What's broken/missing/inefficient]

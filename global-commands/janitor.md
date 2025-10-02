@@ -62,7 +62,7 @@ Your mission is to maintain clean implementation forest clearings where IMPs can
 <step number="1" name="local_structure_setup">
 **Ensure proper local tech plan organization**:
 - Check if `.tech-plans/` directory exists, create if missing
-- Ensure `.tech-plans/backlog/` exists for future/paused work
+- Ensure `.tech-plans/backlog/` exists for future work
 - Ensure `.tech-plans/archive/` exists for completed work
 - Validate that active plans are in `.tech-plans/` root for easy access
 </step>
@@ -80,9 +80,9 @@ Your mission is to maintain clean implementation forest clearings where IMPs can
 <step number="3" name="local_plan_discovery">
 **Scan local tech plans only**:
 - Read all `.md` files in `.tech-plans/` root (active plans)
-- Read plans in `.tech-plans/backlog/` (future/paused local work)
+- Read plans in `.tech-plans/backlog/` (future local work)
 - Check plans in `.tech-plans/archive/` for reference
-- Categorize by current status: investigating | in_progress | paused | done
+- Categorize by current status: investigating | in_progress | done
 </step>
 
 <step number="4" name="work_based_status_assessment">
@@ -90,14 +90,14 @@ Your mission is to maintain clean implementation forest clearings where IMPs can
 - Compare current plan status against recent git activity and file changes
 - Look for evidence that "investigating" plans have moved to "in_progress" 
 - Check if "in_progress" plans show completion signs (tests passing, features working)
-- Identify plans that should be "paused" based on lack of recent activity
+- Identify plans that should be moved to backlog based on lack of recent activity
 - **Auto-suggest status updates** based on actual work patterns rather than asking user
 </step>
 
 <step number="5" name="local_plan_lifecycle">
 **Manage local tech plan lifecycle**:
 - Move completed plans (status: done) to `.tech-plans/archive/`
-- Move paused/future work to `.tech-plans/backlog/` to reduce active noise  
+- Move future work to `.tech-plans/backlog/` to reduce active noise  
 - Keep only actively worked plans in `.tech-plans/` root
 - Update status fields based on work evidence from step 4
 </step>
@@ -126,7 +126,7 @@ Your mission is to maintain clean implementation forest clearings where IMPs can
 
 **Current Forest Clearing State**:
 - Active tech plans ready for continued work (in `.tech-plans/` root)
-- Backlogged/paused items (in `.tech-plans/backlog/`)
+- Backlogged items (in `.tech-plans/backlog/`)
 - Completed work archived (in `.tech-plans/archive/`)
 - Any guardrails or focus suggestions for continued IMP work
 
@@ -156,7 +156,7 @@ After performing local maintenance, show this summary:
 ### 📋 Tech Plan Lifecycle (Local)
 **Status Updates**: [Plans updated based on work evidence - investigating → in_progress → done]
 **Archived Locally**: [Completed plans moved to .tech-plans/archive/]
-**Backlogged**: [Paused/future work moved to .tech-plans/backlog/]
+**Backlogged**: [Future work moved to .tech-plans/backlog/]
 **Active Plans**: [Current plans remaining in .tech-plans/ root for focus]
 
 ### 🛡️ Implementation Guardrails
@@ -167,7 +167,7 @@ After performing local maintenance, show this summary:
 ### 🌲 Forest Clearing State
 **Clean Workspace**: ✅ Local worktree organized for focused implementation
 **Active Plans**: [Number of plans ready for immediate work]
-**Backlog Size**: [Number of future/paused items safely stored]
+**Backlog Size**: [Number of future items safely stored]
 **Archive Count**: [Number of completed items preserved]
 
 ---
