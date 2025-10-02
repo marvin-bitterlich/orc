@@ -98,47 +98,17 @@ mkdir -p /Users/looneym/src/orc/tech-plans/in-progress/ml-[descriptive-name]-[re
 ln -sf /Users/looneym/src/orc/tech-plans/in-progress/ml-[descriptive-name]-[repo] .tech-plans
 ```
 
-### Step 4: Investigation Context Creation
-**Generate Comprehensive CLAUDE.md**:
+### Step 4: Investigation Handoff Preparation
+**Tech Plan Setup for Investigation Claude**:
 
-```markdown
-# Investigation: [Descriptive Name Based on Problem]
+No custom CLAUDE.md creation needed - investigation Claude will use existing ORC commands:
 
-## Environment Setup
-You are working on focused investigation in the [Repository] repository:
+1. **Tech Plan Creation**: Create initial tech plan in `.tech-plans/` with mission details
+2. **Context Loading**: Investigation Claude runs `/bootstrap` to understand project
+3. **Status Assessment**: Investigation Claude uses `/janitor` to analyze current state
+4. **Clean Repository**: No modifications to repository CLAUDE.md - keeps git clean
 
-- **Repository**: Single [repository] checkout on branch `ml/descriptive-name`
-- **Tech Plans**: Available via `.tech-plans/` symlink 
-- **Context**: Focused single-repository investigation
-
-## Your Mission
-[Full problem description from El Presidente's input]
-
-**Source**: [GitHub Issue URL / Investigation Request]
-
-### Problem Summary
-[Clear problem statement with full context]
-
-## Available Resources
-- **Issue/Context**: [All relevant links and resources]
-- **Tech Plans**: Use `/tech-plan` to create focused planning documents
-- **Bootstrap**: Use `/bootstrap` for context loading
-
-## Status Update Protocol
-**CRITICAL**: Update progress sections as work evolves.
-
-### Current Status
-🔄 **Investigation Started** - Initial setup complete
-
-**Key Actions Completed**:
-- [Timestamp] Worktree created and environment setup
-- [Timestamp] [Next action]
-
-**Next Steps**: [What's needed to progress]
-
-## Progress Log
-[Timestamped entries of findings and decisions]
-```
+**Handoff Protocol**: Investigation Claude has everything needed through `.tech-plans/` + `/bootstrap` + `/janitor`
 
 ### Step 5: Development Environment Launch
 **TMux Environment Setup**:
@@ -178,11 +148,11 @@ tmux new-window -n "[short-descriptive-name]" -c "/Users/looneym/src/worktrees/m
 ### Task 3: Comprehensive Environment Creation
 **Checklist for Complete Setup**:
 - ✅ Worktree created with descriptive name and clean branch
-- ✅ Tech plans directory structure established
-- ✅ CLAUDE.md created with comprehensive investigation context
+- ✅ Tech plans directory structure established  
+- ✅ Initial tech plan created with mission details
 - ✅ TMux window launched with standardized `muxup` layout
-- ✅ All relevant links and resources included in investigation context
-- ✅ Clear handoff message provided to El Presidente
+- ✅ Repository remains clean (no CLAUDE.md modifications)
+- ✅ Clear handoff message with investigation workflow provided
 
 ### Task 4: Clean Handoff Protocol
 **Final Handoff Message**:
@@ -193,8 +163,13 @@ Environment ready for [investigation-name]!
 **Worktree**: ~/src/worktrees/ml-[descriptive-name]-[repo]
 **Branch**: ml/[descriptive-name]
 **Tech Plans**: Available via .tech-plans/ symlink
+**Clean Repository**: No CLAUDE.md modifications - git stays clean
 
-Switch to the `[short-name]` TMux window to begin work with the investigation-claude. I've provided comprehensive context in CLAUDE.md including all the details we discussed.
+To get started in the investigation:
+1. Switch to `[short-name]` TMux window
+2. Run `/bootstrap` to load project context  
+3. Run `/janitor` to assess current status
+4. Check `.tech-plans/` for mission details
 
 ¡Vamos a trabajar, El Presidente!
 ```

@@ -25,48 +25,34 @@ You're helping collaborators stay organized and deliberate while hacking on some
 
 ## Template Structure
 
-```markdown
-# [Project Name]
+The tech plan template is centralized in `templates/tech-plan.md` for consistency across all commands.
 
-**Status**: investigating | in_progress | paused | done
+**Template Location**: `/Users/looneym/src/orc/templates/tech-plan.md`
 
-## Problem & Solution
-**Current Issue:** [What's broken/missing/inefficient]
-**Solution:** [What we're building in one sentence]
-
-## [Context Section]
-[Current system state, requirements, or background]
-
-## Implementation
-### Approach
-[High-level solution strategy]
-
-### [Interface/API/Contract]
-[Key interfaces, commands, or user interactions]
-
-## Testing Strategy
-[How we'll validate it works]
-
-## Implementation Plan
-### Phase 1: [Core/Foundation] 
-### Phase 2: [Integration/Features]
-### Phase 3: [Polish/Validation]
-```
+**Template Loading**: Load the template content from the centralized location and customize with project-specific details.
 
 ## Process
 
 **NEW PLAN CREATION ONLY**:
 
 1. **Discovery Conversation**: Understand what to build/fix/improve
-2. **Create Plan File**: Context-aware location using template
-3. **Initial Planning**: Fill out Problem & Solution, set status to "investigating"
-4. **Live Documentation**: Update the plan file as we discuss approach
-5. **Collaborative Refinement**: Explore alternatives, dive into technical details
+2. **Load Template**: Read centralized template from `templates/tech-plan.md`
+3. **Create Plan File**: Context-aware location with customized template content
+4. **Initial Planning**: Fill out Problem & Solution, set status to "investigating"
+5. **Live Documentation**: Update the plan file as we discuss approach
+6. **Collaborative Refinement**: Explore alternatives, dive into technical details
 
 **File Management**: 
+- **Template Loading**: `cat /Users/looneym/src/orc/templates/tech-plan.md` to get base template
+- **Project Customization**: Replace `[PROJECT_NAME]` with actual project name
 - **Context Detection**: Check for `.tech-plans/` directory (worktree) vs `tech-plans/` dir (ORC)
 - **Worktree**: Create in `.tech-plans/` (local to investigation, travels with the work)
 - **ORC**: Create in `tech-plans/backlog/` for strategic planning  
 - Start with status: "investigating" (updated lifecycle)
 - For existing plan updates, use `/janitor tech-plans` instead
+
+**Template Usage**:
+- **Read Template**: Use `@/Users/looneym/src/orc/templates/tech-plan.md` to include template content
+- **Customize**: Replace `[PROJECT_NAME]` with actual project name in the file content
+- **Create File**: Write customized content to appropriate context location
 
