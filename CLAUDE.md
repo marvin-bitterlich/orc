@@ -40,3 +40,23 @@ ls tech-plans/in-progress/             # All active planning
 ```
 
 *Complete workflow procedures in `docs/orchestrator-workflow.md`*
+
+## Beads Issue Tracker
+
+This repository uses [beads](https://github.com/steveyegge/beads) for issue tracking with graph-based dependencies.
+
+**Key Commands**:
+- `bd list` - View all issues
+- `bd list --json` - Machine-readable output
+- `bd ready` - Show work ready to start (no blockers)
+- `bd show <id>` - View specific bead details
+- `bd create "Title"` - Create new issue
+- `bd dep tree <id>` - Visualize dependency graph
+
+**Integration with Worktrees**:
+- Beads data lives in `.beads/` directory (committed to git)
+- All worktrees share the same beads database
+- Changes in one worktree are immediately visible in others
+- SQLite cache (`beads.db`) provides fast queries
+
+**Note**: This is a read-only overview. The beads CLI handles all data management.
