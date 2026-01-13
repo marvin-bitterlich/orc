@@ -60,67 +60,69 @@ This provides a global view of all work across ORC.`,
 				}
 
 				if len(activeWOs) > 0 {
-					// Organize into parent-child hierarchy
-					topLevel := []*models.WorkOrder{}
+					// Build children map
 					childrenMap := make(map[string][]*models.WorkOrder)
-
 					for _, wo := range activeWOs {
 						if wo.ParentID.Valid {
 							children := childrenMap[wo.ParentID.String]
 							children = append(children, wo)
 							childrenMap[wo.ParentID.String] = children
-						} else {
-							topLevel = append(topLevel, wo)
 						}
 					}
 
-					// Display top-level work orders and their children
-					for j, wo := range topLevel {
-						woEmoji := getStatusEmoji(wo.Status)
-
-						// Determine tree characters for top-level
-						var prefix string
-						if j < len(topLevel)-1 {
-							prefix = "├── "
-						} else {
-							prefix = "└── "
+					// Separate epics (have children) from standalone
+					epics := []*models.WorkOrder{}
+					standalone := []*models.WorkOrder{}
+					for _, wo := range activeWOs {
+						if wo.ParentID.Valid {
+							// This is a child, skip
+							continue
 						}
+						if len(childrenMap[wo.ID]) > 0 {
+							epics = append(epics, wo)
+						} else {
+							standalone = append(standalone, wo)
+						}
+					}
 
+					// Display epics first with empty lines between them
+					for _, epic := range epics {
+						epicEmoji := getPhaseEmoji(epic.Phase)
+						groveInfo := ""
+						if epic.AssignedGroveID.Valid {
+							groveInfo = fmt.Sprintf(" [Grove: %s]", epic.AssignedGroveID.String)
+						}
+						fmt.Printf("├── %s %s - %s [%s]%s\n", epicEmoji, epic.ID, epic.Title, epic.Status, groveInfo)
+
+						// Display children (no empty lines between children)
+						children := childrenMap[epic.ID]
+						for k, child := range children {
+							childEmoji := getPhaseEmoji(child.Phase)
+							var childPrefix string
+							if k < len(children)-1 {
+								childPrefix = "│   ├── "
+							} else {
+								childPrefix = "│   └── "
+							}
+							childGroveInfo := ""
+							if child.AssignedGroveID.Valid {
+								childGroveInfo = fmt.Sprintf(" [Grove: %s]", child.AssignedGroveID.String)
+							}
+							fmt.Printf("%s%s %s - %s [%s]%s\n", childPrefix, childEmoji, child.ID, child.Title, child.Status, childGroveInfo)
+						}
+						// Empty line after each epic
+						fmt.Println()
+					}
+
+					// Display standalone work orders with empty lines between them
+					for _, wo := range standalone {
+						woEmoji := getPhaseEmoji(wo.Phase)
 						groveInfo := ""
 						if wo.AssignedGroveID.Valid {
 							groveInfo = fmt.Sprintf(" [Grove: %s]", wo.AssignedGroveID.String)
 						}
-
-						fmt.Printf("%s%s %s - %s [%s]%s\n", prefix, woEmoji, wo.ID, wo.Title, wo.Status, groveInfo)
-
-						// Display children if any
-						children := childrenMap[wo.ID]
-						if len(children) > 0 {
-							for k, child := range children {
-								childEmoji := getStatusEmoji(child.Status)
-
-								// Child prefix
-								var childPrefix string
-								if j < len(topLevel)-1 {
-									childPrefix = "│   "
-								} else {
-									childPrefix = "    "
-								}
-
-								if k < len(children)-1 {
-									childPrefix += "├── "
-								} else {
-									childPrefix += "└── "
-								}
-
-								childGroveInfo := ""
-								if child.AssignedGroveID.Valid {
-									childGroveInfo = fmt.Sprintf(" [Grove: %s]", child.AssignedGroveID.String)
-								}
-
-								fmt.Printf("%s%s %s - %s [%s]%s\n", childPrefix, childEmoji, child.ID, child.Title, child.Status, childGroveInfo)
-							}
-						}
+						fmt.Printf("└── %s %s - %s [%s]%s\n", woEmoji, wo.ID, wo.Title, wo.Status, groveInfo)
+						fmt.Println()
 					}
 				} else {
 					fmt.Println("└── (No active work orders)")
@@ -157,5 +159,24 @@ func getStatusEmoji(status string) string {
 		return "🗄️"
 	default:
 		return "•"
+	}
+}
+
+func getPhaseEmoji(phase string) string {
+	switch phase {
+	case "ready":
+		return "📦"
+	case "paused":
+		return "⏸️"
+	case "design":
+		return "📐"
+	case "implement":
+		return "🔨"
+	case "deploy":
+		return "🚀"
+	case "blocked":
+		return "🚫"
+	default:
+		return "📦" // default to ready
 	}
 }

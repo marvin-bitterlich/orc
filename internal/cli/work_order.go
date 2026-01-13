@@ -107,6 +107,7 @@ var workOrderShowCmd = &cobra.Command{
 		fmt.Printf("Mission:    %s\n", wo.MissionID)
 		fmt.Printf("Title:      %s\n", wo.Title)
 		fmt.Printf("Status:     %s\n", wo.Status)
+		fmt.Printf("Phase:      %s\n", wo.Phase)
 		if wo.Type.Valid {
 			fmt.Printf("Type:       %s\n", wo.Type.String)
 		}

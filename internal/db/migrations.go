@@ -6,7 +6,7 @@ import (
 )
 
 // schemaVersion tracks the current schema version
-const currentSchemaVersion = 1
+const currentSchemaVersion = 2
 
 // Migration represents a database migration
 type Migration struct {
@@ -21,6 +21,11 @@ var migrations = []Migration{
 		Version: 1,
 		Name:    "flatten_hierarchy_and_grove_schema",
 		Up:      migrationV1,
+	},
+	{
+		Version: 2,
+		Name:    "add_phase_field_to_work_orders",
+		Up:      migrationV2,
 	},
 }
 
@@ -284,6 +289,37 @@ func migrationV1(db *sql.DB) error {
 	`)
 	if err != nil {
 		return fmt.Errorf("failed to create indexes: %w", err)
+	}
+
+	return nil
+}
+
+// migrationV2 adds phase field to work_orders
+func migrationV2(db *sql.DB) error {
+	// Add phase column to work_orders table
+	// Options: ready (default), paused, design, implement, deploy, blocked
+	_, err := db.Exec(`
+		ALTER TABLE work_orders ADD COLUMN phase TEXT
+		CHECK(phase IN ('ready', 'paused', 'design', 'implement', 'deploy', 'blocked'))
+		DEFAULT 'ready'
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to add phase column: %w", err)
+	}
+
+	// Set existing work orders to appropriate phase based on status
+	// backlog/next -> ready
+	// in_progress -> implement
+	// complete -> deploy
+	_, err = db.Exec(`
+		UPDATE work_orders SET phase = CASE
+			WHEN status = 'in_progress' THEN 'implement'
+			WHEN status = 'complete' THEN 'deploy'
+			ELSE 'ready'
+		END
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to set initial phase values: %w", err)
 	}
 
 	return nil
