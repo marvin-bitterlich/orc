@@ -57,6 +57,56 @@ func (s *Session) CreateDeputyWindow() (*Window, error) {
 	return &Window{Session: s, Index: 1, Name: "deputy"}, nil
 }
 
+// CreateMasterOrcWindow creates the master orchestrator window with layout:
+// Layout:
+//   ┌─────────────────────┬──────────────┐
+//   │                     │   vim (top)  │
+//   │      claude         │──────────────│
+//   │    (full height)    │  shell (bot) │
+//   │                     │              │
+//   └─────────────────────┴──────────────┘
+func (s *Session) CreateMasterOrcWindow(workingDir string) error {
+	// First window is already created (window 1), rename it
+	target := fmt.Sprintf("%s:1", s.Name)
+
+	if err := exec.Command("tmux", "rename-window", "-t", target, "orc").Run(); err != nil {
+		return fmt.Errorf("failed to rename master window: %w", err)
+	}
+
+	// Split vertically (creates pane on the right)
+	if err := s.SplitVertical(target, workingDir); err != nil {
+		return err
+	}
+
+	// Now split the right pane horizontally
+	// Target the right pane (pane 2)
+	rightPane := fmt.Sprintf("%s.2", target)
+	if err := s.SplitHorizontal(rightPane, workingDir); err != nil {
+		return err
+	}
+
+	// Now we have 3 panes:
+	// Pane 1 (left): claude (orchestrator)
+	// Pane 2 (top right): vim
+	// Pane 3 (bottom right): shell
+
+	// Launch claude in pane 1 (left)
+	pane1 := fmt.Sprintf("%s.1", target)
+	if err := s.SendKeys(pane1, "claude"); err != nil {
+		return fmt.Errorf("failed to launch claude: %w", err)
+	}
+
+	// Launch vim in pane 2 (top right)
+	pane2 := fmt.Sprintf("%s.2", target)
+	if err := s.SendKeys(pane2, "vim"); err != nil {
+		return fmt.Errorf("failed to launch vim: %w", err)
+	}
+
+	// Pane 3 (bottom right) is just a shell, already there
+
+	return nil
+}
+
 // CreateGroveWindow creates a grove window with sophisticated layout:
 // Layout:
 //   ┌─────────────────┬─────────────────┐
