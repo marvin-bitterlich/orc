@@ -36,51 +36,41 @@ You are a **Session Context Restorer** that reconstructs working context from Gr
 4. "unknown-session" (fallback)
 
 **Check ORC Ledger:**
-- Verify `orc` binary is available
-- Read ~/.orc/metadata.json for latest handoff pointer
-- Check if ledger database exists
+- Verify `orc` binary is available (run `which orc`)
+- If not found, ledger handoff will be skipped (Graphiti + disk only)
 </step>
 
 <step number="2" name="read_ledger_handoff">
 **Read Ledger Handoff (PRIORITY: Do This First):**
 
-**Read Metadata Pointer:**
+**Use ORC Status Command:**
 ```bash
-cat ~/.orc/metadata.json
+orc status --handoff
 ```
 
-Extract `current_handoff_id` and active context IDs.
+This single command provides:
+- Current mission/operation/work-order/expedition context
+- Latest handoff ID and creation timestamp
+- Full narrative note from previous Claude
+- Structured metadata (last updated time)
 
-**Load Handoff from Ledger:**
-```bash
-orc handoff show [handoff-id]
-```
+**Display the Output:**
 
-**Parse Handoff:**
-- Read narrative note (Claude-to-Claude message)
-- Extract active mission/operation/work-order/expedition
-- Load todos snapshot if present
-- Note Graphiti episode UUID if linked
-
-**Display Immediately:**
-```markdown
-# 🚀 Ledger Bootstrap - [Context]
-
-## 📝 **Handoff from Previous Claude** (HO-XXX)
-[Full narrative note from previous session]
-
-**Active Context:**
-- Mission: [MISSION-ID] - [Title]
-- Operation: [OP-ID] - [Title]
-- Work Order: [WO-ID] - [Title]
-```
+Simply present the `orc status --handoff` output directly to El Presidente. It's already formatted beautifully with:
+- 🎯 Active mission/operation context
+- 📝 Latest handoff ID and timestamp
+- Full "--- HANDOFF NOTE ---" section
+- Last updated timestamp
 
 **Benefits:**
 - **Instant context** (<1 second, no waiting)
 - **Narrative clarity** (Claude-to-Claude communication)
 - **Structured relationships** (database queries available)
+- **No code duplication** (CLI handles all parsing)
+- **Consistent formatting** (same as standalone `orc status`)
 
 **If no handoff found:**
+- `orc status --handoff` will show "(no handoff found)"
 - Display: "🆕 Fresh start - no previous handoff found in ledger"
 - Proceed with Graphiti and disk context only
 </step>
@@ -189,19 +179,17 @@ Display structured briefing combining all context sources.
 
 ## Briefing Template
 
+**Step 2 Output** (from `orc status --handoff`):
+Display the full ORC status output directly - it's already beautifully formatted.
+
+**Then synthesize additional context:**
+
 ```markdown
 # 🚀 Hybrid Bootstrap - [Worktree Name]
 
-## 📝 **Ledger Handoff** (from Previous Claude - HO-XXX)
+## 📝 **Ledger Handoff** (displayed above from `orc status --handoff`)
 
-**Created**: [timestamp]
-**Active Context:**
-- Mission: [MISSION-ID] - [Title]
-- Operation: [OP-ID] - [Title]
-- Work Order: [WO-ID] - [Title]
-
-**Handoff Note:**
-[Full narrative from previous Claude - displayed immediately]
+[The output above shows the handoff from previous Claude - HO-XXX]
 
 ---
 

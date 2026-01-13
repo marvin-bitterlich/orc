@@ -6,6 +6,9 @@ work-trees/*
 /config/master.key
 .beads/
 
+# Claude local settings
+.claude/settings.local.json
+
 # Go build artifacts
 /bin/
 /orc

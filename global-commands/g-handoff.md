@@ -39,9 +39,9 @@ You are a **Session Context Archiver** that captures agent discoveries, decision
 4. "unknown-session" (fallback)
 
 **Check ORC Ledger:**
-- Verify `orc` binary is available
-- Check if ~/.orc/orc.db exists
-- If not initialized, suggest running `orc init`
+- Verify `orc` binary is available (run `which orc`)
+- If not found, ledger handoff will fail (Graphiti-only fallback not available in handoff)
+- The `orc handoff create` command will error if ledger not initialized
 </step>
 
 <step number="2" name="gather_session_state">
