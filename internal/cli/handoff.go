@@ -67,9 +67,7 @@ Examples:
 
 		// Get active context from flags
 		missionID, _ := cmd.Flags().GetString("mission")
-		operationID, _ := cmd.Flags().GetString("operation")
-		workOrderID, _ := cmd.Flags().GetString("work-order")
-		expeditionID, _ := cmd.Flags().GetString("expedition")
+		workOrderIDs, _ := cmd.Flags().GetStringSlice("work-orders")
 		todosFile, _ := cmd.Flags().GetString("todos")
 		graphitiUUID, _ := cmd.Flags().GetString("graphiti-uuid")
 
@@ -89,7 +87,7 @@ Examples:
 			}
 		}
 
-		handoff, err := models.CreateHandoff(note, missionID, operationID, workOrderID, expeditionID, todosJSON, graphitiUUID)
+		handoff, err := models.CreateHandoff(note, missionID, workOrderIDs, todosJSON, graphitiUUID)
 		if err != nil {
 			return fmt.Errorf("failed to create handoff: %w", err)
 		}
@@ -99,14 +97,8 @@ Examples:
 		if handoff.ActiveMissionID.Valid {
 			fmt.Printf("  Mission: %s\n", handoff.ActiveMissionID.String)
 		}
-		if handoff.ActiveOperationID.Valid {
-			fmt.Printf("  Operation: %s\n", handoff.ActiveOperationID.String)
-		}
-		if handoff.ActiveWorkOrderID.Valid {
-			fmt.Printf("  Work Order: %s\n", handoff.ActiveWorkOrderID.String)
-		}
-		if handoff.ActiveExpeditionID.Valid {
-			fmt.Printf("  Expedition: %s\n", handoff.ActiveExpeditionID.String)
+		if handoff.ActiveWorkOrders.Valid {
+			fmt.Printf("  Work Orders: %s\n", handoff.ActiveWorkOrders.String)
 		}
 
 		// Update metadata file
@@ -137,14 +129,8 @@ var handoffShowCmd = &cobra.Command{
 		if handoff.ActiveMissionID.Valid {
 			fmt.Printf("Mission: %s\n", handoff.ActiveMissionID.String)
 		}
-		if handoff.ActiveOperationID.Valid {
-			fmt.Printf("Operation: %s\n", handoff.ActiveOperationID.String)
-		}
-		if handoff.ActiveWorkOrderID.Valid {
-			fmt.Printf("Work Order: %s\n", handoff.ActiveWorkOrderID.String)
-		}
-		if handoff.ActiveExpeditionID.Valid {
-			fmt.Printf("Expedition: %s\n", handoff.ActiveExpeditionID.String)
+		if handoff.ActiveWorkOrders.Valid {
+			fmt.Printf("Work Orders: %s\n", handoff.ActiveWorkOrders.String)
 		}
 		if handoff.GraphitiEpisodeUUID.Valid {
 			fmt.Printf("Graphiti: %s\n", handoff.GraphitiEpisodeUUID.String)
@@ -176,22 +162,22 @@ var handoffListCmd = &cobra.Command{
 			return nil
 		}
 
-		fmt.Printf("\n%-10s %-20s %-15s %-15s\n", "ID", "CREATED", "MISSION", "OPERATION")
-		fmt.Println("─────────────────────────────────────────────────────────────────────")
+		fmt.Printf("\n%-10s %-20s %-15s %-30s\n", "ID", "CREATED", "MISSION", "WORK ORDERS")
+		fmt.Println("─────────────────────────────────────────────────────────────────────────────")
 		for _, h := range handoffs {
 			mission := "-"
 			if h.ActiveMissionID.Valid {
 				mission = h.ActiveMissionID.String
 			}
-			operation := "-"
-			if h.ActiveOperationID.Valid {
-				operation = h.ActiveOperationID.String
+			workOrders := "-"
+			if h.ActiveWorkOrders.Valid {
+				workOrders = h.ActiveWorkOrders.String
 			}
-			fmt.Printf("%-10s %-20s %-15s %-15s\n",
+			fmt.Printf("%-10s %-20s %-15s %-30s\n",
 				h.ID,
 				h.CreatedAt.Format("2006-01-02 15:04"),
 				mission,
-				operation,
+				workOrders,
 			)
 		}
 		fmt.Println()
@@ -218,14 +204,8 @@ func updateMetadata(handoff *models.Handoff) error {
 	if handoff.ActiveMissionID.Valid {
 		metadata["active_mission_id"] = handoff.ActiveMissionID.String
 	}
-	if handoff.ActiveOperationID.Valid {
-		metadata["active_operation_id"] = handoff.ActiveOperationID.String
-	}
-	if handoff.ActiveWorkOrderID.Valid {
-		metadata["active_work_order_id"] = handoff.ActiveWorkOrderID.String
-	}
-	if handoff.ActiveExpeditionID.Valid {
-		metadata["active_expedition_id"] = handoff.ActiveExpeditionID.String
+	if handoff.ActiveWorkOrders.Valid {
+		metadata["active_work_orders"] = handoff.ActiveWorkOrders.String
 	}
 
 	data, err := json.MarshalIndent(metadata, "", "  ")
@@ -243,9 +223,7 @@ func HandoffCmd() *cobra.Command {
 	handoffCreateCmd.Flags().StringP("file", "f", "", "Read handoff note from file")
 	handoffCreateCmd.Flags().Bool("stdin", false, "Read handoff note from stdin")
 	handoffCreateCmd.Flags().StringP("mission", "m", "", "Active mission ID")
-	handoffCreateCmd.Flags().StringP("operation", "o", "", "Active operation ID")
-	handoffCreateCmd.Flags().StringP("work-order", "w", "", "Active work order ID")
-	handoffCreateCmd.Flags().StringP("expedition", "e", "", "Active expedition ID")
+	handoffCreateCmd.Flags().StringSliceP("work-orders", "w", nil, "Comma-separated list of active work order IDs")
 	handoffCreateCmd.Flags().StringP("todos", "t", "", "Path to todos JSON file")
 	handoffCreateCmd.Flags().StringP("graphiti-uuid", "g", "", "Graphiti episode UUID")
 
