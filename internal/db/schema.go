@@ -88,6 +88,23 @@ CREATE TABLE IF NOT EXISTS plans (
 	FOREIGN KEY (expedition_id) REFERENCES expeditions(id)
 );
 
+-- Handoffs (Claude-to-Claude context transfer)
+CREATE TABLE IF NOT EXISTS handoffs (
+	id TEXT PRIMARY KEY,
+	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+	handoff_note TEXT NOT NULL,
+	active_mission_id TEXT,
+	active_operation_id TEXT,
+	active_work_order_id TEXT,
+	active_expedition_id TEXT,
+	todos_snapshot TEXT,
+	graphiti_episode_uuid TEXT,
+	FOREIGN KEY (active_mission_id) REFERENCES missions(id),
+	FOREIGN KEY (active_operation_id) REFERENCES operations(id),
+	FOREIGN KEY (active_work_order_id) REFERENCES work_orders(id),
+	FOREIGN KEY (active_expedition_id) REFERENCES expeditions(id)
+);
+
 -- Create indexes for common queries
 CREATE INDEX IF NOT EXISTS idx_missions_status ON missions(status);
 CREATE INDEX IF NOT EXISTS idx_operations_mission ON operations(mission_id);
@@ -98,6 +115,7 @@ CREATE INDEX IF NOT EXISTS idx_expeditions_status ON expeditions(status);
 CREATE INDEX IF NOT EXISTS idx_groves_status ON groves(status);
 CREATE INDEX IF NOT EXISTS idx_groves_expedition ON groves(expedition_id);
 CREATE INDEX IF NOT EXISTS idx_plans_expedition ON plans(expedition_id);
+CREATE INDEX IF NOT EXISTS idx_handoffs_created ON handoffs(created_at DESC);
 `
 
 // InitSchema creates the database schema
