@@ -9,34 +9,37 @@ import (
 )
 
 type WorkOrder struct {
-	ID          string
-	OperationID string
-	Title       string
-	Description sql.NullString
-	Status      string
-	AssignedImp sql.NullString
-	ContextRef  sql.NullString
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
-	ClaimedAt   sql.NullTime
-	CompletedAt sql.NullTime
+	ID              string
+	MissionID       string
+	Title           string
+	Description     sql.NullString
+	Type            sql.NullString
+	Status          string
+	Priority        sql.NullString
+	ParentID        sql.NullString
+	AssignedGroveID sql.NullString
+	ContextRef      sql.NullString
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+	ClaimedAt       sql.NullTime
+	CompletedAt     sql.NullTime
 }
 
 // CreateWorkOrder creates a new work order
-func CreateWorkOrder(operationID, title, description, contextRef string) (*WorkOrder, error) {
+func CreateWorkOrder(missionID, title, description, contextRef string) (*WorkOrder, error) {
 	database, err := db.GetDB()
 	if err != nil {
 		return nil, err
 	}
 
-	// Verify operation exists
+	// Verify mission exists
 	var exists int
-	err = database.QueryRow("SELECT COUNT(*) FROM operations WHERE id = ?", operationID).Scan(&exists)
+	err = database.QueryRow("SELECT COUNT(*) FROM missions WHERE id = ?", missionID).Scan(&exists)
 	if err != nil {
 		return nil, err
 	}
 	if exists == 0 {
-		return nil, fmt.Errorf("operation %s not found", operationID)
+		return nil, fmt.Errorf("mission %s not found", missionID)
 	}
 
 	// Generate work order ID
@@ -59,8 +62,8 @@ func CreateWorkOrder(operationID, title, description, contextRef string) (*WorkO
 	}
 
 	_, err = database.Exec(
-		"INSERT INTO work_orders (id, operation_id, title, description, context_ref, status) VALUES (?, ?, ?, ?, ?, ?)",
-		id, operationID, title, desc, ctxRef, "backlog",
+		"INSERT INTO work_orders (id, mission_id, title, description, context_ref, status) VALUES (?, ?, ?, ?, ?, ?)",
+		id, missionID, title, desc, ctxRef, "backlog",
 	)
 	if err != nil {
 		return nil, err
@@ -78,9 +81,9 @@ func GetWorkOrder(id string) (*WorkOrder, error) {
 
 	wo := &WorkOrder{}
 	err = database.QueryRow(
-		"SELECT id, operation_id, title, description, status, assigned_imp, context_ref, created_at, updated_at, claimed_at, completed_at FROM work_orders WHERE id = ?",
+		"SELECT id, mission_id, title, description, type, status, priority, parent_id, assigned_grove_id, context_ref, created_at, updated_at, claimed_at, completed_at FROM work_orders WHERE id = ?",
 		id,
-	).Scan(&wo.ID, &wo.OperationID, &wo.Title, &wo.Description, &wo.Status, &wo.AssignedImp, &wo.ContextRef, &wo.CreatedAt, &wo.UpdatedAt, &wo.ClaimedAt, &wo.CompletedAt)
+	).Scan(&wo.ID, &wo.MissionID, &wo.Title, &wo.Description, &wo.Type, &wo.Status, &wo.Priority, &wo.ParentID, &wo.AssignedGroveID, &wo.ContextRef, &wo.CreatedAt, &wo.UpdatedAt, &wo.ClaimedAt, &wo.CompletedAt)
 
 	if err != nil {
 		return nil, err
@@ -89,19 +92,19 @@ func GetWorkOrder(id string) (*WorkOrder, error) {
 	return wo, nil
 }
 
-// ListWorkOrders retrieves work orders, optionally filtered by operation and/or status
-func ListWorkOrders(operationID, status string) ([]*WorkOrder, error) {
+// ListWorkOrders retrieves work orders, optionally filtered by mission and/or status
+func ListWorkOrders(missionID, status string) ([]*WorkOrder, error) {
 	database, err := db.GetDB()
 	if err != nil {
 		return nil, err
 	}
 
-	query := "SELECT id, operation_id, title, description, status, assigned_imp, context_ref, created_at, updated_at, claimed_at, completed_at FROM work_orders WHERE 1=1"
+	query := "SELECT id, mission_id, title, description, type, status, priority, parent_id, assigned_grove_id, context_ref, created_at, updated_at, claimed_at, completed_at FROM work_orders WHERE 1=1"
 	args := []interface{}{}
 
-	if operationID != "" {
-		query += " AND operation_id = ?"
-		args = append(args, operationID)
+	if missionID != "" {
+		query += " AND mission_id = ?"
+		args = append(args, missionID)
 	}
 
 	if status != "" {
@@ -120,7 +123,7 @@ func ListWorkOrders(operationID, status string) ([]*WorkOrder, error) {
 	var orders []*WorkOrder
 	for rows.Next() {
 		wo := &WorkOrder{}
-		err := rows.Scan(&wo.ID, &wo.OperationID, &wo.Title, &wo.Description, &wo.Status, &wo.AssignedImp, &wo.ContextRef, &wo.CreatedAt, &wo.UpdatedAt, &wo.ClaimedAt, &wo.CompletedAt)
+		err := rows.Scan(&wo.ID, &wo.MissionID, &wo.Title, &wo.Description, &wo.Type, &wo.Status, &wo.Priority, &wo.ParentID, &wo.AssignedGroveID, &wo.ContextRef, &wo.CreatedAt, &wo.UpdatedAt, &wo.ClaimedAt, &wo.CompletedAt)
 		if err != nil {
 			return nil, err
 		}
@@ -130,16 +133,21 @@ func ListWorkOrders(operationID, status string) ([]*WorkOrder, error) {
 	return orders, nil
 }
 
-// ClaimWorkOrder assigns a work order to an IMP and marks it as in_progress
-func ClaimWorkOrder(id, impName string) error {
+// ClaimWorkOrder assigns a work order to a grove and marks it as in_progress
+func ClaimWorkOrder(id, groveID string) error {
 	database, err := db.GetDB()
 	if err != nil {
 		return err
 	}
 
+	var groveIDNullable sql.NullString
+	if groveID != "" {
+		groveIDNullable = sql.NullString{String: groveID, Valid: true}
+	}
+
 	_, err = database.Exec(
-		"UPDATE work_orders SET status = 'in_progress', assigned_imp = ?, claimed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-		impName, id,
+		"UPDATE work_orders SET status = 'in_progress', assigned_grove_id = ?, claimed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+		groveIDNullable, id,
 	)
 
 	return err

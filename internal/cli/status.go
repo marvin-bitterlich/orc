@@ -93,8 +93,8 @@ This provides a focused view of "where am I right now?"`,
 					if workOrder.Description.Valid && workOrder.Description.String != "" {
 						fmt.Printf("   %s\n", workOrder.Description.String)
 					}
-					if workOrder.AssignedImp.Valid && workOrder.AssignedImp.String != "" {
-						fmt.Printf("   IMP: %s\n", workOrder.AssignedImp.String)
+					if workOrder.AssignedGroveID.Valid && workOrder.AssignedGroveID.String != "" {
+						fmt.Printf("   Grove: %s\n", workOrder.AssignedGroveID.String)
 					}
 				}
 			} else {

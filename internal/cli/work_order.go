@@ -19,21 +19,22 @@ var workOrderCreateCmd = &cobra.Command{
 	Args:  cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		title := args[0]
-		operationID, _ := cmd.Flags().GetString("operation")
+		missionID, _ := cmd.Flags().GetString("mission")
 		description, _ := cmd.Flags().GetString("description")
 		contextRef, _ := cmd.Flags().GetString("context-ref")
 
-		if operationID == "" {
-			return fmt.Errorf("--operation flag is required")
+		// Default to MISSION-001 if not specified
+		if missionID == "" {
+			missionID = "MISSION-001"
 		}
 
-		wo, err := models.CreateWorkOrder(operationID, title, description, contextRef)
+		wo, err := models.CreateWorkOrder(missionID, title, description, contextRef)
 		if err != nil {
 			return fmt.Errorf("failed to create work order: %w", err)
 		}
 
 		fmt.Printf("✓ Created work order %s: %s\n", wo.ID, wo.Title)
-		fmt.Printf("  Under operation: %s\n", wo.OperationID)
+		fmt.Printf("  Under mission: %s\n", wo.MissionID)
 		if wo.ContextRef.Valid {
 			fmt.Printf("  Context: %s\n", wo.ContextRef.String)
 		}
@@ -45,10 +46,10 @@ var workOrderListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List work orders",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		operationID, _ := cmd.Flags().GetString("operation")
+		missionID, _ := cmd.Flags().GetString("mission")
 		status, _ := cmd.Flags().GetString("status")
 
-		orders, err := models.ListWorkOrders(operationID, status)
+		orders, err := models.ListWorkOrders(missionID, status)
 		if err != nil {
 			return fmt.Errorf("failed to list work orders: %w", err)
 		}
@@ -58,14 +59,14 @@ var workOrderListCmd = &cobra.Command{
 			return nil
 		}
 
-		fmt.Printf("\n%-15s %-15s %-10s %-15s %s\n", "ID", "OPERATION", "STATUS", "ASSIGNED", "TITLE")
+		fmt.Printf("\n%-15s %-15s %-10s %-15s %s\n", "ID", "MISSION", "STATUS", "GROVE", "TITLE")
 		fmt.Println("─────────────────────────────────────────────────────────────────────────────────")
 		for _, wo := range orders {
-			assigned := "-"
-			if wo.AssignedImp.Valid {
-				assigned = wo.AssignedImp.String
+			grove := "-"
+			if wo.AssignedGroveID.Valid {
+				grove = wo.AssignedGroveID.String
 			}
-			fmt.Printf("%-15s %-15s %-10s %-15s %s\n", wo.ID, wo.OperationID, wo.Status, assigned, wo.Title)
+			fmt.Printf("%-15s %-15s %-10s %-15s %s\n", wo.ID, wo.MissionID, wo.Status, grove, wo.Title)
 		}
 		fmt.Println()
 
@@ -86,14 +87,23 @@ var workOrderShowCmd = &cobra.Command{
 		}
 
 		fmt.Printf("\nWork Order: %s\n", wo.ID)
-		fmt.Printf("Operation:  %s\n", wo.OperationID)
+		fmt.Printf("Mission:    %s\n", wo.MissionID)
 		fmt.Printf("Title:      %s\n", wo.Title)
 		fmt.Printf("Status:     %s\n", wo.Status)
+		if wo.Type.Valid {
+			fmt.Printf("Type:       %s\n", wo.Type.String)
+		}
+		if wo.Priority.Valid {
+			fmt.Printf("Priority:   %s\n", wo.Priority.String)
+		}
+		if wo.ParentID.Valid {
+			fmt.Printf("Parent:     %s\n", wo.ParentID.String)
+		}
 		if wo.Description.Valid {
 			fmt.Printf("Description: %s\n", wo.Description.String)
 		}
-		if wo.AssignedImp.Valid {
-			fmt.Printf("Assigned:   %s\n", wo.AssignedImp.String)
+		if wo.AssignedGroveID.Valid {
+			fmt.Printf("Grove:      %s\n", wo.AssignedGroveID.String)
 		}
 		if wo.ContextRef.Valid {
 			fmt.Printf("Context:    %s\n", wo.ContextRef.String)
@@ -117,18 +127,18 @@ var workOrderClaimCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		id := args[0]
-		impName, _ := cmd.Flags().GetString("imp")
+		groveID, _ := cmd.Flags().GetString("grove")
 
-		if impName == "" {
-			impName = "IMP-UNKNOWN"
-		}
-
-		err := models.ClaimWorkOrder(id, impName)
+		err := models.ClaimWorkOrder(id, groveID)
 		if err != nil {
 			return fmt.Errorf("failed to claim work order: %w", err)
 		}
 
-		fmt.Printf("✓ Work order %s claimed by %s\n", id, impName)
+		if groveID != "" {
+			fmt.Printf("✓ Work order %s claimed by %s\n", id, groveID)
+		} else {
+			fmt.Printf("✓ Work order %s claimed by IMP-UNKNOWN\n", id)
+		}
 		fmt.Printf("  Status: in_progress\n")
 		return nil
 	},
@@ -154,14 +164,14 @@ var workOrderCompleteCmd = &cobra.Command{
 // WorkOrderCmd returns the work-order command
 func WorkOrderCmd() *cobra.Command {
 	// Add flags
-	workOrderCreateCmd.Flags().StringP("operation", "o", "", "Operation ID (required)")
+	workOrderCreateCmd.Flags().StringP("mission", "m", "", "Mission ID (defaults to MISSION-001)")
 	workOrderCreateCmd.Flags().StringP("description", "d", "", "Work order description")
 	workOrderCreateCmd.Flags().StringP("context-ref", "c", "", "Graphiti context reference (e.g., graphiti:episode-uuid)")
 
-	workOrderListCmd.Flags().StringP("operation", "o", "", "Filter by operation ID")
+	workOrderListCmd.Flags().StringP("mission", "m", "", "Filter by mission ID")
 	workOrderListCmd.Flags().StringP("status", "s", "", "Filter by status (backlog, next, in_progress, complete)")
 
-	workOrderClaimCmd.Flags().StringP("imp", "i", "", "IMP name claiming the work order")
+	workOrderClaimCmd.Flags().StringP("grove", "g", "", "Grove ID claiming the work order")
 
 	// Add subcommands
 	workOrderCmd.AddCommand(workOrderCreateCmd)
