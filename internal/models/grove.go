@@ -9,30 +9,60 @@ import (
 )
 
 type Grove struct {
-	ID           string
-	Path         string
-	Repos        sql.NullString
-	ExpeditionID sql.NullString
-	Status       string
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
+	ID        string
+	MissionID string
+	Name      string
+	Path      string
+	Repos     sql.NullString
+	Status    string
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 // CreateGrove creates a new grove
-func CreateGrove(id, path string, expeditionID *string) (*Grove, error) {
+func CreateGrove(missionID, name, path string, repos []string) (*Grove, error) {
 	database, err := db.GetDB()
 	if err != nil {
 		return nil, err
 	}
 
-	var expID sql.NullString
-	if expeditionID != nil {
-		expID = sql.NullString{String: *expeditionID, Valid: true}
+	// Verify mission exists
+	var exists int
+	err = database.QueryRow("SELECT COUNT(*) FROM missions WHERE id = ?", missionID).Scan(&exists)
+	if err != nil {
+		return nil, err
+	}
+	if exists == 0 {
+		return nil, fmt.Errorf("mission %s not found", missionID)
+	}
+
+	// Generate grove ID
+	var count int
+	err = database.QueryRow("SELECT COUNT(*) FROM groves").Scan(&count)
+	if err != nil {
+		return nil, err
+	}
+
+	id := fmt.Sprintf("GROVE-%03d", count+1)
+
+	// Convert repos array to JSON
+	var reposJSON sql.NullString
+	if len(repos) > 0 {
+		// Simple JSON array format
+		reposStr := "["
+		for i, repo := range repos {
+			if i > 0 {
+				reposStr += ","
+			}
+			reposStr += fmt.Sprintf(`"%s"`, repo)
+		}
+		reposStr += "]"
+		reposJSON = sql.NullString{String: reposStr, Valid: true}
 	}
 
 	_, err = database.Exec(
-		"INSERT INTO groves (id, path, expedition_id, status) VALUES (?, ?, ?, ?)",
-		id, path, expID, "active",
+		"INSERT INTO groves (id, mission_id, name, path, repos, status) VALUES (?, ?, ?, ?, ?, ?)",
+		id, missionID, name, path, reposJSON, "active",
 	)
 	if err != nil {
 		return nil, err
@@ -50,9 +80,9 @@ func GetGrove(id string) (*Grove, error) {
 
 	grove := &Grove{}
 	err = database.QueryRow(
-		"SELECT id, path, repos, expedition_id, status, created_at, updated_at FROM groves WHERE id = ?",
+		"SELECT id, mission_id, name, path, repos, status, created_at, updated_at FROM groves WHERE id = ?",
 		id,
-	).Scan(&grove.ID, &grove.Path, &grove.Repos, &grove.ExpeditionID, &grove.Status, &grove.CreatedAt, &grove.UpdatedAt)
+	).Scan(&grove.ID, &grove.MissionID, &grove.Name, &grove.Path, &grove.Repos, &grove.Status, &grove.CreatedAt, &grove.UpdatedAt)
 
 	if err != nil {
 		return nil, err
@@ -61,16 +91,24 @@ func GetGrove(id string) (*Grove, error) {
 	return grove, nil
 }
 
-// ListGroves retrieves all groves
-func ListGroves() ([]*Grove, error) {
+// ListGroves retrieves all groves, optionally filtered by mission
+func ListGroves(missionID string) ([]*Grove, error) {
 	database, err := db.GetDB()
 	if err != nil {
 		return nil, err
 	}
 
-	rows, err := database.Query(
-		"SELECT id, path, repos, expedition_id, status, created_at, updated_at FROM groves ORDER BY created_at DESC",
-	)
+	query := "SELECT id, mission_id, name, path, repos, status, created_at, updated_at FROM groves WHERE 1=1"
+	args := []interface{}{}
+
+	if missionID != "" {
+		query += " AND mission_id = ?"
+		args = append(args, missionID)
+	}
+
+	query += " ORDER BY created_at DESC"
+
+	rows, err := database.Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +117,7 @@ func ListGroves() ([]*Grove, error) {
 	var groves []*Grove
 	for rows.Next() {
 		grove := &Grove{}
-		err := rows.Scan(&grove.ID, &grove.Path, &grove.Repos, &grove.ExpeditionID, &grove.Status, &grove.CreatedAt, &grove.UpdatedAt)
+		err := rows.Scan(&grove.ID, &grove.MissionID, &grove.Name, &grove.Path, &grove.Repos, &grove.Status, &grove.CreatedAt, &grove.UpdatedAt)
 		if err != nil {
 			return nil, err
 		}
@@ -89,16 +127,16 @@ func ListGroves() ([]*Grove, error) {
 	return groves, nil
 }
 
-// GetGrovesByExpedition retrieves all groves for an expedition
-func GetGrovesByExpedition(expeditionID string) ([]*Grove, error) {
+// GetGrovesByMission retrieves all active groves for a mission
+func GetGrovesByMission(missionID string) ([]*Grove, error) {
 	database, err := db.GetDB()
 	if err != nil {
 		return nil, err
 	}
 
 	rows, err := database.Query(
-		"SELECT id, path, repos, expedition_id, status, created_at, updated_at FROM groves WHERE expedition_id = ? ORDER BY created_at DESC",
-		expeditionID,
+		"SELECT id, mission_id, name, path, repos, status, created_at, updated_at FROM groves WHERE mission_id = ? AND status = 'active' ORDER BY created_at DESC",
+		missionID,
 	)
 	if err != nil {
 		return nil, err
@@ -108,7 +146,7 @@ func GetGrovesByExpedition(expeditionID string) ([]*Grove, error) {
 	var groves []*Grove
 	for rows.Next() {
 		grove := &Grove{}
-		err := rows.Scan(&grove.ID, &grove.Path, &grove.Repos, &grove.ExpeditionID, &grove.Status, &grove.CreatedAt, &grove.UpdatedAt)
+		err := rows.Scan(&grove.ID, &grove.MissionID, &grove.Name, &grove.Path, &grove.Repos, &grove.Status, &grove.CreatedAt, &grove.UpdatedAt)
 		if err != nil {
 			return nil, fmt.Errorf("error scanning grove: %w", err)
 		}
