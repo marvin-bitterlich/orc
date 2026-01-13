@@ -1,30 +1,11 @@
-# ORC Glossary
+# Graphiti Episode Types
 
-**THIS FILE HAS MOVED**
-
-The glossary has been reorganized into separate files by system/concern.
-
-## 📁 New Location: `glossary/`
-
-- **[glossary/ledger-entities.md](./glossary/ledger-entities.md)** - Database schema entities (Mission, Operation, Work Order, Expedition, Grove, etc.)
-- **[glossary/graphiti-episode-types.md](./glossary/graphiti-episode-types.md)** - Episode naming conventions (Design Decision, Learning Artifact, etc.)
-- **[glossary/forest-factory-roles.md](./glossary/forest-factory-roles.md)** - Conceptual roles (El Presidente, ORC, IMP, Mage, Grove)
-- **[glossary/README.md](./glossary/README.md)** - Overview and how to use the glossary
+**Source**: Original GLOSSARY.md
+**Purpose**: Standardized episode types for Graphiti knowledge capture
+**Approach**: Name-based convention (prefix episode names with type)
+**Status**: Living document - evolve as patterns emerge
 
 ---
-
-## Why the Change?
-
-Different systems (Ledger, Graphiti, Conceptual Model) were mixed together, causing confusion. The new structure separates concerns and makes it easier to identify tensions between systems.
-
----
-
-**Redirected**: 2026-01-13
-**See**: `glossary/README.md` for full documentation
-
----
-
-# DEPRECATED CONTENT BELOW (Preserved for Reference)
 
 ## Episode Types
 
@@ -287,15 +268,5 @@ Primary types: **Discovery**, **Session Summary**, **Implementation Record**
 
 ---
 
-## Related Documentation
-
-- `CLAUDE.md` - ORC orchestrator instructions (references this glossary)
-- `/g-handoff` - Session Summary automation
-- `/g-bootstrap` - Context restoration from episodes
-- `NORTH_STAR.md` - Example of Architectural Vision
-
----
-
 **Last Updated**: 2026-01-13
-**Status**: Initial version
-**Next Review**: After prototype phase reveals usage patterns
+**Status**: Migrated from GLOSSARY.md
