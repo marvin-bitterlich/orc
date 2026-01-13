@@ -3,11 +3,11 @@ package cli
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 
 	"github.com/looneym/orc/internal/context"
 	"github.com/looneym/orc/internal/models"
+	"github.com/looneym/orc/internal/tmux"
 	"github.com/spf13/cobra"
 )
 
@@ -141,13 +141,13 @@ Examples:
 			return fmt.Errorf("failed to get mission: %w", err)
 		}
 
-		// Default workspace path
+		// Default workspace path: ~/src/missions/MISSION-ID
 		if workspacePath == "" {
 			home, err := os.UserHomeDir()
 			if err != nil {
 				return fmt.Errorf("failed to get home directory: %w", err)
 			}
-			workspacePath = filepath.Join(home, "missions", missionID)
+			workspacePath = filepath.Join(home, "src", "missions", missionID)
 		}
 
 		// Create workspace directory
@@ -173,38 +173,48 @@ Examples:
 		// Create TMux session
 		sessionName := fmt.Sprintf("orc-%s", missionID)
 
+		// Check if session already exists
+		if tmux.SessionExists(sessionName) {
+			return fmt.Errorf("TMux session '%s' already exists. Attach with: tmux attach -t %s", sessionName, sessionName)
+		}
+
 		fmt.Printf("Creating TMux session: %s\n", sessionName)
 
-		// Create session with first window (deputy ORC)
-		createCmd := exec.Command("tmux", "new-session", "-d", "-s", sessionName, "-c", workspacePath)
-		if err := createCmd.Run(); err != nil {
+		// Create session with base numbering from 1
+		session, err := tmux.NewSession(sessionName, workspacePath)
+		if err != nil {
 			return fmt.Errorf("failed to create TMux session: %w", err)
 		}
 
-		// Rename first window
-		renameCmd := exec.Command("tmux", "rename-window", "-t", fmt.Sprintf("%s:0", sessionName), "deputy")
-		renameCmd.Run()
+		// Create deputy window (window 1) with claude
+		if _, err := session.CreateDeputyWindow(); err != nil {
+			return fmt.Errorf("failed to create deputy window: %w", err)
+		}
+		fmt.Printf("  ✓ Window 1: deputy (claude mission control)\n")
 
-		fmt.Printf("  ✓ Created window: deputy (mission control)\n")
-
-		// Create window for each grove
+		// Create window for each grove with sophisticated layout
 		for i, grove := range groves {
-			windowName := grove.Name
+			windowIndex := i + 2 // Windows start at 1, deputy is 1, groves start at 2
 
-			// Create new window
-			newWindowCmd := exec.Command("tmux", "new-window", "-t", sessionName, "-n", windowName, "-c", grove.Path)
-			if err := newWindowCmd.Run(); err != nil {
+			// Check if grove path exists
+			pathExists := false
+			if _, err := os.Stat(grove.Path); err == nil {
+				pathExists = true
+			}
+
+			if !pathExists {
+				fmt.Printf("  ℹ️  Grove %s worktree not found at %s\n", grove.ID, grove.Path)
+				fmt.Printf("      Skipping window creation. Run 'orc grove create %s --repos <repo-names>' to materialize\n", grove.Name)
+				continue
+			}
+
+			// Create grove window with vim, claude IMP, and shell
+			if _, err := session.CreateGroveWindow(windowIndex, grove.Name, grove.Path); err != nil {
 				fmt.Printf("  ⚠️  Warning: Could not create window for grove %s: %v\n", grove.ID, err)
 				continue
 			}
 
-			// Check if grove path exists, if not try to materialize worktree
-			if _, err := os.Stat(grove.Path); os.IsNotExist(err) {
-				fmt.Printf("  ℹ️  Grove %s worktree not found at %s\n", grove.ID, grove.Path)
-				fmt.Printf("      Run 'orc grove create %s --repos <repo-names>' to materialize\n", grove.Name)
-			} else {
-				fmt.Printf("  ✓ Created window %d: %s (%s)\n", i+1, windowName, grove.ID)
-			}
+			fmt.Printf("  ✓ Window %d: %s (vim | claude IMP | shell) [%s]\n", windowIndex, grove.Name, grove.ID)
 		}
 
 		if len(groves) == 0 {
@@ -212,14 +222,13 @@ Examples:
 			fmt.Printf("     Create groves with: orc grove create <name> --mission %s --repos <repo-names>\n", missionID)
 		}
 
+		// Select the deputy window (window 1) as default
+		session.SelectWindow(1)
+
 		fmt.Println()
 		fmt.Printf("Mission workspace ready!\n")
-		fmt.Printf("Attach to session: tmux attach -t %s\n", sessionName)
 		fmt.Println()
-		fmt.Println("When inside the session:")
-		fmt.Println("  - Deputy ORC commands automatically scoped to this mission")
-		fmt.Println("  - Switch windows: Ctrl+b then window number")
-		fmt.Println("  - Detach session: Ctrl+b then d")
+		fmt.Println(tmux.AttachInstructions(sessionName))
 
 		return nil
 	},
