@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
-	"strings"
 
 	"github.com/looneym/orc/internal/models"
 	"github.com/spf13/cobra"
@@ -22,13 +20,14 @@ type Metadata struct {
 
 // StatusCmd returns the status command
 func StatusCmd() *cobra.Command {
+	var showHandoff bool
+
 	cmd := &cobra.Command{
 		Use:   "status",
 		Short: "Show current work context from metadata.json",
 		Long: `Display the current work context based on metadata.json:
 - Active mission, operation, work order, expedition
-- Latest handoff note
-- Git status (if in git repository)
+- Latest handoff ID and timestamp (use --handoff to see full note)
 
 This provides a focused view of "where am I right now?"`,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -130,31 +129,19 @@ This provides a focused view of "where am I right now?"`,
 				} else {
 					fmt.Printf("📝 Latest Handoff: %s\n", handoff.ID)
 					fmt.Printf("   Created: %s\n", handoff.CreatedAt.Format("2006-01-02 15:04:05"))
-					fmt.Println()
-					fmt.Println("--- HANDOFF NOTE ---")
-					fmt.Println(handoff.HandoffNote)
-					fmt.Println("--- END HANDOFF ---")
+
+					// Show full note if --handoff flag is set
+					if showHandoff {
+						fmt.Println()
+						fmt.Println("--- HANDOFF NOTE ---")
+						fmt.Println(handoff.HandoffNote)
+						fmt.Println("--- END HANDOFF ---")
+					}
 				}
 			} else {
 				fmt.Println("📝 Latest Handoff: (none)")
 			}
 			fmt.Println()
-
-			// Show git status if in git repo
-			if isGitRepo() {
-				fmt.Println("📂 Git Status:")
-				gitStatus, err := getGitStatus()
-				if err != nil {
-					fmt.Printf("   (error: %v)\n", err)
-				} else {
-					// Indent git status output
-					lines := strings.Split(strings.TrimSpace(gitStatus), "\n")
-					for _, line := range lines {
-						fmt.Printf("   %s\n", line)
-					}
-				}
-				fmt.Println()
-			}
 
 			if metadata.LastUpdated != nil && *metadata.LastUpdated != "" {
 				fmt.Printf("Last updated: %s\n", *metadata.LastUpdated)
@@ -164,26 +151,7 @@ This provides a focused view of "where am I right now?"`,
 		},
 	}
 
+	cmd.Flags().BoolVarP(&showHandoff, "handoff", "n", false, "Show full handoff note")
+
 	return cmd
-}
-
-func isGitRepo() bool {
-	cmd := exec.Command("git", "rev-parse", "--git-dir")
-	err := cmd.Run()
-	return err == nil
-}
-
-func getGitStatus() (string, error) {
-	cmd := exec.Command("git", "status", "--short")
-	output, err := cmd.Output()
-	if err != nil {
-		return "", err
-	}
-
-	status := string(output)
-	if status == "" {
-		return "   (clean - no changes)", nil
-	}
-
-	return status, nil
 }
