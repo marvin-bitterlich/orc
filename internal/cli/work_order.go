@@ -22,19 +22,23 @@ var workOrderCreateCmd = &cobra.Command{
 		missionID, _ := cmd.Flags().GetString("mission")
 		description, _ := cmd.Flags().GetString("description")
 		contextRef, _ := cmd.Flags().GetString("context-ref")
+		parentID, _ := cmd.Flags().GetString("parent")
 
 		// Default to MISSION-001 if not specified
 		if missionID == "" {
 			missionID = "MISSION-001"
 		}
 
-		wo, err := models.CreateWorkOrder(missionID, title, description, contextRef)
+		wo, err := models.CreateWorkOrder(missionID, title, description, contextRef, parentID)
 		if err != nil {
 			return fmt.Errorf("failed to create work order: %w", err)
 		}
 
 		fmt.Printf("✓ Created work order %s: %s\n", wo.ID, wo.Title)
 		fmt.Printf("  Under mission: %s\n", wo.MissionID)
+		if wo.ParentID.Valid {
+			fmt.Printf("  Parent: %s\n", wo.ParentID.String)
+		}
 		if wo.ContextRef.Valid {
 			fmt.Printf("  Context: %s\n", wo.ContextRef.String)
 		}
@@ -161,17 +165,48 @@ var workOrderCompleteCmd = &cobra.Command{
 	},
 }
 
+var workOrderSetParentCmd = &cobra.Command{
+	Use:   "set-parent [work-order-id]",
+	Short: "Set or update the parent of a work order",
+	Long: `Set or update the parent work order to create an epic hierarchy.
+
+Examples:
+  orc work-order set-parent WO-015 --parent WO-010  # Make WO-015 a child of WO-010
+  orc work-order set-parent WO-015 --parent ""      # Remove parent (make top-level)`,
+	Args: cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		id := args[0]
+		parentID, _ := cmd.Flags().GetString("parent")
+
+		err := models.SetParentWorkOrder(id, parentID)
+		if err != nil {
+			return fmt.Errorf("failed to set parent: %w", err)
+		}
+
+		if parentID != "" {
+			fmt.Printf("✓ Work order %s parent set to %s\n", id, parentID)
+		} else {
+			fmt.Printf("✓ Work order %s parent removed (now top-level)\n", id)
+		}
+		return nil
+	},
+}
+
 // WorkOrderCmd returns the work-order command
 func WorkOrderCmd() *cobra.Command {
 	// Add flags
 	workOrderCreateCmd.Flags().StringP("mission", "m", "", "Mission ID (defaults to MISSION-001)")
 	workOrderCreateCmd.Flags().StringP("description", "d", "", "Work order description")
 	workOrderCreateCmd.Flags().StringP("context-ref", "c", "", "Graphiti context reference (e.g., graphiti:episode-uuid)")
+	workOrderCreateCmd.Flags().StringP("parent", "p", "", "Parent work order ID (for creating sub-tasks)")
 
 	workOrderListCmd.Flags().StringP("mission", "m", "", "Filter by mission ID")
 	workOrderListCmd.Flags().StringP("status", "s", "", "Filter by status (backlog, next, in_progress, complete)")
 
 	workOrderClaimCmd.Flags().StringP("grove", "g", "", "Grove ID claiming the work order")
+
+	workOrderSetParentCmd.Flags().StringP("parent", "p", "", "Parent work order ID (empty string to remove parent)")
+	workOrderSetParentCmd.MarkFlagRequired("parent")
 
 	// Add subcommands
 	workOrderCmd.AddCommand(workOrderCreateCmd)
@@ -179,6 +214,7 @@ func WorkOrderCmd() *cobra.Command {
 	workOrderCmd.AddCommand(workOrderShowCmd)
 	workOrderCmd.AddCommand(workOrderClaimCmd)
 	workOrderCmd.AddCommand(workOrderCompleteCmd)
+	workOrderCmd.AddCommand(workOrderSetParentCmd)
 
 	return workOrderCmd
 }

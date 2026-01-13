@@ -26,7 +26,7 @@ type WorkOrder struct {
 }
 
 // CreateWorkOrder creates a new work order
-func CreateWorkOrder(missionID, title, description, contextRef string) (*WorkOrder, error) {
+func CreateWorkOrder(missionID, title, description, contextRef, parentID string) (*WorkOrder, error) {
 	database, err := db.GetDB()
 	if err != nil {
 		return nil, err
@@ -40,6 +40,17 @@ func CreateWorkOrder(missionID, title, description, contextRef string) (*WorkOrd
 	}
 	if exists == 0 {
 		return nil, fmt.Errorf("mission %s not found", missionID)
+	}
+
+	// Verify parent exists if specified
+	if parentID != "" {
+		err = database.QueryRow("SELECT COUNT(*) FROM work_orders WHERE id = ?", parentID).Scan(&exists)
+		if err != nil {
+			return nil, err
+		}
+		if exists == 0 {
+			return nil, fmt.Errorf("parent work order %s not found", parentID)
+		}
 	}
 
 	// Generate work order ID
@@ -61,9 +72,14 @@ func CreateWorkOrder(missionID, title, description, contextRef string) (*WorkOrd
 		ctxRef = sql.NullString{String: contextRef, Valid: true}
 	}
 
+	var parent sql.NullString
+	if parentID != "" {
+		parent = sql.NullString{String: parentID, Valid: true}
+	}
+
 	_, err = database.Exec(
-		"INSERT INTO work_orders (id, mission_id, title, description, context_ref, status) VALUES (?, ?, ?, ?, ?, ?)",
-		id, missionID, title, desc, ctxRef, "backlog",
+		"INSERT INTO work_orders (id, mission_id, title, description, context_ref, parent_id, status) VALUES (?, ?, ?, ?, ?, ?, ?)",
+		id, missionID, title, desc, ctxRef, parent, "backlog",
 	)
 	if err != nil {
 		return nil, err
@@ -166,4 +182,88 @@ func CompleteWorkOrder(id string) error {
 	)
 
 	return err
+}
+
+// SetParentWorkOrder sets or updates the parent of a work order
+func SetParentWorkOrder(id, parentID string) error {
+	database, err := db.GetDB()
+	if err != nil {
+		return err
+	}
+
+	// Verify work order exists
+	var exists int
+	err = database.QueryRow("SELECT COUNT(*) FROM work_orders WHERE id = ?", id).Scan(&exists)
+	if err != nil {
+		return err
+	}
+	if exists == 0 {
+		return fmt.Errorf("work order %s not found", id)
+	}
+
+	// Verify parent exists if specified
+	if parentID != "" {
+		err = database.QueryRow("SELECT COUNT(*) FROM work_orders WHERE id = ?", parentID).Scan(&exists)
+		if err != nil {
+			return err
+		}
+		if exists == 0 {
+			return fmt.Errorf("parent work order %s not found", parentID)
+		}
+
+		// Prevent circular reference (work order can't be its own parent)
+		if id == parentID {
+			return fmt.Errorf("work order cannot be its own parent")
+		}
+
+		// Check if parent would create a cycle (parent's parent is this work order)
+		var parentOfParent sql.NullString
+		err = database.QueryRow("SELECT parent_id FROM work_orders WHERE id = ?", parentID).Scan(&parentOfParent)
+		if err != nil {
+			return err
+		}
+		if parentOfParent.Valid && parentOfParent.String == id {
+			return fmt.Errorf("cannot create circular parent relationship")
+		}
+	}
+
+	var parent sql.NullString
+	if parentID != "" {
+		parent = sql.NullString{String: parentID, Valid: true}
+	}
+
+	_, err = database.Exec(
+		"UPDATE work_orders SET parent_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+		parent, id,
+	)
+
+	return err
+}
+
+// GetChildWorkOrders retrieves all child work orders for a given parent
+func GetChildWorkOrders(parentID string) ([]*WorkOrder, error) {
+	database, err := db.GetDB()
+	if err != nil {
+		return nil, err
+	}
+
+	query := "SELECT id, mission_id, title, description, type, status, priority, parent_id, assigned_grove_id, context_ref, created_at, updated_at, claimed_at, completed_at FROM work_orders WHERE parent_id = ? ORDER BY created_at ASC"
+
+	rows, err := database.Query(query, parentID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var orders []*WorkOrder
+	for rows.Next() {
+		wo := &WorkOrder{}
+		err := rows.Scan(&wo.ID, &wo.MissionID, &wo.Title, &wo.Description, &wo.Type, &wo.Status, &wo.Priority, &wo.ParentID, &wo.AssignedGroveID, &wo.ContextRef, &wo.CreatedAt, &wo.UpdatedAt, &wo.ClaimedAt, &wo.CompletedAt)
+		if err != nil {
+			return nil, err
+		}
+		orders = append(orders, wo)
+	}
+
+	return orders, nil
 }
