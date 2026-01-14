@@ -11,12 +11,10 @@ import (
 )
 
 type Metadata struct {
-	CurrentHandoffID   *string `json:"current_handoff_id"`
-	LastUpdated        *string `json:"last_updated"`
-	ActiveMissionID    *string `json:"active_mission_id"`
-	ActiveOperationID  *string `json:"active_operation_id"`
-	ActiveWorkOrderID  *string `json:"active_work_order_id"`
-	ActiveExpeditionID *string `json:"active_expedition_id"`
+	CurrentHandoffID  *string `json:"current_handoff_id"`
+	LastUpdated       *string `json:"last_updated"`
+	ActiveMissionID   *string `json:"active_mission_id"`
+	ActiveWorkOrderID *string `json:"active_work_order_id"`
 }
 
 // StatusCmd returns the status command
@@ -79,22 +77,6 @@ This provides a focused view of "where am I right now?"`,
 			}
 			fmt.Println()
 
-			// Display active operation
-			if metadata.ActiveOperationID != nil && *metadata.ActiveOperationID != "" {
-				operation, err := models.GetOperation(*metadata.ActiveOperationID)
-				if err != nil {
-					fmt.Printf("❌ Operation: %s (error loading: %v)\n", *metadata.ActiveOperationID, err)
-				} else {
-					fmt.Printf("⚙️  Operation: %s - %s [%s]\n", operation.ID, operation.Title, operation.Status)
-					if operation.Description.Valid && operation.Description.String != "" {
-						fmt.Printf("   %s\n", operation.Description.String)
-					}
-				}
-			} else {
-				fmt.Println("⚙️  Operation: (none active)")
-			}
-			fmt.Println()
-
 			// Display active work order
 			if metadata.ActiveWorkOrderID != nil && *metadata.ActiveWorkOrderID != "" {
 				workOrder, err := models.GetWorkOrder(*metadata.ActiveWorkOrderID)
@@ -111,25 +93,6 @@ This provides a focused view of "where am I right now?"`,
 				}
 			} else {
 				fmt.Println("📋 Work Order: (none active)")
-			}
-			fmt.Println()
-
-			// Display active expedition
-			if metadata.ActiveExpeditionID != nil && *metadata.ActiveExpeditionID != "" {
-				expedition, err := models.GetExpedition(*metadata.ActiveExpeditionID)
-				if err != nil {
-					fmt.Printf("❌ Expedition: %s (error loading: %v)\n", *metadata.ActiveExpeditionID, err)
-				} else {
-					fmt.Printf("🌲 Expedition: %s - %s [%s]\n", expedition.ID, expedition.Name, expedition.Status)
-					if expedition.AssignedIMP.Valid && expedition.AssignedIMP.String != "" {
-						fmt.Printf("   IMP: %s\n", expedition.AssignedIMP.String)
-					}
-					if expedition.WorkOrderID.Valid && expedition.WorkOrderID.String != "" {
-						fmt.Printf("   Work Order: %s\n", expedition.WorkOrderID.String)
-					}
-				}
-			} else {
-				fmt.Println("🌲 Expedition: (none active)")
 			}
 			fmt.Println()
 
