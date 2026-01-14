@@ -2,7 +2,7 @@
 
 **Forest Factory Command Center for El Presidente's Development Ecosystem**
 
-![Forest Factory](assets/forest-factory.svg)
+![Forest Factory](assets/orc.png)
 
 ## 🎯 What It Does
 
