@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"strings"
 
 	"github.com/example/orc/internal/context"
@@ -63,6 +64,9 @@ func runPrime(cmd *cobra.Command, args []string) error {
 	// Current location
 	output.WriteString(fmt.Sprintf("**Location**: `%s`\n\n", cwd))
 
+	// Git context (if in git repo)
+	output.WriteString(getGitContext())
+
 	// Mission context
 	if missionCtx != nil {
 		output.WriteString(fmt.Sprintf("**Mission**: %s (Deputy context)\n", missionCtx.MissionID))
@@ -111,8 +115,13 @@ func runPrime(cmd *cobra.Command, args []string) error {
 	} else {
 		output.WriteString("**Context**: Master orchestrator (global)\n\n")
 		output.WriteString("Run `orc mission list` to see available missions.\n\n")
-		output.WriteString("Use `/g-bootstrap` to load full session context.\n\n")
+		output.WriteString("Use `/g-bootstrap` to load full session context.\n")
 	}
+
+	// Footer note
+	output.WriteString("\n---\n")
+	output.WriteString("💡 **Note**: This is lightweight orientation context.\n")
+	output.WriteString("   For full context (Graphiti memory + deep analysis), use `/g-bootstrap`\n")
 
 	// Truncate to max lines if needed
 	fullOutput := output.String()
@@ -127,4 +136,54 @@ func runPrime(cmd *cobra.Command, args []string) error {
 
 	fmt.Println(fullOutput)
 	return nil
+}
+
+// getGitContext returns git context if in a git repository
+func getGitContext() string {
+	var output strings.Builder
+
+	// Check if in git repo
+	cmd := exec.Command("git", "rev-parse", "--git-dir")
+	if err := cmd.Run(); err != nil {
+		return "" // Not in git repo
+	}
+
+	output.WriteString("**Git Context**:\n")
+
+	// Get current branch
+	cmd = exec.Command("git", "branch", "--show-current")
+	if branchBytes, err := cmd.Output(); err == nil {
+		branch := strings.TrimSpace(string(branchBytes))
+		if branch != "" {
+			output.WriteString(fmt.Sprintf("- Branch: `%s`\n", branch))
+		}
+	}
+
+	// Get recent commits (last 3)
+	cmd = exec.Command("git", "log", "--oneline", "-3")
+	if commitBytes, err := cmd.Output(); err == nil {
+		commits := strings.TrimSpace(string(commitBytes))
+		if commits != "" {
+			lines := strings.Split(commits, "\n")
+			output.WriteString("- Recent commits:\n")
+			for _, line := range lines {
+				if line != "" {
+					output.WriteString(fmt.Sprintf("  - %s\n", line))
+				}
+			}
+		}
+	}
+
+	// Check for uncommitted changes
+	cmd = exec.Command("git", "status", "--short")
+	if statusBytes, err := cmd.Output(); err == nil {
+		status := strings.TrimSpace(string(statusBytes))
+		if status != "" {
+			lines := strings.Split(status, "\n")
+			output.WriteString(fmt.Sprintf("- Uncommitted changes: %d files\n", len(lines)))
+		}
+	}
+
+	output.WriteString("\n")
+	return output.String()
 }
