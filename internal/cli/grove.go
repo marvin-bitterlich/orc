@@ -118,6 +118,13 @@ Examples:
 				fmt.Printf("  ✓ Wrote metadata.json\n")
 			}
 
+			// Write .orc-mission marker so IMP can detect mission context
+			if err := context.WriteMissionContext(grovePath, missionID); err != nil {
+				fmt.Printf("  ⚠️  Warning: Could not write .orc-mission marker: %v\n", err)
+			} else {
+				fmt.Printf("  ✓ Wrote .orc-mission marker\n")
+			}
+
 			fmt.Println()
 			fmt.Printf("Grove ready at: %s\n", grovePath)
 			fmt.Printf("Start working: cd %s\n", grovePath)
@@ -399,6 +406,12 @@ func writeGroveMetadata(grove *models.Grove) error {
 		return err
 	}
 
-	metadataPath := filepath.Join(grove.Path, "metadata.json")
+	// Write to .orc/ subdirectory
+	orcDir := filepath.Join(grove.Path, ".orc")
+	if err := os.MkdirAll(orcDir, 0755); err != nil {
+		return err
+	}
+
+	metadataPath := filepath.Join(orcDir, "metadata.json")
 	return os.WriteFile(metadataPath, data, 0644)
 }
