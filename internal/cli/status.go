@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/looneym/orc/internal/context"
 	"github.com/looneym/orc/internal/models"
 	"github.com/spf13/cobra"
 )
@@ -31,31 +32,42 @@ func StatusCmd() *cobra.Command {
 
 This provides a focused view of "where am I right now?"`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Read metadata.json
-			homeDir, err := os.UserHomeDir()
-			if err != nil {
-				return fmt.Errorf("failed to get home directory: %w", err)
-			}
-
-			metadataPath := fmt.Sprintf("%s/.orc/metadata.json", homeDir)
-			data, err := os.ReadFile(metadataPath)
-			if err != nil {
-				return fmt.Errorf("failed to read metadata.json: %w\nHint: Run 'orc init' if you haven't initialized ORC yet", err)
-			}
-
+			// Check if we're in a deputy ORC context first
+			missionCtx, _ := context.DetectMissionContext()
 			var metadata Metadata
-			if err := json.Unmarshal(data, &metadata); err != nil {
-				return fmt.Errorf("failed to parse metadata.json: %w", err)
-			}
+			var activeMissionID *string
 
-			fmt.Println("🎯 ORC Status - Current Context")
+			if missionCtx != nil {
+				// Deputy context - use mission from .orc-mission file
+				activeMissionID = &missionCtx.MissionID
+				fmt.Println("🎯 ORC Status - Deputy Context")
+			} else {
+				// Master context - read from metadata.json
+				homeDir, err := os.UserHomeDir()
+				if err != nil {
+					return fmt.Errorf("failed to get home directory: %w", err)
+				}
+
+				metadataPath := fmt.Sprintf("%s/.orc/metadata.json", homeDir)
+				data, err := os.ReadFile(metadataPath)
+				if err != nil {
+					return fmt.Errorf("failed to read metadata.json: %w\nHint: Run 'orc init' if you haven't initialized ORC yet", err)
+				}
+
+				if err := json.Unmarshal(data, &metadata); err != nil {
+					return fmt.Errorf("failed to parse metadata.json: %w", err)
+				}
+
+				activeMissionID = metadata.ActiveMissionID
+				fmt.Println("🎯 ORC Status - Current Context")
+			}
 			fmt.Println()
 
 			// Display active mission
-			if metadata.ActiveMissionID != nil && *metadata.ActiveMissionID != "" {
-				mission, err := models.GetMission(*metadata.ActiveMissionID)
+			if activeMissionID != nil && *activeMissionID != "" {
+				mission, err := models.GetMission(*activeMissionID)
 				if err != nil {
-					fmt.Printf("❌ Mission: %s (error loading: %v)\n", *metadata.ActiveMissionID, err)
+					fmt.Printf("❌ Mission: %s (error loading: %v)\n", *activeMissionID, err)
 				} else {
 					fmt.Printf("🎯 Mission: %s - %s [%s]\n", mission.ID, mission.Title, mission.Status)
 					if mission.Description.Valid && mission.Description.String != "" {
