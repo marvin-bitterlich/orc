@@ -24,6 +24,7 @@ func GroveCmd() *cobra.Command {
 	cmd.AddCommand(groveCreateCmd())
 	cmd.AddCommand(groveListCmd())
 	cmd.AddCommand(groveShowCmd())
+	cmd.AddCommand(groveRenameCmd())
 
 	return cmd
 }
@@ -200,6 +201,64 @@ func groveShowCmd() *cobra.Command {
 			return nil
 		},
 	}
+}
+
+func groveRenameCmd() *cobra.Command {
+	var updateMetadata bool
+
+	cmd := &cobra.Command{
+		Use:   "rename [grove-id] [new-name]",
+		Short: "Rename a grove",
+		Long: `Rename a grove in the database.
+
+Examples:
+  orc grove rename GROVE-001 tooling
+  orc grove rename GROVE-001 backend-refactor --update-metadata`,
+		Args: cobra.ExactArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			id := args[0]
+			newName := args[1]
+
+			// Get grove before rename
+			grove, err := models.GetGrove(id)
+			if err != nil {
+				return fmt.Errorf("failed to get grove: %w", err)
+			}
+
+			oldName := grove.Name
+
+			// Rename in database
+			err = models.RenameGrove(id, newName)
+			if err != nil {
+				return fmt.Errorf("failed to rename grove: %w", err)
+			}
+
+			fmt.Printf("✓ Grove %s renamed\n", id)
+			fmt.Printf("  %s → %s\n", oldName, newName)
+
+			// Update metadata.json if requested
+			if updateMetadata {
+				// Reload grove with new name
+				grove, err = models.GetGrove(id)
+				if err != nil {
+					fmt.Printf("  ⚠️  Warning: Could not reload grove for metadata update: %v\n", err)
+					return nil
+				}
+
+				if err := writeGroveMetadata(grove); err != nil {
+					fmt.Printf("  ⚠️  Warning: Could not update metadata.json: %v\n", err)
+				} else {
+					fmt.Printf("  ✓ Updated metadata.json\n")
+				}
+			}
+
+			return nil
+		},
+	}
+
+	cmd.Flags().BoolVar(&updateMetadata, "update-metadata", false, "Also update metadata.json file (optional)")
+
+	return cmd
 }
 
 // createWorktree attempts to create a git worktree for a repo

@@ -155,3 +155,28 @@ func GetGrovesByMission(missionID string) ([]*Grove, error) {
 
 	return groves, nil
 }
+
+// RenameGrove updates the name of a grove
+func RenameGrove(id, newName string) error {
+	database, err := db.GetDB()
+	if err != nil {
+		return err
+	}
+
+	// Verify grove exists
+	var exists int
+	err = database.QueryRow("SELECT COUNT(*) FROM groves WHERE id = ?", id).Scan(&exists)
+	if err != nil {
+		return err
+	}
+	if exists == 0 {
+		return fmt.Errorf("grove %s not found", id)
+	}
+
+	_, err = database.Exec(
+		"UPDATE groves SET name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+		newName, id,
+	)
+
+	return err
+}

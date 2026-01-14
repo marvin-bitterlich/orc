@@ -268,3 +268,53 @@ func GetChildWorkOrders(parentID string) ([]*WorkOrder, error) {
 
 	return orders, nil
 }
+
+// PinWorkOrder pins a work order to keep it visible at the top
+func PinWorkOrder(id string) error {
+	database, err := db.GetDB()
+	if err != nil {
+		return err
+	}
+
+	// Verify work order exists
+	var exists int
+	err = database.QueryRow("SELECT COUNT(*) FROM work_orders WHERE id = ?", id).Scan(&exists)
+	if err != nil {
+		return err
+	}
+	if exists == 0 {
+		return fmt.Errorf("work order %s not found", id)
+	}
+
+	_, err = database.Exec(
+		"UPDATE work_orders SET pinned = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+		id,
+	)
+
+	return err
+}
+
+// UnpinWorkOrder unpins a work order
+func UnpinWorkOrder(id string) error {
+	database, err := db.GetDB()
+	if err != nil {
+		return err
+	}
+
+	// Verify work order exists
+	var exists int
+	err = database.QueryRow("SELECT COUNT(*) FROM work_orders WHERE id = ?", id).Scan(&exists)
+	if err != nil {
+		return err
+	}
+	if exists == 0 {
+		return fmt.Errorf("work order %s not found", id)
+	}
+
+	_, err = database.Exec(
+		"UPDATE work_orders SET pinned = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+		id,
+	)
+
+	return err
+}

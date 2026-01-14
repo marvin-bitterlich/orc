@@ -205,6 +205,53 @@ Examples:
 	},
 }
 
+var workOrderPinCmd = &cobra.Command{
+	Use:   "pin [work-order-id]",
+	Short: "Pin a work order to keep it visible",
+	Long: `Pin a work order to show it in a special section at the top of the summary.
+
+Useful for long-running epics or important work streams that need to stay visible
+even when other work orders are in progress.
+
+Examples:
+  orc work-order pin WO-031  # Pin epic
+  orc work-order pin WO-061  # Pin important work stream`,
+	Args: cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		id := args[0]
+
+		err := models.PinWorkOrder(id)
+		if err != nil {
+			return fmt.Errorf("failed to pin work order: %w", err)
+		}
+
+		fmt.Printf("📌 Work order %s pinned\n", id)
+		fmt.Printf("  Will appear in pinned section at top of summary\n")
+		return nil
+	},
+}
+
+var workOrderUnpinCmd = &cobra.Command{
+	Use:   "unpin [work-order-id]",
+	Short: "Unpin a work order",
+	Long: `Unpin a work order to remove it from the pinned section.
+
+Examples:
+  orc work-order unpin WO-031`,
+	Args: cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		id := args[0]
+
+		err := models.UnpinWorkOrder(id)
+		if err != nil {
+			return fmt.Errorf("failed to unpin work order: %w", err)
+		}
+
+		fmt.Printf("✓ Work order %s unpinned\n", id)
+		return nil
+	},
+}
+
 // WorkOrderCmd returns the work-order command
 func WorkOrderCmd() *cobra.Command {
 	// Add flags
@@ -228,6 +275,8 @@ func WorkOrderCmd() *cobra.Command {
 	workOrderCmd.AddCommand(workOrderClaimCmd)
 	workOrderCmd.AddCommand(workOrderCompleteCmd)
 	workOrderCmd.AddCommand(workOrderSetParentCmd)
+	workOrderCmd.AddCommand(workOrderPinCmd)
+	workOrderCmd.AddCommand(workOrderUnpinCmd)
 
 	return workOrderCmd
 }
