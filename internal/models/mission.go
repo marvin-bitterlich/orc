@@ -153,3 +153,16 @@ func UpdateMission(id, title, description string) error {
 	_, err = database.Exec(query, args...)
 	return err
 }
+
+// DeleteMission deletes a mission and all associated data
+func DeleteMission(id string) error {
+	database, err := db.GetDB()
+	if err != nil {
+		return err
+	}
+
+	// TODO: Add cascade delete for work_orders, groves, handoffs when implemented
+
+	_, err = database.Exec("DELETE FROM missions WHERE id = ?", id)
+	return err
+}
