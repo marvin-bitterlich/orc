@@ -52,12 +52,29 @@ This provides a global view of all work across ORC.`,
 					return fmt.Errorf("failed to list work orders for %s: %w", mission.ID, err)
 				}
 
-				// Filter to non-complete work orders
+				// Separate pinned and active work orders
+				var pinnedWOs []*models.WorkOrder
 				var activeWOs []*models.WorkOrder
 				for _, wo := range workOrders {
-					if wo.Status != "complete" {
+					if wo.Pinned {
+						pinnedWOs = append(pinnedWOs, wo)
+					} else if wo.Status != "complete" {
 						activeWOs = append(activeWOs, wo)
 					}
+				}
+
+				// Display pinned work orders first (if any)
+				if len(pinnedWOs) > 0 {
+					fmt.Println("📌 Pinned:")
+					for _, wo := range pinnedWOs {
+						woEmoji := getStatusEmoji(wo.Status)
+						groveInfo := ""
+						if wo.AssignedGroveID.Valid {
+							groveInfo = fmt.Sprintf(" [Grove: %s]", wo.AssignedGroveID.String)
+						}
+						fmt.Printf("│   %s %s - %s [%s]%s\n", woEmoji, wo.ID, wo.Title, wo.Status, groveInfo)
+					}
+					fmt.Println("│")
 				}
 
 				if len(activeWOs) > 0 {

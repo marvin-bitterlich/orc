@@ -6,7 +6,7 @@ import (
 )
 
 // schemaVersion tracks the current schema version
-const currentSchemaVersion = 3
+const currentSchemaVersion = 4
 
 // Migration represents a database migration
 type Migration struct {
@@ -31,6 +31,11 @@ var migrations = []Migration{
 		Version: 3,
 		Name:    "consolidate_status_and_phase_fields",
 		Up:      migrationV3,
+	},
+	{
+		Version: 4,
+		Name:    "add_pinned_field_to_work_orders",
+		Up:      migrationV4,
 	},
 }
 
@@ -390,6 +395,20 @@ func migrationV3(db *sql.DB) error {
 	_, err = db.Exec(`ALTER TABLE work_orders_new RENAME TO work_orders`)
 	if err != nil {
 		return fmt.Errorf("failed to rename work_orders_new: %w", err)
+	}
+
+	return nil
+}
+
+// migrationV4 adds pinned field to work_orders
+func migrationV4(db *sql.DB) error {
+	// Add pinned column to work_orders table
+	// Default FALSE - work orders are not pinned by default
+	_, err := db.Exec(`
+		ALTER TABLE work_orders ADD COLUMN pinned INTEGER DEFAULT 0
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to add pinned column: %w", err)
 	}
 
 	return nil
