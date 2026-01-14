@@ -185,6 +185,44 @@ func CompleteWorkOrder(id string) error {
 	return err
 }
 
+// UpdateWorkOrder updates the title and/or description of a work order
+func UpdateWorkOrder(id, title, description string) error {
+	database, err := db.GetDB()
+	if err != nil {
+		return err
+	}
+
+	// Verify work order exists
+	var exists int
+	err = database.QueryRow("SELECT COUNT(*) FROM work_orders WHERE id = ?", id).Scan(&exists)
+	if err != nil {
+		return err
+	}
+	if exists == 0 {
+		return fmt.Errorf("work order %s not found", id)
+	}
+
+	// Build update query based on what's being updated
+	if title != "" && description != "" {
+		_, err = database.Exec(
+			"UPDATE work_orders SET title = ?, description = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+			title, description, id,
+		)
+	} else if title != "" {
+		_, err = database.Exec(
+			"UPDATE work_orders SET title = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+			title, id,
+		)
+	} else if description != "" {
+		_, err = database.Exec(
+			"UPDATE work_orders SET description = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+			description, id,
+		)
+	}
+
+	return err
+}
+
 // SetParentWorkOrder sets or updates the parent of a work order
 func SetParentWorkOrder(id, parentID string) error {
 	database, err := db.GetDB()

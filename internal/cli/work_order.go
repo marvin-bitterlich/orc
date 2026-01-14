@@ -252,6 +252,41 @@ Examples:
 	},
 }
 
+var workOrderUpdateCmd = &cobra.Command{
+	Use:   "update [work-order-id]",
+	Short: "Update work order title and/or description",
+	Long: `Update the title and/or description of an existing work order.
+
+Examples:
+  orc work-order update WO-042 --title "New Title"
+  orc work-order update WO-042 --description "New description"
+  orc work-order update WO-042 --title "New Title" --description "New description"`,
+	Args: cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		id := args[0]
+		title, _ := cmd.Flags().GetString("title")
+		description, _ := cmd.Flags().GetString("description")
+
+		if title == "" && description == "" {
+			return fmt.Errorf("must specify at least --title or --description")
+		}
+
+		err := models.UpdateWorkOrder(id, title, description)
+		if err != nil {
+			return fmt.Errorf("failed to update work order: %w", err)
+		}
+
+		fmt.Printf("✓ Work order %s updated\n", id)
+		if title != "" {
+			fmt.Printf("  Title: %s\n", title)
+		}
+		if description != "" {
+			fmt.Printf("  Description: %s\n", description)
+		}
+		return nil
+	},
+}
+
 // WorkOrderCmd returns the work-order command
 func WorkOrderCmd() *cobra.Command {
 	// Add flags
@@ -268,6 +303,9 @@ func WorkOrderCmd() *cobra.Command {
 	workOrderSetParentCmd.Flags().StringP("parent", "p", "", "Parent work order ID (empty string to remove parent)")
 	workOrderSetParentCmd.MarkFlagRequired("parent")
 
+	workOrderUpdateCmd.Flags().StringP("title", "t", "", "New title for work order")
+	workOrderUpdateCmd.Flags().StringP("description", "d", "", "New description for work order")
+
 	// Add subcommands
 	workOrderCmd.AddCommand(workOrderCreateCmd)
 	workOrderCmd.AddCommand(workOrderListCmd)
@@ -277,6 +315,7 @@ func WorkOrderCmd() *cobra.Command {
 	workOrderCmd.AddCommand(workOrderSetParentCmd)
 	workOrderCmd.AddCommand(workOrderPinCmd)
 	workOrderCmd.AddCommand(workOrderUnpinCmd)
+	workOrderCmd.AddCommand(workOrderUpdateCmd)
 
 	return workOrderCmd
 }
