@@ -15,7 +15,6 @@ type WorkOrder struct {
 	Description     sql.NullString
 	Type            sql.NullString
 	Status          string
-	Phase           string
 	Priority        sql.NullString
 	ParentID        sql.NullString
 	AssignedGroveID sql.NullString
@@ -98,9 +97,9 @@ func GetWorkOrder(id string) (*WorkOrder, error) {
 
 	wo := &WorkOrder{}
 	err = database.QueryRow(
-		"SELECT id, mission_id, title, description, type, status, phase, priority, parent_id, assigned_grove_id, context_ref, created_at, updated_at, claimed_at, completed_at FROM work_orders WHERE id = ?",
+		"SELECT id, mission_id, title, description, type, status, priority, parent_id, assigned_grove_id, context_ref, created_at, updated_at, claimed_at, completed_at FROM work_orders WHERE id = ?",
 		id,
-	).Scan(&wo.ID, &wo.MissionID, &wo.Title, &wo.Description, &wo.Type, &wo.Status, &wo.Phase, &wo.Priority, &wo.ParentID, &wo.AssignedGroveID, &wo.ContextRef, &wo.CreatedAt, &wo.UpdatedAt, &wo.ClaimedAt, &wo.CompletedAt)
+	).Scan(&wo.ID, &wo.MissionID, &wo.Title, &wo.Description, &wo.Type, &wo.Status, &wo.Priority, &wo.ParentID, &wo.AssignedGroveID, &wo.ContextRef, &wo.CreatedAt, &wo.UpdatedAt, &wo.ClaimedAt, &wo.CompletedAt)
 
 	if err != nil {
 		return nil, err
@@ -116,7 +115,7 @@ func ListWorkOrders(missionID, status string) ([]*WorkOrder, error) {
 		return nil, err
 	}
 
-	query := "SELECT id, mission_id, title, description, type, status, phase, priority, parent_id, assigned_grove_id, context_ref, created_at, updated_at, claimed_at, completed_at FROM work_orders WHERE 1=1"
+	query := "SELECT id, mission_id, title, description, type, status, priority, parent_id, assigned_grove_id, context_ref, created_at, updated_at, claimed_at, completed_at FROM work_orders WHERE 1=1"
 	args := []interface{}{}
 
 	if missionID != "" {
@@ -140,7 +139,7 @@ func ListWorkOrders(missionID, status string) ([]*WorkOrder, error) {
 	var orders []*WorkOrder
 	for rows.Next() {
 		wo := &WorkOrder{}
-		err := rows.Scan(&wo.ID, &wo.MissionID, &wo.Title, &wo.Description, &wo.Type, &wo.Status, &wo.Phase, &wo.Priority, &wo.ParentID, &wo.AssignedGroveID, &wo.ContextRef, &wo.CreatedAt, &wo.UpdatedAt, &wo.ClaimedAt, &wo.CompletedAt)
+		err := rows.Scan(&wo.ID, &wo.MissionID, &wo.Title, &wo.Description, &wo.Type, &wo.Status, &wo.Priority, &wo.ParentID, &wo.AssignedGroveID, &wo.ContextRef, &wo.CreatedAt, &wo.UpdatedAt, &wo.ClaimedAt, &wo.CompletedAt)
 		if err != nil {
 			return nil, err
 		}
@@ -259,7 +258,7 @@ func GetChildWorkOrders(parentID string) ([]*WorkOrder, error) {
 	var orders []*WorkOrder
 	for rows.Next() {
 		wo := &WorkOrder{}
-		err := rows.Scan(&wo.ID, &wo.MissionID, &wo.Title, &wo.Description, &wo.Type, &wo.Status, &wo.Phase, &wo.Priority, &wo.ParentID, &wo.AssignedGroveID, &wo.ContextRef, &wo.CreatedAt, &wo.UpdatedAt, &wo.ClaimedAt, &wo.CompletedAt)
+		err := rows.Scan(&wo.ID, &wo.MissionID, &wo.Title, &wo.Description, &wo.Type, &wo.Status, &wo.Priority, &wo.ParentID, &wo.AssignedGroveID, &wo.ContextRef, &wo.CreatedAt, &wo.UpdatedAt, &wo.ClaimedAt, &wo.CompletedAt)
 		if err != nil {
 			return nil, err
 		}

@@ -6,7 +6,7 @@ import (
 )
 
 // schemaVersion tracks the current schema version
-const currentSchemaVersion = 2
+const currentSchemaVersion = 3
 
 // Migration represents a database migration
 type Migration struct {
@@ -26,6 +26,11 @@ var migrations = []Migration{
 		Version: 2,
 		Name:    "add_phase_field_to_work_orders",
 		Up:      migrationV2,
+	},
+	{
+		Version: 3,
+		Name:    "consolidate_status_and_phase_fields",
+		Up:      migrationV3,
 	},
 }
 
@@ -320,6 +325,71 @@ func migrationV2(db *sql.DB) error {
 	`)
 	if err != nil {
 		return fmt.Errorf("failed to set initial phase values: %w", err)
+	}
+
+	return nil
+}
+
+// migrationV3 consolidates status and phase into single status field
+func migrationV3(db *sql.DB) error {
+	// Create new work_orders table with consolidated status field
+	// Status values: ready, design, implement, deploy, blocked, paused, complete
+	_, err := db.Exec(`
+		CREATE TABLE work_orders_new (
+			id TEXT PRIMARY KEY,
+			mission_id TEXT NOT NULL,
+			title TEXT NOT NULL,
+			description TEXT,
+			type TEXT CHECK(type IN ('research', 'implementation', 'fix', 'documentation', 'maintenance')),
+			status TEXT NOT NULL CHECK(status IN ('ready', 'design', 'implement', 'deploy', 'blocked', 'paused', 'complete')) DEFAULT 'ready',
+			priority TEXT CHECK(priority IN ('low', 'medium', 'high')),
+			parent_id TEXT,
+			assigned_grove_id TEXT,
+			context_ref TEXT,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			claimed_at DATETIME,
+			completed_at DATETIME,
+			FOREIGN KEY (mission_id) REFERENCES missions(id),
+			FOREIGN KEY (parent_id) REFERENCES work_orders_new(id),
+			FOREIGN KEY (assigned_grove_id) REFERENCES groves(id)
+		)
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to create work_orders_new: %w", err)
+	}
+
+	// Migrate data: for complete work orders keep 'complete', otherwise use phase value
+	_, err = db.Exec(`
+		INSERT INTO work_orders_new (
+			id, mission_id, title, description, type, status, priority,
+			parent_id, assigned_grove_id, context_ref,
+			created_at, updated_at, claimed_at, completed_at
+		)
+		SELECT
+			id, mission_id, title, description, type,
+			CASE
+				WHEN status = 'complete' THEN 'complete'
+				ELSE phase
+			END as status,
+			priority, parent_id, assigned_grove_id, context_ref,
+			created_at, updated_at, claimed_at, completed_at
+		FROM work_orders
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to migrate work_orders data: %w", err)
+	}
+
+	// Drop old table
+	_, err = db.Exec(`DROP TABLE work_orders`)
+	if err != nil {
+		return fmt.Errorf("failed to drop old work_orders table: %w", err)
+	}
+
+	// Rename new table
+	_, err = db.Exec(`ALTER TABLE work_orders_new RENAME TO work_orders`)
+	if err != nil {
+		return fmt.Errorf("failed to rename work_orders_new: %w", err)
 	}
 
 	return nil

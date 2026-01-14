@@ -87,7 +87,7 @@ This provides a global view of all work across ORC.`,
 
 					// Display epics first with empty lines between them
 					for _, epic := range epics {
-						epicEmoji := getPhaseEmoji(epic.Phase)
+						epicEmoji := getStatusEmoji(epic.Status)
 						groveInfo := ""
 						if epic.AssignedGroveID.Valid {
 							groveInfo = fmt.Sprintf(" [Grove: %s]", epic.AssignedGroveID.String)
@@ -97,7 +97,7 @@ This provides a global view of all work across ORC.`,
 						// Display children (no empty lines between children)
 						children := childrenMap[epic.ID]
 						for k, child := range children {
-							childEmoji := getPhaseEmoji(child.Phase)
+							childEmoji := getStatusEmoji(child.Status)
 							var childPrefix string
 							if k < len(children)-1 {
 								childPrefix = "│   ├── "
@@ -116,7 +116,7 @@ This provides a global view of all work across ORC.`,
 
 					// Display standalone work orders with empty lines between them
 					for _, wo := range standalone {
-						woEmoji := getPhaseEmoji(wo.Phase)
+						woEmoji := getStatusEmoji(wo.Status)
 						groveInfo := ""
 						if wo.AssignedGroveID.Valid {
 							groveInfo = fmt.Sprintf(" [Grove: %s]", wo.AssignedGroveID.String)
@@ -143,27 +143,6 @@ This provides a global view of all work across ORC.`,
 
 func getStatusEmoji(status string) string {
 	switch status {
-	case "active", "in_progress":
-		return "🚀"
-	case "planning":
-		return "📋"
-	case "paused":
-		return "⏸️"
-	case "backlog":
-		return "📦"
-	case "next":
-		return "⏭️"
-	case "complete":
-		return "✅"
-	case "cancelled", "archived":
-		return "🗄️"
-	default:
-		return "•"
-	}
-}
-
-func getPhaseEmoji(phase string) string {
-	switch phase {
 	case "ready":
 		return "📦"
 	case "paused":
@@ -176,6 +155,8 @@ func getPhaseEmoji(phase string) string {
 		return "🚀"
 	case "blocked":
 		return "🚫"
+	case "complete":
+		return "✓"
 	default:
 		return "📦" // default to ready
 	}
