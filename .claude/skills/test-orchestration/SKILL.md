@@ -1,3 +1,8 @@
+---
+name: test-orchestration
+description: Full real-world orchestration test that creates a test mission, spins up TMux session with deputy + IMPs, assigns real work, monitors progress, validates completion, and generates comprehensive report. Use this to validate the entire ORC multi-agent coordination workflow.
+---
+
 # Orchestration Test: Full Real-World Multi-Agent Validation
 
 You are executing a comprehensive integration test of the ORC orchestration system. This test validates the ENTIRE multi-agent coordination workflow by creating a real mission, spinning up deputy ORC + IMPs in TMux, assigning them actual development work, and verifying they complete it correctly.
