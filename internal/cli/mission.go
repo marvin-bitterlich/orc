@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 
 	"github.com/example/orc/internal/agent"
@@ -498,11 +499,10 @@ Examples:
 				plan = append(plan, fmt.Sprintf("  EXISTS session: %s", sessionName))
 			} else {
 				plan = append(plan, fmt.Sprintf("  CREATE session: %s", sessionName))
-				plan = append(plan, "  CREATE window 1 (orc): 3 panes - ORC orchestrator")
 				for i, grove := range groves {
 					grovePath := filepath.Join(grovesDir, grove.Name)
 					if _, err := os.Stat(grovePath); err == nil {
-						plan = append(plan, fmt.Sprintf("  CREATE window %d (%s): 3 panes - Grove %s", i+2, grove.Name, grove.ID))
+						plan = append(plan, fmt.Sprintf("  CREATE window %d (%s): 3 panes - Grove %s IMP", i+1, grove.Name, grove.ID))
 					}
 				}
 			}
@@ -622,48 +622,66 @@ Examples:
 				fmt.Printf("  ℹ️  Session %s already exists\n", sessionName)
 				fmt.Printf("     Attach with: tmux attach -t %s\n", sessionName)
 			} else {
-				// Create session
+				// Create session (first window created automatically by tmux)
+				// We'll rename it to the first grove
 				session, err := tmux.NewSession(sessionName, workspacePath)
 				if err != nil {
 					return fmt.Errorf("failed to create TMux session: %w", err)
 				}
 
-				// Create ORC window (window 1)
-				if err := session.CreateOrcWindow(workspacePath); err != nil {
-					return fmt.Errorf("failed to create ORC window: %w", err)
-				}
-				fmt.Printf("✓ Window 1: orc (3 panes - empty shells)\n")
-
-				// Create window for each grove
+				// Create window for each grove (starting at window 1)
 				for i, grove := range groves {
-					windowIndex := i + 2 // Windows start at 1, ORC is 1, groves start at 2
+					windowIndex := i + 1 // Windows start at 1, groves start at 1
 					grovePath := filepath.Join(grovesDir, grove.Name)
 
 					// Check if grove path exists
 					if _, err := os.Stat(grovePath); err == nil {
-						// Create grove window with 3-pane layout (no apps launched)
-						if _, err := session.CreateGroveWindowShell(windowIndex, grove.Name, grovePath); err != nil {
-							fmt.Printf("  ⚠️  Could not create window for grove %s: %v\n", grove.ID, err)
-							continue
+						if i == 0 {
+							// First grove: rename the default first window
+							target := fmt.Sprintf("%s:1", sessionName)
+							if err := exec.Command("tmux", "rename-window", "-t", target, grove.Name).Run(); err != nil {
+								return fmt.Errorf("failed to rename first window: %w", err)
+							}
+							// Set working directory for first window
+							if err := exec.Command("tmux", "send-keys", "-t", target, fmt.Sprintf("cd %s", grovePath), "C-m").Run(); err != nil {
+								fmt.Printf("  ⚠️  Could not set working directory: %v\n", err)
+							}
+							// Create the 3-pane layout
+							target = fmt.Sprintf("%s:%s", sessionName, grove.Name)
+							if err := session.SplitVertical(target, grovePath); err != nil {
+								return fmt.Errorf("failed to split vertical: %w", err)
+							}
+							rightPane := fmt.Sprintf("%s.2", target)
+							if err := session.SplitHorizontal(rightPane, grovePath); err != nil {
+								return fmt.Errorf("failed to split horizontal: %w", err)
+							}
+							fmt.Printf("✓ Window %d: %s (3 panes - empty shells) [%s IMP]\n", windowIndex, grove.Name, grove.ID)
+						} else {
+							// Other groves: create new window
+							if _, err := session.CreateGroveWindowShell(windowIndex, grove.Name, grovePath); err != nil {
+								fmt.Printf("  ⚠️  Could not create window for grove %s: %v\n", grove.ID, err)
+								continue
+							}
+							fmt.Printf("✓ Window %d: %s (3 panes - empty shells) [%s IMP]\n", windowIndex, grove.Name, grove.ID)
 						}
-						fmt.Printf("✓ Window %d: %s (3 panes - empty shells) [%s]\n", windowIndex, grove.Name, grove.ID)
 					} else {
 						fmt.Printf("  ℹ️  Grove %s worktree missing, skipping window\n", grove.ID)
 					}
 				}
 
-				// Select ORC window
-				session.SelectWindow(1)
+				// Select first grove window
+				if len(groves) > 0 {
+					session.SelectWindow(1)
+				}
 
 				fmt.Println()
 				fmt.Printf("✓ TMux session created: %s\n", sessionName)
 				fmt.Printf("  Attach with: tmux attach -t %s\n", sessionName)
 				fmt.Println()
 				fmt.Println("Window Layout:")
-				fmt.Printf("  Window 1 (orc):   ORC orchestrator - 3 panes (empty shells)\n")
 				for i, grove := range groves {
 					if _, err := os.Stat(filepath.Join(grovesDir, grove.Name)); err == nil {
-						fmt.Printf("  Window %d (%s): Grove %s - 3 panes (empty shells)\n", i+2, grove.Name, grove.ID)
+						fmt.Printf("  Window %d (%s): Grove %s IMP - 3 panes (empty shells)\n", i+1, grove.Name, grove.ID)
 					}
 				}
 				fmt.Println()
