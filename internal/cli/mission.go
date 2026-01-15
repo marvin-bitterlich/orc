@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/example/orc/internal/agent"
 	"github.com/example/orc/internal/context"
 	"github.com/example/orc/internal/models"
 	"github.com/example/orc/internal/tmux"
@@ -22,6 +23,12 @@ var missionCreateCmd = &cobra.Command{
 	Short: "Create a new mission",
 	Args:  cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		// Check agent identity - only ORC can create missions
+		identity, err := agent.GetCurrentAgentID()
+		if err == nil && identity.Type == agent.AgentTypeIMP {
+			return fmt.Errorf("IMPs cannot create missions - only ORC can create missions")
+		}
+
 		title := args[0]
 		description, _ := cmd.Flags().GetString("description")
 
@@ -127,6 +134,12 @@ Examples:
   orc mission start MISSION-001 --workspace ~/work/mission-001`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		// Check agent identity - only ORC can start missions
+		identity, err := agent.GetCurrentAgentID()
+		if err == nil && identity.Type == agent.AgentTypeIMP {
+			return fmt.Errorf("IMPs cannot start missions - only ORC can start missions")
+		}
+
 		missionID := args[0]
 		workspacePath, _ := cmd.Flags().GetString("workspace")
 
