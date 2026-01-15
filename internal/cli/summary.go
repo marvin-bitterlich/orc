@@ -33,6 +33,65 @@ func colorizeTag(tagName string) string {
 	return c.Sprintf("[%s]", tagName)
 }
 
+// getIDColor returns a deterministic color for an ID type (TASK, EPIC, RH, MISSION)
+// Uses FNV-1a hash on the ID prefix to ensure all IDs of same type have same color
+func getIDColor(idType string) *color.Color {
+	// Hash the ID type (e.g., "TASK", "EPIC", "RH")
+	h := fnv.New32a()
+	h.Write([]byte(idType))
+	hash := h.Sum32()
+
+	// Map to 256-color range (16-231 are the color cube)
+	colorCode := 16 + (hash % 216)
+
+	return color.New(color.Attribute(38), color.Attribute(5), color.Attribute(colorCode))
+}
+
+// colorizeID applies deterministic color to an ID based on its prefix
+// Example: "TASK-165" → colored "TASK-165" (all TASK-IDs same color)
+func colorizeID(id string) string {
+	// Extract prefix (everything before first hyphen)
+	parts := strings.Split(id, "-")
+	if len(parts) < 2 {
+		return id // No prefix, return plain
+	}
+
+	prefix := parts[0] // "TASK", "EPIC", "RH", "MISSION"
+	c := getIDColor(prefix)
+	return c.Sprint(id)
+}
+
+// getStatusColor returns a fixed semantic color for a status
+// Uses meaningful colors: ready=green, paused=yellow, blocked=red, etc.
+func getStatusColor(status string) *color.Color {
+	switch status {
+	case "ready":
+		return color.New(color.FgGreen)
+	case "paused":
+		return color.New(color.FgYellow)
+	case "blocked":
+		return color.New(color.FgRed)
+	case "implement":
+		return color.New(color.FgBlue)
+	case "design":
+		return color.New(color.FgCyan)
+	case "complete":
+		return color.New(color.FgHiGreen) // Bright green
+	default:
+		return color.New(color.FgWhite)
+	}
+}
+
+// colorizeStatus wraps a status in {status:value} format with semantic color
+// Returns empty string for "ready" status (default, not shown)
+func colorizeStatus(status string) string {
+	if status == "ready" {
+		return "" // Don't show default status
+	}
+	c := getStatusColor(status)
+	return c.Sprintf("{status:%s}", status)
+}
+
 // SummaryCmd returns the summary command
 func SummaryCmd() *cobra.Command {
 	var showAll bool
@@ -122,7 +181,7 @@ Examples:
 			// Display each mission with its epics in tree format
 			for i, mission := range openMissions {
 				// Display mission
-				fmt.Printf("%s - %s\n", mission.ID, mission.Title)
+				fmt.Printf("%s - %s\n", colorizeID(mission.ID), mission.Title)
 				fmt.Println("│") // Empty line with vertical continuation after mission header
 
 				// Get epics for this mission
@@ -165,7 +224,8 @@ Examples:
 						} else {
 							prefix = "└── "
 						}
-						fmt.Printf("%s%s%s - %s%s\n", prefix, pinnedEmoji, epic.ID, epic.Title, groveInfo)
+						statusInfo := " " + colorizeStatus(epic.Status)
+						fmt.Printf("%s%s%s - %s%s%s\n", prefix, pinnedEmoji, colorizeID(epic.ID), epic.Title, statusInfo, groveInfo)
 
 						// Check if epic has rabbit holes or direct tasks
 						hasRH, _ := models.HasRabbitHoles(epic.ID)
@@ -204,7 +264,8 @@ Examples:
 										}
 									}
 
-									fmt.Printf("%s%s%s - %s\n", rhPrefix, pinnedEmoji, rh.ID, rh.Title)
+									statusInfo := " " + colorizeStatus(rh.Status)
+					fmt.Printf("%s%s%s - %s%s\n", rhPrefix, pinnedEmoji, colorizeID(rh.ID), rh.Title, statusInfo)
 
 									// Get expand flag
 									expand, _ := cmd.Flags().GetBool("expand")
@@ -265,7 +326,8 @@ Examples:
 												tagInfo = " " + colorizeTag(tag.Name)
 											}
 
-											fmt.Printf("%s%s%s - %s%s\n", taskPrefix, pinnedEmoji, task.ID, task.Title, tagInfo)
+											statusInfo := " " + colorizeStatus(task.Status)
+						fmt.Printf("%s%s%s - %s%s%s\n", taskPrefix, pinnedEmoji, colorizeID(task.ID), task.Title, statusInfo, tagInfo)
 											}
 										}
 									} else {
@@ -323,7 +385,8 @@ Examples:
 										tagInfo = " " + colorizeTag(tag.Name)
 									}
 
-									fmt.Printf("%s%s%s - %s%s\n", taskPrefix, pinnedEmoji, task.ID, task.Title, tagInfo)
+									statusInfo := " " + colorizeStatus(task.Status)
+						fmt.Printf("%s%s%s - %s%s%s\n", taskPrefix, pinnedEmoji, colorizeID(task.ID), task.Title, statusInfo, tagInfo)
 								}
 							}
 						}
@@ -387,19 +450,24 @@ func summarizeRabbitHoleTasks(rhID string, hideMap map[string]bool) string {
 	// Build summary string
 	parts := []string{}
 	if count := statusCounts["ready"]; count > 0 {
-		parts = append(parts, fmt.Sprintf("%d ready", count))
+		coloredStatus := getStatusColor("ready").Sprint("ready")
+		parts = append(parts, fmt.Sprintf("%d %s", count, coloredStatus))
 	}
 	if count := statusCounts["design"]; count > 0 {
-		parts = append(parts, fmt.Sprintf("%d design", count))
+		coloredStatus := getStatusColor("design").Sprint("design")
+		parts = append(parts, fmt.Sprintf("%d %s", count, coloredStatus))
 	}
 	if count := statusCounts["implement"]; count > 0 {
-		parts = append(parts, fmt.Sprintf("%d implement", count))
+		coloredStatus := getStatusColor("implement").Sprint("implement")
+		parts = append(parts, fmt.Sprintf("%d %s", count, coloredStatus))
 	}
 	if count := statusCounts["blocked"]; count > 0 {
-		parts = append(parts, fmt.Sprintf("%d blocked", count))
+		coloredStatus := getStatusColor("blocked").Sprint("blocked")
+		parts = append(parts, fmt.Sprintf("%d %s", count, coloredStatus))
 	}
 	if count := statusCounts["paused"]; count > 0 {
-		parts = append(parts, fmt.Sprintf("%d paused", count))
+		coloredStatus := getStatusColor("paused").Sprint("paused")
+		parts = append(parts, fmt.Sprintf("%d %s", count, coloredStatus))
 	}
 
 	summary := fmt.Sprintf("%d tasks: %s", total, strings.Join(parts, ", "))
