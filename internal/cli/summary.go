@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/example/orc/internal/context"
 	"github.com/example/orc/internal/models"
@@ -97,8 +98,7 @@ Examples:
 			// Display each mission with its epics in tree format
 			for i, mission := range openMissions {
 				// Display mission
-				statusEmoji := getStatusEmoji(mission.Status)
-				fmt.Printf("%s %s - %s [%s]\n", statusEmoji, mission.ID, mission.Title, mission.Status)
+				fmt.Printf("%s - %s\n", mission.ID, mission.Title)
 				fmt.Println("│") // Empty line with vertical continuation after mission header
 
 				// Get epics for this mission
@@ -124,10 +124,10 @@ Examples:
 				if len(activeEpics) > 0 {
 					// Display epics with their children
 					for j, epic := range activeEpics {
-						epicEmoji := getStatusEmoji(epic.Status)
+						pinnedEmoji := ""
 						// Add pin emoji if pinned
 						if epic.Pinned {
-							epicEmoji = "📌" + epicEmoji
+							pinnedEmoji = "📌 "
 						}
 						groveInfo := ""
 						if epic.AssignedGroveID.Valid {
@@ -141,7 +141,7 @@ Examples:
 						} else {
 							prefix = "└── "
 						}
-						fmt.Printf("%s%s %s - %s [%s]%s\n", prefix, epicEmoji, epic.ID, epic.Title, epic.Status, groveInfo)
+						fmt.Printf("%s%s%s - %s%s\n", prefix, pinnedEmoji, epic.ID, epic.Title, groveInfo)
 
 						// Check if epic has rabbit holes or direct tasks
 						hasRH, _ := models.HasRabbitHoles(epic.ID)
@@ -159,9 +159,9 @@ Examples:
 								}
 
 								for k, rh := range activeRHs {
-									rhEmoji := getStatusEmoji(rh.Status)
+									pinnedEmoji := ""
 									if rh.Pinned {
-										rhEmoji = "📌" + rhEmoji
+										pinnedEmoji = "📌 "
 									}
 
 									var rhPrefix string
@@ -180,59 +180,77 @@ Examples:
 										}
 									}
 
-									fmt.Printf("%s%s %s - %s [%s]\n", rhPrefix, rhEmoji, rh.ID, rh.Title, rh.Status)
+									fmt.Printf("%s%s%s - %s\n", rhPrefix, pinnedEmoji, rh.ID, rh.Title)
 
-									// Display tasks under rabbit hole
-									tasks, err := models.GetRabbitHoleTasks(rh.ID)
-									if err == nil {
-										var activeTasks []*models.Task
-										for _, task := range tasks {
-											if task.Status != "complete" && !hideMap[task.Status] {
-												activeTasks = append(activeTasks, task)
-											}
-										}
+									// Get expand flag
+									expand, _ := cmd.Flags().GetBool("expand")
 
-										for t, task := range activeTasks {
-											taskEmoji := getStatusEmoji(task.Status)
-											if task.Pinned {
-												taskEmoji = "📌" + taskEmoji
-											}
-
-											var taskPrefix string
-											isLastTask := t == len(activeTasks)-1
-
-											if isLastEpic {
-												if isLastRH {
-													if isLastTask {
-														taskPrefix = "        └── "
-													} else {
-														taskPrefix = "        ├── "
-													}
-												} else {
-													if isLastTask {
-														taskPrefix = "    │   └── "
-													} else {
-														taskPrefix = "    │   ├── "
-													}
-												}
-											} else {
-												if isLastRH {
-													if isLastTask {
-														taskPrefix = "│       └── "
-													} else {
-														taskPrefix = "│       ├── "
-													}
-												} else {
-													if isLastTask {
-														taskPrefix = "│   │   └── "
-													} else {
-														taskPrefix = "│   │   ├── "
-													}
+									if expand {
+										// Display all tasks under rabbit hole
+										tasks, err := models.GetRabbitHoleTasks(rh.ID)
+										if err == nil {
+											var activeTasks []*models.Task
+											for _, task := range tasks {
+												if task.Status != "complete" && !hideMap[task.Status] {
+													activeTasks = append(activeTasks, task)
 												}
 											}
 
-											fmt.Printf("%s%s %s - %s [%s]\n", taskPrefix, taskEmoji, task.ID, task.Title, task.Status)
+											for t, task := range activeTasks {
+												pinnedEmoji := ""
+												if task.Pinned {
+													pinnedEmoji = "📌 "
+												}
+
+												var taskPrefix string
+												isLastTask := t == len(activeTasks)-1
+
+												if isLastEpic {
+													if isLastRH {
+														if isLastTask {
+															taskPrefix = "        └── "
+														} else {
+															taskPrefix = "        ├── "
+														}
+													} else {
+														if isLastTask {
+															taskPrefix = "    │   └── "
+														} else {
+															taskPrefix = "    │   ├── "
+														}
+													}
+												} else {
+													if isLastRH {
+														if isLastTask {
+															taskPrefix = "│       └── "
+														} else {
+															taskPrefix = "│       ├── "
+														}
+													} else {
+														if isLastTask {
+															taskPrefix = "│   │   └── "
+														} else {
+															taskPrefix = "│   │   ├── "
+														}
+													}
+												}
+
+												fmt.Printf("%s%s%s - %s\n", taskPrefix, pinnedEmoji, task.ID, task.Title)
+											}
 										}
+									} else {
+										// Display summary only
+										summary := summarizeRabbitHoleTasks(rh.ID, hideMap)
+
+										// Use indented prefix for summary line
+										var summaryPrefix string
+										if isLastEpic {
+											summaryPrefix = "    "
+										} else {
+											summaryPrefix = "│   "
+										}
+
+										fmt.Printf("%s    [%s]\n", summaryPrefix, summary)
 									}
 								}
 							}
@@ -248,9 +266,9 @@ Examples:
 								}
 
 								for k, task := range activeTasks {
-									taskEmoji := getStatusEmoji(task.Status)
+									pinnedEmoji := ""
 									if task.Pinned {
-										taskEmoji = "📌" + taskEmoji
+										pinnedEmoji = "📌 "
 									}
 
 									var taskPrefix string
@@ -269,7 +287,7 @@ Examples:
 										}
 									}
 
-									fmt.Printf("%s%s %s - %s [%s]\n", taskPrefix, taskEmoji, task.ID, task.Title, task.Status)
+									fmt.Printf("%s%s%s - %s\n", taskPrefix, pinnedEmoji, task.ID, task.Title)
 								}
 							}
 						}
@@ -298,27 +316,48 @@ Examples:
 	cmd.Flags().BoolVarP(&showAll, "all", "a", false, "Show all missions (override deputy scoping)")
 	cmd.Flags().StringP("mission", "m", "", "Mission filter: mission ID or 'current' for context mission")
 	cmd.Flags().StringSlice("hide", []string{}, "Hide items with these statuses (comma-separated: paused,blocked)")
+	cmd.Flags().Bool("expand", false, "Expand rabbit holes to show all tasks")
 
 	return cmd
 }
 
-func getStatusEmoji(status string) string {
-	switch status {
-	case "ready":
-		return "📦"
-	case "paused":
-		return "💤"
-	case "design":
-		return "📐"
-	case "implement":
-		return "🔨"
-	case "deploy":
-		return "🚀"
-	case "blocked":
-		return "🚫"
-	case "complete":
-		return "✓"
-	default:
-		return "📦" // default to ready
+func summarizeRabbitHoleTasks(rhID string, hideMap map[string]bool) string {
+	tasks, err := models.GetRabbitHoleTasks(rhID)
+	if err != nil || len(tasks) == 0 {
+		return "no tasks"
 	}
+
+	// Count tasks by status
+	statusCounts := make(map[string]int)
+	total := 0
+	for _, task := range tasks {
+		if task.Status != "complete" && !hideMap[task.Status] {
+			statusCounts[task.Status]++
+			total++
+		}
+	}
+
+	if total == 0 {
+		return "no active tasks"
+	}
+
+	// Build summary string
+	parts := []string{}
+	if count := statusCounts["ready"]; count > 0 {
+		parts = append(parts, fmt.Sprintf("%d ready", count))
+	}
+	if count := statusCounts["design"]; count > 0 {
+		parts = append(parts, fmt.Sprintf("%d design", count))
+	}
+	if count := statusCounts["implement"]; count > 0 {
+		parts = append(parts, fmt.Sprintf("%d implement", count))
+	}
+	if count := statusCounts["blocked"]; count > 0 {
+		parts = append(parts, fmt.Sprintf("%d blocked", count))
+	}
+	if count := statusCounts["paused"]; count > 0 {
+		parts = append(parts, fmt.Sprintf("%d paused", count))
+	}
+
+	return fmt.Sprintf("%d tasks: %s", total, strings.Join(parts, ", "))
 }

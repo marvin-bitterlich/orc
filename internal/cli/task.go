@@ -27,12 +27,14 @@ var taskCreateCmd = &cobra.Command{
 		description, _ := cmd.Flags().GetString("description")
 		taskType, _ := cmd.Flags().GetString("type")
 
-		// Must specify either epic OR rabbit hole
-		if epicID == "" && rabbitHoleID == "" {
-			return fmt.Errorf("must specify either --epic or --rabbit-hole")
-		}
+		// Can't specify both
 		if epicID != "" && rabbitHoleID != "" {
 			return fmt.Errorf("cannot specify both --epic and --rabbit-hole")
+		}
+
+		// Smart default: if neither specified, use Unsorted epic
+		if epicID == "" && rabbitHoleID == "" {
+			epicID = "EPIC-165"
 		}
 
 		// Smart default for mission
