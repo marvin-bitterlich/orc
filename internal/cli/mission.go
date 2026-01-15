@@ -873,19 +873,20 @@ func writeGroveConfig(grovePath string, grove *models.Grove) error {
 	return config.SaveConfig(grovePath, cfg)
 }
 
-// writeClaudeSettings creates a .claude/settings.json file in the grove directory
-// to override global Claude Code settings that may be forced by enterprise plugins
+// writeClaudeSettings creates a .claude/settings.local.json file in the grove directory
+// to override project and global Claude Code settings without modifying checked-in files
 func writeClaudeSettings(grovePath string) error {
 	claudeDir := filepath.Join(grovePath, ".claude")
 	if err := os.MkdirAll(claudeDir, 0755); err != nil {
 		return fmt.Errorf("failed to create .claude directory: %w", err)
 	}
 
-	// Project-level settings override global settings and enterprise plugins
-	// This ensures IMPs boot in normal mode, not forced plan mode
+	// Use settings.local.json (not settings.json) to avoid modifying git-tracked files
+	// settings.local.json has higher precedence and is automatically git-ignored by Claude Code
+	// This ensures IMPs boot in normal mode without dirtying the repository
 	settings := map[string]interface{}{
 		"permissions": map[string]interface{}{
-			"defaultMode": "default", // Override any global plan mode setting
+			"defaultMode": "default", // Override any global or project plan mode setting
 		},
 		"enabledPlugins": map[string]bool{
 			"developer-tools@intercom-plugins": false, // Disable if it forces plan mode
@@ -898,9 +899,10 @@ func writeClaudeSettings(grovePath string) error {
 		return fmt.Errorf("failed to marshal settings: %w", err)
 	}
 
-	settingsPath := filepath.Join(claudeDir, "settings.json")
+	// Write to settings.local.json (not settings.json)
+	settingsPath := filepath.Join(claudeDir, "settings.local.json")
 	if err := os.WriteFile(settingsPath, data, 0644); err != nil {
-		return fmt.Errorf("failed to write settings.json: %w", err)
+		return fmt.Errorf("failed to write settings.local.json: %w", err)
 	}
 
 	return nil
