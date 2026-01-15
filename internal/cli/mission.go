@@ -21,6 +21,7 @@ import (
 var (
 	colorExists = color.New(color.FgBlue).SprintFunc()
 	colorCreate = color.New(color.FgGreen).SprintFunc()
+	colorUpdate = color.New(color.FgYellow).SprintFunc()
 	colorDelete = color.New(color.FgRed).SprintFunc()
 	colorDim    = color.New(color.Faint).SprintFunc()
 )
@@ -570,6 +571,26 @@ Examples:
 			sessionName := fmt.Sprintf("orc-%s", missionID)
 			if tmux.SessionExists(sessionName) {
 				tmuxPlan = append(tmuxPlan, fmt.Sprintf("%s session: %s", colorExists("EXISTS"), sessionName))
+				// Check each grove window
+				for i, grove := range groves {
+					grovePath := filepath.Join(grovesDir, grove.Name)
+					if _, err := os.Stat(grovePath); err == nil {
+						if tmux.WindowExists(sessionName, grove.Name) {
+							paneCount := tmux.GetPaneCount(sessionName, grove.Name)
+							pane2Cmd := tmux.GetPaneCommand(sessionName, grove.Name, 2)
+
+							if paneCount == 3 && pane2Cmd == "orc" {
+								tmuxPlan = append(tmuxPlan, fmt.Sprintf("%s window %d (%s): 3 panes, IMP running - Grove %s", colorExists("EXISTS"), i+1, grove.Name, grove.ID))
+							} else if paneCount == 3 {
+								tmuxPlan = append(tmuxPlan, fmt.Sprintf("%s window %d (%s): respawn pane 2 with orc connect - Grove %s", colorCreate("UPDATE"), i+1, grove.Name, grove.ID))
+							} else {
+								tmuxPlan = append(tmuxPlan, fmt.Sprintf("%s window %d (%s): recreate with 3 panes - Grove %s", colorCreate("UPDATE"), i+1, grove.Name, grove.ID))
+							}
+						} else {
+							tmuxPlan = append(tmuxPlan, fmt.Sprintf("%s window %d (%s): 3 panes in %s - Grove %s IMP", colorCreate("CREATE"), i+1, grove.Name, grovePath, grove.ID))
+						}
+					}
+				}
 			} else {
 				tmuxPlan = append(tmuxPlan, fmt.Sprintf("%s session: %s", colorCreate("CREATE"), sessionName))
 				for i, grove := range groves {
@@ -701,8 +722,43 @@ Examples:
 
 			// Check if session already exists
 			if tmux.SessionExists(sessionName) {
-				fmt.Printf("  ℹ️  Session %s already exists\n", sessionName)
-				fmt.Printf("     Attach with: tmux attach -t %s\n", sessionName)
+				fmt.Printf("  ℹ️  Session %s already exists - checking windows\n", sessionName)
+
+				// Update each grove window to ensure proper pane configuration
+				for i, grove := range groves {
+					windowIndex := i + 1
+					grovePath := filepath.Join(grovesDir, grove.Name)
+
+					if _, err := os.Stat(grovePath); err == nil {
+						if tmux.WindowExists(sessionName, grove.Name) {
+							paneCount := tmux.GetPaneCount(sessionName, grove.Name)
+							pane2Cmd := tmux.GetPaneCommand(sessionName, grove.Name, 2)
+
+							if paneCount == 3 && pane2Cmd == "orc" {
+								fmt.Printf("  ✓ Window %d (%s): IMP already running [%s]\n", windowIndex, grove.Name, grove.ID)
+							} else if paneCount == 3 {
+								// Respawn pane 2 with orc connect
+								target := fmt.Sprintf("%s:%s.2", sessionName, grove.Name)
+								connectCmd := exec.Command("tmux", "respawn-pane", "-t", target, "-k", "orc", "connect")
+								if err := connectCmd.Run(); err != nil {
+									fmt.Printf("  ⚠️  Could not respawn pane in window %s: %v\n", grove.Name, err)
+								} else {
+									fmt.Printf("  ✓ Window %d (%s): IMP rebooted [%s]\n", windowIndex, grove.Name, grove.ID)
+								}
+							} else {
+								fmt.Printf("  ⚠️  Window %d (%s): has %d panes (expected 3) - manual fix needed\n", windowIndex, grove.Name, paneCount)
+							}
+						} else {
+							// Window doesn't exist, create it
+							// Note: can't easily add windows to existing session, would need session object
+							fmt.Printf("  ⚠️  Window %d (%s): missing - attach to session and create manually\n", windowIndex, grove.Name)
+						}
+					}
+				}
+
+				fmt.Println()
+				fmt.Printf("✓ Session updated: %s\n", sessionName)
+				fmt.Printf("  Attach with: tmux attach -t %s\n", sessionName)
 			} else {
 				// Determine starting directory: use first grove's path if available
 				startDir := workspacePath

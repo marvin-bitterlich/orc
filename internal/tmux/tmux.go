@@ -40,6 +40,46 @@ func KillSession(name string) error {
 	return cmd.Run()
 }
 
+// WindowExists checks if a window exists in a session
+func WindowExists(sessionName, windowName string) bool {
+	cmd := exec.Command("tmux", "list-windows", "-t", sessionName, "-F", "#{window_name}")
+	output, err := cmd.Output()
+	if err != nil {
+		return false
+	}
+	windows := strings.Split(strings.TrimSpace(string(output)), "\n")
+	for _, w := range windows {
+		if w == windowName {
+			return true
+		}
+	}
+	return false
+}
+
+// GetPaneCount returns the number of panes in a window
+func GetPaneCount(sessionName, windowName string) int {
+	target := fmt.Sprintf("%s:%s", sessionName, windowName)
+	cmd := exec.Command("tmux", "list-panes", "-t", target)
+	output, err := cmd.Output()
+	if err != nil {
+		return 0
+	}
+	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
+	return len(lines)
+}
+
+// GetPaneCommand returns the current command running in a specific pane
+// Returns empty string if pane doesn't exist or error occurs
+func GetPaneCommand(sessionName, windowName string, paneNum int) string {
+	target := fmt.Sprintf("%s:%s.%d", sessionName, windowName, paneNum)
+	cmd := exec.Command("tmux", "display-message", "-t", target, "-p", "#{pane_current_command}")
+	output, err := cmd.Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(output))
+}
+
 // CreateOrcWindow creates the ORC orchestrator window with layout:
 // Layout:
 //   ┌─────────────────────┬──────────────┐
