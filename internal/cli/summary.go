@@ -18,38 +18,38 @@ func SummaryCmd() *cobra.Command {
 		Long: `Show a hierarchical summary of missions with their epics, rabbit holes, and tasks.
 
 Filtering:
-  --scope all      Show all missions (default)
-  --scope current  Show only current mission (requires mission context)
-  --hide paused    Hide paused items
-  --hide blocked   Hide blocked items
+  --mission [id]       Show specific mission (e.g., MISSION-001)
+  --mission current    Show current mission (requires mission context)
+  --hide paused        Hide paused items
+  --hide blocked       Hide blocked items
   --hide paused,blocked  Hide multiple statuses
 
 Examples:
   orc summary                       # all missions, all statuses
-  orc summary --scope current       # current mission only
+  orc summary --mission current     # current mission only
+  orc summary --mission MISSION-001 # specific mission
   orc summary --hide paused         # hide paused work
-  orc summary --scope current --hide paused,blocked  # focused view`,
+  orc summary --mission current --hide paused,blocked  # focused view`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Get scope from flag (default: "all")
-			scope, _ := cmd.Flags().GetString("scope")
+			// Get mission from flag (default: empty = all missions)
+			missionFilter, _ := cmd.Flags().GetString("mission")
 
-			// Validate scope value
-			if scope != "all" && scope != "current" {
-				return fmt.Errorf("invalid scope: must be 'all' or 'current'")
-			}
-
-			// Determine mission filter based on scope
+			// Determine mission filter
 			var filterMissionID string
-			if scope == "current" {
+			if missionFilter == "current" {
 				// Get current mission from context
 				missionCtx, _ := context.DetectMissionContext()
 				if missionCtx == nil || missionCtx.MissionID == "" {
-					return fmt.Errorf("--scope current requires being in a mission context (no .orc/config.json found)")
+					return fmt.Errorf("--mission current requires being in a mission context (no .orc/config.json found)")
 				}
 				filterMissionID = missionCtx.MissionID
 				fmt.Printf("📊 ORC Summary - %s (Current Mission)\n", filterMissionID)
+			} else if missionFilter != "" {
+				// Specific mission ID provided
+				filterMissionID = missionFilter
+				fmt.Printf("📊 ORC Summary - %s\n", filterMissionID)
 			} else {
-				// scope == "all"
+				// No filter - show all missions
 				fmt.Println("📊 ORC Summary - Open Work")
 			}
 			fmt.Println()
@@ -296,7 +296,7 @@ Examples:
 	}
 
 	cmd.Flags().BoolVarP(&showAll, "all", "a", false, "Show all missions (override deputy scoping)")
-	cmd.Flags().StringP("scope", "s", "all", "Scope: 'all' or 'current'")
+	cmd.Flags().StringP("mission", "m", "", "Mission filter: mission ID or 'current' for context mission")
 	cmd.Flags().StringSlice("hide", []string{}, "Hide items with these statuses (comma-separated: paused,blocked)")
 
 	return cmd
