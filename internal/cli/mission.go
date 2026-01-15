@@ -387,6 +387,7 @@ Examples:
 
 		missionID := args[0]
 		workspacePath, _ := cmd.Flags().GetString("workspace")
+		createTmux, _ := cmd.Flags().GetBool("tmux")
 
 		// Default workspace path
 		if workspacePath == "" {
@@ -589,9 +590,74 @@ Examples:
 
 		fmt.Println()
 		fmt.Printf("✅ Mission infrastructure ready at: %s\n", workspacePath)
+
+		// Create TMux session if requested
+		if createTmux {
+			fmt.Println()
+			fmt.Println("🖥️  Creating TMux session...")
+
+			sessionName := fmt.Sprintf("orc-%s", missionID)
+
+			// Check if session already exists
+			if tmux.SessionExists(sessionName) {
+				fmt.Printf("  ℹ️  Session %s already exists\n", sessionName)
+				fmt.Printf("     Attach with: tmux attach -t %s\n", sessionName)
+			} else {
+				// Create session
+				session, err := tmux.NewSession(sessionName, workspacePath)
+				if err != nil {
+					return fmt.Errorf("failed to create TMux session: %w", err)
+				}
+
+				// Create ORC window (window 1)
+				if err := session.CreateOrcWindow(workspacePath); err != nil {
+					return fmt.Errorf("failed to create ORC window: %w", err)
+				}
+				fmt.Printf("✓ Window 1: orc (3 panes - empty shells)\n")
+
+				// Create window for each grove
+				for i, grove := range groves {
+					windowIndex := i + 2 // Windows start at 1, ORC is 1, groves start at 2
+					grovePath := filepath.Join(grovesDir, grove.Name)
+
+					// Check if grove path exists
+					if _, err := os.Stat(grovePath); err == nil {
+						// Create grove window with 3-pane layout (no apps launched)
+						if _, err := session.CreateGroveWindowShell(windowIndex, grove.Name, grovePath); err != nil {
+							fmt.Printf("  ⚠️  Could not create window for grove %s: %v\n", grove.ID, err)
+							continue
+						}
+						fmt.Printf("✓ Window %d: %s (3 panes - empty shells) [%s]\n", windowIndex, grove.Name, grove.ID)
+					} else {
+						fmt.Printf("  ℹ️  Grove %s worktree missing, skipping window\n", grove.ID)
+					}
+				}
+
+				// Select ORC window
+				session.SelectWindow(1)
+
+				fmt.Println()
+				fmt.Printf("✓ TMux session created: %s\n", sessionName)
+				fmt.Printf("  Attach with: tmux attach -t %s\n", sessionName)
+				fmt.Println()
+				fmt.Println("Window Layout:")
+				fmt.Printf("  Window 1 (orc):   ORC orchestrator - 3 panes (empty shells)\n")
+				for i, grove := range groves {
+					if _, err := os.Stat(filepath.Join(grovesDir, grove.Name)); err == nil {
+						fmt.Printf("  Window %d (%s): Grove %s - 3 panes (empty shells)\n", i+2, grove.Name, grove.ID)
+					}
+				}
+				fmt.Println()
+				fmt.Println("Each window has layout: Left: (vim) | Right Top: (claude) | Right Bottom: (shell)")
+			}
+		}
+
 		fmt.Println()
 		fmt.Println("Next steps:")
 		fmt.Printf("  cd %s\n", workspacePath)
+		if createTmux && !tmux.SessionExists(fmt.Sprintf("orc-%s", missionID)) {
+			fmt.Printf("  tmux attach -t orc-%s\n", missionID)
+		}
 		fmt.Printf("  orc summary --mission %s\n", missionID)
 
 		return nil
@@ -656,6 +722,7 @@ func MissionCmd() *cobra.Command {
 	missionListCmd.Flags().StringP("status", "s", "", "Filter by status (active, paused, complete, archived)")
 	missionStartCmd.Flags().StringP("workspace", "w", "", "Custom workspace path (default: ~/missions/MISSION-ID)")
 	missionLaunchCmd.Flags().StringP("workspace", "w", "", "Custom workspace path (default: ~/src/missions/MISSION-ID)")
+	missionLaunchCmd.Flags().Bool("tmux", false, "Create TMux session with window layout (no apps launched)")
 	missionUpdateCmd.Flags().StringP("title", "t", "", "New mission title")
 	missionUpdateCmd.Flags().StringP("description", "d", "", "New mission description")
 	missionDeleteCmd.Flags().BoolP("force", "f", false, "Force delete even with associated data")

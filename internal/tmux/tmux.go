@@ -90,6 +90,43 @@ func (s *Session) CreateOrcWindow(workingDir string) error {
 	return nil
 }
 
+// CreateGroveWindowShell creates a grove window with layout but NO app launching
+// Layout:
+//   ┌─────────────────┬─────────────────┐
+//   │                 │ (top right)     │
+//   │ (left pane)     ├─────────────────┤
+//   │                 │ (bottom right)  │
+//   └─────────────────┴─────────────────┘
+// Apps (vim, claude) can be launched later
+func (s *Session) CreateGroveWindowShell(index int, name, workingDir string) (*Window, error) {
+	// Create new window
+	cmd := exec.Command("tmux", "new-window", "-t", s.Name, "-n", name, "-c", workingDir)
+	if err := cmd.Run(); err != nil {
+		return nil, fmt.Errorf("failed to create grove window: %w", err)
+	}
+
+	target := fmt.Sprintf("%s:%s", s.Name, name)
+
+	// Split vertically (creates pane on the right)
+	if err := s.SplitVertical(target, workingDir); err != nil {
+		return nil, err
+	}
+
+	// Split the right pane horizontally
+	rightPane := fmt.Sprintf("%s.2", target)
+	if err := s.SplitHorizontal(rightPane, workingDir); err != nil {
+		return nil, err
+	}
+
+	// Now we have 3 panes ready:
+	// Pane 1 (left): shell
+	// Pane 2 (top right): shell
+	// Pane 3 (bottom right): shell
+	// User can launch vim, claude, etc. manually
+
+	return &Window{Session: s, Index: index, Name: name}, nil
+}
+
 // CreateGroveWindow creates a grove window with sophisticated layout:
 // Layout:
 //   ┌─────────────────┬─────────────────┐
