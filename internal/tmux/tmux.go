@@ -40,24 +40,7 @@ func KillSession(name string) error {
 	return cmd.Run()
 }
 
-// CreateDeputyWindow creates the deputy control window with claude running
-func (s *Session) CreateDeputyWindow() (*Window, error) {
-	// First window is already created, just rename it
-	target := fmt.Sprintf("%s:1", s.Name)
-
-	if err := exec.Command("tmux", "rename-window", "-t", target, "deputy").Run(); err != nil {
-		return nil, fmt.Errorf("failed to rename deputy window: %w", err)
-	}
-
-	// Launch claude in the deputy pane with orc prime prompt
-	if err := s.SendKeys(target, "claude \"Run the orc prime command to get context\""); err != nil {
-		return nil, fmt.Errorf("failed to launch claude: %w", err)
-	}
-
-	return &Window{Session: s, Index: 1, Name: "deputy"}, nil
-}
-
-// CreateMasterOrcWindow creates the master orchestrator window with layout:
+// CreateOrcWindow creates the ORC orchestrator window with layout:
 // Layout:
 //   ┌─────────────────────┬──────────────┐
 //   │                     │   vim (top)  │
@@ -65,12 +48,12 @@ func (s *Session) CreateDeputyWindow() (*Window, error) {
 //   │    (full height)    │  shell (bot) │
 //   │                     │              │
 //   └─────────────────────┴──────────────┘
-func (s *Session) CreateMasterOrcWindow(workingDir string) error {
+func (s *Session) CreateOrcWindow(workingDir string) error {
 	// First window is already created (window 1), rename it
 	target := fmt.Sprintf("%s:1", s.Name)
 
 	if err := exec.Command("tmux", "rename-window", "-t", target, "orc").Run(); err != nil {
-		return fmt.Errorf("failed to rename master window: %w", err)
+		return fmt.Errorf("failed to rename ORC window: %w", err)
 	}
 
 	// Split vertically (creates pane on the right)
@@ -207,8 +190,8 @@ func AttachInstructions(sessionName string) string {
 	b.WriteString(fmt.Sprintf("Attach to session: tmux attach -t %s\n", sessionName))
 	b.WriteString("\n")
 	b.WriteString("Window Layout:\n")
-	b.WriteString("  Window 1 (deputy): Claude for mission coordination\n")
-	b.WriteString("  Windows 2+: Grove workspaces with vim, claude IMP, and shell\n")
+	b.WriteString("  Window 1 (orc): ORC orchestrator (claude | vim | shell)\n")
+	b.WriteString("  Windows 2+: Grove workspaces (vim | claude IMP | shell)\n")
 	b.WriteString("\n")
 	b.WriteString("TMux Commands:\n")
 	b.WriteString("  Switch windows: Ctrl+b then window number (1, 2, 3...)\n")

@@ -191,15 +191,15 @@ Examples:
 			return fmt.Errorf("failed to create TMux session: %w", err)
 		}
 
-		// Create deputy window (window 1) with claude
-		if _, err := session.CreateDeputyWindow(); err != nil {
-			return fmt.Errorf("failed to create deputy window: %w", err)
+		// Create ORC window (window 1) with claude
+		if err := session.CreateOrcWindow(workspacePath); err != nil {
+			return fmt.Errorf("failed to create ORC window: %w", err)
 		}
-		fmt.Printf("  ✓ Window 1: deputy (claude mission control)\n")
+		fmt.Printf("  ✓ Window 1: orc (claude | vim | shell)\n")
 
 		// Create window for each grove with sophisticated layout
 		for i, grove := range groves {
-			windowIndex := i + 2 // Windows start at 1, deputy is 1, groves start at 2
+			windowIndex := i + 2 // Windows start at 1, ORC is 1, groves start at 2
 
 			// Check if grove path exists
 			pathExists := false
@@ -227,7 +227,7 @@ Examples:
 			fmt.Printf("     Create groves with: orc grove create <name> --mission %s --repos <repo-names>\n", missionID)
 		}
 
-		// Select the deputy window (window 1) as default
+		// Select the ORC window (window 1) as default
 		session.SelectWindow(1)
 
 		fmt.Println()

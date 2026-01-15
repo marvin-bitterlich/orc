@@ -61,12 +61,12 @@ Examples:
 			return fmt.Errorf("failed to create TMux session: %w", err)
 		}
 
-		// Create master orchestrator window with sophisticated layout
-		if err := session.CreateMasterOrcWindow(orcPath); err != nil {
-			return fmt.Errorf("failed to create master ORC window: %w", err)
+		// Create ORC orchestrator window with sophisticated layout
+		if err := session.CreateOrcWindow(orcPath); err != nil {
+			return fmt.Errorf("failed to create ORC window: %w", err)
 		}
 
-		fmt.Println("✓ Master ORC session created")
+		fmt.Println("✓ ORC session created")
 		fmt.Println()
 		fmt.Println("Layout:")
 		fmt.Println("  - Left pane:  Claude (orchestrator)")
