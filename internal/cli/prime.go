@@ -59,7 +59,15 @@ func runPrime(cmd *cobra.Command, args []string) error {
 		cwd = "(unknown)"
 	}
 
-	// Detect mission context
+	// Detect grove context first (IMP mode)
+	groveCtx, _ := context.DetectGroveContext()
+	if groveCtx != nil {
+		output := buildIMPPrimeOutput(groveCtx, cwd)
+		fmt.Println(output)
+		return nil
+	}
+
+	// Fallback to old mission/orchestrator context
 	missionCtx, _ := context.DetectMissionContext()
 
 	// Build prime output
@@ -145,6 +153,99 @@ func runPrime(cmd *cobra.Command, args []string) error {
 
 	fmt.Println(fullOutput)
 	return nil
+}
+
+// buildIMPPrimeOutput creates IMP-focused context prompt when in grove territory
+func buildIMPPrimeOutput(groveCtx *context.GroveContext, cwd string) string {
+	var output strings.Builder
+
+	output.WriteString("# IMP Boot Context\n\n")
+
+	// Section 1: IMP Identity
+	output.WriteString("## Identity\n\n")
+	output.WriteString(fmt.Sprintf("**Role**: Implementation Agent (IMP)\n"))
+	output.WriteString(fmt.Sprintf("**Grove**: %s (`%s`)\n", groveCtx.Name, groveCtx.GroveID))
+	output.WriteString(fmt.Sprintf("**Mission**: `%s`\n", groveCtx.MissionID))
+	output.WriteString(fmt.Sprintf("**Location**: `%s`\n\n", cwd))
+
+	// Git context
+	output.WriteString(getGitContext())
+
+	// Section 2: Assignment - Epics assigned to this grove
+	output.WriteString("## Assignment\n\n")
+	epics, err := models.GetEpicsByGrove(groveCtx.GroveID)
+	if err == nil && len(epics) > 0 {
+		for i, epic := range epics {
+			output.WriteString(fmt.Sprintf("### Epic %d: %s\n\n", i+1, epic.ID))
+			output.WriteString(fmt.Sprintf("**%s** [%s]\n\n", epic.Title, epic.Status))
+
+			if epic.Description.Valid && epic.Description.String != "" {
+				descLines := strings.Split(epic.Description.String, "\n")
+				if len(descLines) > 5 {
+					output.WriteString(strings.Join(descLines[:5], "\n"))
+					output.WriteString("\n\n*(Description truncated)*\n\n")
+				} else {
+					output.WriteString(epic.Description.String)
+					output.WriteString("\n\n")
+				}
+			}
+
+			// Show ready tasks for this epic
+			tasks, err := models.ListTasks(epic.MissionID, epic.ID, "ready")
+			if err == nil && len(tasks) > 0 {
+				output.WriteString("**Ready Tasks**:\n")
+				for _, task := range tasks {
+					output.WriteString(fmt.Sprintf("- %s - %s\n", task.ID, task.Title))
+				}
+				output.WriteString("\n")
+			}
+		}
+	} else {
+		output.WriteString("*No epics currently assigned to this grove.*\n\n")
+		output.WriteString("Run `orc summary` to see the full mission tree.\n\n")
+	}
+
+	// Section 3: Handoff Context
+	ho, err := models.GetLatestHandoffForGrove(groveCtx.GroveID)
+	if err == nil && ho != nil {
+		output.WriteString("## Handoff Context\n\n")
+		output.WriteString(fmt.Sprintf("**From**: Previous session (%s)\n", ho.CreatedAt.Format("Jan 2, 15:04")))
+		output.WriteString(fmt.Sprintf("**ID**: %s\n\n", ho.ID))
+
+		noteLines := strings.Split(ho.HandoffNote, "\n")
+		if len(noteLines) > 8 {
+			output.WriteString(strings.Join(noteLines[:8], "\n"))
+			output.WriteString("\n\n*(Showing first 8 lines)*\n\n")
+		} else {
+			output.WriteString(ho.HandoffNote)
+			output.WriteString("\n\n")
+		}
+	}
+
+	// Section 4: ORC CLI Primer
+	output.WriteString("## ORC CLI Primer\n\n")
+	output.WriteString("**Core Commands**:\n")
+	output.WriteString("- `orc summary` - View mission tree and current assignments\n")
+	output.WriteString("- `orc task list --epic EPIC-ID` - List tasks for your epic\n")
+	output.WriteString("- `orc task show TASK-ID` - View task details\n")
+	output.WriteString("- `orc task complete TASK-ID` - Mark task as completed\n")
+	output.WriteString("- `orc epic check-assignment` - Verify your epic assignment\n")
+	output.WriteString("- `/handoff` - Create session handoff note (via Claude Code skill)\n\n")
+
+	// Section 5: Core Rules
+	output.WriteString("## Core Rules\n\n")
+	output.WriteString("- **Track all work in ORC ledger** - Use `orc task` commands to manage progress\n")
+	output.WriteString("- **TodoWrite tool is NOT ALLOWED** - This tool is banned; use ORC ledger instead\n")
+	output.WriteString("- **TODO markdown files are NOT ALLOWED** - No TODO.md or similar files\n")
+	output.WriteString("- **Stay in grove territory** - Work within assigned epics only\n")
+	output.WriteString("- **Handoff between sessions** - Use `/handoff` skill before ending work\n\n")
+
+	// Footer
+	output.WriteString("---\n")
+	output.WriteString("💡 **You are an IMP** - Implementation agent working within a grove on assigned epics.\n")
+	output.WriteString("🎯 **Focus**: Complete ready tasks, update ledger, maintain context through handoffs.\n")
+
+	return output.String()
 }
 
 // getGitContext returns git context if in a git repository

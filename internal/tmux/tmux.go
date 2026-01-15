@@ -119,10 +119,18 @@ func (s *Session) CreateGroveWindowShell(index int, name, workingDir string) (*W
 	}
 
 	// Now we have 3 panes ready:
-	// Pane 1 (left): shell
-	// Pane 2 (top right): shell
+	// Pane 1 (left): shell (for vim)
+	// Pane 2 (top right): will become IMP (orc connect)
 	// Pane 3 (bottom right): shell
-	// User can launch vim, claude, etc. manually
+
+	// Launch orc connect in top-right pane (pane 2)
+	// Using respawn-pane makes "orc connect" the root command
+	// This means if the pane exits or is respawned, it runs orc connect again
+	topRightPane := fmt.Sprintf("%s.2", target)
+	connectCmd := exec.Command("tmux", "respawn-pane", "-t", topRightPane, "-k", "orc", "connect")
+	if err := connectCmd.Run(); err != nil {
+		return nil, fmt.Errorf("failed to launch orc connect in top-right pane: %w", err)
+	}
 
 	return &Window{Session: s, Index: index, Name: name}, nil
 }

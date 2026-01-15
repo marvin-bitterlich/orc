@@ -16,6 +16,53 @@ type MissionContext struct {
 	CreatedAt     time.Time `json:"created_at"`
 }
 
+// GroveContext represents grove context information (IMP territory)
+type GroveContext struct {
+	GroveID      string    `json:"grove_id"`
+	MissionID    string    `json:"mission_id"`
+	Name         string    `json:"name"`
+	Repos        []string  `json:"repos"`
+	CreatedAt    time.Time `json:"created_at"`
+	GrovePath    string    `json:"grove_path"` // Full path to grove directory
+	ConfigPath   string    `json:"config_path"` // Path to .orc/config.json
+}
+
+// DetectGroveContext checks if we're in a grove context (IMP territory)
+// by looking for .orc/config.json of type "grove" in current directory or parents
+func DetectGroveContext() (*GroveContext, error) {
+	// Start from current directory
+	dir, err := os.Getwd()
+	if err != nil {
+		return nil, err
+	}
+
+	// Walk up directory tree looking for grove config
+	for {
+		cfg, err := config.LoadConfigWithFallback(dir)
+		if err == nil && cfg.Type == config.TypeGrove {
+			// Found grove config - convert to GroveContext
+			createdAt, _ := time.Parse(time.RFC3339, cfg.Grove.CreatedAt)
+			return &GroveContext{
+				GroveID:    cfg.Grove.GroveID,
+				MissionID:  cfg.Grove.MissionID,
+				Name:       cfg.Grove.Name,
+				Repos:      cfg.Grove.Repos,
+				CreatedAt:  createdAt,
+				GrovePath:  dir,
+				ConfigPath: filepath.Join(dir, ".orc", "config.json"),
+			}, nil
+		}
+
+		// Move to parent directory
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			// Reached filesystem root without finding config
+			return nil, nil
+		}
+		dir = parent
+	}
+}
+
 // DetectMissionContext checks if we're in a mission context
 // by looking for .orc/config.json in current directory or parents
 func DetectMissionContext() (*MissionContext, error) {

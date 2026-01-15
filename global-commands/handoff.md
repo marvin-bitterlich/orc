@@ -1,10 +1,10 @@
 # Handoff Command
 
-Capture current session context in ORC ledger before ending session.
+Capture current IMP session context in ORC ledger before ending session.
 
 ## Role
 
-You are a **Session Context Archiver** that captures agent discoveries, decisions, and work state into ORC's ledger, enabling seamless session continuity.
+You are a **Session Context Archiver** for IMPs that captures agent discoveries, decisions, and work state into ORC's ledger, enabling seamless session continuity for grove-based work.
 
 ## Usage
 
@@ -12,22 +12,29 @@ You are a **Session Context Archiver** that captures agent discoveries, decision
 /handoff
 ```
 
-**Purpose**: Preserve session context in ORC ledger:
+**Purpose**: Preserve IMP session context in ORC ledger:
 - **What was accomplished** this session
-- **Current state** of work
+- **Current state** of epic work
 - **Decisions made** and rationale
-- **TODO state** from active session
 - **Open questions** and blockers
 - **Recommended next steps** for resume
+
+## Core Rules
+
+**IMPORTANT RESTRICTIONS:**
+- **TodoWrite tool is NOT ALLOWED** - This tool is banned in ORC workflow
+- **TODO markdown files are NOT ALLOWED** - No TODO.md or similar files
+- **Use ORC ledger only** - All task tracking must be in `orc task` commands
 
 ## Process
 
 <step number="1" name="gather_session_state">
 **Gather Session Context:**
 
-Check if TodoWrite is active and capture:
-- Current TODO items with status (pending, in_progress, completed)
-- Task descriptions and active work indicators
+Detect current grove context:
+- Run `orc prime` to understand IMP identity and assignment
+- Identify which grove (GROVE-ID) we're operating in
+- Identify which epic(s) are assigned to this grove
 
 Analyze conversation history for:
 - **Key decisions**: "We chose X because Y"
@@ -35,6 +42,7 @@ Analyze conversation history for:
 - **Architectural insights**: "System works by B"
 - **Open questions**: "Need to investigate C"
 - **Blockers**: "Waiting on D"
+- **Tasks completed**: Check `orc task list` for recently completed tasks
 
 Identify investigated artifacts:
 - File paths read or edited
@@ -64,33 +72,31 @@ Craft a Claude-to-Claude handoff note in markdown format:
 ```bash
 orc handoff create \
   --note "$(cat <<'EOF'
-Hey next Claude! Here's where we are:
+Hey next Claude! Here's where we are in this grove:
 
 ## What We Accomplished
 [List key completions from this session]
 
 ## Current State
-[Describe active work, decisions made, discoveries]
+[Describe active work on assigned epic(s), decisions made, discoveries]
 
 ## What's Next
-[Clear next steps with priority]
+[Clear next steps with priority - focus on ready tasks in epic]
 
 ## Important Context
 [Gotchas, blockers, open questions]
 EOF
 )" \
-  --mission [MISSION-ID if active] \
-  --operation [OP-ID if active] \
-  --work-order [WO-ID if active] \
-  --expedition [EXP-ID if active]
+  --mission [MISSION-ID from grove config] \
+  --grove [GROVE-ID from grove config]
 ```
 
-**Result:** Ledger handoff created instantly, metadata.json updated automatically.
+**Result:** Ledger handoff created instantly, next IMP boot will include this context.
 
 **Benefits:**
-- Next Claude gets context in <1 second
+- Next Claude (IMP) gets context in <1 second via `orc prime`
 - Structured relationships via database
-- metadata.json points to latest handoff
+- Grove-scoped handoffs for focused continuity
 </step>
 
 <step number="3" name="prompt_clear">
@@ -102,20 +108,20 @@ After handoff is created, tell El Presidente:
 ✓ Ledger handoff created: HO-XXX
   Created: [timestamp]
   Mission: [MISSION-ID]
-  Updated: .orc/metadata.json
+  Grove: [GROVE-ID]
 
-✓ Context preserved.
+✓ Context preserved for grove [GROVE-NAME].
 
-Now run /clear to start a fresh session. The SessionStart hook will
-automatically inject the handoff context via `orc prime`.
+When you reconnect to this grove, the IMP will automatically receive this handoff
+via `orc prime` during boot.
 ```
 
-**What Happens When User Runs /clear:**
-1. Claude session ends
-2. New Claude session starts
-3. SessionStart hook fires automatically
-4. Hook runs `orc prime` and injects context
-5. New session starts with lightweight ORC context pre-loaded
+**What Happens When IMP Reconnects:**
+1. TMux pane runs `orc connect`
+2. Claude launches and runs `orc prime`
+3. Prime detects grove context
+4. Prime includes latest handoff for this grove
+5. New IMP session starts with full context
 </step>
 
 ## Implementation Logic
@@ -130,48 +136,56 @@ automatically inject the handoff context via `orc prime`.
 - Capture insights about system behavior, architecture, patterns
 - NOT raw code - conceptual understanding only
 
+**Task Progress:**
+- Query `orc task list --status completed` to see what was finished
+- Include recently completed task IDs in handoff
+- Note any tasks moved to implement status
+
 ## Expected Behavior
 
 When El Presidente runs `/handoff`:
 
-1. **"🔍 Gathering session state..."** - Collect TODOs, decisions, discoveries
-2. **"💾 Creating ledger handoff..."** - Create handoff in ORC ledger
+1. **"🔍 Gathering session state..."** - Detect grove, analyze conversation
+2. **"💾 Creating ledger handoff..."** - Create handoff in ORC ledger with grove link
 3. **"✅ Handoff complete: HO-XXX"** - Display handoff ID and timestamp
-4. **"Run /clear to start fresh session with auto-injected context"** - Prompt next action
 
 **Example Output:**
 ```
 🔍 Gathering session state...
-   - 3 TODOs (1 in_progress, 2 pending)
+   - Grove: migration (GROVE-002)
+   - Epic: EPIC-117 (Worker Migrations & Teardowns)
+   - 2 tasks completed this session
    - 2 key decisions captured
    - 1 technical discovery recorded
    - 1 open question noted
 
 ✓ Ledger handoff created: HO-019
-  Created: 2026-01-14 23:15
-  Mission: MISSION-001
-  Updated: .orc/metadata.json
+  Created: 2026-01-15 10:45
+  Mission: MISSION-002
+  Grove: GROVE-002
 
-✓ Context preserved.
+✓ Context preserved for grove migration.
 
-Now run /clear to start a fresh session. The SessionStart hook will
-automatically inject the handoff context via `orc prime`.
+When you reconnect to this grove, the IMP will automatically receive this handoff
+via `orc prime` during boot.
 ```
 
 ## Integration Notes
 
 **Works With:**
-- TodoWrite: Captures active TODO state
-- EnterPlanMode: Records planning decisions
-- Standard investigation workflows
+- `orc prime`: Injects handoff context during IMP boot
+- `orc connect`: Launches IMP with prime directive
+- `orc task`: Track task completion in ledger (NO TodoWrite)
 
 **Storage:**
 - All data in ORC SQLite ledger
 - Persistent across sessions
-- No external dependencies
+- Grove-scoped for focused context
 
 **Session Continuity Flow:**
-1. End of session: Run `/handoff` to capture context
-2. User manually runs `/clear`
-3. SessionStart hook auto-injects `orc prime` output
-4. New Claude starts with orientation context
+1. End of IMP session: Run `/handoff` to capture context
+2. TMux pane can be killed or respawned
+3. TMux respawn runs `orc connect`
+4. Claude boots and runs `orc prime`
+5. Prime includes handoff for this grove
+6. New IMP starts with orientation context

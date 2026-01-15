@@ -741,14 +741,20 @@ Examples:
 							if err := session.SplitHorizontal(rightPane, grovePath); err != nil {
 								return fmt.Errorf("failed to split horizontal: %w", err)
 							}
-							fmt.Printf("✓ Window %d: %s (3 panes - empty shells) [%s IMP]\n", windowIndex, grove.Name, grove.ID)
+							// Launch orc connect in top-right pane
+							topRightPane := fmt.Sprintf("%s.2", target)
+							connectCmd := exec.Command("tmux", "respawn-pane", "-t", topRightPane, "-k", "orc", "connect")
+							if err := connectCmd.Run(); err != nil {
+								return fmt.Errorf("failed to launch orc connect: %w", err)
+							}
+							fmt.Printf("✓ Window %d: %s (IMP auto-booting) [%s]\n", windowIndex, grove.Name, grove.ID)
 						} else {
 							// Other groves: create new window
 							if _, err := session.CreateGroveWindowShell(windowIndex, grove.Name, grovePath); err != nil {
 								fmt.Printf("  ⚠️  Could not create window for grove %s: %v\n", grove.ID, err)
 								continue
 							}
-							fmt.Printf("✓ Window %d: %s (3 panes - empty shells) [%s IMP]\n", windowIndex, grove.Name, grove.ID)
+							fmt.Printf("✓ Window %d: %s (IMP auto-booting) [%s]\n", windowIndex, grove.Name, grove.ID)
 						}
 					} else {
 						fmt.Printf("  ℹ️  Grove %s worktree missing, skipping window\n", grove.ID)

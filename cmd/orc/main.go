@@ -29,6 +29,7 @@ It coordinates IMPs (Implementation Agents) working in isolated groves (worktree
 	rootCmd.AddCommand(cli.SummaryCmd())
 	rootCmd.AddCommand(cli.StatusCmd())
 	rootCmd.AddCommand(cli.AttachCmd())
+	rootCmd.AddCommand(cli.ConnectCmd())
 	rootCmd.AddCommand(cli.PrimeCmd())
 	rootCmd.AddCommand(cli.TestCmd())
 	rootCmd.AddCommand(cli.MailCmd())
