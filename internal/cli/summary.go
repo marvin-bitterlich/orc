@@ -67,14 +67,18 @@ func getStatusColor(status string) *color.Color {
 	switch status {
 	case "ready":
 		return color.New(color.FgGreen)
+	case "needs_design":
+		return color.New(color.FgHiYellow) // Bright yellow for needs design
+	case "ready_to_implement":
+		return color.New(color.FgHiCyan) // Bright cyan for ready to implement
 	case "paused":
 		return color.New(color.FgYellow)
 	case "blocked":
 		return color.New(color.FgRed)
-	case "implement":
-		return color.New(color.FgBlue)
 	case "design":
 		return color.New(color.FgCyan)
+	case "awaiting_approval":
+		return color.New(color.FgMagenta) // Magenta for awaiting approval
 	case "complete":
 		return color.New(color.FgHiGreen) // Bright green
 	default:
@@ -82,14 +86,14 @@ func getStatusColor(status string) *color.Color {
 	}
 }
 
-// colorizeStatus wraps a status in {status:value} format with semantic color
+// colorizeStatus formats status as uppercase with semantic color
 // Returns empty string for "ready" status (default, not shown)
 func colorizeStatus(status string) string {
 	if status == "ready" {
 		return "" // Don't show default status
 	}
 	c := getStatusColor(status)
-	return c.Sprintf("{status:%s}", status)
+	return c.Sprintf("%s", strings.ToUpper(status))
 }
 
 // SummaryCmd returns the summary command
@@ -224,8 +228,12 @@ Examples:
 						} else {
 							prefix = "└── "
 						}
-						statusInfo := " " + colorizeStatus(epic.Status)
-						fmt.Printf("%s%s%s - %s%s%s\n", prefix, pinnedEmoji, colorizeID(epic.ID), epic.Title, statusInfo, groveInfo)
+						statusInfo := colorizeStatus(epic.Status)
+						if statusInfo != "" {
+							fmt.Printf("%s%s%s - %s - %s%s\n", prefix, pinnedEmoji, colorizeID(epic.ID), statusInfo, epic.Title, groveInfo)
+						} else {
+							fmt.Printf("%s%s%s - %s%s\n", prefix, pinnedEmoji, colorizeID(epic.ID), epic.Title, groveInfo)
+						}
 
 						// Check if epic has rabbit holes or direct tasks
 						hasRH, _ := models.HasRabbitHoles(epic.ID)
@@ -264,8 +272,12 @@ Examples:
 										}
 									}
 
-									statusInfo := " " + colorizeStatus(rh.Status)
-					fmt.Printf("%s%s%s - %s%s\n", rhPrefix, pinnedEmoji, colorizeID(rh.ID), rh.Title, statusInfo)
+									statusInfo := colorizeStatus(rh.Status)
+									if statusInfo != "" {
+										fmt.Printf("%s%s%s - %s - %s\n", rhPrefix, pinnedEmoji, colorizeID(rh.ID), statusInfo, rh.Title)
+									} else {
+										fmt.Printf("%s%s%s - %s\n", rhPrefix, pinnedEmoji, colorizeID(rh.ID), rh.Title)
+									}
 
 									// Get expand flag
 									expand, _ := cmd.Flags().GetBool("expand")
@@ -326,8 +338,12 @@ Examples:
 												tagInfo = " " + colorizeTag(tag.Name)
 											}
 
-											statusInfo := " " + colorizeStatus(task.Status)
-						fmt.Printf("%s%s%s - %s%s%s\n", taskPrefix, pinnedEmoji, colorizeID(task.ID), task.Title, statusInfo, tagInfo)
+											statusInfo := colorizeStatus(task.Status)
+											if statusInfo != "" {
+												fmt.Printf("%s%s%s - %s - %s%s\n", taskPrefix, pinnedEmoji, colorizeID(task.ID), statusInfo, task.Title, tagInfo)
+											} else {
+												fmt.Printf("%s%s%s - %s%s\n", taskPrefix, pinnedEmoji, colorizeID(task.ID), task.Title, tagInfo)
+											}
 											}
 										}
 									} else {
@@ -385,8 +401,12 @@ Examples:
 										tagInfo = " " + colorizeTag(tag.Name)
 									}
 
-									statusInfo := " " + colorizeStatus(task.Status)
-						fmt.Printf("%s%s%s - %s%s%s\n", taskPrefix, pinnedEmoji, colorizeID(task.ID), task.Title, statusInfo, tagInfo)
+									statusInfo := colorizeStatus(task.Status)
+									if statusInfo != "" {
+										fmt.Printf("%s%s%s - %s - %s%s\n", taskPrefix, pinnedEmoji, colorizeID(task.ID), statusInfo, task.Title, tagInfo)
+									} else {
+										fmt.Printf("%s%s%s - %s%s\n", taskPrefix, pinnedEmoji, colorizeID(task.ID), task.Title, tagInfo)
+									}
 								}
 							}
 						}
@@ -450,23 +470,31 @@ func summarizeRabbitHoleTasks(rhID string, hideMap map[string]bool) string {
 	// Build summary string
 	parts := []string{}
 	if count := statusCounts["ready"]; count > 0 {
-		coloredStatus := getStatusColor("ready").Sprint("ready")
+		coloredStatus := getStatusColor("ready").Sprint(strings.ToUpper("ready"))
+		parts = append(parts, fmt.Sprintf("%d %s", count, coloredStatus))
+	}
+	if count := statusCounts["needs_design"]; count > 0 {
+		coloredStatus := getStatusColor("needs_design").Sprint(strings.ToUpper("needs_design"))
+		parts = append(parts, fmt.Sprintf("%d %s", count, coloredStatus))
+	}
+	if count := statusCounts["ready_to_implement"]; count > 0 {
+		coloredStatus := getStatusColor("ready_to_implement").Sprint(strings.ToUpper("ready_to_implement"))
 		parts = append(parts, fmt.Sprintf("%d %s", count, coloredStatus))
 	}
 	if count := statusCounts["design"]; count > 0 {
-		coloredStatus := getStatusColor("design").Sprint("design")
-		parts = append(parts, fmt.Sprintf("%d %s", count, coloredStatus))
-	}
-	if count := statusCounts["implement"]; count > 0 {
-		coloredStatus := getStatusColor("implement").Sprint("implement")
+		coloredStatus := getStatusColor("design").Sprint(strings.ToUpper("design"))
 		parts = append(parts, fmt.Sprintf("%d %s", count, coloredStatus))
 	}
 	if count := statusCounts["blocked"]; count > 0 {
-		coloredStatus := getStatusColor("blocked").Sprint("blocked")
+		coloredStatus := getStatusColor("blocked").Sprint(strings.ToUpper("blocked"))
 		parts = append(parts, fmt.Sprintf("%d %s", count, coloredStatus))
 	}
 	if count := statusCounts["paused"]; count > 0 {
-		coloredStatus := getStatusColor("paused").Sprint("paused")
+		coloredStatus := getStatusColor("paused").Sprint(strings.ToUpper("paused"))
+		parts = append(parts, fmt.Sprintf("%d %s", count, coloredStatus))
+	}
+	if count := statusCounts["awaiting_approval"]; count > 0 {
+		coloredStatus := getStatusColor("awaiting_approval").Sprint(strings.ToUpper("awaiting_approval"))
 		parts = append(parts, fmt.Sprintf("%d %s", count, coloredStatus))
 	}
 

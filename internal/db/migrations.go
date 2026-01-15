@@ -6,7 +6,7 @@ import (
 )
 
 // schemaVersion tracks the current schema version
-const currentSchemaVersion = 8
+const currentSchemaVersion = 11
 
 // Migration represents a database migration
 type Migration struct {
@@ -56,6 +56,21 @@ var migrations = []Migration{
 		Version: 8,
 		Name:    "add_tags_and_task_tags_tables",
 		Up:      migrationV8,
+	},
+	{
+		Version: 9,
+		Name:    "add_awaiting_approval_status",
+		Up:      migrationV9,
+	},
+	{
+		Version: 10,
+		Name:    "add_ready_to_implement_status",
+		Up:      migrationV10,
+	},
+	{
+		Version: 11,
+		Name:    "remove_implement_status",
+		Up:      migrationV11,
 	},
 }
 
@@ -723,6 +738,218 @@ func migrationV8(db *sql.DB) error {
 		if err != nil {
 			return fmt.Errorf("failed to seed tag %s: %w", tag.name, err)
 		}
+	}
+
+	return nil
+}
+
+// migrationV9 adds 'awaiting_approval' status to tasks
+func migrationV9(db *sql.DB) error {
+	// SQLite doesn't support ALTER TABLE to modify CHECK constraints
+	// Must recreate table with new constraint
+
+	// Step 1: Create new tasks table with updated status CHECK constraint
+	_, err := db.Exec(`
+		CREATE TABLE tasks_new (
+			id TEXT PRIMARY KEY,
+			epic_id TEXT,
+			rabbit_hole_id TEXT,
+			mission_id TEXT NOT NULL,
+			title TEXT NOT NULL,
+			description TEXT,
+			type TEXT CHECK(type IN ('research', 'implementation', 'fix', 'documentation', 'maintenance')),
+			status TEXT NOT NULL DEFAULT 'ready' CHECK(status IN ('ready', 'needs_design', 'design', 'implement', 'deploy', 'blocked', 'paused', 'awaiting_approval', 'complete')),
+			priority TEXT CHECK(priority IN ('low', 'medium', 'high')),
+			assigned_grove_id TEXT,
+			context_ref TEXT,
+			pinned INTEGER DEFAULT 0,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			claimed_at DATETIME,
+			completed_at DATETIME,
+			FOREIGN KEY (epic_id) REFERENCES epics(id) ON DELETE CASCADE,
+			FOREIGN KEY (rabbit_hole_id) REFERENCES rabbit_holes(id) ON DELETE CASCADE,
+			FOREIGN KEY (mission_id) REFERENCES missions(id),
+			FOREIGN KEY (assigned_grove_id) REFERENCES groves(id),
+			CHECK ((epic_id IS NOT NULL AND rabbit_hole_id IS NULL) OR
+			       (epic_id IS NULL AND rabbit_hole_id IS NOT NULL))
+		)
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to create tasks_new table: %w", err)
+	}
+
+	// Step 2: Copy all data from old tasks table
+	_, err = db.Exec(`
+		INSERT INTO tasks_new SELECT * FROM tasks
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to copy tasks data: %w", err)
+	}
+
+	// Step 3: Drop old tasks table
+	_, err = db.Exec(`DROP TABLE tasks`)
+	if err != nil {
+		return fmt.Errorf("failed to drop old tasks table: %w", err)
+	}
+
+	// Step 4: Rename new table to tasks
+	_, err = db.Exec(`ALTER TABLE tasks_new RENAME TO tasks`)
+	if err != nil {
+		return fmt.Errorf("failed to rename tasks_new to tasks: %w", err)
+	}
+
+	// Step 5: Recreate indexes
+	_, err = db.Exec(`
+		CREATE INDEX idx_tasks_epic ON tasks(epic_id);
+		CREATE INDEX idx_tasks_rabbit_hole ON tasks(rabbit_hole_id);
+		CREATE INDEX idx_tasks_mission ON tasks(mission_id);
+		CREATE INDEX idx_tasks_status ON tasks(status);
+		CREATE INDEX idx_tasks_grove ON tasks(assigned_grove_id);
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to recreate task indexes: %w", err)
+	}
+
+	return nil
+}
+
+func migrationV10(db *sql.DB) error {
+	// SQLite doesn't support ALTER TABLE to modify CHECK constraints
+	// Must recreate table with new constraint
+
+	// Step 1: Create new tasks table with updated status CHECK constraint
+	_, err := db.Exec(`
+		CREATE TABLE tasks_new (
+			id TEXT PRIMARY KEY,
+			epic_id TEXT,
+			rabbit_hole_id TEXT,
+			mission_id TEXT NOT NULL,
+			title TEXT NOT NULL,
+			description TEXT,
+			type TEXT CHECK(type IN ('research', 'implementation', 'fix', 'documentation', 'maintenance')),
+			status TEXT NOT NULL DEFAULT 'ready' CHECK(status IN ('ready', 'needs_design', 'ready_to_implement', 'design', 'implement', 'deploy', 'blocked', 'paused', 'awaiting_approval', 'complete')),
+			priority TEXT CHECK(priority IN ('low', 'medium', 'high')),
+			assigned_grove_id TEXT,
+			context_ref TEXT,
+			pinned INTEGER DEFAULT 0,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			claimed_at DATETIME,
+			completed_at DATETIME,
+			FOREIGN KEY (epic_id) REFERENCES epics(id) ON DELETE CASCADE,
+			FOREIGN KEY (rabbit_hole_id) REFERENCES rabbit_holes(id) ON DELETE CASCADE,
+			FOREIGN KEY (mission_id) REFERENCES missions(id),
+			FOREIGN KEY (assigned_grove_id) REFERENCES groves(id),
+			CHECK ((epic_id IS NOT NULL AND rabbit_hole_id IS NULL) OR
+			       (epic_id IS NULL AND rabbit_hole_id IS NOT NULL))
+		)
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to create tasks_new table: %w", err)
+	}
+
+	// Step 2: Copy all data from old tasks table
+	_, err = db.Exec(`
+		INSERT INTO tasks_new SELECT * FROM tasks
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to copy tasks data: %w", err)
+	}
+
+	// Step 3: Drop old tasks table
+	_, err = db.Exec(`DROP TABLE tasks`)
+	if err != nil {
+		return fmt.Errorf("failed to drop old tasks table: %w", err)
+	}
+
+	// Step 4: Rename new table to tasks
+	_, err = db.Exec(`ALTER TABLE tasks_new RENAME TO tasks`)
+	if err != nil {
+		return fmt.Errorf("failed to rename tasks_new to tasks: %w", err)
+	}
+
+	// Step 5: Recreate indexes
+	_, err = db.Exec(`
+		CREATE INDEX idx_tasks_epic ON tasks(epic_id);
+		CREATE INDEX idx_tasks_rabbit_hole ON tasks(rabbit_hole_id);
+		CREATE INDEX idx_tasks_mission ON tasks(mission_id);
+		CREATE INDEX idx_tasks_status ON tasks(status);
+		CREATE INDEX idx_tasks_grove ON tasks(assigned_grove_id);
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to recreate task indexes: %w", err)
+	}
+
+	return nil
+}
+
+func migrationV11(db *sql.DB) error {
+	// SQLite doesn't support ALTER TABLE to modify CHECK constraints
+	// Must recreate table with new constraint
+	// Removes 'implement' status from valid statuses
+
+	// Step 1: Create new tasks table with updated status CHECK constraint (no 'implement')
+	_, err := db.Exec(`
+		CREATE TABLE tasks_new (
+			id TEXT PRIMARY KEY,
+			epic_id TEXT,
+			rabbit_hole_id TEXT,
+			mission_id TEXT NOT NULL,
+			title TEXT NOT NULL,
+			description TEXT,
+			type TEXT CHECK(type IN ('research', 'implementation', 'fix', 'documentation', 'maintenance')),
+			status TEXT NOT NULL DEFAULT 'ready' CHECK(status IN ('ready', 'needs_design', 'ready_to_implement', 'design', 'deploy', 'blocked', 'paused', 'awaiting_approval', 'complete')),
+			priority TEXT CHECK(priority IN ('low', 'medium', 'high')),
+			assigned_grove_id TEXT,
+			context_ref TEXT,
+			pinned INTEGER DEFAULT 0,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			claimed_at DATETIME,
+			completed_at DATETIME,
+			FOREIGN KEY (epic_id) REFERENCES epics(id) ON DELETE CASCADE,
+			FOREIGN KEY (rabbit_hole_id) REFERENCES rabbit_holes(id) ON DELETE CASCADE,
+			FOREIGN KEY (mission_id) REFERENCES missions(id),
+			FOREIGN KEY (assigned_grove_id) REFERENCES groves(id),
+			CHECK ((epic_id IS NOT NULL AND rabbit_hole_id IS NULL) OR
+			       (epic_id IS NULL AND rabbit_hole_id IS NOT NULL))
+		)
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to create tasks_new table: %w", err)
+	}
+
+	// Step 2: Copy all data from old tasks table
+	_, err = db.Exec(`
+		INSERT INTO tasks_new SELECT * FROM tasks
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to copy tasks data: %w", err)
+	}
+
+	// Step 3: Drop old tasks table
+	_, err = db.Exec(`DROP TABLE tasks`)
+	if err != nil {
+		return fmt.Errorf("failed to drop old tasks table: %w", err)
+	}
+
+	// Step 4: Rename new table to tasks
+	_, err = db.Exec(`ALTER TABLE tasks_new RENAME TO tasks`)
+	if err != nil {
+		return fmt.Errorf("failed to rename tasks_new to tasks: %w", err)
+	}
+
+	// Step 5: Recreate indexes
+	_, err = db.Exec(`
+		CREATE INDEX idx_tasks_epic ON tasks(epic_id);
+		CREATE INDEX idx_tasks_rabbit_hole ON tasks(rabbit_hole_id);
+		CREATE INDEX idx_tasks_mission ON tasks(mission_id);
+		CREATE INDEX idx_tasks_status ON tasks(status);
+		CREATE INDEX idx_tasks_grove ON tasks(assigned_grove_id);
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to recreate task indexes: %w", err)
 	}
 
 	return nil
