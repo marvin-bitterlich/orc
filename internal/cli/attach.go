@@ -3,7 +3,9 @@ package cli
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"syscall"
 
 	"github.com/example/orc/internal/tmux"
 	"github.com/spf13/cobra"
@@ -41,8 +43,24 @@ Examples:
 
 		// Check if session already exists
 		if tmux.SessionExists(sessionName) {
-			fmt.Printf("TMux session '%s' already exists.\n\n", sessionName)
-			fmt.Println(tmux.AttachInstructions(sessionName))
+			fmt.Printf("✓ Attaching to existing session: %s\n", sessionName)
+
+			// Find tmux binary
+			tmuxPath, err := exec.LookPath("tmux")
+			if err != nil {
+				return fmt.Errorf("tmux not found in PATH: %w", err)
+			}
+
+			// Replace current process with tmux attach
+			// This makes the transition seamless - user just runs 'orc attach' and ends up in tmux
+			args := []string{"tmux", "attach", "-t", sessionName}
+			env := os.Environ()
+
+			if err := syscall.Exec(tmuxPath, args, env); err != nil {
+				return fmt.Errorf("failed to exec tmux attach: %w", err)
+			}
+
+			// This line never executes if exec succeeds
 			return nil
 		}
 
