@@ -37,7 +37,7 @@ This provides a focused view of "where am I right now?"`,
 			var activeMissionID *string
 
 			if missionCtx != nil {
-				// Deputy context - check workspace .orc/metadata.json first (has active context),
+				// Mission context - check workspace .orc/metadata.json first (has active context),
 				// then current directory .orc/metadata.json (might be grove metadata)
 				workspaceMetadataPath := fmt.Sprintf("%s/.orc/metadata.json", missionCtx.WorkspacePath)
 				data, err := os.ReadFile(workspaceMetadataPath)
@@ -59,7 +59,7 @@ This provides a focused view of "where am I right now?"`,
 				if activeMissionID == nil || *activeMissionID == "" {
 					activeMissionID = &missionCtx.MissionID
 				}
-				fmt.Println("🎯 ORC Status - Deputy Context")
+				fmt.Println("🎯 ORC Status - Mission Context")
 			} else {
 				// Master context - read from global metadata.json
 				homeDir, err := os.UserHomeDir()

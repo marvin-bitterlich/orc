@@ -124,7 +124,7 @@ Examples:
 			// Context detection result
 			fmt.Printf("\nContext Detection Result:\n")
 			if missionCtx != nil {
-				fmt.Printf("  Context: Deputy (mission-specific)\n")
+				fmt.Printf("  Context: Mission (mission-specific)\n")
 				fmt.Printf("  Mission: %s\n", missionCtx.MissionID)
 			} else {
 				fmt.Printf("  Context: Master (global orchestrator)\n")

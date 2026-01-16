@@ -1,5 +1,5 @@
 #!/bin/bash
-# Test: Mission Creation and Deputy Bootstrap
+# Test: Mission Creation and Context Bootstrap
 
 set -euo pipefail
 
@@ -105,7 +105,7 @@ test_mission_context_detection() {
     local status_output=$(orc status 2>&1)
 
     assert_contains "$status_output" "$TEST_MISSION_ID" "orc status shows test mission"
-    assert_contains "$status_output" "Deputy Context" "orc status detects deputy context"
+    assert_contains "$status_output" "Mission Context" "orc status detects mission context"
 
     return $?
 }
@@ -129,7 +129,7 @@ test_create_work_order() {
 
 # Test 7: Verify command auto-scoping
 test_command_autoscoping() {
-    log_info "Testing command auto-scoping in deputy context"
+    log_info "Testing command auto-scoping in mission context"
 
     cd "$TEST_MISSION_DIR"
 
@@ -152,14 +152,14 @@ test_command_autoscoping() {
 
 # Run all tests
 main() {
-    log_section "Mission Creation and Deputy Bootstrap Tests"
+    log_section "Mission Creation and Context Bootstrap Tests"
 
     run_test "Create mission" test_create_mission
     run_test "Create mission workspace" test_create_mission_workspace
     run_test "Write .orc-mission marker" test_write_mission_marker
     run_test "Write workspace metadata" test_write_workspace_metadata
     run_test "Mission context detection" test_mission_context_detection
-    run_test "Create work order in deputy context" test_create_work_order
+    run_test "Create work order in mission context" test_create_work_order
     run_test "Command auto-scoping" test_command_autoscoping
 
     print_test_summary

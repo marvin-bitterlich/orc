@@ -20,8 +20,7 @@ ORC 2.0 uses a simplified, flat hierarchy optimized for real-world workflows:
 ```
 Mission (coordination scope)
 ├── Work Orders (tasks, flat structure with optional parent/child grouping)
-├── Groves (git worktrees - isolated workspaces)
-└── Deputy ORC (mission-specific coordination instance)
+└── Groves (git worktrees - isolated workspaces with IMP agents)
 ```
 
 **Design Principles:**
@@ -37,7 +36,7 @@ Mission (coordination scope)
 ### 1. Mission Management
 - **Mission**: Top-level coordination scope (e.g., "Sidekiq Deprecation", "Auth Refactor")
 - Owns multiple Groves (workspaces) and Work Orders (tasks)
-- Each mission can have a dedicated TMux session with Deputy ORC coordination
+- Each mission can have a dedicated TMux session with IMP agents in groves
 - Support for both ORC-development missions and application-code missions
 
 ### 2. Work Order System
@@ -82,23 +81,22 @@ orc grove open GROVE-XXX      # Opens in new TMux window with IMP layout
 - Writes .orc-mission marker for context detection
 - Opens in TMux with 3-pane IMP layout: vim | claude | shell
 
-### 4. Deputy ORC (Mission-Specific Coordination)
-**Concept**: Lightweight ORC instances that coordinate individual missions
+### 4. Two-Tier Agent Architecture (ORC + IMPs)
+**Concept**: Simple two-tier coordination with one orchestrator and multiple implementation agents
 
-**Two Scenarios:**
-- **Master ORC**: Works on ORC source code itself (~/src/orc)
-- **Deputy ORC**: Mission-specific instance for app-code missions (~/src/missions/MISSION-XXX)
+**Agent Types:**
+- **ORC (Orchestrator)**: Master coordinator that manages missions, creates groves, assigns epics
+- **IMP (Implementation Agent)**: Works within a grove on assigned epics/tasks
 
-**Deputy Features:**
-- Operates within mission workspace
-- Context-aware (auto-detects mission from .orc-mission marker)
-- Commands auto-scope to mission (e.g., `orc summary` shows only mission's work orders)
-- Proto-mail system for Master ↔ Deputy communication
+**Architecture Principles:**
+- Single ORC orchestrator
+- IMPs operate within grove boundaries
+- ORC coordinates via mail system and epic assignments
+- IMPs can create groves/epics but not missions
 
-**Proto-Mail System:**
-- **WO-061**: Outbound Mail - Deputy → Master (escalations, tooling requests)
-- **WO-065**: Inbound Mail - Master → Deputy (directives, responses)
-- Work orders used as bidirectional message queue
+**Mail System:**
+- Direct IMP ↔ ORC communication
+- Work orders/tasks used for coordination
 
 ### 5. Context Preservation & Handoffs
 **g-bootstrap & g-handoff Integration:**
@@ -118,7 +116,7 @@ Session boundaries are preserved through:
 **One TMux session per mission:**
 ```
 TMux Session: "Mission Name" (orc-MISSION-XXX)
-├── Pane 0: ORC/Deputy (coordination)
+├── Pane 0: ORC (coordination)
 ├── Pane 1: IMP in grove-1 (vim)
 ├── Pane 2: IMP in grove-1 (claude)
 └── Pane 3: IMP in grove-1 (shell)
@@ -147,7 +145,7 @@ This pattern replaces SessionStart hooks (which are broken in Claude Code v2.1.7
 - Immediate agent activation
 - Clear, explicit agent instructions
 - Easier debugging (command visible in TMux history)
-- Works consistently across all agent types (IMPs, Deputies, Master ORC)
+- Works consistently across all agent types (IMPs, ORC)
 
 ---
 
@@ -283,7 +281,7 @@ Next session can bootstrap from this
 **WO-057: Factory Production Line Issues** (Master ORC Tooling)
 - Continuous improvements to CLI tools
 - Bug fixes and UX refinements
-- Deputy escalations from MISSION-002
+- IMP escalations from MISSION-002
 
 ### Completed Major Features (2.0)
 
@@ -302,10 +300,10 @@ Next session can bootstrap from this
 - 7 semantic states (ready → complete)
 - Emoji indicators for quick scanning
 
-✅ **Deputy ORC Deployment (MISSION-002)**
+✅ **IMP Agent Deployment (MISSION-002)**
 - First real-world mission validated
 - TMux automation working
-- Proto-mail bidirectional communication
+- ORC ↔ IMP communication working
 - **Validation**: Everything worked first try
 
 ✅ **Grove Management**
@@ -332,9 +330,9 @@ Next session can bootstrap from this
 - Add approval workflow
 
 **Phase 2: Cross-Mission Coordination**
-- Refine proto-mail system
-- Deputy → Master escalation workflow
-- Master → Deputy directive system
+- Refine mail system
+- IMP → ORC escalation workflow
+- ORC → IMP directive system
 - Async communication patterns
 
 **Phase 3: Discovery Sharing**
@@ -363,9 +361,9 @@ Next session can bootstrap from this
 - Contradiction detection
 
 **Multi-Agent Orchestration**
-- Master ORC coordinates multiple deputies
-- Deputy-to-deputy communication
-- Hierarchical mission structure
+- ORC coordinates multiple IMPs across groves
+- IMP-to-IMP communication via ORC
+- Mission-based coordination structure
 - Resource allocation and prioritization
 
 ---
@@ -374,7 +372,7 @@ Next session can bootstrap from this
 
 **First-Try Execution:**
 - MISSION-002 deployment: ✅ Worked on first attempt
-- Deputy ORC coordination: ✅ Validated in real operation
+- ORC + IMP coordination: ✅ Validated in real operation
 - TMux automation: ✅ Clean integration
 - Proto-mail system: ✅ Bidirectional communication working
 
@@ -386,7 +384,7 @@ Next session can bootstrap from this
 **Operational Metrics:**
 - Sessions with zero cold-start issues: 100%
 - Architecture decisions preserved: 100%
-- Deputy tooling escalations resolved: 5/5
+- IMP tooling escalations resolved: 5/5
 
 ---
 
@@ -485,7 +483,7 @@ orc work-order complete WO-001
 
 1. **Dual Knowledge Systems** - Deterministic (SQLite) + Semantic (Graphiti)
 2. **Zero Cold-Start** - Full context preservation across sessions
-3. **Multi-Agent Coordination** - Master/Deputy architecture with proto-mail
+3. **Multi-Agent Coordination** - ORC/IMP architecture with mail system
 4. **Git Worktree Native** - First-class support for isolated workspaces
 5. **Oracle Pattern System** - AI queries historical design preferences
 6. **TMux Integration** - One session per mission, programmatic layout
@@ -523,8 +521,7 @@ orc work-order complete WO-001
 **Work Order**: Task within a mission, flat hierarchy with optional parent
 **Grove**: Git worktree registered to a mission, physical workspace
 **IMP**: Implementation (conceptual layer over grove, not separate entity)
-**Deputy ORC**: Mission-specific coordination instance
-**Master ORC**: Main orchestrator that coordinates deputies
+**ORC**: Main orchestrator that coordinates IMPs across missions
 **Proto-Mail**: Work-order-based bidirectional messaging (WO-061 ↔ WO-065)
 **Oracle**: Design pattern lookup interface querying Graphiti
 **Handoff**: Session boundary artifact (narrative + work state)

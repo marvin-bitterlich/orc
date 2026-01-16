@@ -17,18 +17,18 @@ cd ~/src/orc
 ## Test Coverage
 
 ### 01-test-mission-creation.sh (7 tests)
-Tests mission creation and deputy ORC bootstrap workflow:
+Tests mission creation and context bootstrap workflow:
 - ✓ Create mission
 - ✓ Create mission workspace directory structure
 - ✓ Write .orc-mission marker (JSON format)
 - ✓ Write workspace metadata.json
 - ✓ Mission context detection from .orc-mission file
-- ✓ Create work order in deputy context (auto-scoping)
+- ✓ Create work order in mission context (auto-scoping)
 - ✓ Command auto-scoping to mission
 
 **Validates:**
 - Mission lifecycle
-- Deputy context detection
+- Mission context detection
 - File-based mission markers
 - Auto-scoping of commands to mission
 
@@ -171,8 +171,8 @@ trap cleanup EXIT
 - ✓ Workspace metadata.json (active_mission_id)
 - ✓ Mission context detection from any subdirectory
 
-### Deputy ORC
-- ✓ Context auto-detection from .orc-mission file
+### Mission Context
+- ✓ Context auto-detection from .orc/config.json file
 - ✓ Command auto-scoping to mission (no --mission flag needed)
 - ✓ Work order creation scoped to mission
 - ✓ Summary and status commands show correct mission

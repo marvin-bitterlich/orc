@@ -126,9 +126,8 @@ func GetContextMissionID() string {
 	return ctx.MissionID
 }
 
-// IsDeputyContext returns true if we're running in a mission context
-// Deprecated: Use DetectMissionContext() != nil instead
-func IsDeputyContext() bool {
+// IsMissionContext returns true if we're running in a mission context
+func IsMissionContext() bool {
 	ctx, _ := DetectMissionContext()
 	return ctx != nil
 }
