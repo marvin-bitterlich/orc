@@ -21,7 +21,7 @@ Tests mission creation and context bootstrap workflow:
 - ✓ Create mission
 - ✓ Create mission workspace directory structure
 - ✓ Write .orc-mission marker (JSON format)
-- ✓ Write workspace metadata.json
+- ✓ Write workspace config.json
 - ✓ Mission context detection from .orc-mission file
 - ✓ Create work order in mission context (auto-scoping)
 - ✓ Command auto-scoping to mission
@@ -170,7 +170,7 @@ trap cleanup EXIT
 - ✓ Mission creation with auto-generated IDs
 - ✓ Mission workspace directory structure
 - ✓ .orc-mission marker (JSON format with mission_id)
-- ✓ Workspace metadata.json (active_mission_id)
+- ✓ Workspace config.json (active_mission_id)
 - ✓ Mission context detection from any subdirectory
 
 ### Mission Context
@@ -182,7 +182,7 @@ trap cleanup EXIT
 ### Grove Management
 - ✓ Grove creation with database registration
 - ✓ Git worktree creation and validation
-- ✓ Metadata propagation (.orc/metadata.json)
+- ✓ Config propagation (.orc/config.json)
 - ✓ Mission marker propagation (.orc-mission)
 - ✓ Commands work from grove directories
 - ✓ Grove show command displays correct info

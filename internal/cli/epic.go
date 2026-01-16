@@ -109,9 +109,24 @@ var epicListCmd = &cobra.Command{
 var epicShowCmd = &cobra.Command{
 	Use:   "show [epic-id]",
 	Short: "Show epic details with children",
-	Args:  cobra.ExactArgs(1),
+	Long: `Show epic details with children (tasks or rabbit holes).
+
+If no epic-id is provided, shows the currently focused epic from config.json.
+Use 'orc epic focus <epic-id>' to set the focused epic.`,
+	Args: cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		epicID := args[0]
+		var epicID string
+
+		if len(args) > 0 {
+			epicID = args[0]
+		} else {
+			// Try to get current_epic from config.json
+			epicID = getCurrentEpic()
+			if epicID == "" {
+				return fmt.Errorf("no epic-id provided and no focused epic set\nHint: Use 'orc epic focus <epic-id>' to set a focused epic")
+			}
+			fmt.Printf("(using focused epic from config)\n\n")
+		}
 
 		epic, err := models.GetEpic(epicID)
 		if err != nil {
@@ -553,6 +568,49 @@ func getStatusIcon(status string) string {
 	default:
 		return "•"
 	}
+}
+
+// getCurrentEpic returns the current_epic from config.json if set
+func getCurrentEpic() string {
+	// Try mission context first
+	missionCtx, _ := context.DetectMissionContext()
+	if missionCtx != nil {
+		cfg, err := config.LoadConfig(missionCtx.WorkspacePath)
+		if err == nil {
+			switch cfg.Type {
+			case config.TypeGrove:
+				if cfg.Grove != nil && cfg.Grove.CurrentEpic != "" {
+					return cfg.Grove.CurrentEpic
+				}
+			case config.TypeMission:
+				if cfg.Mission != nil && cfg.Mission.CurrentEpic != "" {
+					return cfg.Mission.CurrentEpic
+				}
+			}
+		}
+
+		// Also try current directory for grove config
+		cwd, _ := os.Getwd()
+		cfg, err = config.LoadConfig(cwd)
+		if err == nil && cfg.Type == config.TypeGrove && cfg.Grove != nil && cfg.Grove.CurrentEpic != "" {
+			return cfg.Grove.CurrentEpic
+		}
+	}
+
+	// Try global config
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+	cfg, err := config.LoadConfig(homeDir)
+	if err != nil {
+		return ""
+	}
+	if cfg.State != nil && cfg.State.CurrentEpic != "" {
+		return cfg.State.CurrentEpic
+	}
+
+	return ""
 }
 
 func init() {

@@ -1,10 +1,11 @@
 package cli
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
+	"time"
 
+	"github.com/example/orc/internal/config"
 	"github.com/example/orc/internal/db"
 	"github.com/spf13/cobra"
 )
@@ -30,12 +31,12 @@ func InitCmd() *cobra.Command {
 
 			fmt.Println("✓ Database initialized successfully")
 
-			// Initialize metadata.json
-			if err := initMetadata(); err != nil {
-				return fmt.Errorf("failed to initialize metadata: %w", err)
+			// Initialize config.json
+			if err := initConfig(); err != nil {
+				return fmt.Errorf("failed to initialize config: %w", err)
 			}
 
-			fmt.Println("✓ Metadata file created at ~/.orc/metadata.json")
+			fmt.Println("✓ Config file created at ~/.orc/config.json")
 			fmt.Println()
 			fmt.Println("Next steps:")
 			fmt.Println("  orc expedition create \"My First Expedition\"")
@@ -46,34 +47,31 @@ func InitCmd() *cobra.Command {
 	}
 }
 
-// initMetadata creates the initial metadata.json file
-func initMetadata() error {
+// initConfig creates the initial config.json file
+func initConfig() error {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		return err
 	}
 
-	orcDir := fmt.Sprintf("%s/.orc", homeDir)
-	metadataPath := fmt.Sprintf("%s/metadata.json", orcDir)
+	configPath := fmt.Sprintf("%s/.orc/config.json", homeDir)
 
 	// Check if file already exists
-	if _, err := os.Stat(metadataPath); err == nil {
+	if _, err := os.Stat(configPath); err == nil {
 		return nil // Already exists, skip
 	}
 
-	metadata := map[string]any{
-		"current_handoff_id":    nil,
-		"last_updated":          nil,
-		"active_mission_id":     nil,
-		"active_operation_id":   nil,
-		"active_work_order_id":  nil,
-		"active_expedition_id":  nil,
+	cfg := &config.Config{
+		Version: "1.0",
+		Type:    config.TypeGlobal,
+		State: &config.StateConfig{
+			ActiveMissionID:  "",
+			CurrentHandoffID: "",
+			CurrentEpic:      "",
+			LastUpdated:      time.Now().Format(time.RFC3339),
+			ActiveWorkOrders: []string{},
+		},
 	}
 
-	data, err := json.MarshalIndent(metadata, "", "  ")
-	if err != nil {
-		return err
-	}
-
-	return os.WriteFile(metadataPath, data, 0644)
+	return config.SaveConfig(homeDir, cfg)
 }

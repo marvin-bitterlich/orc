@@ -77,17 +77,17 @@ Examples:
 				fmt.Printf("  ✗ Not found (not in a mission context)\n\n")
 			}
 
-			// Check for workspace metadata
-			fmt.Printf("Workspace Metadata (.orc/metadata.json):\n")
+			// Check for workspace config
+			fmt.Printf("Workspace Config (.orc/config.json):\n")
 			if missionCtx != nil {
-				metadataPath := filepath.Join(missionCtx.WorkspacePath, ".orc", "metadata.json")
-				if data, err := os.ReadFile(metadataPath); err == nil {
-					fmt.Printf("  ✓ Found: %s\n", metadataPath)
+				configPath := filepath.Join(missionCtx.WorkspacePath, ".orc", "config.json")
+				if data, err := os.ReadFile(configPath); err == nil {
+					fmt.Printf("  ✓ Found: %s\n", configPath)
 
-					var metadata map[string]interface{}
-					if err := json.Unmarshal(data, &metadata); err == nil {
+					var config map[string]interface{}
+					if err := json.Unmarshal(data, &config); err == nil {
 						fmt.Printf("  Content:\n")
-						formatted, _ := json.MarshalIndent(metadata, "    ", "  ")
+						formatted, _ := json.MarshalIndent(config, "    ", "  ")
 						fmt.Printf("    %s\n\n", string(formatted))
 					}
 				} else {
@@ -97,16 +97,16 @@ Examples:
 				fmt.Printf("  N/A (no mission context)\n\n")
 			}
 
-			// Check for grove metadata
-			fmt.Printf("Grove Metadata (.orc/metadata.json in current dir):\n")
-			localMetadataPath := filepath.Join(cwd, ".orc", "metadata.json")
-			if data, err := os.ReadFile(localMetadataPath); err == nil {
-				fmt.Printf("  ✓ Found: %s\n", localMetadataPath)
+			// Check for grove config
+			fmt.Printf("Grove Config (.orc/config.json in current dir):\n")
+			localConfigPath := filepath.Join(cwd, ".orc", "config.json")
+			if data, err := os.ReadFile(localConfigPath); err == nil {
+				fmt.Printf("  ✓ Found: %s\n", localConfigPath)
 
-				var metadata map[string]interface{}
-				if err := json.Unmarshal(data, &metadata); err == nil {
+				var config map[string]interface{}
+				if err := json.Unmarshal(data, &config); err == nil {
 					fmt.Printf("  Content:\n")
-					formatted, _ := json.MarshalIndent(metadata, "    ", "  ")
+					formatted, _ := json.MarshalIndent(config, "    ", "  ")
 					fmt.Printf("    %s\n\n", string(formatted))
 				}
 			} else {
@@ -141,7 +141,7 @@ func debugValidateContextCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "validate-context [directory]",
 		Short: "Validate ORC context setup for a directory",
-		Long: `Validate that a directory has proper ORC context markers and metadata.
+		Long: `Validate that a directory has proper ORC context markers and config.
 
 Checks:
 - .orc/config.json exists and is valid JSON
@@ -191,29 +191,39 @@ Examples:
 
 			// Check 2: .orc/config.json
 			fmt.Printf("2. .orc/config.json\n")
-			metadataPath := filepath.Join(orcDir, "config.json")
-			if data, err := os.ReadFile(metadataPath); err == nil {
-				fmt.Printf("   ✓ File exists: %s\n", metadataPath)
+			configPath := filepath.Join(orcDir, "config.json")
+			if data, err := os.ReadFile(configPath); err == nil {
+				fmt.Printf("   ✓ File exists: %s\n", configPath)
 
 				// Validate JSON
-				var metadata map[string]interface{}
-				if err := json.Unmarshal(data, &metadata); err == nil {
+				var cfg map[string]interface{}
+				if err := json.Unmarshal(data, &cfg); err == nil {
 					fmt.Printf("   ✓ Valid JSON\n")
 
-					// Check for active_mission_id (workspace metadata) or mission_id (grove metadata)
-					if activeMissionID, ok := metadata["active_mission_id"].(string); ok && activeMissionID != "" {
-						fmt.Printf("   ✓ active_mission_id present: %s (workspace metadata)\n", activeMissionID)
-					} else if missionID, ok := metadata["mission_id"].(string); ok && missionID != "" {
-						fmt.Printf("   ✓ mission_id present: %s (grove metadata)\n", missionID)
-					} else {
-						fmt.Printf("   ⚠️  Neither active_mission_id nor mission_id found\n")
+					// Check for type and relevant ID fields
+					if cfgType, ok := cfg["type"].(string); ok {
+						fmt.Printf("   ✓ Config type: %s\n", cfgType)
+					}
+					// Check nested objects for mission_id
+					if grove, ok := cfg["grove"].(map[string]interface{}); ok {
+						if missionID, ok := grove["mission_id"].(string); ok && missionID != "" {
+							fmt.Printf("   ✓ grove.mission_id present: %s\n", missionID)
+						}
+					} else if mission, ok := cfg["mission"].(map[string]interface{}); ok {
+						if missionID, ok := mission["mission_id"].(string); ok && missionID != "" {
+							fmt.Printf("   ✓ mission.mission_id present: %s\n", missionID)
+						}
+					} else if state, ok := cfg["state"].(map[string]interface{}); ok {
+						if activeMissionID, ok := state["active_mission_id"].(string); ok && activeMissionID != "" {
+							fmt.Printf("   ✓ state.active_mission_id present: %s\n", activeMissionID)
+						}
 					}
 				} else {
 					fmt.Printf("   ✗ Invalid JSON: %v\n", err)
 					validationPassed = false
 				}
 			} else {
-				fmt.Printf("   ⚠️  File not found: %s (optional for some contexts)\n", metadataPath)
+				fmt.Printf("   ⚠️  File not found: %s (optional for some contexts)\n", configPath)
 			}
 			fmt.Println()
 

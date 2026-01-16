@@ -77,7 +77,7 @@ orc grove open GROVE-XXX      # Opens in new TMux window with IMP layout
 
 **Grove Features:**
 - Creates git worktree automatically
-- Writes metadata.json to .orc/ subdirectory (reference only)
+- Writes config.json to .orc/ subdirectory (reference only)
 - Writes .orc-mission marker for context detection
 - Opens in TMux with 3-pane IMP layout: vim | claude | shell
 
@@ -196,7 +196,7 @@ This pattern replaces SessionStart hooks (which are broken in Claude Code v2.1.7
 - Fast, local, transactional
 - Schema-enforced data integrity
 - Deterministic queries (e.g., "show all ready tasks")
-- Files like metadata.json are DERIVED from this, never read for decisions
+- Files like config.json are DERIVED from this, never read for decisions
 
 ### Handoff System
 

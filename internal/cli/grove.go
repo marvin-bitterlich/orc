@@ -226,7 +226,7 @@ func groveRenameCmd() *cobra.Command {
 
 Examples:
   orc grove rename GROVE-001 tooling
-  orc grove rename GROVE-001 backend-refactor --update-metadata`,
+  orc grove rename GROVE-001 backend-refactor --update-config`,
 		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			id := args[0]
@@ -269,7 +269,7 @@ Examples:
 		},
 	}
 
-	cmd.Flags().BoolVar(&updateMetadata, "update-metadata", false, "Also update metadata.json file (optional)")
+	cmd.Flags().BoolVar(&updateMetadata, "update-config", false, "Also update .orc/config.json file (optional)")
 
 	return cmd
 }

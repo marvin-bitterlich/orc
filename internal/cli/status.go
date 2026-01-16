@@ -1,22 +1,14 @@
 package cli
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 
+	"github.com/example/orc/internal/config"
 	"github.com/example/orc/internal/context"
 	"github.com/example/orc/internal/models"
 	"github.com/spf13/cobra"
 )
-
-type Metadata struct {
-	CurrentHandoffID  *string  `json:"current_handoff_id"`
-	LastUpdated       *string  `json:"last_updated"`
-	ActiveMissionID   *string  `json:"active_mission_id"`
-	ActiveWorkOrderID *string  `json:"active_work_order_id"` // Legacy field
-	ActiveWorkOrders  []string `json:"active_work_orders"`   // New field (slice of task IDs)
-}
 
 // StatusCmd returns the status command
 func StatusCmd() *cobra.Command {
@@ -24,8 +16,8 @@ func StatusCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "status",
-		Short: "Show current work context from metadata.json",
-		Long: `Display the current work context based on metadata.json:
+		Short: "Show current work context from config.json",
+		Long: `Display the current work context based on .orc/config.json:
 - Active mission, epics, and tasks
 - Latest handoff ID and timestamp (use --handoff to see full note)
 
@@ -33,60 +25,73 @@ This provides a focused view of "where am I right now?"`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Check if we're in a mission context first
 			missionCtx, _ := context.DetectMissionContext()
-			var metadata Metadata
-			var activeMissionID *string
+			var activeMissionID string
+			var activeWorkOrders []string
+			var currentHandoffID string
+			var lastUpdated string
+			var currentEpic string
 
 			if missionCtx != nil {
-				// Mission context - check workspace .orc/metadata.json first (has active context),
-				// then current directory .orc/metadata.json (might be grove metadata)
-				workspaceMetadataPath := fmt.Sprintf("%s/.orc/metadata.json", missionCtx.WorkspacePath)
-				data, err := os.ReadFile(workspaceMetadataPath)
+				// Mission context - try to load config from workspace or current directory
+				cfg, err := config.LoadConfig(missionCtx.WorkspacePath)
 				if err != nil {
-					// No workspace metadata, try current directory
+					// Try current directory
 					cwd, _ := os.Getwd()
-					localMetadataPath := fmt.Sprintf("%s/.orc/metadata.json", cwd)
-					data, err = os.ReadFile(localMetadataPath)
+					cfg, err = config.LoadConfig(cwd)
 				}
 
 				if err == nil {
-					// Try to parse as context metadata (has active_mission_id)
-					if err := json.Unmarshal(data, &metadata); err == nil {
-						activeMissionID = metadata.ActiveMissionID
+					// Extract fields based on config type
+					switch cfg.Type {
+					case config.TypeGrove:
+						activeMissionID = cfg.Grove.MissionID
+						currentEpic = cfg.Grove.CurrentEpic
+					case config.TypeMission:
+						activeMissionID = cfg.Mission.MissionID
+						currentEpic = cfg.Mission.CurrentEpic
+					case config.TypeGlobal:
+						activeMissionID = cfg.State.ActiveMissionID
+						activeWorkOrders = cfg.State.ActiveWorkOrders
+						currentHandoffID = cfg.State.CurrentHandoffID
+						lastUpdated = cfg.State.LastUpdated
+						currentEpic = cfg.State.CurrentEpic
 					}
 				}
 
 				// If still no active mission, use mission from .orc-mission file
-				if activeMissionID == nil || *activeMissionID == "" {
-					activeMissionID = &missionCtx.MissionID
+				if activeMissionID == "" {
+					activeMissionID = missionCtx.MissionID
 				}
 				fmt.Println("🎯 ORC Status - Mission Context")
 			} else {
-				// Master context - read from global metadata.json
+				// Master context - read from global config.json
 				homeDir, err := os.UserHomeDir()
 				if err != nil {
 					return fmt.Errorf("failed to get home directory: %w", err)
 				}
 
-				metadataPath := fmt.Sprintf("%s/.orc/metadata.json", homeDir)
-				data, err := os.ReadFile(metadataPath)
+				cfg, err := config.LoadConfig(homeDir)
 				if err != nil {
-					return fmt.Errorf("failed to read metadata.json: %w\nHint: Run 'orc init' if you haven't initialized ORC yet", err)
+					return fmt.Errorf("failed to read config.json: %w\nHint: Run 'orc init' if you haven't initialized ORC yet", err)
 				}
 
-				if err := json.Unmarshal(data, &metadata); err != nil {
-					return fmt.Errorf("failed to parse metadata.json: %w", err)
+				if cfg.State != nil {
+					activeMissionID = cfg.State.ActiveMissionID
+					activeWorkOrders = cfg.State.ActiveWorkOrders
+					currentHandoffID = cfg.State.CurrentHandoffID
+					lastUpdated = cfg.State.LastUpdated
+					currentEpic = cfg.State.CurrentEpic
 				}
 
-				activeMissionID = metadata.ActiveMissionID
 				fmt.Println("🎯 ORC Status - Current Context")
 			}
 			fmt.Println()
 
 			// Display active mission
-			if activeMissionID != nil && *activeMissionID != "" {
-				mission, err := models.GetMission(*activeMissionID)
+			if activeMissionID != "" {
+				mission, err := models.GetMission(activeMissionID)
 				if err != nil {
-					fmt.Printf("❌ Mission: %s (error loading: %v)\n", *activeMissionID, err)
+					fmt.Printf("❌ Mission: %s (error loading: %v)\n", activeMissionID, err)
 				} else {
 					fmt.Printf("🎯 Mission: %s - %s [%s]\n", mission.ID, mission.Title, mission.Status)
 					if mission.Description.Valid && mission.Description.String != "" {
@@ -98,10 +103,21 @@ This provides a focused view of "where am I right now?"`,
 			}
 			fmt.Println()
 
-			// Display active tasks (from metadata.ActiveWorkOrders)
-			if metadata.ActiveWorkOrders != nil && len(metadata.ActiveWorkOrders) > 0 {
+			// Display current epic if focused
+			if currentEpic != "" {
+				epic, err := models.GetEpic(currentEpic)
+				if err != nil {
+					fmt.Printf("🎯 Focused Epic: %s (error loading: %v)\n", currentEpic, err)
+				} else {
+					fmt.Printf("🎯 Focused Epic: %s - %s [%s]\n", epic.ID, epic.Title, epic.Status)
+				}
+				fmt.Println()
+			}
+
+			// Display active tasks (from config.State.ActiveWorkOrders)
+			if len(activeWorkOrders) > 0 {
 				fmt.Printf("📋 Active Tasks:\n")
-				for _, taskID := range metadata.ActiveWorkOrders {
+				for _, taskID := range activeWorkOrders {
 					task, err := models.GetTask(taskID)
 					if err != nil {
 						fmt.Printf("   ❌ %s (error loading: %v)\n", taskID, err)
@@ -118,10 +134,10 @@ This provides a focused view of "where am I right now?"`,
 			fmt.Println()
 
 			// Display latest handoff
-			if metadata.CurrentHandoffID != nil && *metadata.CurrentHandoffID != "" {
-				handoff, err := models.GetHandoff(*metadata.CurrentHandoffID)
+			if currentHandoffID != "" {
+				handoff, err := models.GetHandoff(currentHandoffID)
 				if err != nil {
-					fmt.Printf("❌ Latest Handoff: %s (error loading: %v)\n", *metadata.CurrentHandoffID, err)
+					fmt.Printf("❌ Latest Handoff: %s (error loading: %v)\n", currentHandoffID, err)
 				} else {
 					fmt.Printf("📝 Latest Handoff: %s\n", handoff.ID)
 					fmt.Printf("   Created: %s\n", handoff.CreatedAt.Format("2006-01-02 15:04:05"))
@@ -139,8 +155,8 @@ This provides a focused view of "where am I right now?"`,
 			}
 			fmt.Println()
 
-			if metadata.LastUpdated != nil && *metadata.LastUpdated != "" {
-				fmt.Printf("Last updated: %s\n", *metadata.LastUpdated)
+			if lastUpdated != "" {
+				fmt.Printf("Last updated: %s\n", lastUpdated)
 			}
 
 			return nil

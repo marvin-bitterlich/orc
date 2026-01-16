@@ -80,10 +80,14 @@ setup_mission() {
 }
 EOF
 
-    cat > "$TEST_MISSION_DIR/.orc/metadata.json" <<EOF
+    cat > "$TEST_MISSION_DIR/.orc/config.json" <<EOF
 {
-  "active_mission_id": "$TEST_MISSION_ID",
-  "last_updated": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+  "version": "1.0",
+  "type": "mission",
+  "mission": {
+    "mission_id": "$TEST_MISSION_ID",
+    "current_epic": ""
+  }
 }
 EOF
 

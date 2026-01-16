@@ -79,18 +79,22 @@ EOF
     return $?
 }
 
-# Test 4: Write workspace metadata.json
-test_write_workspace_metadata() {
-    log_info "Writing workspace metadata.json"
+# Test 4: Write workspace config.json
+test_write_workspace_config() {
+    log_info "Writing workspace config.json"
 
-    cat > "$TEST_MISSION_DIR/.orc/metadata.json" <<EOF
+    cat > "$TEST_MISSION_DIR/.orc/config.json" <<EOF
 {
-  "active_mission_id": "$TEST_MISSION_ID",
-  "last_updated": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+  "version": "1.0",
+  "type": "mission",
+  "mission": {
+    "mission_id": "$TEST_MISSION_ID",
+    "current_epic": ""
+  }
 }
 EOF
 
-    assert_file_exists "$TEST_MISSION_DIR/.orc/metadata.json" "Workspace metadata.json"
+    assert_file_exists "$TEST_MISSION_DIR/.orc/config.json" "Workspace config.json"
 
     return $?
 }
@@ -157,7 +161,7 @@ main() {
     run_test "Create mission" test_create_mission
     run_test "Create mission workspace" test_create_mission_workspace
     run_test "Write .orc-mission marker" test_write_mission_marker
-    run_test "Write workspace metadata" test_write_workspace_metadata
+    run_test "Write workspace config" test_write_workspace_config
     run_test "Mission context detection" test_mission_context_detection
     run_test "Create work order in mission context" test_create_work_order
     run_test "Command auto-scoping" test_command_autoscoping
