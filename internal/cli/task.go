@@ -21,21 +21,10 @@ var taskCreateCmd = &cobra.Command{
 	Args:  cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		title := args[0]
-		epicID, _ := cmd.Flags().GetString("epic")
-		rabbitHoleID, _ := cmd.Flags().GetString("rabbit-hole")
+		shipmentID, _ := cmd.Flags().GetString("shipment")
 		missionID, _ := cmd.Flags().GetString("mission")
 		description, _ := cmd.Flags().GetString("description")
 		taskType, _ := cmd.Flags().GetString("type")
-
-		// Can't specify both
-		if epicID != "" && rabbitHoleID != "" {
-			return fmt.Errorf("cannot specify both --epic and --rabbit-hole")
-		}
-
-		// Require explicit epic or rabbit-hole
-		if epicID == "" && rabbitHoleID == "" {
-			return fmt.Errorf("no epic specified\nHint: Use --epic or --rabbit-hole flag")
-		}
 
 		// Get mission from context or require explicit flag
 		if missionID == "" {
@@ -45,17 +34,14 @@ var taskCreateCmd = &cobra.Command{
 			}
 		}
 
-		task, err := models.CreateTask(epicID, rabbitHoleID, missionID, title, description, taskType)
+		task, err := models.CreateTask(shipmentID, missionID, title, description, taskType)
 		if err != nil {
 			return fmt.Errorf("failed to create task: %w", err)
 		}
 
 		fmt.Printf("✓ Created task %s: %s\n", task.ID, task.Title)
-		if task.EpicID.Valid {
-			fmt.Printf("  Under epic: %s\n", task.EpicID.String)
-		}
-		if task.RabbitHoleID.Valid {
-			fmt.Printf("  Under rabbit hole: %s\n", task.RabbitHoleID.String)
+		if task.ShipmentID.Valid {
+			fmt.Printf("  Under shipment: %s\n", task.ShipmentID.String)
 		}
 		fmt.Printf("  Mission: %s\n", task.MissionID)
 		return nil
@@ -66,8 +52,7 @@ var taskListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List tasks",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		epicID, _ := cmd.Flags().GetString("epic")
-		rabbitHoleID, _ := cmd.Flags().GetString("rabbit-hole")
+		shipmentID, _ := cmd.Flags().GetString("shipment")
 		status, _ := cmd.Flags().GetString("status")
 		tag, _ := cmd.Flags().GetString("tag")
 
@@ -84,10 +69,7 @@ var taskListCmd = &cobra.Command{
 			// Apply additional filters if specified
 			var filteredTasks []*models.Task
 			for _, task := range tasks {
-				if epicID != "" && (!task.EpicID.Valid || task.EpicID.String != epicID) {
-					continue
-				}
-				if rabbitHoleID != "" && (!task.RabbitHoleID.Valid || task.RabbitHoleID.String != rabbitHoleID) {
+				if shipmentID != "" && (!task.ShipmentID.Valid || task.ShipmentID.String != shipmentID) {
 					continue
 				}
 				if status != "" && task.Status != status {
@@ -98,7 +80,7 @@ var taskListCmd = &cobra.Command{
 			tasks = filteredTasks
 		} else {
 			// Use normal list
-			tasks, err = models.ListTasks(epicID, rabbitHoleID, status)
+			tasks, err = models.ListTasks(shipmentID, status)
 			if err != nil {
 				return fmt.Errorf("failed to list tasks: %w", err)
 			}
@@ -123,11 +105,8 @@ var taskListCmd = &cobra.Command{
 			}
 
 			fmt.Printf("%s %s: %s%s [%s]%s\n", statusIcon, task.ID, task.Title, typeStr, task.Status, pinnedIcon)
-			if task.EpicID.Valid {
-				fmt.Printf("   Epic: %s\n", task.EpicID.String)
-			}
-			if task.RabbitHoleID.Valid {
-				fmt.Printf("   Rabbit Hole: %s\n", task.RabbitHoleID.String)
+			if task.ShipmentID.Valid {
+				fmt.Printf("   Shipment: %s\n", task.ShipmentID.String)
 			}
 			if task.AssignedGroveID.Valid {
 				fmt.Printf("   Grove: %s\n", task.AssignedGroveID.String)
@@ -161,11 +140,8 @@ var taskShowCmd = &cobra.Command{
 			fmt.Printf("Type: %s\n", task.Type.String)
 		}
 		fmt.Printf("Mission: %s\n", task.MissionID)
-		if task.EpicID.Valid {
-			fmt.Printf("Epic: %s\n", task.EpicID.String)
-		}
-		if task.RabbitHoleID.Valid {
-			fmt.Printf("Rabbit Hole: %s\n", task.RabbitHoleID.String)
+		if task.ShipmentID.Valid {
+			fmt.Printf("Shipment: %s\n", task.ShipmentID.String)
 		}
 		if task.AssignedGroveID.Valid {
 			fmt.Printf("Assigned Grove: %s\n", task.AssignedGroveID.String)
@@ -175,6 +151,12 @@ var taskShowCmd = &cobra.Command{
 		}
 		if task.Pinned {
 			fmt.Printf("Pinned: yes\n")
+		}
+		if task.ConclaveID.Valid {
+			fmt.Printf("Conclave: %s\n", task.ConclaveID.String)
+		}
+		if task.PromotedFromID.Valid {
+			fmt.Printf("Promoted from: %s (%s)\n", task.PromotedFromID.String, task.PromotedFromType.String)
 		}
 		fmt.Printf("Created: %s\n", task.CreatedAt.Format("2006-01-02 15:04"))
 		if task.ClaimedAt.Valid {
@@ -236,7 +218,7 @@ var taskCompleteCmd = &cobra.Command{
 		fmt.Printf("✓ Task %s marked as complete\n", taskID)
 		fmt.Println()
 		fmt.Println("💡 Check for next task:")
-		fmt.Println("   orc epic check-assignment  # See progress")
+		fmt.Println("   orc shipment check-assignment  # See progress")
 		fmt.Println("   orc task list --status ready  # Find next task")
 		return nil
 	},
@@ -331,7 +313,7 @@ var taskDiscoverCmd = &cobra.Command{
 			fmt.Println("✓ No ready tasks found")
 			fmt.Println()
 			fmt.Println("💡 Check assignment status:")
-			fmt.Println("   orc epic check-assignment")
+			fmt.Println("   orc shipment check-assignment")
 			return nil
 		}
 
@@ -405,15 +387,13 @@ var taskUntagCmd = &cobra.Command{
 
 func init() {
 	// task create flags
-	taskCreateCmd.Flags().String("epic", "", "Epic ID (required if no rabbit-hole)")
-	taskCreateCmd.Flags().String("rabbit-hole", "", "Rabbit hole ID (required if no epic)")
+	taskCreateCmd.Flags().String("shipment", "", "Shipment ID")
 	taskCreateCmd.Flags().StringP("mission", "m", "", "Mission ID (defaults to context)")
 	taskCreateCmd.Flags().StringP("description", "d", "", "Task description")
 	taskCreateCmd.Flags().String("type", "", "Task type (research, implementation, fix, documentation, maintenance)")
 
 	// task list flags
-	taskListCmd.Flags().String("epic", "", "Filter by epic")
-	taskListCmd.Flags().String("rabbit-hole", "", "Filter by rabbit hole")
+	taskListCmd.Flags().String("shipment", "", "Filter by shipment")
 	taskListCmd.Flags().StringP("status", "s", "", "Filter by status")
 	taskListCmd.Flags().String("tag", "", "Filter by tag")
 
@@ -441,4 +421,22 @@ func init() {
 // TaskCmd returns the task command
 func TaskCmd() *cobra.Command {
 	return taskCmd
+}
+
+// getStatusIcon returns an emoji icon for a task status
+func getStatusIcon(status string) string {
+	switch status {
+	case "ready":
+		return "📦"
+	case "implement", "in_progress":
+		return "🔧"
+	case "complete":
+		return "✅"
+	case "blocked":
+		return "🚫"
+	case "paused":
+		return "⏸️"
+	default:
+		return "📋"
+	}
 }

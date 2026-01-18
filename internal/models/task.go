@@ -9,34 +9,30 @@ import (
 )
 
 type Task struct {
-	ID              string
-	EpicID          sql.NullString
-	RabbitHoleID    sql.NullString
-	MissionID       string
-	Title           string
-	Description     sql.NullString
-	Type            sql.NullString
-	Status          string
-	Priority        sql.NullString
-	AssignedGroveID sql.NullString
-	ContextRef      sql.NullString
-	Pinned          bool
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
-	ClaimedAt       sql.NullTime
-	CompletedAt     sql.NullTime
+	ID               string
+	ShipmentID       sql.NullString
+	MissionID        string
+	Title            string
+	Description      sql.NullString
+	Type             sql.NullString
+	Status           string
+	Priority         sql.NullString
+	AssignedGroveID  sql.NullString
+	Pinned           bool
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+	ClaimedAt        sql.NullTime
+	CompletedAt      sql.NullTime
+	ConclaveID       sql.NullString
+	PromotedFromID   sql.NullString
+	PromotedFromType sql.NullString
 }
 
-// CreateTask creates a new task under an epic or rabbit hole
-func CreateTask(epicID, rabbitHoleID, missionID, title, description, taskType string) (*Task, error) {
+// CreateTask creates a new task under a shipment
+func CreateTask(shipmentID, missionID, title, description, taskType string) (*Task, error) {
 	database, err := db.GetDB()
 	if err != nil {
 		return nil, err
-	}
-
-	// Verify exactly one parent is specified (epic XOR rabbit hole)
-	if (epicID == "" && rabbitHoleID == "") || (epicID != "" && rabbitHoleID != "") {
-		return nil, fmt.Errorf("task must belong to either an epic OR a rabbit hole (not both, not neither)")
 	}
 
 	// Verify mission exists
@@ -49,35 +45,14 @@ func CreateTask(epicID, rabbitHoleID, missionID, title, description, taskType st
 		return nil, fmt.Errorf("mission %s not found", missionID)
 	}
 
-	// If epic ID specified, verify epic exists and has no rabbit holes
-	if epicID != "" {
-		err = database.QueryRow("SELECT COUNT(*) FROM epics WHERE id = ?", epicID).Scan(&exists)
+	// If shipment ID specified, verify it exists
+	if shipmentID != "" {
+		err = database.QueryRow("SELECT COUNT(*) FROM shipments WHERE id = ?", shipmentID).Scan(&exists)
 		if err != nil {
 			return nil, err
 		}
 		if exists == 0 {
-			return nil, fmt.Errorf("epic %s not found", epicID)
-		}
-
-		// Check if epic has rabbit holes (no mixed children)
-		var rhCount int
-		err = database.QueryRow("SELECT COUNT(*) FROM rabbit_holes WHERE epic_id = ?", epicID).Scan(&rhCount)
-		if err != nil {
-			return nil, err
-		}
-		if rhCount > 0 {
-			return nil, fmt.Errorf("epic %s has rabbit holes\nTasks must be created under rabbit holes, not directly under epic (no mixed children)", epicID)
-		}
-	}
-
-	// If rabbit hole ID specified, verify it exists
-	if rabbitHoleID != "" {
-		err = database.QueryRow("SELECT COUNT(*) FROM rabbit_holes WHERE id = ?", rabbitHoleID).Scan(&exists)
-		if err != nil {
-			return nil, err
-		}
-		if exists == 0 {
-			return nil, fmt.Errorf("rabbit hole %s not found", rabbitHoleID)
+			return nil, fmt.Errorf("shipment %s not found", shipmentID)
 		}
 	}
 
@@ -100,19 +75,14 @@ func CreateTask(epicID, rabbitHoleID, missionID, title, description, taskType st
 		typeVal = sql.NullString{String: taskType, Valid: true}
 	}
 
-	var epicIDVal sql.NullString
-	if epicID != "" {
-		epicIDVal = sql.NullString{String: epicID, Valid: true}
-	}
-
-	var rhIDVal sql.NullString
-	if rabbitHoleID != "" {
-		rhIDVal = sql.NullString{String: rabbitHoleID, Valid: true}
+	var shipmentIDVal sql.NullString
+	if shipmentID != "" {
+		shipmentIDVal = sql.NullString{String: shipmentID, Valid: true}
 	}
 
 	_, err = database.Exec(
-		"INSERT INTO tasks (id, epic_id, rabbit_hole_id, mission_id, title, description, type, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-		id, epicIDVal, rhIDVal, missionID, title, desc, typeVal, "ready",
+		"INSERT INTO tasks (id, shipment_id, mission_id, title, description, type, status) VALUES (?, ?, ?, ?, ?, ?, ?)",
+		id, shipmentIDVal, missionID, title, desc, typeVal, "ready",
 	)
 	if err != nil {
 		return nil, err
@@ -130,9 +100,9 @@ func GetTask(id string) (*Task, error) {
 
 	task := &Task{}
 	err = database.QueryRow(
-		"SELECT id, epic_id, rabbit_hole_id, mission_id, title, description, type, status, priority, assigned_grove_id, context_ref, pinned, created_at, updated_at, claimed_at, completed_at FROM tasks WHERE id = ?",
+		"SELECT id, shipment_id, mission_id, title, description, type, status, priority, assigned_grove_id, pinned, created_at, updated_at, claimed_at, completed_at, conclave_id, promoted_from_id, promoted_from_type FROM tasks WHERE id = ?",
 		id,
-	).Scan(&task.ID, &task.EpicID, &task.RabbitHoleID, &task.MissionID, &task.Title, &task.Description, &task.Type, &task.Status, &task.Priority, &task.AssignedGroveID, &task.ContextRef, &task.Pinned, &task.CreatedAt, &task.UpdatedAt, &task.ClaimedAt, &task.CompletedAt)
+	).Scan(&task.ID, &task.ShipmentID, &task.MissionID, &task.Title, &task.Description, &task.Type, &task.Status, &task.Priority, &task.AssignedGroveID, &task.Pinned, &task.CreatedAt, &task.UpdatedAt, &task.ClaimedAt, &task.CompletedAt, &task.ConclaveID, &task.PromotedFromID, &task.PromotedFromType)
 
 	if err != nil {
 		return nil, err
@@ -141,24 +111,19 @@ func GetTask(id string) (*Task, error) {
 	return task, nil
 }
 
-// ListTasks retrieves tasks, optionally filtered by epic/rabbit hole/status
-func ListTasks(epicID, rabbitHoleID, status string) ([]*Task, error) {
+// ListTasks retrieves tasks, optionally filtered by shipment/status
+func ListTasks(shipmentID, status string) ([]*Task, error) {
 	database, err := db.GetDB()
 	if err != nil {
 		return nil, err
 	}
 
-	query := "SELECT id, epic_id, rabbit_hole_id, mission_id, title, description, type, status, priority, assigned_grove_id, context_ref, pinned, created_at, updated_at, claimed_at, completed_at FROM tasks WHERE 1=1"
-	args := []interface{}{}
+	query := "SELECT id, shipment_id, mission_id, title, description, type, status, priority, assigned_grove_id, pinned, created_at, updated_at, claimed_at, completed_at, conclave_id, promoted_from_id, promoted_from_type FROM tasks WHERE 1=1"
+	args := []any{}
 
-	if epicID != "" {
-		query += " AND epic_id = ?"
-		args = append(args, epicID)
-	}
-
-	if rabbitHoleID != "" {
-		query += " AND rabbit_hole_id = ?"
-		args = append(args, rabbitHoleID)
+	if shipmentID != "" {
+		query += " AND shipment_id = ?"
+		args = append(args, shipmentID)
 	}
 
 	if status != "" {
@@ -177,7 +142,7 @@ func ListTasks(epicID, rabbitHoleID, status string) ([]*Task, error) {
 	var tasks []*Task
 	for rows.Next() {
 		task := &Task{}
-		err := rows.Scan(&task.ID, &task.EpicID, &task.RabbitHoleID, &task.MissionID, &task.Title, &task.Description, &task.Type, &task.Status, &task.Priority, &task.AssignedGroveID, &task.ContextRef, &task.Pinned, &task.CreatedAt, &task.UpdatedAt, &task.ClaimedAt, &task.CompletedAt)
+		err := rows.Scan(&task.ID, &task.ShipmentID, &task.MissionID, &task.Title, &task.Description, &task.Type, &task.Status, &task.Priority, &task.AssignedGroveID, &task.Pinned, &task.CreatedAt, &task.UpdatedAt, &task.ClaimedAt, &task.CompletedAt, &task.ConclaveID, &task.PromotedFromID, &task.PromotedFromType)
 		if err != nil {
 			return nil, err
 		}
@@ -328,7 +293,7 @@ func GetTasksByGrove(groveID string) ([]*Task, error) {
 		return nil, err
 	}
 
-	query := "SELECT id, epic_id, rabbit_hole_id, mission_id, title, description, type, status, priority, assigned_grove_id, context_ref, pinned, created_at, updated_at, claimed_at, completed_at FROM tasks WHERE assigned_grove_id = ?"
+	query := "SELECT id, shipment_id, mission_id, title, description, type, status, priority, assigned_grove_id, pinned, created_at, updated_at, claimed_at, completed_at, conclave_id, promoted_from_id, promoted_from_type FROM tasks WHERE assigned_grove_id = ?"
 	rows, err := database.Query(query, groveID)
 	if err != nil {
 		return nil, err
@@ -338,7 +303,7 @@ func GetTasksByGrove(groveID string) ([]*Task, error) {
 	var tasks []*Task
 	for rows.Next() {
 		task := &Task{}
-		err := rows.Scan(&task.ID, &task.EpicID, &task.RabbitHoleID, &task.MissionID, &task.Title, &task.Description, &task.Type, &task.Status, &task.Priority, &task.AssignedGroveID, &task.ContextRef, &task.Pinned, &task.CreatedAt, &task.UpdatedAt, &task.ClaimedAt, &task.CompletedAt)
+		err := rows.Scan(&task.ID, &task.ShipmentID, &task.MissionID, &task.Title, &task.Description, &task.Type, &task.Status, &task.Priority, &task.AssignedGroveID, &task.Pinned, &task.CreatedAt, &task.UpdatedAt, &task.ClaimedAt, &task.CompletedAt, &task.ConclaveID, &task.PromotedFromID, &task.PromotedFromType)
 		if err != nil {
 			return nil, err
 		}
@@ -357,7 +322,7 @@ func GetTaskTag(taskID string) (*Tag, error) {
 
 	var tagID string
 	err = database.QueryRow(
-		"SELECT tag_id FROM task_tags WHERE task_id = ?",
+		"SELECT tag_id FROM entity_tags WHERE entity_id = ? AND entity_type = 'task'",
 		taskID,
 	).Scan(&tagID)
 
@@ -403,17 +368,17 @@ func AddTagToTask(taskID, tagName string) error {
 		return fmt.Errorf("task %s already has tag '%s' (one tag per task limit)\nRemove existing tag first with: orc task untag %s", taskID, existingTag.Name, taskID)
 	}
 
-	// Generate task_tag ID by finding max existing ID
+	// Generate entity_tag ID by finding max existing ID
 	var maxID int
-	err = database.QueryRow("SELECT COALESCE(MAX(CAST(SUBSTR(id, 4) AS INTEGER)), 0) FROM task_tags").Scan(&maxID)
+	err = database.QueryRow("SELECT COALESCE(MAX(CAST(SUBSTR(id, 4) AS INTEGER)), 0) FROM entity_tags").Scan(&maxID)
 	if err != nil {
 		return err
 	}
-	id := fmt.Sprintf("TT-%03d", maxID+1)
+	id := fmt.Sprintf("ET-%03d", maxID+1)
 
-	// Create task-tag association
+	// Create entity-tag association
 	_, err = database.Exec(
-		"INSERT INTO task_tags (id, task_id, tag_id) VALUES (?, ?, ?)",
+		"INSERT INTO entity_tags (id, entity_id, entity_type, tag_id) VALUES (?, ?, 'task', ?)",
 		id, taskID, tag.ID,
 	)
 
@@ -446,7 +411,7 @@ func RemoveTagFromTask(taskID string) error {
 		return fmt.Errorf("task %s has no tag assigned", taskID)
 	}
 
-	_, err = database.Exec("DELETE FROM task_tags WHERE task_id = ?", taskID)
+	_, err = database.Exec("DELETE FROM entity_tags WHERE entity_id = ? AND entity_type = 'task'", taskID)
 	return err
 }
 
@@ -464,12 +429,13 @@ func ListTasksByTag(tagName string) ([]*Task, error) {
 	}
 
 	query := `
-		SELECT t.id, t.epic_id, t.rabbit_hole_id, t.mission_id, t.title, t.description,
-		       t.type, t.status, t.priority, t.assigned_grove_id, t.context_ref,
-		       t.pinned, t.created_at, t.updated_at, t.claimed_at, t.completed_at
+		SELECT t.id, t.shipment_id, t.mission_id, t.title, t.description,
+		       t.type, t.status, t.priority, t.assigned_grove_id,
+		       t.pinned, t.created_at, t.updated_at, t.claimed_at, t.completed_at,
+		       t.conclave_id, t.promoted_from_id, t.promoted_from_type
 		FROM tasks t
-		INNER JOIN task_tags tt ON t.id = tt.task_id
-		WHERE tt.tag_id = ?
+		INNER JOIN entity_tags et ON t.id = et.entity_id AND et.entity_type = 'task'
+		WHERE et.tag_id = ?
 		ORDER BY t.created_at ASC
 	`
 
@@ -482,7 +448,7 @@ func ListTasksByTag(tagName string) ([]*Task, error) {
 	var tasks []*Task
 	for rows.Next() {
 		task := &Task{}
-		err := rows.Scan(&task.ID, &task.EpicID, &task.RabbitHoleID, &task.MissionID, &task.Title, &task.Description, &task.Type, &task.Status, &task.Priority, &task.AssignedGroveID, &task.ContextRef, &task.Pinned, &task.CreatedAt, &task.UpdatedAt, &task.ClaimedAt, &task.CompletedAt)
+		err := rows.Scan(&task.ID, &task.ShipmentID, &task.MissionID, &task.Title, &task.Description, &task.Type, &task.Status, &task.Priority, &task.AssignedGroveID, &task.Pinned, &task.CreatedAt, &task.UpdatedAt, &task.ClaimedAt, &task.CompletedAt, &task.ConclaveID, &task.PromotedFromID, &task.PromotedFromType)
 		if err != nil {
 			return nil, err
 		}

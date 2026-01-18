@@ -3,13 +3,23 @@ package cli
 import (
 	"fmt"
 	"hash/fnv"
+	"os"
 	"strings"
 
+	"github.com/example/orc/internal/config"
 	"github.com/example/orc/internal/context"
 	"github.com/example/orc/internal/models"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 )
+
+// filterConfig holds all filtering settings for the summary display
+type filterConfig struct {
+	statusMap      map[string]bool // statuses to hide
+	containerTypes map[string]bool // container types to show (empty = all)
+	includeTags    map[string]bool // tags to include (empty = all)
+	excludeTags    map[string]bool // tags to exclude
+}
 
 // getTagColor returns a deterministic color for a tag name
 // Uses FNV-1a hash to map tag name to one of 256 colors
@@ -39,10 +49,10 @@ func colorizeGrove(groveName, groveID string) string {
 	return c.Sprintf("[Grove: %s (%s)]", groveName, groveID)
 }
 
-// getIDColor returns a deterministic color for an ID type (TASK, EPIC, RH, MISSION)
+// getIDColor returns a deterministic color for an ID type (TASK, SHIP, MISSION)
 // Uses FNV-1a hash on the ID prefix to ensure all IDs of same type have same color
 func getIDColor(idType string) *color.Color {
-	// Hash the ID type (e.g., "TASK", "EPIC", "RH")
+	// Hash the ID type (e.g., "TASK", "SHIP", "MISSION")
 	h := fnv.New32a()
 	h.Write([]byte(idType))
 	hash := h.Sum32()
@@ -62,7 +72,7 @@ func colorizeID(id string) string {
 		return id // No prefix, return plain
 	}
 
-	prefix := parts[0] // "TASK", "EPIC", "RH", "MISSION"
+	prefix := parts[0] // "TASK", "SHIP", "MISSION"
 	c := getIDColor(prefix)
 	return c.Sprint(id)
 }
@@ -102,31 +112,371 @@ func colorizeStatus(status string) string {
 	return c.Sprintf("%s", strings.ToUpper(status))
 }
 
+// getEntityType returns the entity type string for tag lookups based on ID prefix
+func getEntityType(id string) string {
+	parts := strings.Split(id, "-")
+	if len(parts) < 1 {
+		return ""
+	}
+	switch parts[0] {
+	case "TASK":
+		return "task"
+	case "Q":
+		return "question"
+	case "PLAN":
+		return "plan"
+	case "NOTE":
+		return "note"
+	default:
+		return ""
+	}
+}
+
+// shouldShowLeaf checks if a leaf item should be shown based on tag filters
+// Returns (show bool, tagName string)
+func shouldShowLeaf(entityID string, filters *filterConfig) (bool, string) {
+	entityType := getEntityType(entityID)
+	if entityType == "" {
+		return true, "" // Unknown type, show it
+	}
+
+	tag, _ := models.GetEntityTag(entityID, entityType)
+	tagName := ""
+	if tag != nil {
+		tagName = tag.Name
+	}
+
+	// If include tags specified, must match one
+	if len(filters.includeTags) > 0 {
+		if tagName == "" || !filters.includeTags[tagName] {
+			return false, tagName
+		}
+	}
+
+	// If exclude tags specified, must not match any
+	if filters.excludeTags[tagName] && tagName != "" {
+		return false, tagName
+	}
+
+	return true, tagName
+}
+
+// displayShipmentChildren shows tasks under a shipment with tag filtering
+// Returns count of visible items
+func displayShipmentChildren(shipmentID, prefix string, filters *filterConfig) int {
+	tasks, err := models.GetShipmentTasks(shipmentID)
+	if err != nil {
+		return 0
+	}
+
+	// Collect visible and hidden items
+	type taskDisplay struct {
+		task    *models.Task
+		tagName string
+	}
+	var visible []taskDisplay
+	hiddenCount := 0
+
+	for _, t := range tasks {
+		if t.Status == "complete" || filters.statusMap[t.Status] {
+			continue
+		}
+
+		show, tagName := shouldShowLeaf(t.ID, filters)
+		if show {
+			visible = append(visible, taskDisplay{t, tagName})
+		} else {
+			hiddenCount++
+		}
+	}
+
+	// Display visible items
+	for k, item := range visible {
+		pinnedEmoji := ""
+		if item.task.Pinned {
+			pinnedEmoji = "📌 "
+		}
+		isLast := k == len(visible)-1 && hiddenCount == 0
+		childPrefix := prefix + "├── "
+		if isLast {
+			childPrefix = prefix + "└── "
+		}
+		tagInfo := ""
+		if item.tagName != "" {
+			tagInfo = " " + colorizeTag(item.tagName)
+		}
+		statusInfo := colorizeStatus(item.task.Status)
+		if statusInfo != "" {
+			fmt.Printf("%s%s%s - %s - %s%s\n", childPrefix, pinnedEmoji, colorizeID(item.task.ID), statusInfo, item.task.Title, tagInfo)
+		} else {
+			fmt.Printf("%s%s%s - %s%s\n", childPrefix, pinnedEmoji, colorizeID(item.task.ID), item.task.Title, tagInfo)
+		}
+	}
+
+	// Show hidden count if any
+	if hiddenCount > 0 {
+		fmt.Printf("%s└── (%d other items)\n", prefix, hiddenCount)
+	}
+
+	return len(visible)
+}
+
+// displayConclaveChildren shows tasks/questions/plans under a conclave with tag filtering
+// Returns count of visible items
+func displayConclaveChildren(conclaveID, prefix string, filters *filterConfig) int {
+	// Get tasks
+	tasks, _ := models.GetConclaveTasks(conclaveID)
+	// Get questions
+	questions, _ := models.GetConclaveQuestions(conclaveID)
+	// Get plans
+	plans, _ := models.GetConclavePlans(conclaveID)
+
+	// Collect all children with tag filtering
+	type childItem struct {
+		id      string
+		title   string
+		status  string
+		pinned  bool
+		tagName string
+	}
+	var visible []childItem
+	hiddenCount := 0
+
+	for _, t := range tasks {
+		if t.Status == "complete" || filters.statusMap[t.Status] {
+			continue
+		}
+		show, tagName := shouldShowLeaf(t.ID, filters)
+		if show {
+			visible = append(visible, childItem{t.ID, t.Title, t.Status, t.Pinned, tagName})
+		} else {
+			hiddenCount++
+		}
+	}
+	for _, q := range questions {
+		if q.Status == "answered" || filters.statusMap[q.Status] {
+			continue
+		}
+		show, tagName := shouldShowLeaf(q.ID, filters)
+		if show {
+			visible = append(visible, childItem{q.ID, q.Title, q.Status, q.Pinned, tagName})
+		} else {
+			hiddenCount++
+		}
+	}
+	for _, p := range plans {
+		if p.Status == "approved" || filters.statusMap[p.Status] {
+			continue
+		}
+		show, tagName := shouldShowLeaf(p.ID, filters)
+		if show {
+			visible = append(visible, childItem{p.ID, p.Title, p.Status, p.Pinned, tagName})
+		} else {
+			hiddenCount++
+		}
+	}
+
+	for k, child := range visible {
+		pinnedEmoji := ""
+		if child.pinned {
+			pinnedEmoji = "📌 "
+		}
+		isLast := k == len(visible)-1 && hiddenCount == 0
+		childPrefix := prefix + "├── "
+		if isLast {
+			childPrefix = prefix + "└── "
+		}
+		tagInfo := ""
+		if child.tagName != "" {
+			tagInfo = " " + colorizeTag(child.tagName)
+		}
+		statusInfo := colorizeStatus(child.status)
+		if statusInfo != "" {
+			fmt.Printf("%s%s%s - %s - %s%s\n", childPrefix, pinnedEmoji, colorizeID(child.id), statusInfo, child.title, tagInfo)
+		} else {
+			fmt.Printf("%s%s%s - %s%s\n", childPrefix, pinnedEmoji, colorizeID(child.id), child.title, tagInfo)
+		}
+	}
+
+	// Show hidden count if any
+	if hiddenCount > 0 {
+		fmt.Printf("%s└── (%d other items)\n", prefix, hiddenCount)
+	}
+
+	return len(visible)
+}
+
+// displayInvestigationChildren shows questions under an investigation with tag filtering
+// Returns count of visible items
+func displayInvestigationChildren(investigationID, prefix string, filters *filterConfig) int {
+	questions, err := models.GetInvestigationQuestions(investigationID)
+	if err != nil {
+		return 0
+	}
+
+	type questionDisplay struct {
+		question *models.Question
+		tagName  string
+	}
+	var visible []questionDisplay
+	hiddenCount := 0
+
+	for _, q := range questions {
+		if q.Status == "answered" || filters.statusMap[q.Status] {
+			continue
+		}
+		show, tagName := shouldShowLeaf(q.ID, filters)
+		if show {
+			visible = append(visible, questionDisplay{q, tagName})
+		} else {
+			hiddenCount++
+		}
+	}
+
+	for k, item := range visible {
+		pinnedEmoji := ""
+		if item.question.Pinned {
+			pinnedEmoji = "📌 "
+		}
+		isLast := k == len(visible)-1 && hiddenCount == 0
+		childPrefix := prefix + "├── "
+		if isLast {
+			childPrefix = prefix + "└── "
+		}
+		tagInfo := ""
+		if item.tagName != "" {
+			tagInfo = " " + colorizeTag(item.tagName)
+		}
+		statusInfo := colorizeStatus(item.question.Status)
+		if statusInfo != "" {
+			fmt.Printf("%s%s%s - %s - %s%s\n", childPrefix, pinnedEmoji, colorizeID(item.question.ID), statusInfo, item.question.Title, tagInfo)
+		} else {
+			fmt.Printf("%s%s%s - %s%s\n", childPrefix, pinnedEmoji, colorizeID(item.question.ID), item.question.Title, tagInfo)
+		}
+	}
+
+	// Show hidden count if any
+	if hiddenCount > 0 {
+		fmt.Printf("%s└── (%d other items)\n", prefix, hiddenCount)
+	}
+
+	return len(visible)
+}
+
+// displayTomeChildren shows notes count under a tome
+// Returns count of notes
+func displayTomeChildren(tomeID, prefix string, filters *filterConfig) int {
+	notes, err := models.GetTomeNotes(tomeID)
+	if err != nil || len(notes) == 0 {
+		return 0
+	}
+
+	// For tomes with tag filtering, count matching notes
+	visibleCount := 0
+	hiddenCount := 0
+
+	if len(filters.includeTags) > 0 || len(filters.excludeTags) > 0 {
+		for _, n := range notes {
+			show, _ := shouldShowLeaf(n.ID, filters)
+			if show {
+				visibleCount++
+			} else {
+				hiddenCount++
+			}
+		}
+		if visibleCount > 0 || hiddenCount > 0 {
+			if hiddenCount > 0 {
+				fmt.Printf("%s└── (%d notes, %d filtered)\n", prefix, visibleCount, hiddenCount)
+			} else {
+				fmt.Printf("%s└── (%d notes)\n", prefix, visibleCount)
+			}
+		}
+		return visibleCount
+	}
+
+	// No tag filtering - just show count
+	fmt.Printf("%s└── (%d notes)\n", prefix, len(notes))
+	return len(notes)
+}
+
+// containerInfo holds container display information
+type containerInfo struct {
+	id            string
+	title         string
+	status        string
+	pinned        bool
+	groveID       string
+	containerType string // "shipment", "conclave", "investigation", "tome"
+}
+
 // SummaryCmd returns the summary command
 func SummaryCmd() *cobra.Command {
-	var showAll bool
-
 	cmd := &cobra.Command{
 		Use:   "summary",
-		Short: "Show summary of all open missions, epics, and tasks",
-		Long: `Show a hierarchical summary of missions with their epics, rabbit holes, and tasks.
+		Short: "Show summary of all open missions and containers",
+		Long: `Show a hierarchical summary of missions with all container types.
+
+Display modes:
+  Default: Show only focused container (if focus is set)
+  --expand: Show all containers
+
+Containers shown:
+  - Shipments (SHIP-*) with Tasks
+  - Conclaves (CON-*) with Tasks/Questions/Plans
+  - Investigations (INV-*) with Questions
+  - Tomes (TOME-*) with Notes
 
 Filtering:
-  --mission [id]       Show specific mission (e.g., MISSION-001)
-  --mission current    Show current mission (requires mission context)
-  --hide paused        Hide paused items
-  --hide blocked       Hide blocked items
-  --hide paused,blocked  Hide multiple statuses
+  --mission [id]              Show specific mission (or 'current')
+  --filter-statuses paused    Hide items with these statuses
+  --filter-containers SHIP    Show only these container types
+  --tags research             Show only leaves with these tags
+  --not-tags blocked          Hide leaves with these tags
 
 Examples:
-  orc summary                       # all missions, all statuses
-  orc summary --mission current     # current mission only
-  orc summary --mission MISSION-001 # specific mission
-  orc summary --hide paused         # hide paused work
-  orc summary --mission current --hide paused,blocked  # focused view`,
+  orc summary                          # focused container only (if set)
+  orc summary --expand                 # all containers
+  orc summary --filter-containers SHIP,CON --expand
+  orc summary --tags research --expand
+  orc summary --filter-statuses paused,blocked`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Get mission from flag (default: empty = all missions)
+			// Get current working directory for config
+			cwd, err := os.Getwd()
+			if err != nil {
+				cwd = ""
+			}
+
+			// Get flags
 			missionFilter, _ := cmd.Flags().GetString("mission")
+			expandAll, _ := cmd.Flags().GetBool("expand")
+			filterStatuses, _ := cmd.Flags().GetStringSlice("filter-statuses")
+			filterContainers, _ := cmd.Flags().GetStringSlice("filter-containers")
+			includeTags, _ := cmd.Flags().GetStringSlice("tags")
+			excludeTags, _ := cmd.Flags().GetStringSlice("not-tags")
+
+			// Build filter config
+			filters := &filterConfig{
+				statusMap:      make(map[string]bool),
+				containerTypes: make(map[string]bool),
+				includeTags:    make(map[string]bool),
+				excludeTags:    make(map[string]bool),
+			}
+			for _, s := range filterStatuses {
+				filters.statusMap[s] = true
+			}
+			for _, c := range filterContainers {
+				filters.containerTypes[strings.ToUpper(c)] = true
+			}
+			for _, t := range includeTags {
+				filters.includeTags[t] = true
+			}
+			for _, t := range excludeTags {
+				filters.excludeTags[t] = true
+			}
+
+			// Get current focus
+			cfg, _ := config.LoadConfig(cwd)
+			focusID := GetCurrentFocus(cfg)
 
 			// Determine mission filter
 			var filterMissionID string
@@ -137,15 +487,19 @@ Examples:
 					return fmt.Errorf("--mission current requires being in a mission context (no .orc/config.json found)")
 				}
 				filterMissionID = missionCtx.MissionID
-				fmt.Printf("📊 ORC Summary - %s (Current Mission)\n", filterMissionID)
 			} else if missionFilter != "" {
-				// Specific mission ID provided
 				filterMissionID = missionFilter
-				fmt.Printf("📊 ORC Summary - %s\n", filterMissionID)
-			} else {
-				// No filter - show all missions
-				fmt.Println("📊 ORC Summary - Open Work")
 			}
+
+			// Build header with filter info
+			headerParts := []string{"📊 ORC Summary"}
+			if filterMissionID != "" {
+				headerParts = append(headerParts, filterMissionID)
+			}
+			if len(includeTags) > 0 {
+				headerParts = append(headerParts, fmt.Sprintf("tags=%s", strings.Join(includeTags, ",")))
+			}
+			fmt.Println(strings.Join(headerParts, " - "))
 			fmt.Println()
 
 			// Get all non-complete missions
@@ -154,25 +508,15 @@ Examples:
 				return fmt.Errorf("failed to list missions: %w", err)
 			}
 
-			// Get hide statuses from flag
-			hideStatuses, _ := cmd.Flags().GetStringSlice("hide")
-			hideMap := make(map[string]bool)
-			for _, status := range hideStatuses {
-				hideMap[status] = true
-			}
-
 			// Filter to open missions (not complete or archived)
 			var openMissions []*models.Mission
 			for _, m := range missions {
-				// Always hide complete and archived
 				if m.Status == "complete" || m.Status == "archived" {
 					continue
 				}
-				// Hide if in hide list
-				if hideMap[m.Status] {
+				if filters.statusMap[m.Status] {
 					continue
 				}
-				// If in mission context and not showing all, filter to this mission
 				if filterMissionID != "" && m.ID != filterMissionID {
 					continue
 				}
@@ -181,259 +525,204 @@ Examples:
 
 			if len(openMissions) == 0 {
 				if filterMissionID != "" {
-					fmt.Printf("No open epics for %s\n", filterMissionID)
+					fmt.Printf("No open containers for %s\n", filterMissionID)
 				} else {
 					fmt.Println("No open missions")
 				}
 				return nil
 			}
 
-			// Display each mission with its epics in tree format
+			// Display each mission
 			for i, mission := range openMissions {
-				// Display mission
+				// Collect all active containers for this mission
+				var allContainers []containerInfo
+				var focusedContainer *containerInfo
+
+				// Collect shipments
+				if len(filters.containerTypes) == 0 || filters.containerTypes["SHIP"] {
+					shipments, _ := models.ListShipments(mission.ID, "")
+					for _, s := range shipments {
+						if s.Status == "complete" || filters.statusMap[s.Status] {
+							continue
+						}
+						groveID := ""
+						if s.AssignedGroveID.Valid {
+							groveID = s.AssignedGroveID.String
+						}
+						c := containerInfo{
+							id: s.ID, title: s.Title, status: s.Status,
+							pinned: s.Pinned, groveID: groveID, containerType: "shipment",
+						}
+						if s.ID == focusID {
+							focusedContainer = &c
+						}
+						allContainers = append(allContainers, c)
+					}
+				}
+
+				// Collect conclaves
+				if len(filters.containerTypes) == 0 || filters.containerTypes["CON"] {
+					conclaves, _ := models.ListConclaves(mission.ID, "")
+					for _, c := range conclaves {
+						if c.Status == "complete" || filters.statusMap[c.Status] {
+							continue
+						}
+						groveID := ""
+						if c.AssignedGroveID.Valid {
+							groveID = c.AssignedGroveID.String
+						}
+						cont := containerInfo{
+							id: c.ID, title: c.Title, status: c.Status,
+							pinned: c.Pinned, groveID: groveID, containerType: "conclave",
+						}
+						if c.ID == focusID {
+							focusedContainer = &cont
+						}
+						allContainers = append(allContainers, cont)
+					}
+				}
+
+				// Collect investigations
+				if len(filters.containerTypes) == 0 || filters.containerTypes["INV"] {
+					investigations, _ := models.ListInvestigations(mission.ID, "")
+					for _, inv := range investigations {
+						if inv.Status == "complete" || filters.statusMap[inv.Status] {
+							continue
+						}
+						groveID := ""
+						if inv.AssignedGroveID.Valid {
+							groveID = inv.AssignedGroveID.String
+						}
+						c := containerInfo{
+							id: inv.ID, title: inv.Title, status: inv.Status,
+							pinned: inv.Pinned, groveID: groveID, containerType: "investigation",
+						}
+						if inv.ID == focusID {
+							focusedContainer = &c
+						}
+						allContainers = append(allContainers, c)
+					}
+				}
+
+				// Collect tomes
+				if len(filters.containerTypes) == 0 || filters.containerTypes["TOME"] {
+					tomes, _ := models.ListTomes(mission.ID, "")
+					for _, t := range tomes {
+						if t.Status == "complete" || filters.statusMap[t.Status] {
+							continue
+						}
+						c := containerInfo{
+							id: t.ID, title: t.Title, status: t.Status,
+							pinned: t.Pinned, containerType: "tome",
+						}
+						if t.ID == focusID {
+							focusedContainer = &c
+						}
+						allContainers = append(allContainers, c)
+					}
+				}
+
+				// Decide what to show
+				var containersToShow []containerInfo
+				otherContainerCount := 0
+
+				if focusedContainer != nil && !expandAll {
+					// Show only focused container
+					containersToShow = []containerInfo{*focusedContainer}
+					otherContainerCount = len(allContainers) - 1
+				} else {
+					// Show all containers (if tag filtering, only show containers with matching leaves)
+					if len(filters.includeTags) > 0 {
+						for _, c := range allContainers {
+							hasMatchingLeaves := containerHasMatchingLeaves(c, filters)
+							if hasMatchingLeaves {
+								containersToShow = append(containersToShow, c)
+							} else {
+								otherContainerCount++
+							}
+						}
+					} else {
+						containersToShow = allContainers
+					}
+				}
+
+				if len(containersToShow) == 0 && otherContainerCount == 0 {
+					continue // Skip this mission entirely
+				}
+
+				// Display mission header
 				fmt.Printf("%s - %s\n", colorizeID(mission.ID), mission.Title)
-				fmt.Println("│") // Empty line with vertical continuation after mission header
+				fmt.Println("│")
 
-				// Get epics for this mission
-				epics, err := models.ListEpics(mission.ID, "")
-				if err != nil {
-					return fmt.Errorf("failed to list epics for %s: %w", mission.ID, err)
-				}
-
-				// Filter to non-complete epics
-				var activeEpics []*models.Epic
-				for _, epic := range epics {
-					// Always hide complete
-					if epic.Status == "complete" {
-						continue
-					}
-					// Hide if in hide list
-					if hideMap[epic.Status] {
-						continue
-					}
-					activeEpics = append(activeEpics, epic)
-				}
-
-				if len(activeEpics) > 0 {
-					// Display epics with their children
-					for j, epic := range activeEpics {
+				if len(containersToShow) == 0 {
+					fmt.Println("└── (No containers with matching items)")
+				} else {
+					for j, container := range containersToShow {
+						isFocused := container.id == focusID
 						pinnedEmoji := ""
-						// Add pin emoji if pinned
-						if epic.Pinned {
+						if container.pinned {
 							pinnedEmoji = "📌 "
 						}
 						groveInfo := ""
-						if epic.AssignedGroveID.Valid {
-							// Look up grove name from database
-							grove, err := models.GetGrove(epic.AssignedGroveID.String)
+						if container.groveID != "" {
+							grove, err := models.GetGrove(container.groveID)
 							if err == nil {
 								groveInfo = " " + colorizeGrove(grove.Name, grove.ID)
-							} else {
-								// Fallback to just ID if grove lookup fails
-								groveInfo = fmt.Sprintf(" [Grove: %s]", epic.AssignedGroveID.String)
 							}
 						}
 
-						// Use └── for last epic, ├── for others
-						var prefix string
-						if j < len(activeEpics)-1 {
-							prefix = "├── "
-						} else {
+						isLast := j == len(containersToShow)-1 && otherContainerCount == 0
+						prefix := "├── "
+						if isLast {
 							prefix = "└── "
 						}
-						statusInfo := colorizeStatus(epic.Status)
+
+						// Add [FOCUSED] marker
+						focusMarker := ""
+						if isFocused {
+							focusMarker = color.New(color.FgHiMagenta).Sprint("[FOCUSED] ")
+						}
+
+						statusInfo := colorizeStatus(container.status)
 						if statusInfo != "" {
-							fmt.Printf("%s%s%s - %s - %s%s\n", prefix, pinnedEmoji, colorizeID(epic.ID), statusInfo, epic.Title, groveInfo)
+							fmt.Printf("%s%s%s%s - %s - %s%s\n", prefix, focusMarker, pinnedEmoji, colorizeID(container.id), statusInfo, container.title, groveInfo)
 						} else {
-							fmt.Printf("%s%s%s - %s%s\n", prefix, pinnedEmoji, colorizeID(epic.ID), epic.Title, groveInfo)
+							fmt.Printf("%s%s%s%s - %s%s\n", prefix, focusMarker, pinnedEmoji, colorizeID(container.id), container.title, groveInfo)
 						}
 
-						// Check if epic has rabbit holes or direct tasks
-						hasRH, _ := models.HasRabbitHoles(epic.ID)
-						isLastEpic := j == len(activeEpics)-1
-
-						if hasRH {
-							// Epic has rabbit holes
-							rabbitHoles, err := models.ListRabbitHoles(epic.ID, "")
-							if err == nil {
-								var activeRHs []*models.RabbitHole
-								for _, rh := range rabbitHoles {
-									if rh.Status != "complete" && !hideMap[rh.Status] {
-										activeRHs = append(activeRHs, rh)
-									}
-								}
-
-								for k, rh := range activeRHs {
-									pinnedEmoji := ""
-									if rh.Pinned {
-										pinnedEmoji = "📌 "
-									}
-
-									var rhPrefix string
-									isLastRH := k == len(activeRHs)-1
-									if isLastEpic {
-										if isLastRH {
-											rhPrefix = "    └── "
-										} else {
-											rhPrefix = "    ├── "
-										}
-									} else {
-										if isLastRH {
-											rhPrefix = "│   └── "
-										} else {
-											rhPrefix = "│   ├── "
-										}
-									}
-
-									statusInfo := colorizeStatus(rh.Status)
-									if statusInfo != "" {
-										fmt.Printf("%s%s%s - %s - %s\n", rhPrefix, pinnedEmoji, colorizeID(rh.ID), statusInfo, rh.Title)
-									} else {
-										fmt.Printf("%s%s%s - %s\n", rhPrefix, pinnedEmoji, colorizeID(rh.ID), rh.Title)
-									}
-
-									// Get expand flag
-									expand, _ := cmd.Flags().GetBool("expand")
-
-									if expand {
-										// Display all tasks under rabbit hole
-										tasks, err := models.GetRabbitHoleTasks(rh.ID)
-										if err == nil {
-											var activeTasks []*models.Task
-											for _, task := range tasks {
-												if task.Status != "complete" && !hideMap[task.Status] {
-													activeTasks = append(activeTasks, task)
-												}
-											}
-
-											for t, task := range activeTasks {
-												pinnedEmoji := ""
-												if task.Pinned {
-													pinnedEmoji = "📌 "
-												}
-
-												var taskPrefix string
-												isLastTask := t == len(activeTasks)-1
-
-												if isLastEpic {
-													if isLastRH {
-														if isLastTask {
-															taskPrefix = "        └── "
-														} else {
-															taskPrefix = "        ├── "
-														}
-													} else {
-														if isLastTask {
-															taskPrefix = "    │   └── "
-														} else {
-															taskPrefix = "    │   ├── "
-														}
-													}
-												} else {
-													if isLastRH {
-														if isLastTask {
-															taskPrefix = "│       └── "
-														} else {
-															taskPrefix = "│       ├── "
-														}
-													} else {
-														if isLastTask {
-															taskPrefix = "│   │   └── "
-														} else {
-															taskPrefix = "│   │   ├── "
-														}
-													}
-												}
-
-												tagInfo := ""
-											tag, _ := models.GetTaskTag(task.ID)
-											if tag != nil {
-												tagInfo = " " + colorizeTag(tag.Name)
-											}
-
-											statusInfo := colorizeStatus(task.Status)
-											if statusInfo != "" {
-												fmt.Printf("%s%s%s - %s - %s%s\n", taskPrefix, pinnedEmoji, colorizeID(task.ID), statusInfo, task.Title, tagInfo)
-											} else {
-												fmt.Printf("%s%s%s - %s%s\n", taskPrefix, pinnedEmoji, colorizeID(task.ID), task.Title, tagInfo)
-											}
-											}
-										}
-									} else {
-										// Display summary only
-										summary := summarizeRabbitHoleTasks(rh.ID, hideMap)
-
-										// Use indented prefix for summary line
-										var summaryPrefix string
-										if isLastEpic {
-											summaryPrefix = "    "
-										} else {
-											summaryPrefix = "│   "
-										}
-
-										fmt.Printf("%s    [%s]\n", summaryPrefix, summary)
-									}
-								}
-							}
-						} else {
-							// Epic has direct tasks
-							tasks, err := models.GetDirectTasks(epic.ID)
-							if err == nil {
-								var activeTasks []*models.Task
-								for _, task := range tasks {
-									if task.Status != "complete" && !hideMap[task.Status] {
-										activeTasks = append(activeTasks, task)
-									}
-								}
-
-								for k, task := range activeTasks {
-									pinnedEmoji := ""
-									if task.Pinned {
-										pinnedEmoji = "📌 "
-									}
-
-									var taskPrefix string
-									isLastTask := k == len(activeTasks)-1
-									if isLastEpic {
-										if isLastTask {
-											taskPrefix = "    └── "
-										} else {
-											taskPrefix = "    ├── "
-										}
-									} else {
-										if isLastTask {
-											taskPrefix = "│   └── "
-										} else {
-											taskPrefix = "│   ├── "
-										}
-									}
-
-									tagInfo := ""
-									tag, _ := models.GetTaskTag(task.ID)
-									if tag != nil {
-										tagInfo = " " + colorizeTag(tag.Name)
-									}
-
-									statusInfo := colorizeStatus(task.Status)
-									if statusInfo != "" {
-										fmt.Printf("%s%s%s - %s - %s%s\n", taskPrefix, pinnedEmoji, colorizeID(task.ID), statusInfo, task.Title, tagInfo)
-									} else {
-										fmt.Printf("%s%s%s - %s%s\n", taskPrefix, pinnedEmoji, colorizeID(task.ID), task.Title, tagInfo)
-									}
-								}
-							}
+						// Display children based on container type
+						childPrefix := "│   "
+						if isLast {
+							childPrefix = "    "
 						}
 
-						// Add vertical continuation line between epics (not after last)
-						if j < len(activeEpics)-1 {
+						switch container.containerType {
+						case "shipment":
+							displayShipmentChildren(container.id, childPrefix, filters)
+						case "conclave":
+							displayConclaveChildren(container.id, childPrefix, filters)
+						case "investigation":
+							displayInvestigationChildren(container.id, childPrefix, filters)
+						case "tome":
+							displayTomeChildren(container.id, childPrefix, filters)
+						}
+
+						if !isLast || otherContainerCount > 0 {
 							fmt.Println("│")
 						}
 					}
-				} else {
-					fmt.Println("└── (No active epics)")
 				}
 
-				// Add spacing between missions
+				// Show other containers count
+				if otherContainerCount > 0 {
+					msg := fmt.Sprintf("(%d other containers", otherContainerCount)
+					if focusedContainer != nil && !expandAll {
+						msg += " - use --expand to show all"
+					}
+					msg += ")"
+					fmt.Printf("└── %s\n", msg)
+				}
+
 				if i < len(openMissions)-1 {
 					fmt.Println()
 				}
@@ -445,83 +734,80 @@ Examples:
 		},
 	}
 
-	cmd.Flags().BoolVarP(&showAll, "all", "a", false, "Show all missions (override mission scoping)")
 	cmd.Flags().StringP("mission", "m", "", "Mission filter: mission ID or 'current' for context mission")
-	cmd.Flags().StringSlice("hide", []string{}, "Hide items with these statuses (comma-separated: paused,blocked)")
-	cmd.Flags().Bool("expand", false, "Expand rabbit holes to show all tasks")
+	cmd.Flags().Bool("expand", false, "Show all containers (default: only show focused container if set)")
+	cmd.Flags().StringSlice("filter-statuses", []string{}, "Hide items with these statuses (comma-separated: paused,blocked)")
+	cmd.Flags().StringSlice("filter-containers", []string{}, "Show only these container types (comma-separated: SHIP,CON,INV,TOME)")
+	cmd.Flags().StringSlice("tags", []string{}, "Show only leaves with these tags")
+	cmd.Flags().StringSlice("not-tags", []string{}, "Hide leaves with these tags")
 
 	return cmd
 }
 
-func summarizeRabbitHoleTasks(rhID string, hideMap map[string]bool) string {
-	tasks, err := models.GetRabbitHoleTasks(rhID)
-	if err != nil || len(tasks) == 0 {
-		return "no tasks"
-	}
-
-	// Count tasks by status and collect tags
-	statusCounts := make(map[string]int)
-	tagCounts := make(map[string]int)
-	total := 0
-	for _, task := range tasks {
-		if task.Status != "complete" && !hideMap[task.Status] {
-			statusCounts[task.Status]++
-			total++
-
-			// Get tag for this task
-			tag, _ := models.GetTaskTag(task.ID)
-			if tag != nil {
-				tagCounts[tag.Name]++
+// containerHasMatchingLeaves checks if a container has any leaves matching the tag filter
+func containerHasMatchingLeaves(c containerInfo, filters *filterConfig) bool {
+	switch c.containerType {
+	case "shipment":
+		tasks, _ := models.GetShipmentTasks(c.id)
+		for _, t := range tasks {
+			if t.Status == "complete" || filters.statusMap[t.Status] {
+				continue
+			}
+			show, _ := shouldShowLeaf(t.ID, filters)
+			if show {
+				return true
+			}
+		}
+	case "conclave":
+		tasks, _ := models.GetConclaveTasks(c.id)
+		questions, _ := models.GetConclaveQuestions(c.id)
+		plans, _ := models.GetConclavePlans(c.id)
+		for _, t := range tasks {
+			if t.Status == "complete" || filters.statusMap[t.Status] {
+				continue
+			}
+			show, _ := shouldShowLeaf(t.ID, filters)
+			if show {
+				return true
+			}
+		}
+		for _, q := range questions {
+			if q.Status == "answered" || filters.statusMap[q.Status] {
+				continue
+			}
+			show, _ := shouldShowLeaf(q.ID, filters)
+			if show {
+				return true
+			}
+		}
+		for _, p := range plans {
+			if p.Status == "approved" || filters.statusMap[p.Status] {
+				continue
+			}
+			show, _ := shouldShowLeaf(p.ID, filters)
+			if show {
+				return true
+			}
+		}
+	case "investigation":
+		questions, _ := models.GetInvestigationQuestions(c.id)
+		for _, q := range questions {
+			if q.Status == "answered" || filters.statusMap[q.Status] {
+				continue
+			}
+			show, _ := shouldShowLeaf(q.ID, filters)
+			if show {
+				return true
+			}
+		}
+	case "tome":
+		notes, _ := models.GetTomeNotes(c.id)
+		for _, n := range notes {
+			show, _ := shouldShowLeaf(n.ID, filters)
+			if show {
+				return true
 			}
 		}
 	}
-
-	if total == 0 {
-		return "no active tasks"
-	}
-
-	// Build summary string
-	parts := []string{}
-	if count := statusCounts["ready"]; count > 0 {
-		coloredStatus := getStatusColor("ready").Sprint(strings.ToUpper("ready"))
-		parts = append(parts, fmt.Sprintf("%d %s", count, coloredStatus))
-	}
-	if count := statusCounts["needs_design"]; count > 0 {
-		coloredStatus := getStatusColor("needs_design").Sprint(strings.ToUpper("needs_design"))
-		parts = append(parts, fmt.Sprintf("%d %s", count, coloredStatus))
-	}
-	if count := statusCounts["ready_to_implement"]; count > 0 {
-		coloredStatus := getStatusColor("ready_to_implement").Sprint(strings.ToUpper("ready_to_implement"))
-		parts = append(parts, fmt.Sprintf("%d %s", count, coloredStatus))
-	}
-	if count := statusCounts["design"]; count > 0 {
-		coloredStatus := getStatusColor("design").Sprint(strings.ToUpper("design"))
-		parts = append(parts, fmt.Sprintf("%d %s", count, coloredStatus))
-	}
-	if count := statusCounts["blocked"]; count > 0 {
-		coloredStatus := getStatusColor("blocked").Sprint(strings.ToUpper("blocked"))
-		parts = append(parts, fmt.Sprintf("%d %s", count, coloredStatus))
-	}
-	if count := statusCounts["paused"]; count > 0 {
-		coloredStatus := getStatusColor("paused").Sprint(strings.ToUpper("paused"))
-		parts = append(parts, fmt.Sprintf("%d %s", count, coloredStatus))
-	}
-	if count := statusCounts["awaiting_approval"]; count > 0 {
-		coloredStatus := getStatusColor("awaiting_approval").Sprint(strings.ToUpper("awaiting_approval"))
-		parts = append(parts, fmt.Sprintf("%d %s", count, coloredStatus))
-	}
-
-	summary := fmt.Sprintf("%d tasks: %s", total, strings.Join(parts, ", "))
-
-	// Add tag counts if any tags present
-	if len(tagCounts) > 0 {
-		tagParts := []string{}
-		for tagName, count := range tagCounts {
-			coloredTag := colorizeTag(tagName)
-			tagParts = append(tagParts, fmt.Sprintf("%s×%d", coloredTag, count))
-		}
-		summary += fmt.Sprintf("; tags: %s", strings.Join(tagParts, ", "))
-	}
-
-	return summary
+	return false
 }

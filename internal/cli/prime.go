@@ -139,12 +139,15 @@ func buildORCPrimeOutput(missionCtx *context.MissionContext, cwd string, cfg *co
 	// Git context
 	output.WriteString(getGitInstructions())
 
-	// Current epic focus (if set)
-	if cfg != nil && cfg.Mission != nil && cfg.Mission.CurrentEpic != "" {
-		epic, err := models.GetEpic(cfg.Mission.CurrentEpic)
-		if err == nil {
-			output.WriteString("## Current Focus\n\n")
-			output.WriteString(fmt.Sprintf("**Epic**: %s - %s [%s]\n\n", epic.ID, epic.Title, epic.Status))
+	// Current focus (if set)
+	if cfg != nil {
+		focusID := GetCurrentFocus(cfg)
+		if focusID != "" {
+			containerType, title, status := GetFocusInfo(focusID)
+			if containerType != "" {
+				output.WriteString("## Current Focus\n\n")
+				output.WriteString(fmt.Sprintf("**%s**: %s - %s [%s]\n\n", containerType, focusID, title, status))
+			}
 		}
 	}
 
@@ -203,59 +206,117 @@ func buildIMPPrimeOutput(groveCtx *context.GroveContext, cwd string) string {
 	// Git context
 	output.WriteString(getGitInstructions())
 
-	// Section 2: Assignment - Epics assigned to this grove
+	// Section 2: Assignment - All containers assigned to this grove
 	output.WriteString("## Assignment\n\n")
-	epics, err := models.GetEpicsByGrove(groveCtx.GroveID)
-	if err == nil && len(epics) > 0 {
-		for i, epic := range epics {
-			output.WriteString(fmt.Sprintf("### Epic %d: %s\n\n", i+1, epic.ID))
-			output.WriteString(fmt.Sprintf("**%s** [%s]\n\n", epic.Title, epic.Status))
 
-			if epic.Description.Valid && epic.Description.String != "" {
-				descLines := strings.Split(epic.Description.String, "\n")
-				if len(descLines) > 5 {
-					output.WriteString(strings.Join(descLines[:5], "\n"))
-					output.WriteString("\n\n*(Description truncated)*\n\n")
-				} else {
-					output.WriteString(epic.Description.String)
-					output.WriteString("\n\n")
+	hasAssignments := false
+
+	// Shipments
+	shipments, _ := models.GetShipmentsByGrove(groveCtx.GroveID)
+	for i, shipment := range shipments {
+		hasAssignments = true
+		output.WriteString(fmt.Sprintf("### Shipment %d: %s\n\n", i+1, shipment.ID))
+		output.WriteString(fmt.Sprintf("**%s** [%s]\n\n", shipment.Title, shipment.Status))
+
+		if shipment.Description.Valid && shipment.Description.String != "" {
+			descLines := strings.Split(shipment.Description.String, "\n")
+			if len(descLines) > 5 {
+				output.WriteString(strings.Join(descLines[:5], "\n"))
+				output.WriteString("\n\n*(Description truncated)*\n\n")
+			} else {
+				output.WriteString(shipment.Description.String)
+				output.WriteString("\n\n")
+			}
+		}
+
+		// Show ready tasks for this shipment
+		tasks, err := models.GetShipmentTasks(shipment.ID)
+		if err == nil {
+			var readyTasks []*models.Task
+			for _, t := range tasks {
+				if t.Status == "ready" {
+					readyTasks = append(readyTasks, t)
 				}
 			}
-
-			// Show ready tasks for this epic
-			tasks, err := models.ListTasks(epic.MissionID, epic.ID, "ready")
-			if err == nil && len(tasks) > 0 {
+			if len(readyTasks) > 0 {
 				output.WriteString("**Ready Tasks**:\n")
-				for _, task := range tasks {
+				for _, task := range readyTasks {
 					output.WriteString(fmt.Sprintf("- %s - %s\n", task.ID, task.Title))
 				}
 				output.WriteString("\n")
 			}
 		}
-	} else {
-		output.WriteString("*No epics currently assigned to this grove.*\n\n")
+	}
+
+	// Conclaves
+	conclaves, _ := models.GetConclavesByGrove(groveCtx.GroveID)
+	for i, conclave := range conclaves {
+		hasAssignments = true
+		output.WriteString(fmt.Sprintf("### Conclave %d: %s\n\n", i+1, conclave.ID))
+		output.WriteString(fmt.Sprintf("**%s** [%s] (Ideation Session)\n\n", conclave.Title, conclave.Status))
+
+		if conclave.Description.Valid && conclave.Description.String != "" {
+			output.WriteString(conclave.Description.String)
+			output.WriteString("\n\n")
+		}
+	}
+
+	// Investigations
+	investigations, _ := models.GetInvestigationsByGrove(groveCtx.GroveID)
+	for i, inv := range investigations {
+		hasAssignments = true
+		output.WriteString(fmt.Sprintf("### Investigation %d: %s\n\n", i+1, inv.ID))
+		output.WriteString(fmt.Sprintf("**%s** [%s] (Research)\n\n", inv.Title, inv.Status))
+
+		if inv.Description.Valid && inv.Description.String != "" {
+			output.WriteString(inv.Description.String)
+			output.WriteString("\n\n")
+		}
+
+		// Show open questions
+		questions, err := models.GetInvestigationQuestions(inv.ID)
+		if err == nil {
+			var openQuestions []*models.Question
+			for _, q := range questions {
+				if q.Status == "open" {
+					openQuestions = append(openQuestions, q)
+				}
+			}
+			if len(openQuestions) > 0 {
+				output.WriteString("**Open Questions**:\n")
+				for _, q := range openQuestions {
+					output.WriteString(fmt.Sprintf("- %s - %s\n", q.ID, q.Title))
+				}
+				output.WriteString("\n")
+			}
+		}
+	}
+
+	if !hasAssignments {
+		output.WriteString("*No containers currently assigned to this grove.*\n\n")
 		output.WriteString("Run `orc summary` to see the full mission tree.\n\n")
 	}
 
 	// Section 3: ORC CLI Primer
 	output.WriteString("## ORC CLI Primer\n\n")
 	output.WriteString("**Core Commands**:\n")
-	output.WriteString("- `orc summary` - View mission tree and current assignments\n")
-	output.WriteString("- `orc task list --epic EPIC-ID` - List tasks for your epic\n")
-	output.WriteString("- `orc task show TASK-ID` - View task details\n")
+	output.WriteString("- `orc summary` - View mission tree with all containers\n")
+	output.WriteString("- `orc focus ID` - Set focus to a container (SHIP-*, CON-*, INV-*, TOME-*)\n")
+	output.WriteString("- `orc task list --shipment SHIP-ID` - List tasks for a shipment\n")
+	output.WriteString("- `orc question list --investigation INV-ID` - List questions for an investigation\n")
 	output.WriteString("- `orc task complete TASK-ID` - Mark task as completed\n")
-	output.WriteString("- `orc epic check-assignment` - Verify your epic assignment\n\n")
+	output.WriteString("- `orc question answer Q-ID` - Record answer to a question\n\n")
 
 	// Section 4: Core Rules (shared across all session types)
 	output.WriteString(getCoreRules())
-	output.WriteString("- **Stay in grove territory** - Work within assigned epics only\n\n")
+	output.WriteString("- **Stay in grove territory** - Work within assigned containers only\n\n")
 
 	// Footer (loaded from template)
 	welcome, err := templates.GetWelcomeIMP()
 	if err == nil {
 		output.WriteString(welcome)
 	} else {
-		output.WriteString("---\nYou are an IMP - Implementation agent working within a grove on assigned epics.\n")
+		output.WriteString("---\nYou are an IMP - Implementation agent working within a grove on assigned shipments.\n")
 	}
 
 	return output.String()

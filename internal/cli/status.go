@@ -18,7 +18,7 @@ func StatusCmd() *cobra.Command {
 		Use:   "status",
 		Short: "Show current work context from config.json",
 		Long: `Display the current work context based on .orc/config.json:
-- Active mission, epics, and tasks
+- Active mission, shipments, and tasks
 - Latest handoff ID and timestamp (use --handoff to see full note)
 
 This provides a focused view of "where am I right now?"`,
@@ -29,7 +29,7 @@ This provides a focused view of "where am I right now?"`,
 			var activeWorkOrders []string
 			var currentHandoffID string
 			var lastUpdated string
-			var currentEpic string
+			var currentFocus string
 
 			if missionCtx != nil {
 				// Mission context - try to load config from workspace or current directory
@@ -45,16 +45,16 @@ This provides a focused view of "where am I right now?"`,
 					switch cfg.Type {
 					case config.TypeGrove:
 						activeMissionID = cfg.Grove.MissionID
-						currentEpic = cfg.Grove.CurrentEpic
+						currentFocus = cfg.Grove.CurrentFocus
 					case config.TypeMission:
 						activeMissionID = cfg.Mission.MissionID
-						currentEpic = cfg.Mission.CurrentEpic
+						currentFocus = cfg.Mission.CurrentFocus
 					case config.TypeGlobal:
 						activeMissionID = cfg.State.ActiveMissionID
 						activeWorkOrders = cfg.State.ActiveWorkOrders
 						currentHandoffID = cfg.State.CurrentHandoffID
 						lastUpdated = cfg.State.LastUpdated
-						currentEpic = cfg.State.CurrentEpic
+						currentFocus = cfg.State.CurrentFocus
 					}
 				}
 
@@ -80,7 +80,7 @@ This provides a focused view of "where am I right now?"`,
 					activeWorkOrders = cfg.State.ActiveWorkOrders
 					currentHandoffID = cfg.State.CurrentHandoffID
 					lastUpdated = cfg.State.LastUpdated
-					currentEpic = cfg.State.CurrentEpic
+					currentFocus = cfg.State.CurrentFocus
 				}
 
 				fmt.Println("🎯 ORC Status - Current Context")
@@ -103,13 +103,14 @@ This provides a focused view of "where am I right now?"`,
 			}
 			fmt.Println()
 
-			// Display current epic if focused
-			if currentEpic != "" {
-				epic, err := models.GetEpic(currentEpic)
-				if err != nil {
-					fmt.Printf("🎯 Focused Epic: %s (error loading: %v)\n", currentEpic, err)
+			// Display current focus if set
+			if currentFocus != "" {
+				containerType, title, status := GetFocusInfo(currentFocus)
+				if containerType != "" {
+					fmt.Printf("Focus: %s - %s [%s]\n", currentFocus, title, status)
+					fmt.Printf("   (%s)\n", containerType)
 				} else {
-					fmt.Printf("🎯 Focused Epic: %s - %s [%s]\n", epic.ID, epic.Title, epic.Status)
+					fmt.Printf("Focus: %s (container not found)\n", currentFocus)
 				}
 				fmt.Println()
 			}

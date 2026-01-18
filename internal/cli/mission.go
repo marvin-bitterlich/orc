@@ -137,12 +137,12 @@ var missionShowCmd = &cobra.Command{
 		}
 		fmt.Println()
 
-		// List epics under this mission
-		epics, err := models.ListEpics(id, "")
-		if err == nil && len(epics) > 0 {
-			fmt.Println("Epics:")
-			for _, epic := range epics {
-				fmt.Printf("  - %s [%s] %s\n", epic.ID, epic.Status, epic.Title)
+		// List shipments under this mission
+		shipments, err := models.ListShipments(id, "")
+		if err == nil && len(shipments) > 0 {
+			fmt.Println("Shipments:")
+			for _, shipment := range shipments {
+				fmt.Printf("  - %s [%s] %s\n", shipment.ID, shipment.Status, shipment.Title)
 			}
 			fmt.Println()
 		}
@@ -358,7 +358,7 @@ var missionDeleteCmd = &cobra.Command{
 	Short: "Delete a mission from the database",
 	Long: `Delete a mission and all associated data from the database.
 
-WARNING: This is a destructive operation. Associated epics, tasks, and groves
+WARNING: This is a destructive operation. Associated shipments, tasks, and groves
 will lose their mission reference.
 
 Examples:
@@ -375,14 +375,14 @@ Examples:
 			return fmt.Errorf("failed to get mission: %w", err)
 		}
 
-		// Check for associated epics and groves
-		epics, _ := models.ListEpics(id, "")
+		// Check for associated shipments and groves
+		shipments, _ := models.ListShipments(id, "")
 		groves, _ := models.GetGrovesByMission(id)
 
-		if !force && (len(epics) > 0 || len(groves) > 0) {
-			fmt.Printf("⚠️  Mission %s has associated data:\n", id)
-			if len(epics) > 0 {
-				fmt.Printf("  - %d epics\n", len(epics))
+		if !force && (len(shipments) > 0 || len(groves) > 0) {
+			fmt.Printf("Mission %s has associated data:\n", id)
+			if len(shipments) > 0 {
+				fmt.Printf("  - %d shipments\n", len(shipments))
 			}
 			if len(groves) > 0 {
 				fmt.Printf("  - %d groves\n", len(groves))
@@ -409,7 +409,7 @@ var missionLaunchCmd = &cobra.Command{
 	Long: `Launch or update mission infrastructure using plan/apply pattern.
 
 This command:
-1. Reads desired state from database (missions, epics, groves)
+1. Reads desired state from database (missions, shipments, groves)
 2. Analyzes current filesystem state
 3. Generates a plan of changes needed
 4. Shows plan and asks for confirmation

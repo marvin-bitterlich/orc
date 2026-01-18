@@ -67,7 +67,7 @@ func initConfig() error {
 		State: &config.StateConfig{
 			ActiveMissionID:  "",
 			CurrentHandoffID: "",
-			CurrentEpic:      "",
+			CurrentFocus:     "",
 			LastUpdated:      time.Now().Format(time.RFC3339),
 			ActiveWorkOrders: []string{},
 		},

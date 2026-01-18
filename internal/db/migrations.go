@@ -6,7 +6,7 @@ import (
 )
 
 // schemaVersion tracks the current schema version
-const currentSchemaVersion = 12
+const currentSchemaVersion = 18
 
 // Migration represents a database migration
 type Migration struct {
@@ -76,6 +76,36 @@ var migrations = []Migration{
 		Version: 12,
 		Name:    "drop_graphiti_episode_uuid_column",
 		Up:      migrationV12,
+	},
+	{
+		Version: 13,
+		Name:    "create_container_tables",
+		Up:      migrationV13,
+	},
+	{
+		Version: 14,
+		Name:    "create_leaf_tables",
+		Up:      migrationV14,
+	},
+	{
+		Version: 15,
+		Name:    "add_conclave_fks_to_leaves",
+		Up:      migrationV15,
+	},
+	{
+		Version: 16,
+		Name:    "generalize_tags_to_entity_tags",
+		Up:      migrationV16,
+	},
+	{
+		Version: 17,
+		Name:    "migrate_epics_to_shipments",
+		Up:      migrationV17,
+	},
+	{
+		Version: 18,
+		Name:    "add_missing_columns_for_entity_cli",
+		Up:      migrationV18,
 	},
 }
 
@@ -1015,6 +1045,662 @@ func migrationV12(db *sql.DB) error {
 	_, err = db.Exec(`CREATE INDEX IF NOT EXISTS idx_handoffs_created ON handoffs(created_at DESC)`)
 	if err != nil {
 		return fmt.Errorf("failed to recreate handoffs index: %w", err)
+	}
+
+	return nil
+}
+
+// migrationV13 creates container tables: shipments, investigations, conclaves, tomes
+func migrationV13(db *sql.DB) error {
+	// Step 1: Create shipments table (replaces epics for execution work)
+	_, err := db.Exec(`
+		CREATE TABLE shipments (
+			id TEXT PRIMARY KEY,
+			mission_id TEXT NOT NULL,
+			title TEXT NOT NULL,
+			description TEXT,
+			status TEXT NOT NULL CHECK(status IN ('active', 'complete')) DEFAULT 'active',
+			assigned_grove_id TEXT,
+			pinned INTEGER DEFAULT 0,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			completed_at DATETIME,
+			FOREIGN KEY (mission_id) REFERENCES missions(id),
+			FOREIGN KEY (assigned_grove_id) REFERENCES groves(id)
+		)
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to create shipments table: %w", err)
+	}
+
+	// Step 2: Create investigations table (research mode)
+	_, err = db.Exec(`
+		CREATE TABLE investigations (
+			id TEXT PRIMARY KEY,
+			mission_id TEXT NOT NULL,
+			title TEXT NOT NULL,
+			description TEXT,
+			status TEXT NOT NULL CHECK(status IN ('active', 'complete')) DEFAULT 'active',
+			pinned INTEGER DEFAULT 0,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			completed_at DATETIME,
+			FOREIGN KEY (mission_id) REFERENCES missions(id)
+		)
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to create investigations table: %w", err)
+	}
+
+	// Step 3: Create conclaves table (ideation mode, cross-cutting)
+	_, err = db.Exec(`
+		CREATE TABLE conclaves (
+			id TEXT PRIMARY KEY,
+			mission_id TEXT NOT NULL,
+			title TEXT NOT NULL,
+			description TEXT,
+			status TEXT NOT NULL CHECK(status IN ('active', 'complete')) DEFAULT 'active',
+			pinned INTEGER DEFAULT 0,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			completed_at DATETIME,
+			FOREIGN KEY (mission_id) REFERENCES missions(id)
+		)
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to create conclaves table: %w", err)
+	}
+
+	// Step 4: Create tomes table (note organization)
+	_, err = db.Exec(`
+		CREATE TABLE tomes (
+			id TEXT PRIMARY KEY,
+			mission_id TEXT NOT NULL,
+			title TEXT NOT NULL,
+			description TEXT,
+			status TEXT NOT NULL CHECK(status IN ('active', 'complete')) DEFAULT 'active',
+			pinned INTEGER DEFAULT 0,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			completed_at DATETIME,
+			FOREIGN KEY (mission_id) REFERENCES missions(id)
+		)
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to create tomes table: %w", err)
+	}
+
+	// Step 5: Create indexes
+	_, err = db.Exec(`
+		CREATE INDEX idx_shipments_mission ON shipments(mission_id);
+		CREATE INDEX idx_shipments_status ON shipments(status);
+		CREATE INDEX idx_shipments_grove ON shipments(assigned_grove_id);
+		CREATE INDEX idx_investigations_mission ON investigations(mission_id);
+		CREATE INDEX idx_investigations_status ON investigations(status);
+		CREATE INDEX idx_conclaves_mission ON conclaves(mission_id);
+		CREATE INDEX idx_conclaves_status ON conclaves(status);
+		CREATE INDEX idx_tomes_mission ON tomes(mission_id);
+		CREATE INDEX idx_tomes_status ON tomes(status);
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to create container indexes: %w", err)
+	}
+
+	return nil
+}
+
+// migrationV14 creates leaf tables: questions, plans, notes
+func migrationV14(db *sql.DB) error {
+	// Step 1: Create questions table (lives in investigations)
+	_, err := db.Exec(`
+		CREATE TABLE questions (
+			id TEXT PRIMARY KEY,
+			investigation_id TEXT NOT NULL,
+			mission_id TEXT NOT NULL,
+			title TEXT NOT NULL,
+			description TEXT,
+			status TEXT NOT NULL CHECK(status IN ('open', 'answered')) DEFAULT 'open',
+			answer TEXT,
+			pinned INTEGER DEFAULT 0,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			answered_at DATETIME,
+			promoted_from_id TEXT,
+			promoted_from_type TEXT,
+			FOREIGN KEY (investigation_id) REFERENCES investigations(id) ON DELETE CASCADE,
+			FOREIGN KEY (mission_id) REFERENCES missions(id)
+		)
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to create questions table: %w", err)
+	}
+
+	// Step 2: Create plans table (lives in shipments, one active per shipment)
+	_, err = db.Exec(`
+		CREATE TABLE plans (
+			id TEXT PRIMARY KEY,
+			shipment_id TEXT NOT NULL,
+			mission_id TEXT NOT NULL,
+			title TEXT NOT NULL,
+			content TEXT,
+			status TEXT NOT NULL CHECK(status IN ('draft', 'approved')) DEFAULT 'draft',
+			pinned INTEGER DEFAULT 0,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			approved_at DATETIME,
+			FOREIGN KEY (shipment_id) REFERENCES shipments(id) ON DELETE CASCADE,
+			FOREIGN KEY (mission_id) REFERENCES missions(id)
+		)
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to create plans table: %w", err)
+	}
+
+	// Create unique constraint for active plan per shipment
+	_, err = db.Exec(`
+		CREATE UNIQUE INDEX idx_plans_active_shipment ON plans(shipment_id) WHERE status = 'draft'
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to create active plan constraint: %w", err)
+	}
+
+	// Step 3: Create notes table (typed, can float or attach to containers)
+	_, err = db.Exec(`
+		CREATE TABLE notes (
+			id TEXT PRIMARY KEY,
+			mission_id TEXT NOT NULL,
+			title TEXT NOT NULL,
+			content TEXT,
+			type TEXT NOT NULL CHECK(type IN ('learning', 'concern', 'finding', 'frq', 'bug', 'investigation_report')) DEFAULT 'learning',
+			status TEXT NOT NULL CHECK(status IN ('open', 'closed')) DEFAULT 'open',
+			shipment_id TEXT,
+			investigation_id TEXT,
+			conclave_id TEXT,
+			tome_id TEXT,
+			pinned INTEGER DEFAULT 0,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			closed_at DATETIME,
+			promoted_from_id TEXT,
+			promoted_from_type TEXT,
+			FOREIGN KEY (mission_id) REFERENCES missions(id),
+			FOREIGN KEY (shipment_id) REFERENCES shipments(id) ON DELETE SET NULL,
+			FOREIGN KEY (investigation_id) REFERENCES investigations(id) ON DELETE SET NULL,
+			FOREIGN KEY (conclave_id) REFERENCES conclaves(id) ON DELETE SET NULL,
+			FOREIGN KEY (tome_id) REFERENCES tomes(id) ON DELETE SET NULL
+		)
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to create notes table: %w", err)
+	}
+
+	// Step 4: Create indexes
+	_, err = db.Exec(`
+		CREATE INDEX idx_questions_investigation ON questions(investigation_id);
+		CREATE INDEX idx_questions_mission ON questions(mission_id);
+		CREATE INDEX idx_questions_status ON questions(status);
+		CREATE INDEX idx_plans_shipment ON plans(shipment_id);
+		CREATE INDEX idx_plans_mission ON plans(mission_id);
+		CREATE INDEX idx_plans_status ON plans(status);
+		CREATE INDEX idx_notes_mission ON notes(mission_id);
+		CREATE INDEX idx_notes_type ON notes(type);
+		CREATE INDEX idx_notes_status ON notes(status);
+		CREATE INDEX idx_notes_shipment ON notes(shipment_id);
+		CREATE INDEX idx_notes_investigation ON notes(investigation_id);
+		CREATE INDEX idx_notes_conclave ON notes(conclave_id);
+		CREATE INDEX idx_notes_tome ON notes(tome_id);
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to create leaf indexes: %w", err)
+	}
+
+	return nil
+}
+
+// migrationV15 adds conclave FK columns to tasks, questions, plans for cross-cutting behavior
+func migrationV15(db *sql.DB) error {
+	// Add conclave_id to tasks (conclave can hold any leaf type)
+	_, err := db.Exec(`ALTER TABLE tasks ADD COLUMN conclave_id TEXT REFERENCES conclaves(id) ON DELETE SET NULL`)
+	if err != nil {
+		return fmt.Errorf("failed to add conclave_id to tasks: %w", err)
+	}
+
+	// Add conclave_id to questions
+	_, err = db.Exec(`ALTER TABLE questions ADD COLUMN conclave_id TEXT REFERENCES conclaves(id) ON DELETE SET NULL`)
+	if err != nil {
+		return fmt.Errorf("failed to add conclave_id to questions: %w", err)
+	}
+
+	// Add conclave_id to plans
+	_, err = db.Exec(`ALTER TABLE plans ADD COLUMN conclave_id TEXT REFERENCES conclaves(id) ON DELETE SET NULL`)
+	if err != nil {
+		return fmt.Errorf("failed to add conclave_id to plans: %w", err)
+	}
+
+	// Create indexes for conclave lookups
+	_, err = db.Exec(`
+		CREATE INDEX idx_tasks_conclave ON tasks(conclave_id);
+		CREATE INDEX idx_questions_conclave ON questions(conclave_id);
+		CREATE INDEX idx_plans_conclave ON plans(conclave_id);
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to create conclave indexes: %w", err)
+	}
+
+	return nil
+}
+
+// migrationV16 generalizes tags from task-only to all entity types
+func migrationV16(db *sql.DB) error {
+	// Step 1: Create entity_tags table
+	_, err := db.Exec(`
+		CREATE TABLE entity_tags (
+			id TEXT PRIMARY KEY,
+			entity_id TEXT NOT NULL,
+			entity_type TEXT NOT NULL CHECK(entity_type IN ('task', 'question', 'plan', 'note', 'shipment', 'investigation', 'conclave', 'tome')),
+			tag_id TEXT NOT NULL,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE,
+			UNIQUE(entity_id, entity_type, tag_id)
+		)
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to create entity_tags table: %w", err)
+	}
+
+	// Step 2: Migrate existing task_tags to entity_tags
+	_, err = db.Exec(`
+		INSERT INTO entity_tags (id, entity_id, entity_type, tag_id, created_at)
+		SELECT id, task_id, 'task', tag_id, created_at FROM task_tags
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to migrate task_tags to entity_tags: %w", err)
+	}
+
+	// Step 3: Create indexes
+	_, err = db.Exec(`
+		CREATE INDEX idx_entity_tags_entity ON entity_tags(entity_id, entity_type);
+		CREATE INDEX idx_entity_tags_tag ON entity_tags(tag_id);
+		CREATE INDEX idx_entity_tags_type ON entity_tags(entity_type);
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to create entity_tags indexes: %w", err)
+	}
+
+	// Step 4: Drop old task_tags table
+	_, err = db.Exec(`DROP TABLE task_tags`)
+	if err != nil {
+		return fmt.Errorf("failed to drop task_tags table: %w", err)
+	}
+
+	return nil
+}
+
+// migrationV17 migrates epics to shipments and removes rabbit_holes
+func migrationV17(db *sql.DB) error {
+	// Step 1: Copy all epics to shipments (EPIC-NNN → SHIP-NNN)
+	_, err := db.Exec(`
+		INSERT INTO shipments (id, mission_id, title, description, status, assigned_grove_id, pinned, created_at, updated_at, completed_at)
+		SELECT
+			REPLACE(id, 'EPIC-', 'SHIP-'),
+			mission_id,
+			title,
+			description,
+			CASE WHEN status = 'complete' THEN 'complete' ELSE 'active' END,
+			assigned_grove_id,
+			pinned,
+			created_at,
+			updated_at,
+			completed_at
+		FROM epics
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to copy epics to shipments: %w", err)
+	}
+
+	// Step 2: Move tasks from rabbit_holes to their parent epic (now shipment)
+	// Need to update both epic_id and clear rabbit_hole_id atomically to satisfy CHECK constraint
+	_, err = db.Exec(`
+		UPDATE tasks
+		SET
+			epic_id = (SELECT rh.epic_id FROM rabbit_holes rh WHERE rh.id = tasks.rabbit_hole_id),
+			rabbit_hole_id = NULL
+		WHERE rabbit_hole_id IS NOT NULL
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to move tasks from rabbit_holes to epics: %w", err)
+	}
+
+	// Step 3: Create new tasks table with shipment_id instead of epic_id
+	_, err = db.Exec(`
+		CREATE TABLE tasks_new (
+			id TEXT PRIMARY KEY,
+			shipment_id TEXT,
+			mission_id TEXT NOT NULL,
+			title TEXT NOT NULL,
+			description TEXT,
+			type TEXT CHECK(type IN ('research', 'implementation', 'fix', 'documentation', 'maintenance')),
+			status TEXT NOT NULL CHECK(status IN ('ready', 'in_progress', 'complete')) DEFAULT 'ready',
+			priority TEXT CHECK(priority IN ('low', 'medium', 'high')),
+			assigned_grove_id TEXT,
+			pinned INTEGER DEFAULT 0,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			claimed_at DATETIME,
+			completed_at DATETIME,
+			conclave_id TEXT,
+			promoted_from_id TEXT,
+			promoted_from_type TEXT,
+			FOREIGN KEY (shipment_id) REFERENCES shipments(id) ON DELETE CASCADE,
+			FOREIGN KEY (mission_id) REFERENCES missions(id),
+			FOREIGN KEY (assigned_grove_id) REFERENCES groves(id),
+			FOREIGN KEY (conclave_id) REFERENCES conclaves(id) ON DELETE SET NULL
+		)
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to create tasks_new table: %w", err)
+	}
+
+	// Step 4: Copy tasks to new table, converting epic_id to shipment_id
+	_, err = db.Exec(`
+		INSERT INTO tasks_new (id, shipment_id, mission_id, title, description, type, status, priority, assigned_grove_id, pinned, created_at, updated_at, claimed_at, completed_at, conclave_id)
+		SELECT
+			id,
+			REPLACE(epic_id, 'EPIC-', 'SHIP-'),
+			mission_id,
+			title,
+			description,
+			type,
+			CASE
+				WHEN status = 'complete' THEN 'complete'
+				WHEN status IN ('implement', 'in_progress', 'design', 'deploy') THEN 'in_progress'
+				ELSE 'ready'
+			END,
+			priority,
+			assigned_grove_id,
+			pinned,
+			created_at,
+			updated_at,
+			claimed_at,
+			completed_at,
+			conclave_id
+		FROM tasks
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to copy tasks to tasks_new: %w", err)
+	}
+
+	// Step 5: Drop old tasks table and rename new one
+	_, err = db.Exec(`DROP TABLE tasks`)
+	if err != nil {
+		return fmt.Errorf("failed to drop old tasks table: %w", err)
+	}
+
+	_, err = db.Exec(`ALTER TABLE tasks_new RENAME TO tasks`)
+	if err != nil {
+		return fmt.Errorf("failed to rename tasks_new to tasks: %w", err)
+	}
+
+	// Step 6: Recreate tasks indexes
+	_, err = db.Exec(`
+		CREATE INDEX idx_tasks_shipment ON tasks(shipment_id);
+		CREATE INDEX idx_tasks_mission ON tasks(mission_id);
+		CREATE INDEX idx_tasks_status ON tasks(status);
+		CREATE INDEX idx_tasks_grove ON tasks(assigned_grove_id);
+		CREATE INDEX idx_tasks_conclave ON tasks(conclave_id);
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to recreate tasks indexes: %w", err)
+	}
+
+	// Step 7: Drop rabbit_holes table
+	_, err = db.Exec(`DROP TABLE rabbit_holes`)
+	if err != nil {
+		return fmt.Errorf("failed to drop rabbit_holes table: %w", err)
+	}
+
+	// Step 8: Drop epics table
+	_, err = db.Exec(`DROP TABLE epics`)
+	if err != nil {
+		return fmt.Errorf("failed to drop epics table: %w", err)
+	}
+
+	// Step 9: Drop old epic indexes (if they still exist)
+	_, err = db.Exec(`
+		DROP INDEX IF EXISTS idx_epics_mission;
+		DROP INDEX IF EXISTS idx_epics_status;
+		DROP INDEX IF EXISTS idx_epics_grove;
+		DROP INDEX IF EXISTS idx_rabbit_holes_epic;
+		DROP INDEX IF EXISTS idx_rabbit_holes_status;
+		DROP INDEX IF EXISTS idx_tasks_epic;
+		DROP INDEX IF EXISTS idx_tasks_rabbit_hole;
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to drop old indexes: %w", err)
+	}
+
+	return nil
+}
+
+// migrationV18 adds missing columns for the entity CLI commands
+func migrationV18(db *sql.DB) error {
+	// Add assigned_grove_id to investigations table
+	_, err := db.Exec(`ALTER TABLE investigations ADD COLUMN assigned_grove_id TEXT REFERENCES groves(id)`)
+	if err != nil {
+		return fmt.Errorf("failed to add assigned_grove_id to investigations: %w", err)
+	}
+
+	// Add assigned_grove_id to conclaves table
+	_, err = db.Exec(`ALTER TABLE conclaves ADD COLUMN assigned_grove_id TEXT REFERENCES groves(id)`)
+	if err != nil {
+		return fmt.Errorf("failed to add assigned_grove_id to conclaves: %w", err)
+	}
+
+	// Add description column to plans table
+	_, err = db.Exec(`ALTER TABLE plans ADD COLUMN description TEXT`)
+	if err != nil {
+		return fmt.Errorf("failed to add description to plans: %w", err)
+	}
+
+	// Add promoted_from columns to plans table
+	_, err = db.Exec(`ALTER TABLE plans ADD COLUMN promoted_from_id TEXT`)
+	if err != nil {
+		return fmt.Errorf("failed to add promoted_from_id to plans: %w", err)
+	}
+	_, err = db.Exec(`ALTER TABLE plans ADD COLUMN promoted_from_type TEXT`)
+	if err != nil {
+		return fmt.Errorf("failed to add promoted_from_type to plans: %w", err)
+	}
+
+	// For questions table, we need to make investigation_id nullable
+	// SQLite doesn't support ALTER COLUMN, so we recreate the table
+	_, err = db.Exec(`
+		CREATE TABLE questions_new (
+			id TEXT PRIMARY KEY,
+			investigation_id TEXT,
+			mission_id TEXT NOT NULL,
+			title TEXT NOT NULL,
+			description TEXT,
+			status TEXT NOT NULL CHECK(status IN ('open', 'answered')) DEFAULT 'open',
+			answer TEXT,
+			pinned INTEGER DEFAULT 0,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			answered_at DATETIME,
+			conclave_id TEXT,
+			promoted_from_id TEXT,
+			promoted_from_type TEXT,
+			FOREIGN KEY (investigation_id) REFERENCES investigations(id) ON DELETE CASCADE,
+			FOREIGN KEY (mission_id) REFERENCES missions(id),
+			FOREIGN KEY (conclave_id) REFERENCES conclaves(id) ON DELETE SET NULL
+		)
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to create questions_new table: %w", err)
+	}
+
+	// Copy existing data
+	_, err = db.Exec(`
+		INSERT INTO questions_new (id, investigation_id, mission_id, title, description, status, answer, pinned, created_at, updated_at, answered_at, conclave_id, promoted_from_id, promoted_from_type)
+		SELECT id, investigation_id, mission_id, title, description, status, answer, pinned, created_at, updated_at, answered_at, conclave_id, promoted_from_id, promoted_from_type FROM questions
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to copy questions data: %w", err)
+	}
+
+	// Drop old table
+	_, err = db.Exec(`DROP TABLE questions`)
+	if err != nil {
+		return fmt.Errorf("failed to drop old questions table: %w", err)
+	}
+
+	// Rename new table
+	_, err = db.Exec(`ALTER TABLE questions_new RENAME TO questions`)
+	if err != nil {
+		return fmt.Errorf("failed to rename questions_new to questions: %w", err)
+	}
+
+	// Recreate indexes
+	_, err = db.Exec(`
+		CREATE INDEX idx_questions_investigation ON questions(investigation_id);
+		CREATE INDEX idx_questions_mission ON questions(mission_id);
+		CREATE INDEX idx_questions_status ON questions(status);
+		CREATE INDEX idx_questions_conclave ON questions(conclave_id);
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to recreate questions indexes: %w", err)
+	}
+
+	// For notes table, make type column nullable (or have a default)
+	// Looking at notes migration, type has NOT NULL but we want it optional
+	_, err = db.Exec(`
+		CREATE TABLE notes_new (
+			id TEXT PRIMARY KEY,
+			mission_id TEXT NOT NULL,
+			title TEXT NOT NULL,
+			content TEXT,
+			type TEXT CHECK(type IN ('learning', 'concern', 'finding', 'frq', 'bug', 'investigation_report')),
+			shipment_id TEXT,
+			investigation_id TEXT,
+			conclave_id TEXT,
+			tome_id TEXT,
+			pinned INTEGER DEFAULT 0,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			promoted_from_id TEXT,
+			promoted_from_type TEXT,
+			FOREIGN KEY (mission_id) REFERENCES missions(id),
+			FOREIGN KEY (shipment_id) REFERENCES shipments(id) ON DELETE SET NULL,
+			FOREIGN KEY (investigation_id) REFERENCES investigations(id) ON DELETE SET NULL,
+			FOREIGN KEY (conclave_id) REFERENCES conclaves(id) ON DELETE SET NULL,
+			FOREIGN KEY (tome_id) REFERENCES tomes(id) ON DELETE SET NULL
+		)
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to create notes_new table: %w", err)
+	}
+
+	// Copy existing data (dropping status and closed_at as we're simplifying)
+	_, err = db.Exec(`
+		INSERT INTO notes_new (id, mission_id, title, content, type, shipment_id, investigation_id, conclave_id, tome_id, pinned, created_at, updated_at, promoted_from_id, promoted_from_type)
+		SELECT id, mission_id, title, content, type, shipment_id, investigation_id, conclave_id, tome_id, pinned, created_at, updated_at, promoted_from_id, promoted_from_type FROM notes
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to copy notes data: %w", err)
+	}
+
+	// Drop old table
+	_, err = db.Exec(`DROP TABLE notes`)
+	if err != nil {
+		return fmt.Errorf("failed to drop old notes table: %w", err)
+	}
+
+	// Rename new table
+	_, err = db.Exec(`ALTER TABLE notes_new RENAME TO notes`)
+	if err != nil {
+		return fmt.Errorf("failed to rename notes_new to notes: %w", err)
+	}
+
+	// Recreate indexes
+	_, err = db.Exec(`
+		CREATE INDEX idx_notes_mission ON notes(mission_id);
+		CREATE INDEX idx_notes_type ON notes(type);
+		CREATE INDEX idx_notes_shipment ON notes(shipment_id);
+		CREATE INDEX idx_notes_investigation ON notes(investigation_id);
+		CREATE INDEX idx_notes_conclave ON notes(conclave_id);
+		CREATE INDEX idx_notes_tome ON notes(tome_id);
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to recreate notes indexes: %w", err)
+	}
+
+	// For plans table, we also need to make shipment_id nullable
+	_, err = db.Exec(`
+		CREATE TABLE plans_new (
+			id TEXT PRIMARY KEY,
+			shipment_id TEXT,
+			mission_id TEXT NOT NULL,
+			title TEXT NOT NULL,
+			description TEXT,
+			content TEXT,
+			status TEXT NOT NULL CHECK(status IN ('draft', 'approved')) DEFAULT 'draft',
+			pinned INTEGER DEFAULT 0,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			approved_at DATETIME,
+			conclave_id TEXT,
+			promoted_from_id TEXT,
+			promoted_from_type TEXT,
+			FOREIGN KEY (shipment_id) REFERENCES shipments(id) ON DELETE CASCADE,
+			FOREIGN KEY (mission_id) REFERENCES missions(id),
+			FOREIGN KEY (conclave_id) REFERENCES conclaves(id) ON DELETE SET NULL
+		)
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to create plans_new table: %w", err)
+	}
+
+	// Copy existing data
+	_, err = db.Exec(`
+		INSERT INTO plans_new (id, shipment_id, mission_id, title, content, status, pinned, created_at, updated_at, approved_at, conclave_id)
+		SELECT id, shipment_id, mission_id, title, content, status, pinned, created_at, updated_at, approved_at, conclave_id FROM plans
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to copy plans data: %w", err)
+	}
+
+	// Drop old unique index first if it exists
+	_, _ = db.Exec(`DROP INDEX IF EXISTS idx_plans_active_shipment`)
+
+	// Drop old table
+	_, err = db.Exec(`DROP TABLE plans`)
+	if err != nil {
+		return fmt.Errorf("failed to drop old plans table: %w", err)
+	}
+
+	// Rename new table
+	_, err = db.Exec(`ALTER TABLE plans_new RENAME TO plans`)
+	if err != nil {
+		return fmt.Errorf("failed to rename plans_new to plans: %w", err)
+	}
+
+	// Recreate indexes
+	_, err = db.Exec(`
+		CREATE INDEX idx_plans_shipment ON plans(shipment_id);
+		CREATE INDEX idx_plans_mission ON plans(mission_id);
+		CREATE INDEX idx_plans_status ON plans(status);
+		CREATE INDEX idx_plans_conclave ON plans(conclave_id);
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to recreate plans indexes: %w", err)
+	}
+
+	// Create unique constraint for active plan per shipment (if shipment_id is not null)
+	_, err = db.Exec(`
+		CREATE UNIQUE INDEX idx_plans_active_shipment ON plans(shipment_id) WHERE status = 'draft' AND shipment_id IS NOT NULL
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to create active plan constraint: %w", err)
 	}
 
 	return nil

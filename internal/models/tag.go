@@ -126,3 +126,25 @@ func DeleteTag(id string) error {
 	_, err = database.Exec("DELETE FROM tags WHERE id = ?", id)
 	return err
 }
+
+// GetEntityTag retrieves the tag for any entity type via entity_tags table
+func GetEntityTag(entityID, entityType string) (*Tag, error) {
+	database, err := db.GetDB()
+	if err != nil {
+		return nil, err
+	}
+
+	var tagID string
+	err = database.QueryRow(
+		"SELECT tag_id FROM entity_tags WHERE entity_id = ? AND entity_type = ?",
+		entityID, entityType,
+	).Scan(&tagID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return GetTag(tagID)
+}
