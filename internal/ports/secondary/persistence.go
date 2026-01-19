@@ -15,11 +15,17 @@ type MissionRepository interface {
 	// Update updates an existing mission.
 	Update(ctx context.Context, mission *MissionRecord) error
 
+	// Delete removes a mission from persistence.
+	Delete(ctx context.Context, id string) error
+
 	// List retrieves missions matching the given filters.
 	List(ctx context.Context, filters MissionFilters) ([]*MissionRecord, error)
 
 	// GetNextID returns the next available mission ID.
 	GetNextID(ctx context.Context) (string, error)
+
+	// CountShipments returns the number of shipments for a mission.
+	CountShipments(ctx context.Context, missionID string) (int, error)
 }
 
 // MissionRecord represents a mission as stored in persistence.
@@ -28,6 +34,7 @@ type MissionRecord struct {
 	Title       string
 	Description string
 	Status      string
+	Pinned      bool
 	CreatedAt   string
 	StartedAt   string
 	CompletedAt string
@@ -52,6 +59,9 @@ type GroveRepository interface {
 
 	// Update updates an existing grove.
 	Update(ctx context.Context, grove *GroveRecord) error
+
+	// Delete removes a grove from persistence.
+	Delete(ctx context.Context, id string) error
 
 	// GetNextID returns the next available grove ID.
 	GetNextID(ctx context.Context) (string, error)

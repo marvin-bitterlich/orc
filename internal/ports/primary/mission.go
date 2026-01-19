@@ -25,6 +25,21 @@ type MissionService interface {
 
 	// CompleteMission marks a mission as complete.
 	CompleteMission(ctx context.Context, missionID string) error
+
+	// ArchiveMission archives a completed mission.
+	ArchiveMission(ctx context.Context, missionID string) error
+
+	// UpdateMission updates mission title and/or description.
+	UpdateMission(ctx context.Context, req UpdateMissionRequest) error
+
+	// DeleteMission deletes a mission.
+	DeleteMission(ctx context.Context, req DeleteMissionRequest) error
+
+	// PinMission pins a mission to prevent completion/archival.
+	PinMission(ctx context.Context, missionID string) error
+
+	// UnpinMission unpins a mission.
+	UnpinMission(ctx context.Context, missionID string) error
 }
 
 // CreateMissionRequest contains parameters for creating a mission.
@@ -76,4 +91,17 @@ type Mission struct {
 type MissionFilters struct {
 	Status string
 	Limit  int
+}
+
+// UpdateMissionRequest contains parameters for updating a mission.
+type UpdateMissionRequest struct {
+	MissionID   string
+	Title       string
+	Description string
+}
+
+// DeleteMissionRequest contains parameters for deleting a mission.
+type DeleteMissionRequest struct {
+	MissionID string
+	Force     bool
 }
