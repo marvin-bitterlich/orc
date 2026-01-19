@@ -11,6 +11,7 @@ import (
 	"github.com/example/orc/internal/agent"
 	"github.com/example/orc/internal/config"
 	"github.com/example/orc/internal/context"
+	coremission "github.com/example/orc/internal/core/mission"
 	"github.com/example/orc/internal/models"
 	"github.com/example/orc/internal/tmux"
 	"github.com/fatih/color"
@@ -68,9 +69,14 @@ var missionCreateCmd = &cobra.Command{
 	Args:  cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		// Check agent identity - only ORC can create missions
-		identity, err := agent.GetCurrentAgentID()
-		if err == nil && identity.Type == agent.AgentTypeIMP {
-			return fmt.Errorf("IMPs cannot create missions - only ORC can create missions")
+		identity, _ := agent.GetCurrentAgentID()
+		guardCtx := coremission.GuardContext{
+			AgentType: coremission.AgentType(identity.Type),
+			AgentID:   identity.FullID,
+			MissionID: identity.MissionID,
+		}
+		if result := coremission.CanCreateMission(guardCtx); !result.Allowed {
+			return result.Error()
 		}
 
 		title := args[0]
@@ -179,9 +185,14 @@ Examples:
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		// Check agent identity - only ORC can start missions
-		identity, err := agent.GetCurrentAgentID()
-		if err == nil && identity.Type == agent.AgentTypeIMP {
-			return fmt.Errorf("IMPs cannot start missions - only ORC can start missions")
+		identity, _ := agent.GetCurrentAgentID()
+		guardCtx := coremission.GuardContext{
+			AgentType: coremission.AgentType(identity.Type),
+			AgentID:   identity.FullID,
+			MissionID: identity.MissionID,
+		}
+		if result := coremission.CanStartMission(guardCtx); !result.Allowed {
+			return result.Error()
 		}
 
 		missionID := args[0]
@@ -423,9 +434,14 @@ Examples:
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		// Check agent identity - only ORC can launch missions
-		identity, err := agent.GetCurrentAgentID()
-		if err == nil && identity.Type == agent.AgentTypeIMP {
-			return fmt.Errorf("IMPs cannot launch missions - only ORC can launch missions")
+		identity, _ := agent.GetCurrentAgentID()
+		guardCtx := coremission.GuardContext{
+			AgentType: coremission.AgentType(identity.Type),
+			AgentID:   identity.FullID,
+			MissionID: identity.MissionID,
+		}
+		if result := coremission.CanLaunchMission(guardCtx); !result.Allowed {
+			return result.Error()
 		}
 
 		missionID := args[0]
