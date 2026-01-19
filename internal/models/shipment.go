@@ -307,6 +307,26 @@ func GetShipmentsByGrove(groveID string) ([]*Shipment, error) {
 	return shipments, nil
 }
 
+// DeleteShipment deletes a shipment by ID
+func DeleteShipment(id string) error {
+	database, err := db.GetDB()
+	if err != nil {
+		return err
+	}
+
+	var exists int
+	err = database.QueryRow("SELECT COUNT(*) FROM shipments WHERE id = ?", id).Scan(&exists)
+	if err != nil {
+		return err
+	}
+	if exists == 0 {
+		return fmt.Errorf("shipment %s not found", id)
+	}
+
+	_, err = database.Exec("DELETE FROM shipments WHERE id = ?", id)
+	return err
+}
+
 // GetShipmentTasks gets all tasks in a shipment
 func GetShipmentTasks(shipmentID string) ([]*Task, error) {
 	database, err := db.GetDB()

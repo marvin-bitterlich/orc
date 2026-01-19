@@ -29,7 +29,7 @@ appropriate context automatically.
 Output includes:
 - Current location (cwd)
 - Mission context (if any)
-- Active work order (if any)
+- Current focus (if any)
 - Core rules for ORC usage
 
 Still useful for:

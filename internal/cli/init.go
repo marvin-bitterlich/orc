@@ -69,7 +69,6 @@ func initConfig() error {
 			CurrentHandoffID: "",
 			CurrentFocus:     "",
 			LastUpdated:      time.Now().Format(time.RFC3339),
-			ActiveWorkOrders: []string{},
 		},
 	}
 

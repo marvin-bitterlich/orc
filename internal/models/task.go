@@ -313,6 +313,26 @@ func GetTasksByGrove(groveID string) ([]*Task, error) {
 	return tasks, nil
 }
 
+// DeleteTask deletes a task by ID
+func DeleteTask(id string) error {
+	database, err := db.GetDB()
+	if err != nil {
+		return err
+	}
+
+	var exists int
+	err = database.QueryRow("SELECT COUNT(*) FROM tasks WHERE id = ?", id).Scan(&exists)
+	if err != nil {
+		return err
+	}
+	if exists == 0 {
+		return fmt.Errorf("task %s not found", id)
+	}
+
+	_, err = database.Exec("DELETE FROM tasks WHERE id = ?", id)
+	return err
+}
+
 // GetTaskTag retrieves the tag for a task (returns nil if no tag assigned)
 func GetTaskTag(taskID string) (*Tag, error) {
 	database, err := db.GetDB()

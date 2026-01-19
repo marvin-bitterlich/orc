@@ -227,7 +227,7 @@ func DeleteMission(id string) error {
 		return err
 	}
 
-	// TODO: Add cascade delete for work_orders, groves, handoffs when implemented
+	// TODO: Add cascade delete for shipments, tasks, groves, handoffs when implemented
 
 	_, err = database.Exec("DELETE FROM missions WHERE id = ?", id)
 	return err

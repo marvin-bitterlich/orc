@@ -9,15 +9,16 @@ import (
 )
 
 type Tome struct {
-	ID          string
-	MissionID   string
-	Title       string
-	Description sql.NullString
-	Status      string
-	Pinned      bool
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
-	CompletedAt sql.NullTime
+	ID              string
+	MissionID       string
+	Title           string
+	Description     sql.NullString
+	Status          string
+	AssignedGroveID sql.NullString
+	Pinned          bool
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+	CompletedAt     sql.NullTime
 }
 
 // CreateTome creates a new tome (organization container)
@@ -71,9 +72,9 @@ func GetTome(id string) (*Tome, error) {
 
 	t := &Tome{}
 	err = database.QueryRow(
-		"SELECT id, mission_id, title, description, status, pinned, created_at, updated_at, completed_at FROM tomes WHERE id = ?",
+		"SELECT id, mission_id, title, description, status, assigned_grove_id, pinned, created_at, updated_at, completed_at FROM tomes WHERE id = ?",
 		id,
-	).Scan(&t.ID, &t.MissionID, &t.Title, &t.Description, &t.Status, &t.Pinned, &t.CreatedAt, &t.UpdatedAt, &t.CompletedAt)
+	).Scan(&t.ID, &t.MissionID, &t.Title, &t.Description, &t.Status, &t.AssignedGroveID, &t.Pinned, &t.CreatedAt, &t.UpdatedAt, &t.CompletedAt)
 
 	if err != nil {
 		return nil, err
@@ -89,7 +90,7 @@ func ListTomes(missionID, status string) ([]*Tome, error) {
 		return nil, err
 	}
 
-	query := "SELECT id, mission_id, title, description, status, pinned, created_at, updated_at, completed_at FROM tomes WHERE 1=1"
+	query := "SELECT id, mission_id, title, description, status, assigned_grove_id, pinned, created_at, updated_at, completed_at FROM tomes WHERE 1=1"
 	args := []any{}
 
 	if missionID != "" {
@@ -113,7 +114,7 @@ func ListTomes(missionID, status string) ([]*Tome, error) {
 	var tomes []*Tome
 	for rows.Next() {
 		t := &Tome{}
-		err := rows.Scan(&t.ID, &t.MissionID, &t.Title, &t.Description, &t.Status, &t.Pinned, &t.CreatedAt, &t.UpdatedAt, &t.CompletedAt)
+		err := rows.Scan(&t.ID, &t.MissionID, &t.Title, &t.Description, &t.Status, &t.AssignedGroveID, &t.Pinned, &t.CreatedAt, &t.UpdatedAt, &t.CompletedAt)
 		if err != nil {
 			return nil, err
 		}
@@ -254,4 +255,55 @@ func DeleteTome(id string) error {
 // GetTomeNotes gets all notes in a tome
 func GetTomeNotes(tomeID string) ([]*Note, error) {
 	return GetNotesByContainer("tome", tomeID)
+}
+
+// AssignTomeToGrove assigns a tome to a grove
+func AssignTomeToGrove(tomeID, groveID string) error {
+	database, err := db.GetDB()
+	if err != nil {
+		return err
+	}
+
+	var exists int
+	err = database.QueryRow("SELECT COUNT(*) FROM tomes WHERE id = ?", tomeID).Scan(&exists)
+	if err != nil {
+		return err
+	}
+	if exists == 0 {
+		return fmt.Errorf("tome %s not found", tomeID)
+	}
+
+	_, err = database.Exec(
+		"UPDATE tomes SET assigned_grove_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+		groveID, tomeID,
+	)
+
+	return err
+}
+
+// GetTomesByGrove returns tomes assigned to a specific grove
+func GetTomesByGrove(groveID string) ([]*Tome, error) {
+	database, err := db.GetDB()
+	if err != nil {
+		return nil, err
+	}
+
+	query := "SELECT id, mission_id, title, description, status, assigned_grove_id, pinned, created_at, updated_at, completed_at FROM tomes WHERE assigned_grove_id = ?"
+	rows, err := database.Query(query, groveID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var tomes []*Tome
+	for rows.Next() {
+		t := &Tome{}
+		err := rows.Scan(&t.ID, &t.MissionID, &t.Title, &t.Description, &t.Status, &t.AssignedGroveID, &t.Pinned, &t.CreatedAt, &t.UpdatedAt, &t.CompletedAt)
+		if err != nil {
+			return nil, err
+		}
+		tomes = append(tomes, t)
+	}
+
+	return tomes, nil
 }

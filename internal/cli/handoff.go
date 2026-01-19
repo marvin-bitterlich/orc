@@ -70,7 +70,6 @@ Examples:
 		// Get active context from flags
 		missionID, _ := cmd.Flags().GetString("mission")
 		groveID, _ := cmd.Flags().GetString("grove")
-		taskIDs, _ := cmd.Flags().GetStringSlice("tasks")
 		todosFile, _ := cmd.Flags().GetString("todos")
 
 		// Read todos JSON if provided
@@ -89,7 +88,7 @@ Examples:
 			}
 		}
 
-		handoff, err := models.CreateHandoff(note, missionID, taskIDs, todosJSON, groveID)
+		handoff, err := models.CreateHandoff(note, missionID, todosJSON, groveID)
 		if err != nil {
 			return fmt.Errorf("failed to create handoff: %w", err)
 		}
@@ -101,9 +100,6 @@ Examples:
 		}
 		if handoff.ActiveGroveID.Valid {
 			fmt.Printf("  Grove: %s\n", handoff.ActiveGroveID.String)
-		}
-		if handoff.ActiveWorkOrders.Valid {
-			fmt.Printf("  Tasks: %s\n", handoff.ActiveWorkOrders.String)
 		}
 
 		// Update global state config
@@ -137,9 +133,6 @@ var handoffShowCmd = &cobra.Command{
 		if handoff.ActiveGroveID.Valid {
 			fmt.Printf("Grove: %s\n", handoff.ActiveGroveID.String)
 		}
-		if handoff.ActiveWorkOrders.Valid {
-			fmt.Printf("Tasks: %s\n", handoff.ActiveWorkOrders.String)
-		}
 
 		fmt.Printf("\n--- HANDOFF NOTE ---\n\n%s\n\n", handoff.HandoffNote)
 
@@ -167,8 +160,8 @@ var handoffListCmd = &cobra.Command{
 			return nil
 		}
 
-		fmt.Printf("\n%-10s %-20s %-15s %-15s %-30s\n", "ID", "CREATED", "MISSION", "GROVE", "TASKS")
-		fmt.Println("──────────────────────────────────────────────────────────────────────────────────────────")
+		fmt.Printf("\n%-10s %-20s %-15s %-15s\n", "ID", "CREATED", "MISSION", "GROVE")
+		fmt.Println("────────────────────────────────────────────────────────────────")
 		for _, h := range handoffs {
 			mission := "-"
 			if h.ActiveMissionID.Valid {
@@ -178,16 +171,11 @@ var handoffListCmd = &cobra.Command{
 			if h.ActiveGroveID.Valid {
 				grove = h.ActiveGroveID.String
 			}
-			tasks := "-"
-			if h.ActiveWorkOrders.Valid {
-				tasks = h.ActiveWorkOrders.String
-			}
-			fmt.Printf("%-10s %-20s %-15s %-15s %-30s\n",
+			fmt.Printf("%-10s %-20s %-15s %-15s\n",
 				h.ID,
 				h.CreatedAt.Format("2006-01-02 15:04"),
 				mission,
 				grove,
-				tasks,
 			)
 		}
 		fmt.Println()
@@ -208,16 +196,6 @@ func updateMetadata(handoff *models.Handoff) error {
 		activeMissionID = handoff.ActiveMissionID.String
 	}
 
-	// Parse active tasks if present
-	activeWorkOrders := []string{}
-	if handoff.ActiveWorkOrders.Valid {
-		// Tasks stored as comma-separated string
-		workOrdersStr := handoff.ActiveWorkOrders.String
-		if workOrdersStr != "" {
-			activeWorkOrders = strings.Split(workOrdersStr, ",")
-		}
-	}
-
 	cfg := &config.Config{
 		Version: "1.0",
 		Type:    config.TypeGlobal,
@@ -225,7 +203,6 @@ func updateMetadata(handoff *models.Handoff) error {
 			ActiveMissionID:  activeMissionID,
 			CurrentHandoffID: handoff.ID,
 			LastUpdated:      time.Now().Format(time.RFC3339),
-			ActiveWorkOrders: activeWorkOrders,
 		},
 	}
 
@@ -240,7 +217,6 @@ func HandoffCmd() *cobra.Command {
 	handoffCreateCmd.Flags().Bool("stdin", false, "Read handoff note from stdin")
 	handoffCreateCmd.Flags().StringP("mission", "m", "", "Active mission ID")
 	handoffCreateCmd.Flags().String("grove", "", "Active grove ID (for IMP handoffs)")
-	handoffCreateCmd.Flags().StringSliceP("tasks", "w", nil, "Comma-separated list of active task IDs")
 	handoffCreateCmd.Flags().StringP("todos", "t", "", "Path to todos JSON file")
 
 	handoffListCmd.Flags().IntP("limit", "l", 10, "Maximum number of handoffs to show")

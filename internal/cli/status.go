@@ -26,7 +26,6 @@ This provides a focused view of "where am I right now?"`,
 			// Check if we're in a mission context first
 			missionCtx, _ := context.DetectMissionContext()
 			var activeMissionID string
-			var activeWorkOrders []string
 			var currentHandoffID string
 			var lastUpdated string
 			var currentFocus string
@@ -51,7 +50,6 @@ This provides a focused view of "where am I right now?"`,
 						currentFocus = cfg.Mission.CurrentFocus
 					case config.TypeGlobal:
 						activeMissionID = cfg.State.ActiveMissionID
-						activeWorkOrders = cfg.State.ActiveWorkOrders
 						currentHandoffID = cfg.State.CurrentHandoffID
 						lastUpdated = cfg.State.LastUpdated
 						currentFocus = cfg.State.CurrentFocus
@@ -77,7 +75,6 @@ This provides a focused view of "where am I right now?"`,
 
 				if cfg.State != nil {
 					activeMissionID = cfg.State.ActiveMissionID
-					activeWorkOrders = cfg.State.ActiveWorkOrders
 					currentHandoffID = cfg.State.CurrentHandoffID
 					lastUpdated = cfg.State.LastUpdated
 					currentFocus = cfg.State.CurrentFocus
@@ -114,25 +111,6 @@ This provides a focused view of "where am I right now?"`,
 				}
 				fmt.Println()
 			}
-
-			// Display active tasks (from config.State.ActiveWorkOrders)
-			if len(activeWorkOrders) > 0 {
-				fmt.Printf("📋 Active Tasks:\n")
-				for _, taskID := range activeWorkOrders {
-					task, err := models.GetTask(taskID)
-					if err != nil {
-						fmt.Printf("   ❌ %s (error loading: %v)\n", taskID, err)
-					} else {
-						fmt.Printf("   %s - %s [%s]\n", task.ID, task.Title, task.Status)
-						if task.AssignedGroveID.Valid && task.AssignedGroveID.String != "" {
-							fmt.Printf("      Grove: %s\n", task.AssignedGroveID.String)
-						}
-					}
-				}
-			} else {
-				fmt.Println("📋 Active Tasks: (none)")
-			}
-			fmt.Println()
 
 			// Display latest handoff
 			if currentHandoffID != "" {

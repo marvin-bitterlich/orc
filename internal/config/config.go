@@ -50,12 +50,11 @@ type GroveConfig struct {
 }
 
 type StateConfig struct {
-	ActiveMissionID  string   `json:"active_mission_id"`
-	CurrentHandoffID string   `json:"current_handoff_id"`
-	Role             string   `json:"role,omitempty"`          // "ORC" for global orchestrator
-	CurrentFocus     string   `json:"current_focus,omitempty"` // Focused container ID (SHIP-*, CON-*, INV-*, TOME-*)
-	LastUpdated      string   `json:"last_updated"`
-	ActiveWorkOrders []string `json:"active_work_orders"`
+	ActiveMissionID  string `json:"active_mission_id"`
+	CurrentHandoffID string `json:"current_handoff_id"`
+	Role             string `json:"role,omitempty"`          // "ORC" for global orchestrator
+	CurrentFocus     string `json:"current_focus,omitempty"` // Focused container ID (SHIP-*, CON-*, INV-*, TOME-*)
+	LastUpdated      string `json:"last_updated"`
 }
 
 // LoadConfig reads config.json from directory
