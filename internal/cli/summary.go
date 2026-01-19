@@ -19,6 +19,7 @@ type filterConfig struct {
 	containerTypes map[string]bool // container types to show (empty = all)
 	includeTags    map[string]bool // tags to include (empty = all)
 	excludeTags    map[string]bool // tags to exclude
+	leafTypes      map[string]bool // leaf types to show (empty = all): tasks, notes, questions, plans
 }
 
 // getTagColor returns a deterministic color for a tag name
@@ -105,8 +106,8 @@ func getStatusColor(status string) *color.Color {
 // colorizeStatus formats status as uppercase with semantic color
 // Returns empty string for "ready" status (default, not shown)
 func colorizeStatus(status string) string {
-	if status == "ready" {
-		return "" // Don't show default status
+	if status == "" || status == "ready" || status == "active" {
+		return "" // Don't show empty or default statuses
 	}
 	c := getStatusColor(status)
 	return c.Sprintf("%s", strings.ToUpper(status))
@@ -138,6 +139,14 @@ func shouldShowLeaf(entityID string, filters *filterConfig) (bool, string) {
 	entityType := getEntityType(entityID)
 	if entityType == "" {
 		return true, "" // Unknown type, show it
+	}
+
+	// Check leaf type filter
+	if len(filters.leafTypes) > 0 {
+		// Support both singular (task) and plural (tasks) forms
+		if !filters.leafTypes[entityType] && !filters.leafTypes[entityType+"s"] {
+			return false, ""
+		}
 	}
 
 	tag, _ := models.GetEntityTag(entityID, entityType)
@@ -494,6 +503,7 @@ Examples:
 			expandAll, _ := cmd.Flags().GetBool("all")
 			filterStatuses, _ := cmd.Flags().GetStringSlice("filter-statuses")
 			filterContainers, _ := cmd.Flags().GetStringSlice("filter-containers")
+			filterLeaves, _ := cmd.Flags().GetStringSlice("filter-leaves")
 			includeTags, _ := cmd.Flags().GetStringSlice("tags")
 			excludeTags, _ := cmd.Flags().GetStringSlice("not-tags")
 
@@ -503,12 +513,16 @@ Examples:
 				containerTypes: make(map[string]bool),
 				includeTags:    make(map[string]bool),
 				excludeTags:    make(map[string]bool),
+				leafTypes:      make(map[string]bool),
 			}
 			for _, s := range filterStatuses {
 				filters.statusMap[s] = true
 			}
 			for _, c := range filterContainers {
 				filters.containerTypes[strings.ToUpper(c)] = true
+			}
+			for _, lt := range filterLeaves {
+				filters.leafTypes[strings.ToLower(strings.TrimSpace(lt))] = true
 			}
 			for _, t := range includeTags {
 				filters.includeTags[t] = true
@@ -781,6 +795,7 @@ Examples:
 	cmd.Flags().Bool("all", false, "Show all containers (default: only show focused container if set)")
 	cmd.Flags().StringSlice("filter-statuses", []string{}, "Hide items with these statuses (comma-separated: paused,blocked)")
 	cmd.Flags().StringSlice("filter-containers", []string{}, "Show only these container types (comma-separated: SHIP,CON,INV,TOME)")
+	cmd.Flags().StringSlice("filter-leaves", []string{}, "Show only these leaf types (comma-separated: tasks,notes,questions,plans)")
 	cmd.Flags().StringSlice("tags", []string{}, "Show only leaves with these tags")
 	cmd.Flags().StringSlice("not-tags", []string{}, "Hide leaves with these tags")
 
