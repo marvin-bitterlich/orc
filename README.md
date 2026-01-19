@@ -22,7 +22,13 @@ Today, ORC orchestrates a single agent working thoughtfully through well-planned
 
 Work in ORC is organized into containers that hold related items:
 
-**Shipments** (SHIP-*) are bundles of tasks ready for delivery - the primary unit of work that moves through the system. **Conclaves** (CON-*) are gatherings where discussions happen and decisions are made. **Investigations** (INV-*) are mysteries to solve - research and exploration that informs future work. **Tomes** (TOME-*) are books of accumulated knowledge - documentation that persists and grows.
+**📦 Shipments** (SHIP-*) are bundles of tasks ready for delivery - the primary unit of work that moves through the system.
+
+**🏛️ Conclaves** (CON-*) are gatherings where discussions happen and decisions are made.
+
+**🔍 Investigations** (INV-*) are mysteries to solve - research and exploration that informs future work.
+
+**📜 Tomes** (TOME-*) are books of accumulated knowledge - documentation that persists and grows.
 
 ### 🍃 Leaves
 
