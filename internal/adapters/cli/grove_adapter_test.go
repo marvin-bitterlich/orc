@@ -79,6 +79,14 @@ func (m *mockGroveService) DeleteGrove(ctx context.Context, req primary.DeleteGr
 	return nil
 }
 
+func (m *mockGroveService) GetGroveByPath(ctx context.Context, path string) (*primary.Grove, error) {
+	return nil, errors.New("not implemented in mock")
+}
+
+func (m *mockGroveService) UpdateGrovePath(ctx context.Context, groveID, newPath string) error {
+	return nil
+}
+
 // ============================================================================
 // List Tests
 // ============================================================================

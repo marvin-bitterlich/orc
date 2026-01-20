@@ -25,8 +25,7 @@ func NewGroveAdapter(service primary.GroveService, out io.Writer) *GroveAdapter 
 }
 
 // List lists groves with optional mission filter.
-// Note: When missionID is empty, caller should use models.ListGroves directly
-// as the service requires a mission filter.
+// When missionID is empty, all groves are returned.
 func (a *GroveAdapter) List(ctx context.Context, missionID string) ([]*primary.Grove, error) {
 	groves, err := a.service.ListGroves(ctx, primary.GroveFilters{
 		MissionID: missionID,

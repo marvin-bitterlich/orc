@@ -154,6 +154,36 @@ func (m *mockGroveRepository) GetNextID(ctx context.Context) (string, error) {
 	return "GROVE-001", nil
 }
 
+func (m *mockGroveRepository) GetByPath(ctx context.Context, path string) (*secondary.GroveRecord, error) {
+	for _, groves := range m.groves {
+		for _, g := range groves {
+			if g.WorktreePath == path {
+				return g, nil
+			}
+		}
+	}
+	return nil, errors.New("grove not found")
+}
+
+func (m *mockGroveRepository) List(ctx context.Context, missionID string) ([]*secondary.GroveRecord, error) {
+	if missionID == "" {
+		var all []*secondary.GroveRecord
+		for _, groves := range m.groves {
+			all = append(all, groves...)
+		}
+		return all, nil
+	}
+	return m.groves[missionID], nil
+}
+
+func (m *mockGroveRepository) Rename(ctx context.Context, id, newName string) error {
+	return nil
+}
+
+func (m *mockGroveRepository) UpdatePath(ctx context.Context, id, newPath string) error {
+	return nil
+}
+
 // mockAgentProvider implements secondary.AgentIdentityProvider for testing.
 type mockAgentProvider struct {
 	identity *secondary.AgentIdentity

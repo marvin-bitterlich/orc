@@ -1,12 +1,14 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"os"
 
 	"github.com/example/orc/internal/config"
-	"github.com/example/orc/internal/context"
+	ctx "github.com/example/orc/internal/context"
 	"github.com/example/orc/internal/models"
+	"github.com/example/orc/internal/wire"
 	"github.com/spf13/cobra"
 )
 
@@ -24,7 +26,7 @@ func StatusCmd() *cobra.Command {
 This provides a focused view of "where am I right now?"`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Check if we're in a mission context first
-			missionCtx, _ := context.DetectMissionContext()
+			missionCtx, _ := ctx.DetectMissionContext()
 			var activeMissionID string
 			var currentHandoffID string
 			var lastUpdated string
@@ -86,13 +88,13 @@ This provides a focused view of "where am I right now?"`,
 
 			// Display active mission
 			if activeMissionID != "" {
-				mission, err := models.GetMission(activeMissionID)
+				mission, err := wire.MissionService().GetMission(context.Background(), activeMissionID)
 				if err != nil {
 					fmt.Printf("❌ Mission: %s (error loading: %v)\n", activeMissionID, err)
 				} else {
 					fmt.Printf("🎯 Mission: %s - %s [%s]\n", mission.ID, mission.Title, mission.Status)
-					if mission.Description.Valid && mission.Description.String != "" {
-						fmt.Printf("   %s\n", mission.Description.String)
+					if mission.Description != "" {
+						fmt.Printf("   %s\n", mission.Description)
 					}
 				}
 			} else {

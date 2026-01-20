@@ -1,14 +1,16 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
 
 	"github.com/example/orc/internal/config"
-	"github.com/example/orc/internal/context"
+	ctx "github.com/example/orc/internal/context"
 	"github.com/example/orc/internal/models"
 	"github.com/example/orc/internal/templates"
+	"github.com/example/orc/internal/wire"
 	"github.com/spf13/cobra"
 )
 
@@ -61,8 +63,8 @@ func runPrime(cmd *cobra.Command, args []string) error {
 	}
 
 	// Detect contexts
-	groveCtx, _ := context.DetectGroveContext()
-	missionCtx, _ := context.DetectMissionContext()
+	groveCtx, _ := ctx.DetectGroveContext()
+	missionCtx, _ := ctx.DetectMissionContext()
 
 	// Load config to check role
 	cfg, _ := config.LoadConfig(cwd)
@@ -126,7 +128,7 @@ func truncateOutput(output, format string, maxLines int) string {
 }
 
 // buildORCPrimeOutput creates ORC orchestrator context output
-func buildORCPrimeOutput(missionCtx *context.MissionContext, cwd string, cfg *config.Config) string {
+func buildORCPrimeOutput(missionCtx *ctx.MissionContext, cwd string, cfg *config.Config) string {
 	var output strings.Builder
 
 	output.WriteString("# ORC Context (Session Prime)\n\n")
@@ -157,16 +159,16 @@ func buildORCPrimeOutput(missionCtx *context.MissionContext, cwd string, cfg *co
 		output.WriteString(fmt.Sprintf("**Workspace**: %s\n\n", missionCtx.WorkspacePath))
 
 		// Get mission details
-		mission, err := models.GetMission(missionCtx.MissionID)
+		mission, err := wire.MissionService().GetMission(context.Background(), missionCtx.MissionID)
 		if err == nil {
 			output.WriteString(fmt.Sprintf("## %s\n\n", mission.Title))
-			if mission.Description.Valid && mission.Description.String != "" {
-				descLines := strings.Split(mission.Description.String, "\n")
+			if mission.Description != "" {
+				descLines := strings.Split(mission.Description, "\n")
 				if len(descLines) > 3 {
 					output.WriteString(strings.Join(descLines[:3], "\n"))
 					output.WriteString("\n...\n\n")
 				} else {
-					output.WriteString(mission.Description.String)
+					output.WriteString(mission.Description)
 					output.WriteString("\n\n")
 				}
 			}
@@ -191,7 +193,7 @@ func buildORCPrimeOutput(missionCtx *context.MissionContext, cwd string, cfg *co
 }
 
 // buildIMPPrimeOutput creates IMP-focused context prompt when in grove territory
-func buildIMPPrimeOutput(groveCtx *context.GroveContext, cwd string) string {
+func buildIMPPrimeOutput(groveCtx *ctx.GroveContext, cwd string) string {
 	var output strings.Builder
 
 	output.WriteString("# IMP Boot Context\n\n")
@@ -345,7 +347,7 @@ func getCoreRules() string {
 }
 
 // buildFallbackOutput creates output when no role is configured
-func buildFallbackOutput(cwd string, groveCtx *context.GroveContext, missionCtx *context.MissionContext) string {
+func buildFallbackOutput(cwd string, groveCtx *ctx.GroveContext, missionCtx *ctx.MissionContext) string {
 	var output strings.Builder
 
 	output.WriteString("# ORC Context - Role Not Configured\n\n")

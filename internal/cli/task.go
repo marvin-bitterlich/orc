@@ -1,11 +1,13 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"os"
 
-	"github.com/example/orc/internal/context"
+	ctx "github.com/example/orc/internal/context"
 	"github.com/example/orc/internal/models"
+	"github.com/example/orc/internal/wire"
 	"github.com/spf13/cobra"
 )
 
@@ -28,7 +30,7 @@ var taskCreateCmd = &cobra.Command{
 
 		// Get mission from context or require explicit flag
 		if missionID == "" {
-			missionID = context.GetContextMissionID()
+			missionID = ctx.GetContextMissionID()
 			if missionID == "" {
 				return fmt.Errorf("no mission context detected\nHint: Use --mission flag or run from a grove/mission directory")
 			}
@@ -179,7 +181,7 @@ var taskClaimCmd = &cobra.Command{
 
 		// Try to get grove from current directory
 		cwd, _ := os.Getwd()
-		grove, _ := models.GetGroveByPath(cwd)
+		grove, _ := wire.GroveService().GetGroveByPath(context.Background(), cwd)
 
 		groveID := ""
 		if grove != nil {
@@ -324,7 +326,7 @@ var taskDiscoverCmd = &cobra.Command{
 
 		// Get current grove
 		cwd, _ := os.Getwd()
-		grove, err := models.GetGroveByPath(cwd)
+		grove, err := wire.GroveService().GetGroveByPath(context.Background(), cwd)
 		if err != nil {
 			return fmt.Errorf("not in a grove directory: %w", err)
 		}

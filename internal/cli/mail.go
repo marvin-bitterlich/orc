@@ -1,11 +1,13 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
 	"github.com/example/orc/internal/agent"
 	"github.com/example/orc/internal/models"
+	"github.com/example/orc/internal/wire"
 	"github.com/spf13/cobra"
 )
 
@@ -74,7 +76,7 @@ Examples:
 					// Need to look up grove to get mission ID
 					if recipientIdentity.MissionID == "" {
 						// Try to extract from grove
-						grove, err := models.GetGrove(recipientIdentity.ID)
+						grove, err := wire.GroveService().GetGrove(context.Background(), recipientIdentity.ID)
 						if err != nil {
 							return fmt.Errorf("failed to resolve IMP mission: %w", err)
 						}

@@ -1,13 +1,15 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 
-	"github.com/example/orc/internal/models"
+	"github.com/example/orc/internal/ports/primary"
+	"github.com/example/orc/internal/wire"
 	"github.com/spf13/cobra"
 )
 
@@ -50,7 +52,8 @@ Examples:
 
 			// 1. Clean up test missions
 			fmt.Println("📦 Cleaning up test missions...")
-			missions, err := models.ListMissions("")
+			ctx := context.Background()
+			missions, err := wire.MissionService().ListMissions(ctx, primary.MissionFilters{})
 			if err != nil {
 				return fmt.Errorf("failed to list missions: %w", err)
 			}
@@ -61,7 +64,7 @@ Examples:
 					if dryRun {
 						fmt.Printf("  [DRY RUN] Would delete: %s (%s)\n", mission.ID, mission.Title)
 					} else {
-						if err := models.DeleteMission(mission.ID); err != nil {
+						if err := wire.MissionService().DeleteMission(ctx, primary.DeleteMissionRequest{MissionID: mission.ID, Force: true}); err != nil {
 							fmt.Printf("  ⚠️  Failed to delete %s: %v\n", mission.ID, err)
 						} else {
 							fmt.Printf("  ✓ Deleted: %s\n", mission.ID)
@@ -81,7 +84,7 @@ Examples:
 
 			// 2. Clean up test groves
 			fmt.Println("🌳 Cleaning up test groves...")
-			groves, err := models.ListGroves("")
+			groves, err := wire.GroveService().ListGroves(ctx, primary.GroveFilters{})
 			if err != nil {
 				return fmt.Errorf("failed to list groves: %w", err)
 			}
@@ -103,7 +106,7 @@ Examples:
 						}
 
 						// Delete from database
-						if err := models.DeleteGrove(grove.ID); err != nil {
+						if err := wire.GroveService().DeleteGrove(ctx, primary.DeleteGroveRequest{GroveID: grove.ID, Force: true}); err != nil {
 							fmt.Printf("  ⚠️  Failed to delete %s: %v\n", grove.ID, err)
 						} else {
 							fmt.Printf("  ✓ Deleted: %s (%s)\n", grove.ID, grove.Name)

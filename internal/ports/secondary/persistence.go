@@ -21,6 +21,12 @@ type MissionRepository interface {
 	// List retrieves missions matching the given filters.
 	List(ctx context.Context, filters MissionFilters) ([]*MissionRecord, error)
 
+	// Pin pins a mission to keep it visible.
+	Pin(ctx context.Context, id string) error
+
+	// Unpin unpins a mission.
+	Unpin(ctx context.Context, id string) error
+
 	// GetNextID returns the next available mission ID.
 	GetNextID(ctx context.Context) (string, error)
 
@@ -54,14 +60,26 @@ type GroveRepository interface {
 	// GetByID retrieves a grove by its ID.
 	GetByID(ctx context.Context, id string) (*GroveRecord, error)
 
+	// GetByPath retrieves a grove by its file path.
+	GetByPath(ctx context.Context, path string) (*GroveRecord, error)
+
 	// GetByMission retrieves all groves for a mission.
 	GetByMission(ctx context.Context, missionID string) ([]*GroveRecord, error)
+
+	// List retrieves all groves, optionally filtered by mission.
+	List(ctx context.Context, missionID string) ([]*GroveRecord, error)
 
 	// Update updates an existing grove.
 	Update(ctx context.Context, grove *GroveRecord) error
 
 	// Delete removes a grove from persistence.
 	Delete(ctx context.Context, id string) error
+
+	// Rename updates the name of a grove.
+	Rename(ctx context.Context, id, newName string) error
+
+	// UpdatePath updates the path of a grove.
+	UpdatePath(ctx context.Context, id, newPath string) error
 
 	// GetNextID returns the next available grove ID.
 	GetNextID(ctx context.Context) (string, error)

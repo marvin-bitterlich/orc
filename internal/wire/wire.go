@@ -4,12 +4,15 @@ package wire
 
 import (
 	"io"
+	"log"
 	"os"
 	"sync"
 
 	cliadapter "github.com/example/orc/internal/adapters/cli"
 	"github.com/example/orc/internal/adapters/persistence"
+	"github.com/example/orc/internal/adapters/sqlite"
 	"github.com/example/orc/internal/app"
+	"github.com/example/orc/internal/db"
 	"github.com/example/orc/internal/ports/primary"
 )
 
@@ -34,13 +37,19 @@ func GroveService() primary.GroveService {
 // initServices initializes all services and their dependencies.
 // This is called once via sync.Once.
 func initServices() {
-	// Create repository adapters (secondary ports)
-	missionRepo := persistence.NewMissionRepository()
-	groveRepo := persistence.NewGroveRepository()
+	// Get database connection
+	database, err := db.GetDB()
+	if err != nil {
+		log.Fatalf("failed to initialize database: %v", err)
+	}
+
+	// Create repository adapters (secondary ports) - sqlite adapters with injected DB
+	missionRepo := sqlite.NewMissionRepository(database)
+	groveRepo := sqlite.NewGroveRepository(database)
 	agentProvider := persistence.NewAgentIdentityProvider()
 
-	// Create effect executor
-	executor := app.NewEffectExecutor()
+	// Create effect executor with injected repositories
+	executor := app.NewEffectExecutor(groveRepo, missionRepo)
 
 	// Create services (primary ports implementation)
 	missionService = app.NewMissionService(missionRepo, groveRepo, agentProvider, executor)

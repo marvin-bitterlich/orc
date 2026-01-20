@@ -1,14 +1,17 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"hash/fnv"
 	"os"
 	"strings"
 
 	"github.com/example/orc/internal/config"
-	"github.com/example/orc/internal/context"
+	ctx "github.com/example/orc/internal/context"
 	"github.com/example/orc/internal/models"
+	"github.com/example/orc/internal/ports/primary"
+	"github.com/example/orc/internal/wire"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 )
@@ -539,7 +542,7 @@ Examples:
 			var filterMissionID string
 			if missionFilter == "current" {
 				// Get current mission from context
-				missionCtx, _ := context.DetectMissionContext()
+				missionCtx, _ := ctx.DetectMissionContext()
 				if missionCtx == nil || missionCtx.MissionID == "" {
 					return fmt.Errorf("--mission current requires being in a mission context (no .orc/config.json found)")
 				}
@@ -559,14 +562,14 @@ Examples:
 			fmt.Println(strings.Join(headerParts, " - "))
 			fmt.Println()
 
-			// Get all non-complete missions
-			missions, err := models.ListMissions("")
+			// Get all non-complete missions via service
+			missions, err := wire.MissionService().ListMissions(context.Background(), primary.MissionFilters{})
 			if err != nil {
 				return fmt.Errorf("failed to list missions: %w", err)
 			}
 
 			// Filter to open missions (not complete or archived)
-			var openMissions []*models.Mission
+			var openMissions []*primary.Mission
 			for _, m := range missions {
 				if m.Status == "complete" || m.Status == "archived" {
 					continue
@@ -722,7 +725,7 @@ Examples:
 						}
 						groveInfo := ""
 						if container.groveID != "" {
-							grove, err := models.GetGrove(container.groveID)
+							grove, err := wire.GroveService().GetGrove(context.Background(), container.groveID)
 							if err == nil {
 								groveInfo = " " + colorizeGrove(grove.Name, grove.ID)
 							}

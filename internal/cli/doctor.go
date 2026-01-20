@@ -2,6 +2,7 @@ package cli
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -32,7 +33,7 @@ Examples:
   orc doctor --quiet      # Exit code only (0=healthy, 1=issues)`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if !quiet {
-				fmt.Println("\n=== ORC Environment Health Check ===\n")
+				fmt.Print("\n=== ORC Environment Health Check ===\n\n")
 			}
 
 			issuesFound := false
@@ -204,7 +205,7 @@ func checkClaudeSettings(quiet bool) error {
 			msg += "     - ~/src/missions\n"
 		}
 		msg += "\n   FIX: Add missing directories to additionalDirectories array"
-		return fmt.Errorf(msg)
+		return errors.New(msg)
 	}
 
 	return nil

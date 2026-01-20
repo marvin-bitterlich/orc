@@ -1,11 +1,12 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/example/orc/internal/agent"
-	"github.com/example/orc/internal/models"
 	"github.com/example/orc/internal/tmux"
+	"github.com/example/orc/internal/wire"
 	"github.com/spf13/cobra"
 )
 
@@ -37,7 +38,7 @@ Examples:
 			var target string
 			if identity.Type == agent.AgentTypeIMP {
 				// Extract grove ID from IMP-GROVE-001
-				grove, err := models.GetGrove(identity.ID)
+				grove, err := wire.GroveService().GetGrove(context.Background(), identity.ID)
 				if err != nil {
 					return fmt.Errorf("failed to get grove info: %w", err)
 				}

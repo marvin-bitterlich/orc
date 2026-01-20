@@ -7,7 +7,7 @@ import (
 	"os"
 
 	"github.com/example/orc/internal/core/effects"
-	"github.com/example/orc/internal/models"
+	"github.com/example/orc/internal/ports/secondary"
 	"github.com/example/orc/internal/tmux"
 )
 
@@ -18,11 +18,17 @@ type EffectExecutor interface {
 }
 
 // DefaultEffectExecutor implements EffectExecutor with real I/O.
-type DefaultEffectExecutor struct{}
+type DefaultEffectExecutor struct {
+	groveRepo   secondary.GroveRepository
+	missionRepo secondary.MissionRepository
+}
 
-// NewEffectExecutor creates a new DefaultEffectExecutor.
-func NewEffectExecutor() *DefaultEffectExecutor {
-	return &DefaultEffectExecutor{}
+// NewEffectExecutor creates a new DefaultEffectExecutor with injected repositories.
+func NewEffectExecutor(groveRepo secondary.GroveRepository, missionRepo secondary.MissionRepository) *DefaultEffectExecutor {
+	return &DefaultEffectExecutor{
+		groveRepo:   groveRepo,
+		missionRepo: missionRepo,
+	}
 }
 
 // Execute processes a slice of effects, executing each in sequence.
@@ -91,7 +97,7 @@ func (e *DefaultEffectExecutor) executeGroveOp(ctx context.Context, eff effects.
 			return fmt.Errorf("invalid grove update data type: %T", eff.Data)
 		}
 		if path, exists := data["path"]; exists {
-			return models.UpdateGrovePath(data["id"], path)
+			return e.groveRepo.UpdatePath(ctx, data["id"], path)
 		}
 		return nil
 	default:
@@ -106,7 +112,10 @@ func (e *DefaultEffectExecutor) executeMissionOp(ctx context.Context, eff effect
 		if !ok {
 			return fmt.Errorf("invalid mission update data type: %T", eff.Data)
 		}
-		return models.UpdateMissionStatus(data["id"], data["status"])
+		return e.missionRepo.Update(ctx, &secondary.MissionRecord{
+			ID:     data["id"],
+			Status: data["status"],
+		})
 	default:
 		return fmt.Errorf("unknown mission operation: %s", eff.Operation)
 	}

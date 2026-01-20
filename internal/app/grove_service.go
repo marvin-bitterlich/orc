@@ -161,9 +161,30 @@ func (s *GroveServiceImpl) GetGrove(ctx context.Context, groveID string) (*prima
 	return s.recordToGrove(record), nil
 }
 
+// GetGroveByPath retrieves a grove by its filesystem path.
+func (s *GroveServiceImpl) GetGroveByPath(ctx context.Context, path string) (*primary.Grove, error) {
+	record, err := s.groveRepo.GetByPath(ctx, path)
+	if err != nil {
+		return nil, fmt.Errorf("grove not found at path: %w", err)
+	}
+	return s.recordToGrove(record), nil
+}
+
+// UpdateGrovePath updates the filesystem path of a grove.
+func (s *GroveServiceImpl) UpdateGrovePath(ctx context.Context, groveID, newPath string) error {
+	// Verify grove exists
+	_, err := s.groveRepo.GetByID(ctx, groveID)
+	if err != nil {
+		return fmt.Errorf("grove not found: %w", err)
+	}
+
+	return s.groveRepo.UpdatePath(ctx, groveID, newPath)
+}
+
 // ListGroves lists groves with optional filters.
 func (s *GroveServiceImpl) ListGroves(ctx context.Context, filters primary.GroveFilters) ([]*primary.Grove, error) {
-	records, err := s.groveRepo.GetByMission(ctx, filters.MissionID)
+	// Use List which handles empty missionID (lists all groves)
+	records, err := s.groveRepo.List(ctx, filters.MissionID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list groves: %w", err)
 	}

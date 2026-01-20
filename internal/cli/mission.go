@@ -14,6 +14,7 @@ import (
 	orccontext "github.com/example/orc/internal/context"
 	coremission "github.com/example/orc/internal/core/mission"
 	"github.com/example/orc/internal/models"
+	"github.com/example/orc/internal/ports/primary"
 	"github.com/example/orc/internal/tmux"
 	"github.com/example/orc/internal/wire"
 	"github.com/fatih/color"
@@ -113,8 +114,8 @@ var missionShowCmd = &cobra.Command{
 			fmt.Println()
 		}
 
-		// List groves for this mission (still using models - no service method yet)
-		groves, err := models.GetGrovesByMission(id)
+		// List groves for this mission via service
+		groves, err := wire.GroveService().ListGroves(context.Background(), primary.GroveFilters{MissionID: id})
 		if err == nil && len(groves) > 0 {
 			fmt.Println("Groves:")
 			for _, g := range groves {
@@ -168,8 +169,8 @@ Examples:
 			return fmt.Errorf("Claude workspace trust validation failed:\n\n%w\n\nRun 'orc doctor' for detailed diagnostics", err)
 		}
 
-		// Get mission from DB
-		mission, err := models.GetMission(missionID)
+		// Get mission from service
+		mission, err := wire.MissionService().GetMission(context.Background(), missionID)
 		if err != nil {
 			return fmt.Errorf("failed to get mission: %w", err)
 		}
@@ -197,8 +198,8 @@ Examples:
 		fmt.Printf("  Mission: %s - %s\n", mission.ID, mission.Title)
 		fmt.Println()
 
-		// Get active groves for this mission
-		groves, err := models.GetGrovesByMission(missionID)
+		// Get active groves for this mission via service
+		groves, err := wire.GroveService().ListGroves(context.Background(), primary.GroveFilters{MissionID: missionID})
 		if err != nil {
 			return fmt.Errorf("failed to get groves: %w", err)
 		}
@@ -368,12 +369,12 @@ Examples:
 		// Phase 1: Load desired state from database
 		fmt.Printf("🔍 Analyzing mission: %s\n\n", missionID)
 
-		mission, err := models.GetMission(missionID)
+		mission, err := wire.MissionService().GetMission(context.Background(), missionID)
 		if err != nil {
 			return fmt.Errorf("mission not found in database: %w\nCreate it first: orc mission create", err)
 		}
 
-		groves, err := models.GetGrovesByMission(missionID)
+		groves, err := wire.GroveService().ListGroves(context.Background(), primary.GroveFilters{MissionID: missionID})
 		if err != nil {
 			return fmt.Errorf("failed to load groves: %w", err)
 		}
@@ -386,14 +387,14 @@ Examples:
 		// Section 1: Database State
 		dbState = append(dbState, fmt.Sprintf("Mission: %s - %s", colorDim(mission.ID), mission.Title))
 		dbState = append(dbState, fmt.Sprintf("  Workspace: %s", workspacePath))
-		dbState = append(dbState, fmt.Sprintf("  Created: %s", mission.CreatedAt.Format("2006-01-02 15:04:05")))
+		dbState = append(dbState, fmt.Sprintf("  Created: %s", mission.CreatedAt))
 		dbState = append(dbState, "")
 		dbState = append(dbState, fmt.Sprintf("Groves in DB: %d", len(groves)))
 		for _, grove := range groves {
 			dbState = append(dbState, fmt.Sprintf("  %s - %s", colorDim(grove.ID), grove.Name))
 			dbState = append(dbState, fmt.Sprintf("    Path: %s", grove.Path))
-			if grove.Repos.Valid && grove.Repos.String != "" && grove.Repos.String != "[]" {
-				dbState = append(dbState, fmt.Sprintf("    Repos: %s", grove.Repos.String))
+			if len(grove.Repos) > 0 {
+				dbState = append(dbState, fmt.Sprintf("    Repos: %v", grove.Repos))
 			}
 			dbState = append(dbState, fmt.Sprintf("    Status: %s", grove.Status))
 		}
@@ -456,8 +457,9 @@ Examples:
 				infraPlan = append(infraPlan, fmt.Sprintf("%s grove config: %s", colorCreate("CREATE"), groveConfigPath))
 				// Show what will be created
 				reposJSON := "[]"
-				if grove.Repos.Valid && grove.Repos.String != "" {
-					reposJSON = grove.Repos.String
+				if len(grove.Repos) > 0 {
+					reposBytes, _ := json.Marshal(grove.Repos)
+					reposJSON = string(reposBytes)
 				}
 				expectedConfig := fmt.Sprintf(`{
   "version": "1.0",
@@ -527,7 +529,7 @@ Examples:
 		}
 
 		// Phase 3: Show plan (combine all sections)
-		fmt.Println("📋 Plan:\n")
+		fmt.Print("📋 Plan:\n\n")
 
 		// Section 1: Database State
 		fmt.Println(color.New(color.Bold).Sprint("Database State:"))
@@ -562,7 +564,7 @@ Examples:
 		}
 
 		// Phase 5: Apply changes
-		fmt.Println("\n🚀 Applying changes...\n")
+		fmt.Print("\n🚀 Applying changes...\n\n")
 
 		// Create mission workspace (just a container directory)
 		if err := os.MkdirAll(workspacePath, 0755); err != nil {
@@ -624,7 +626,7 @@ Examples:
 
 			// Update DB path if changed
 			if currentPath != desiredPath {
-				if err := models.UpdateGrovePath(grove.ID, desiredPath); err != nil {
+				if err := wire.GroveService().UpdateGrovePath(context.Background(), grove.ID, desiredPath); err != nil {
 					return fmt.Errorf("failed to update grove path in DB: %w", err)
 				}
 				fmt.Printf("✓ Updated DB path for grove %s\n", grove.ID)
@@ -781,7 +783,7 @@ Examples:
 }
 
 // writeGroveConfig writes .orc/config.json for a grove
-func writeGroveConfig(grovePath string, grove *models.Grove) error {
+func writeGroveConfig(grovePath string, grove *primary.Grove) error {
 	cfg := &config.Config{
 		Version: "1.0",
 		Type:    config.TypeGrove,
@@ -789,8 +791,8 @@ func writeGroveConfig(grovePath string, grove *models.Grove) error {
 			GroveID:   grove.ID,
 			MissionID: grove.MissionID,
 			Name:      grove.Name,
-			Repos:     []string{}, // TODO: parse from grove.Repos field
-			CreatedAt: grove.CreatedAt.Format("2006-01-02T15:04:05Z"),
+			Repos:     grove.Repos,
+			CreatedAt: grove.CreatedAt,
 		},
 	}
 
