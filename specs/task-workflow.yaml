@@ -1,0 +1,456 @@
+# Task Workflow Finite State Machine
+# Single source of truth for task lifecycle in ORC
+#
+# Generated: 2026-01-20
+# Context: CON-003 FSM-First Testing Strategy (Slice 3)
+
+name: task-workflow
+version: "1.0"
+description: |
+  Defines the complete lifecycle of a Task entity in ORC.
+  Tasks are individual work items within a mission, optionally grouped by shipment.
+  Tasks have claim semantics (grove assignment) and support pause/resume workflows.
+
+# =============================================================================
+# STATES
+# =============================================================================
+states:
+  initial:
+    description: No task exists yet (pre-creation)
+    terminal: false
+
+  ready:
+    description: Task is created, waiting to be claimed by a grove
+    terminal: false
+    invariants:
+      - status == "ready"
+      - created_at is set
+      - mission_id is set and references existing mission
+      - shipment_id references existing shipment (if provided)
+      - claimed_by is null (not yet claimed)
+
+  in_progress:
+    description: Task is claimed and actively being worked on
+    terminal: false
+    invariants:
+      - status == "in_progress"
+      - claimed_by is set (grove ID)
+
+  paused:
+    description: Task is temporarily suspended, work halted
+    terminal: false
+    invariants:
+      - status == "paused"
+      - claimed_by may still be set
+
+  complete:
+    description: Task work is finished, CompletedAt is set
+    terminal: true  # Soft terminal - delete still possible
+    invariants:
+      - status == "complete"
+      - completed_at is set
+      - pinned == false (cannot complete pinned tasks)
+
+  deleted:
+    description: Task removed from database (true terminal state)
+    terminal: true
+
+# =============================================================================
+# EVENTS
+# =============================================================================
+events:
+  create:
+    description: Create a new task within a mission (optionally in a shipment)
+    payload:
+      title: { type: string, required: true }
+      description: { type: string, required: false, default: "" }
+      mission_id: { type: string, required: true }
+      shipment_id: { type: string, required: false }
+      type: { type: string, required: false }
+
+  update:
+    description: Update task title and/or description
+    payload:
+      title: { type: string, required: false }
+      description: { type: string, required: false }
+
+  claim:
+    description: Claim task for a grove (assigns work)
+    payload:
+      grove_id: { type: string, required: true }
+
+  pause:
+    description: Temporarily suspend task work
+    payload: {}
+
+  resume:
+    description: Resume a paused task
+    payload: {}
+
+  complete:
+    description: Mark task as finished
+    payload: {}
+
+  pin:
+    description: Pin task to prevent completion
+    payload: {}
+
+  unpin:
+    description: Unpin task to allow completion
+    payload: {}
+
+  tag:
+    description: Add a tag to the task (one tag max)
+    payload:
+      tag_name: { type: string, required: true }
+
+  untag:
+    description: Remove the tag from the task
+    payload: {}
+
+  delete:
+    description: Hard-delete task from database
+    payload: {}
+
+# =============================================================================
+# TRANSITIONS
+# =============================================================================
+transitions:
+  # --- Creation ---
+  - name: create_task
+    from: initial
+    to: ready
+    event: create
+    guards:
+      - mission_exists     # Mission must exist
+      - shipment_exists    # Shipment must exist (if provided)
+    effects:
+      - { type: WriteDB, operation: INSERT, table: tasks }
+    test_cases:
+      - "Create task with existing mission (no shipment)"
+      - "Create task with existing mission and shipment"
+      - "Create task for non-existent mission (error)"
+      - "Create task for non-existent shipment (error)"
+
+  # --- Updating (no state change) ---
+  - name: update_task_ready
+    from: ready
+    to: ready
+    event: update
+    guards: []
+    effects:
+      - { type: WriteDB, operation: UPDATE, table: tasks, fields: [title, description, updated_at] }
+    test_cases:
+      - "Update ready task title"
+
+  - name: update_task_in_progress
+    from: in_progress
+    to: in_progress
+    event: update
+    guards: []
+    effects:
+      - { type: WriteDB, operation: UPDATE, table: tasks, fields: [title, description, updated_at] }
+    test_cases:
+      - "Update in_progress task"
+
+  # --- Claiming ---
+  - name: claim_task
+    from: ready
+    to: in_progress
+    event: claim
+    guards: []
+    effects:
+      - { type: WriteDB, operation: UPDATE, table: tasks, fields: [status, claimed_by, updated_at] }
+    test_cases:
+      - "Claim ready task for grove"
+
+  # --- Pausing ---
+  - name: pause_task
+    from: in_progress
+    to: paused
+    event: pause
+    guards:
+      - is_in_progress  # Can only pause in_progress tasks
+    effects:
+      - { type: WriteDB, operation: UPDATE, table: tasks, fields: [status, updated_at] }
+    test_cases:
+      - "Pause in_progress task"
+      - "Pause ready task (error)"
+      - "Pause paused task (error)"
+      - "Pause complete task (error)"
+
+  # --- Resuming ---
+  - name: resume_task
+    from: paused
+    to: in_progress
+    event: resume
+    guards:
+      - is_paused  # Can only resume paused tasks
+    effects:
+      - { type: WriteDB, operation: UPDATE, table: tasks, fields: [status, updated_at] }
+    test_cases:
+      - "Resume paused task"
+      - "Resume ready task (error)"
+      - "Resume in_progress task (error)"
+      - "Resume complete task (error)"
+
+  # --- Completing ---
+  - name: complete_task
+    from: in_progress
+    to: complete
+    event: complete
+    guards:
+      - not_pinned  # Cannot complete pinned tasks
+    effects:
+      - { type: WriteDB, operation: UPDATE, table: tasks, fields: [status, completed_at, updated_at] }
+    test_cases:
+      - "Complete unpinned task"
+      - "Complete pinned task (error)"
+
+  # --- Pin/Unpin (no state change) ---
+  - name: pin_task_ready
+    from: ready
+    to: ready
+    event: pin
+    guards: []
+    effects:
+      - { type: WriteDB, operation: UPDATE, table: tasks, fields: [pinned, updated_at] }
+    test_cases:
+      - "Pin ready task"
+
+  - name: pin_task_in_progress
+    from: in_progress
+    to: in_progress
+    event: pin
+    guards: []
+    effects:
+      - { type: WriteDB, operation: UPDATE, table: tasks, fields: [pinned, updated_at] }
+    test_cases:
+      - "Pin in_progress task"
+
+  - name: unpin_task
+    from: in_progress
+    to: in_progress
+    event: unpin
+    guards: []
+    effects:
+      - { type: WriteDB, operation: UPDATE, table: tasks, fields: [pinned, updated_at] }
+    test_cases:
+      - "Unpin task"
+
+  # --- Tagging (no state change) ---
+  - name: tag_task
+    from: in_progress
+    to: in_progress
+    event: tag
+    guards:
+      - no_existing_tag  # Task can only have one tag
+    effects:
+      - { type: WriteDB, operation: INSERT, table: task_tags }
+    test_cases:
+      - "Tag task with no existing tag"
+      - "Tag task that already has tag (error)"
+
+  - name: untag_task
+    from: in_progress
+    to: in_progress
+    event: untag
+    guards: []
+    effects:
+      - { type: WriteDB, operation: DELETE, table: task_tags }
+    test_cases:
+      - "Untag task"
+
+  # --- Deletion ---
+  - name: delete_ready_task
+    from: ready
+    to: deleted
+    event: delete
+    guards: []
+    effects:
+      - { type: WriteDB, operation: DELETE, table: tasks }
+    test_cases:
+      - "Delete ready task"
+
+  - name: delete_in_progress_task
+    from: in_progress
+    to: deleted
+    event: delete
+    guards: []
+    effects:
+      - { type: WriteDB, operation: DELETE, table: tasks }
+    test_cases:
+      - "Delete in_progress task"
+
+  - name: delete_paused_task
+    from: paused
+    to: deleted
+    event: delete
+    guards: []
+    effects:
+      - { type: WriteDB, operation: DELETE, table: tasks }
+    test_cases:
+      - "Delete paused task"
+
+  - name: delete_complete_task
+    from: complete
+    to: deleted
+    event: delete
+    guards: []
+    effects:
+      - { type: WriteDB, operation: DELETE, table: tasks }
+    test_cases:
+      - "Delete complete task"
+
+# =============================================================================
+# GUARDS
+# =============================================================================
+guards:
+  mission_exists:
+    description: |
+      Check that the target mission exists.
+      Tasks must belong to an existing mission.
+    implementation: |
+      exists, err := repo.MissionExists(ctx, mission_id)
+      return err == nil && exists
+    error_message: "mission {mission_id} not found"
+
+  shipment_exists:
+    description: |
+      Check that the target shipment exists (if provided).
+      This guard is only evaluated when shipment_id is non-empty.
+    implementation: |
+      if shipment_id == "" { return true }
+      exists, err := repo.ShipmentExists(ctx, shipment_id)
+      return err == nil && exists
+    error_message: "shipment {shipment_id} not found"
+
+  is_in_progress:
+    description: |
+      Check that task status is "in_progress".
+      Required for pause transition.
+    implementation: |
+      task, _ := repo.GetByID(ctx, task_id)
+      return task.Status == "in_progress"
+    error_message: "can only pause in_progress tasks (current status: {status})"
+
+  is_paused:
+    description: |
+      Check that task status is "paused".
+      Required for resume transition.
+    implementation: |
+      task, _ := repo.GetByID(ctx, task_id)
+      return task.Status == "paused"
+    error_message: "can only resume paused tasks (current status: {status})"
+
+  not_pinned:
+    description: |
+      Check that task is not pinned.
+      Pinned tasks cannot be completed until unpinned.
+    implementation: |
+      task, _ := repo.GetByID(ctx, task_id)
+      return !task.Pinned
+    error_message: "cannot complete pinned task {task_id}. Unpin first with: orc task unpin {task_id}"
+
+  no_existing_tag:
+    description: |
+      Check that task has no existing tag.
+      Tasks can only have one tag at a time.
+    implementation: |
+      tag, _ := repo.GetTag(ctx, task_id)
+      return tag == nil
+    error_message: "task {task_id} already has tag '{tag_name}' (one tag per task limit)\nRemove existing tag first with: orc task untag {task_id}"
+
+# =============================================================================
+# EFFECTS
+# =============================================================================
+effects:
+  WriteDB:
+    description: Database write operation
+    parameters:
+      operation: { type: enum, values: [INSERT, UPDATE, DELETE] }
+      table: { type: string }
+      fields: { type: array, items: string, optional: true }
+
+# =============================================================================
+# INVARIANTS
+# =============================================================================
+invariants:
+  - name: id_format
+    description: Task IDs follow TASK-XXX format
+    check: id matches /^TASK-\d{3}$/
+
+  - name: id_unique
+    description: Task IDs are unique
+    check: COUNT(SELECT id FROM tasks WHERE id = {id}) == 1
+
+  - name: status_valid
+    description: Status is one of valid values
+    check: status IN ('ready', 'in_progress', 'paused', 'complete')
+
+  - name: mission_reference
+    description: Task must reference existing mission
+    check: EXISTS(SELECT 1 FROM missions WHERE id = mission_id)
+
+  - name: shipment_reference
+    description: Task shipment_id references existing shipment (if set)
+    check: shipment_id IS NULL OR EXISTS(SELECT 1 FROM shipments WHERE id = shipment_id)
+
+  - name: title_not_empty
+    description: Task title must not be empty
+    check: LENGTH(title) > 0
+
+  - name: complete_requires_completed_at
+    description: Complete tasks must have completed_at set
+    check: status == 'complete' IMPLIES completed_at IS NOT NULL
+
+  - name: complete_not_pinned
+    description: Complete tasks cannot be pinned
+    check: status == 'complete' IMPLIES pinned == false
+
+  - name: single_tag
+    description: Task can have at most one tag
+    check: COUNT(SELECT 1 FROM task_tags WHERE task_id = {id}) <= 1
+
+# =============================================================================
+# DIFFERENCES FROM SHIPMENT
+# =============================================================================
+differences_from_shipment:
+  - |
+    Tasks start in 'ready' state; shipments start in 'active'.
+    Ready indicates waiting for claim; active means work can proceed.
+  - |
+    Tasks have 'in_progress' state; shipments use 'active'.
+    in_progress indicates a grove has claimed and is working on the task.
+  - |
+    Tasks have explicit 'claim' operation; shipments do not.
+    Claiming assigns a task to a grove for execution.
+  - |
+    Tasks have optional shipment_id parent; shipments have only mission_id.
+    Tasks can be organized into shipments or exist directly under a mission.
+  - |
+    Tasks have one-tag constraint; shipments do not have tags.
+    The single tag allows categorization without over-complication.
+  - |
+    Pause guard checks 'in_progress'; shipment pause checks 'active'.
+    Different working state names require different guard logic.
+
+# =============================================================================
+# NOTES
+# =============================================================================
+notes:
+  - |
+    Task is the fundamental unit of work in ORC.
+    Unlike Shipment (work package), tasks are individual actionable items.
+  - |
+    The 'ready' state allows tasks to exist before a grove claims them.
+    This supports work discovery and assignment workflows.
+  - |
+    The 'claim' transition converts ready -> in_progress with grove assignment.
+    This explicit claiming prevents work conflicts.
+  - |
+    The one-tag limit keeps categorization simple.
+    Tasks use a single tag; complex categorization belongs elsewhere.
+  - |
+    The 'pinned' flag prevents accidental completion of important tasks.
+    Users must explicitly unpin before completing.

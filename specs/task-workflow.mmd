@@ -1,0 +1,73 @@
+%% Task Workflow State Diagram
+%% Generated: 2026-01-20
+%% Context: CON-003 FSM-First Testing Strategy (Slice 3)
+%% Source: specs/task-workflow.yaml
+
+stateDiagram-v2
+    [*] --> initial
+
+    %% Creation
+    initial --> ready : create\n[mission_exists, ?shipment_exists]
+
+    %% Claiming (ready -> in_progress)
+    ready --> in_progress : claim
+
+    %% Self-transitions in ready state
+    ready --> ready : update
+    ready --> ready : pin
+
+    %% Self-transitions in in_progress state
+    in_progress --> in_progress : update
+    in_progress --> in_progress : pin
+    in_progress --> in_progress : unpin
+    in_progress --> in_progress : tag\n[no_existing_tag]
+    in_progress --> in_progress : untag
+
+    %% Pause/Resume cycle
+    in_progress --> paused : pause\n[is_in_progress]
+    paused --> in_progress : resume\n[is_paused]
+
+    %% Completion
+    in_progress --> complete : complete\n[not_pinned]
+
+    %% Deletion from any non-terminal state
+    ready --> deleted : delete
+    in_progress --> deleted : delete
+    paused --> deleted : delete
+    complete --> deleted : delete
+
+    %% Terminal states
+    deleted --> [*]
+
+    %% State descriptions
+    note right of initial
+        Pre-creation state
+    end note
+
+    note right of ready
+        Created, awaiting claim
+        Not yet assigned to grove
+    end note
+
+    note right of in_progress
+        Claimed by grove
+        Work actively proceeding
+        Can pause, complete, or delete
+    end note
+
+    note right of paused
+        Temporarily suspended
+        Work halted
+        Must resume to continue
+    end note
+
+    note right of complete
+        Work finished
+        CompletedAt set
+        Soft terminal (can delete)
+    end note
+
+    note right of deleted
+        Hard-deleted
+        True terminal state
+    end note
