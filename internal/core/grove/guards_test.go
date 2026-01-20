@@ -246,6 +246,160 @@ func TestCanRenameGrove(t *testing.T) {
 	}
 }
 
+func TestCanArchiveGrove(t *testing.T) {
+	tests := []struct {
+		name        string
+		ctx         ArchiveGroveContext
+		wantAllowed bool
+		wantReason  string
+	}{
+		{
+			name: "ORC can archive active grove",
+			ctx: ArchiveGroveContext{
+				GuardContext: GuardContext{
+					AgentType: AgentTypeORC,
+					AgentID:   "ORC",
+				},
+				GroveID:     "GROVE-001",
+				GroveExists: true,
+				GroveStatus: "active",
+			},
+			wantAllowed: true,
+		},
+		{
+			name: "IMP cannot archive groves",
+			ctx: ArchiveGroveContext{
+				GuardContext: GuardContext{
+					AgentType: AgentTypeIMP,
+					AgentID:   "IMP-GROVE-001",
+				},
+				GroveID:     "GROVE-001",
+				GroveExists: true,
+				GroveStatus: "active",
+			},
+			wantAllowed: false,
+			wantReason:  "IMPs cannot archive groves - only ORC can archive groves (agent: IMP-GROVE-001)",
+		},
+		{
+			name: "cannot archive non-existent grove",
+			ctx: ArchiveGroveContext{
+				GuardContext: GuardContext{
+					AgentType: AgentTypeORC,
+					AgentID:   "ORC",
+				},
+				GroveID:     "GROVE-999",
+				GroveExists: false,
+				GroveStatus: "",
+			},
+			wantAllowed: false,
+			wantReason:  "grove GROVE-999 not found",
+		},
+		{
+			name: "cannot archive already-archived grove",
+			ctx: ArchiveGroveContext{
+				GuardContext: GuardContext{
+					AgentType: AgentTypeORC,
+					AgentID:   "ORC",
+				},
+				GroveID:     "GROVE-001",
+				GroveExists: true,
+				GroveStatus: "archived",
+			},
+			wantAllowed: false,
+			wantReason:  "grove GROVE-001 is already archived",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := CanArchiveGrove(tt.ctx)
+			if result.Allowed != tt.wantAllowed {
+				t.Errorf("Allowed = %v, want %v", result.Allowed, tt.wantAllowed)
+			}
+			if !tt.wantAllowed && result.Reason != tt.wantReason {
+				t.Errorf("Reason = %q, want %q", result.Reason, tt.wantReason)
+			}
+		})
+	}
+}
+
+func TestCanRestoreGrove(t *testing.T) {
+	tests := []struct {
+		name        string
+		ctx         ArchiveGroveContext
+		wantAllowed bool
+		wantReason  string
+	}{
+		{
+			name: "ORC can restore archived grove",
+			ctx: ArchiveGroveContext{
+				GuardContext: GuardContext{
+					AgentType: AgentTypeORC,
+					AgentID:   "ORC",
+				},
+				GroveID:     "GROVE-001",
+				GroveExists: true,
+				GroveStatus: "archived",
+			},
+			wantAllowed: true,
+		},
+		{
+			name: "IMP cannot restore groves",
+			ctx: ArchiveGroveContext{
+				GuardContext: GuardContext{
+					AgentType: AgentTypeIMP,
+					AgentID:   "IMP-GROVE-001",
+				},
+				GroveID:     "GROVE-001",
+				GroveExists: true,
+				GroveStatus: "archived",
+			},
+			wantAllowed: false,
+			wantReason:  "IMPs cannot restore groves - only ORC can restore groves (agent: IMP-GROVE-001)",
+		},
+		{
+			name: "cannot restore non-existent grove",
+			ctx: ArchiveGroveContext{
+				GuardContext: GuardContext{
+					AgentType: AgentTypeORC,
+					AgentID:   "ORC",
+				},
+				GroveID:     "GROVE-999",
+				GroveExists: false,
+				GroveStatus: "",
+			},
+			wantAllowed: false,
+			wantReason:  "grove GROVE-999 not found",
+		},
+		{
+			name: "cannot restore active grove (not archived)",
+			ctx: ArchiveGroveContext{
+				GuardContext: GuardContext{
+					AgentType: AgentTypeORC,
+					AgentID:   "ORC",
+				},
+				GroveID:     "GROVE-001",
+				GroveExists: true,
+				GroveStatus: "active",
+			},
+			wantAllowed: false,
+			wantReason:  "grove GROVE-001 is not archived (current status: active)",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := CanRestoreGrove(tt.ctx)
+			if result.Allowed != tt.wantAllowed {
+				t.Errorf("Allowed = %v, want %v", result.Allowed, tt.wantAllowed)
+			}
+			if !tt.wantAllowed && result.Reason != tt.wantReason {
+				t.Errorf("Reason = %q, want %q", result.Reason, tt.wantReason)
+			}
+		})
+	}
+}
+
 func TestGuardResult_Error(t *testing.T) {
 	t.Run("allowed result returns nil error", func(t *testing.T) {
 		result := GuardResult{Allowed: true}

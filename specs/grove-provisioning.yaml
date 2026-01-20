@@ -1,0 +1,349 @@
+# Grove Provisioning Finite State Machine
+# Single source of truth for grove lifecycle in ORC
+#
+# Generated: 2026-01-20
+# Context: CON-003 FSM-First Testing Strategy (Slice 1)
+
+name: grove-provisioning
+version: "1.0"
+description: |
+  Defines the complete lifecycle of a Grove entity in ORC.
+  Groves are git worktree workspaces within a mission where IMPs do implementation work.
+
+# =============================================================================
+# STATES
+# =============================================================================
+states:
+  initial:
+    description: No grove exists yet (pre-creation)
+    terminal: false
+
+  active:
+    description: Grove is operational and available for work
+    terminal: false
+    invariants:
+      - status == "active"
+      - created_at is set
+      - mission_id is set and references existing mission
+
+  archived:
+    description: Grove is soft-deleted, historical record
+    terminal: true  # Terminal for normal operations (delete still possible)
+    invariants:
+      - status == "archived"
+
+  deleted:
+    description: Grove removed from database (true terminal state)
+    terminal: true
+
+# =============================================================================
+# EVENTS
+# =============================================================================
+events:
+  create:
+    description: Create a new grove with name and optional repo configuration
+    payload:
+      name: { type: string, required: true }
+      mission_id: { type: string, required: true }
+      repos: { type: array, items: string, required: false, default: [] }
+
+  open:
+    description: Open grove in TMux session with IMP layout (vim, claude, shell panes)
+    payload: {}
+
+  rename:
+    description: Update grove name
+    payload:
+      name: { type: string, required: true }
+
+  archive:
+    description: Soft-delete grove (change status to archived)
+    payload: {}
+
+  restore:
+    description: Restore archived grove to active status
+    payload: {}
+
+  delete:
+    description: Hard-delete grove from database
+    payload:
+      force: { type: boolean, required: false, default: false }
+
+# =============================================================================
+# TRANSITIONS
+# =============================================================================
+transitions:
+  # --- Creation ---
+  - name: create_grove
+    from: initial
+    to: active
+    event: create
+    guards:
+      - is_orc  # Only ORC can create groves
+      - mission_exists  # Mission must exist
+    effects:
+      - { type: WriteDB, operation: INSERT, table: groves }
+      - { type: CreateWorkspace, path: "{workspace_path}/groves/{name}" }
+      - { type: GitWorktreeAdd, path: "{grove_path}", repos: "{repos}" }
+      - { type: WriteConfig, path: "{grove_path}/.orc/config.json", config_type: grove }
+    test_cases:
+      - "ORC creates grove with existing mission"
+      - "ORC creates grove with repos"
+      - "IMP blocked from creating grove"
+      - "Create grove for non-existent mission (error)"
+
+  # --- Opening (no state change) ---
+  - name: open_grove
+    from: active
+    to: active
+    event: open
+    guards:
+      - grove_exists  # Grove must exist in database
+      - path_exists  # Grove worktree must exist on filesystem
+      - in_tmux  # Must be in a TMux session
+    effects:
+      - { type: TmuxNewWindow, name: "{grove_name}" }
+      - { type: TmuxSplitPane, layout: "vim|claude|shell" }
+      - { type: LaunchIMP, pane: 2 }
+    test_cases:
+      - "Open grove in TMux session"
+      - "Open non-existent grove (error)"
+      - "Open grove without worktree (error)"
+      - "Open grove outside TMux (error)"
+
+  # --- Renaming (no state change) ---
+  - name: rename_grove
+    from: active
+    to: active
+    event: rename
+    guards:
+      - grove_exists
+    effects:
+      - { type: WriteDB, operation: UPDATE, table: groves, fields: [name, updated_at] }
+    test_cases:
+      - "Rename existing grove"
+      - "Rename non-existent grove (error)"
+
+  # --- Archiving ---
+  - name: archive_grove
+    from: active
+    to: archived
+    event: archive
+    guards:
+      - is_orc  # Only ORC can archive groves
+      - grove_exists
+      - not_archived  # Must be active to archive
+    effects:
+      - { type: WriteDB, operation: UPDATE, table: groves, fields: [status, updated_at] }
+    test_cases:
+      - "ORC archives active grove"
+      - "IMP blocked from archiving grove"
+      - "Archive non-existent grove (error)"
+      - "Archive already-archived grove (error)"
+
+  # --- Restoring ---
+  - name: restore_grove
+    from: archived
+    to: active
+    event: restore
+    guards:
+      - is_orc  # Only ORC can restore groves
+      - grove_exists
+      - is_archived  # Must be archived to restore
+    effects:
+      - { type: WriteDB, operation: UPDATE, table: groves, fields: [status, updated_at] }
+    test_cases:
+      - "ORC restores archived grove"
+      - "IMP blocked from restoring grove"
+      - "Restore non-existent grove (error)"
+      - "Restore active grove (error - not archived)"
+
+  # --- Deletion ---
+  - name: delete_active_grove
+    from: active
+    to: deleted
+    event: delete
+    guards:
+      - no_tasks_or_force  # No active tasks, or --force flag
+    effects:
+      - { type: WriteDB, operation: DELETE, table: groves }
+      # Note: Worktree cleanup is separate concern (not auto-deleted)
+    test_cases:
+      - "Delete grove with no active tasks"
+      - "Delete grove with active tasks (error without --force)"
+      - "Delete grove with --force (succeeds)"
+
+  - name: delete_archived_grove
+    from: archived
+    to: deleted
+    event: delete
+    guards:
+      - no_tasks_or_force
+    effects:
+      - { type: WriteDB, operation: DELETE, table: groves }
+    test_cases:
+      - "Delete archived grove"
+
+# =============================================================================
+# GUARDS
+# =============================================================================
+guards:
+  is_orc:
+    description: |
+      Check that current agent is ORC (not IMP).
+      IMPs work within groves but cannot create/archive them.
+    implementation: |
+      identity, err := agent.GetCurrentAgentID()
+      return err != nil || identity.Type != agent.AgentTypeIMP
+    error_message: "IMPs cannot {action} groves - only ORC can {action} groves"
+
+  mission_exists:
+    description: |
+      Check that the target mission exists.
+      Groves must belong to an existing mission.
+    implementation: |
+      _, err := models.GetMission(mission_id)
+      return err == nil
+    error_message: "cannot create grove: mission {mission_id} not found"
+
+  grove_exists:
+    description: Grove must exist in database
+    implementation: |
+      _, err := models.GetGrove(grove_id)
+      return err == nil
+    error_message: "grove {grove_id} not found"
+
+  path_exists:
+    description: |
+      Grove worktree must exist on filesystem.
+      Groves are materialized separately from creation.
+    implementation: |
+      grove, _ := models.GetGrove(grove_id)
+      _, err := os.Stat(grove.Path)
+      return err == nil
+    error_message: "grove worktree not found - run 'orc grove create' to materialize"
+
+  in_tmux:
+    description: |
+      Must be running inside a TMux session.
+      Grove open creates windows/panes in current session.
+    implementation: |
+      return os.Getenv("TMUX") != ""
+    error_message: "not in a TMux session - run this command from within a TMux session"
+
+  not_archived:
+    description: Grove must not already be archived
+    implementation: |
+      grove, _ := models.GetGrove(grove_id)
+      return grove.Status != "archived"
+    error_message: "grove is already archived"
+
+  is_archived:
+    description: Grove must be in archived status
+    implementation: |
+      grove, _ := models.GetGrove(grove_id)
+      return grove.Status == "archived"
+    error_message: "grove is not archived"
+
+  no_tasks_or_force:
+    description: |
+      Check for active tasks before deletion.
+      Bypassed with --force flag.
+    implementation: |
+      if force { return true }
+      tasks, _ := models.GetTasksByGrove(grove_id)
+      activeCount := countActive(tasks)
+      return activeCount == 0
+    error_message: "grove {grove_id} has {count} active tasks. Use --force to delete anyway"
+
+# =============================================================================
+# EFFECTS
+# =============================================================================
+effects:
+  WriteDB:
+    description: Database write operation
+    parameters:
+      operation: { type: enum, values: [INSERT, UPDATE, DELETE] }
+      table: { type: string }
+      fields: { type: array, items: string, optional: true }
+
+  CreateWorkspace:
+    description: Create directory structure
+    parameters:
+      path: { type: string }
+    idempotent: true
+
+  GitWorktreeAdd:
+    description: Create git worktree for each repo
+    parameters:
+      path: { type: string }
+      repos: { type: array, items: string }
+    idempotent: false
+
+  WriteConfig:
+    description: Write JSON config file
+    parameters:
+      path: { type: string }
+      config_type: { type: enum, values: [grove, mission, claude_settings] }
+    idempotent: true
+
+  TmuxNewWindow:
+    description: Create new TMux window
+    parameters:
+      name: { type: string }
+    idempotent: false
+
+  TmuxSplitPane:
+    description: Split TMux window into panes
+    parameters:
+      layout: { type: string }
+    idempotent: false
+
+  LaunchIMP:
+    description: Launch Claude IMP in specified pane
+    parameters:
+      pane: { type: integer }
+
+# =============================================================================
+# INVARIANTS
+# =============================================================================
+invariants:
+  - name: id_format
+    description: Grove IDs follow GROVE-XXX format
+    check: id matches /^GROVE-\d{3}$/
+
+  - name: id_unique
+    description: Grove IDs are unique
+    check: COUNT(SELECT id FROM groves WHERE id = {id}) == 1
+
+  - name: status_valid
+    description: Status is one of valid values
+    check: status IN ('active', 'archived')
+
+  - name: mission_reference
+    description: Grove must reference existing mission
+    check: EXISTS(SELECT 1 FROM missions WHERE id = mission_id)
+
+  - name: name_not_empty
+    description: Grove name must not be empty
+    check: LENGTH(name) > 0
+
+  - name: path_set_when_active
+    description: Active groves should have a path set
+    check: status == 'active' IMPLIES path IS NOT NULL
+
+# =============================================================================
+# NOTES
+# =============================================================================
+notes:
+  - |
+    Grove is simpler than Mission - it doesn't have 'paused' or 'complete' states.
+    Groves are infrastructure (workspaces), not workflow entities.
+  - |
+    The 'archive' and 'restore' operations are currently guards-only.
+    Service operations will be implemented as a follow-up.
+  - |
+    Grove creation can optionally materialize the worktree immediately,
+    or the worktree can be created separately via effects.
+  - |
+    When opening a grove, the TMux layout is: vim (pane 1), claude IMP (pane 2), shell (pane 3).

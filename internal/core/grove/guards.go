@@ -137,3 +137,77 @@ func CanRenameGrove(groveExists bool, groveID string) GuardResult {
 	}
 	return GuardResult{Allowed: true}
 }
+
+// ArchiveGroveContext provides context for grove archive/restore guards.
+type ArchiveGroveContext struct {
+	GuardContext
+	GroveID     string
+	GroveExists bool
+	GroveStatus string // "active" or "archived"
+}
+
+// CanArchiveGrove evaluates whether a grove can be archived.
+// Rules:
+// - Only ORC can archive groves (IMPs work within groves)
+// - Grove must exist
+// - Grove must not already be archived
+func CanArchiveGrove(ctx ArchiveGroveContext) GuardResult {
+	// Rule 1: Only ORC can archive groves
+	if ctx.AgentType == AgentTypeIMP {
+		return GuardResult{
+			Allowed: false,
+			Reason:  fmt.Sprintf("IMPs cannot archive groves - only ORC can archive groves (agent: %s)", ctx.AgentID),
+		}
+	}
+
+	// Rule 2: Grove must exist
+	if !ctx.GroveExists {
+		return GuardResult{
+			Allowed: false,
+			Reason:  fmt.Sprintf("grove %s not found", ctx.GroveID),
+		}
+	}
+
+	// Rule 3: Grove must not already be archived
+	if ctx.GroveStatus == "archived" {
+		return GuardResult{
+			Allowed: false,
+			Reason:  fmt.Sprintf("grove %s is already archived", ctx.GroveID),
+		}
+	}
+
+	return GuardResult{Allowed: true}
+}
+
+// CanRestoreGrove evaluates whether an archived grove can be restored.
+// Rules:
+// - Only ORC can restore groves
+// - Grove must exist
+// - Grove must be archived
+func CanRestoreGrove(ctx ArchiveGroveContext) GuardResult {
+	// Rule 1: Only ORC can restore groves
+	if ctx.AgentType == AgentTypeIMP {
+		return GuardResult{
+			Allowed: false,
+			Reason:  fmt.Sprintf("IMPs cannot restore groves - only ORC can restore groves (agent: %s)", ctx.AgentID),
+		}
+	}
+
+	// Rule 2: Grove must exist
+	if !ctx.GroveExists {
+		return GuardResult{
+			Allowed: false,
+			Reason:  fmt.Sprintf("grove %s not found", ctx.GroveID),
+		}
+	}
+
+	// Rule 3: Grove must be archived to restore
+	if ctx.GroveStatus != "archived" {
+		return GuardResult{
+			Allowed: false,
+			Reason:  fmt.Sprintf("grove %s is not archived (current status: %s)", ctx.GroveID, ctx.GroveStatus),
+		}
+	}
+
+	return GuardResult{Allowed: true}
+}
