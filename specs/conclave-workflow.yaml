@@ -1,0 +1,330 @@
+# Conclave Workflow Finite State Machine
+# Single source of truth for conclave lifecycle in ORC
+#
+# Generated: 2026-01-20
+# Context: CON-003 FSM-First Testing Strategy (Slice 4)
+
+name: conclave-workflow
+version: "1.0"
+description: |
+  Defines the complete lifecycle of a Conclave entity in ORC.
+  Conclaves are ideation sessions within a mission that aggregate tasks, questions, and plans.
+  Like shipments, conclaves have pause/resume semantics but focus on ideation rather than execution.
+
+# =============================================================================
+# STATES
+# =============================================================================
+states:
+  initial:
+    description: No conclave exists yet (pre-creation)
+    terminal: false
+
+  active:
+    description: Conclave is in progress, ideation ongoing
+    terminal: false
+    invariants:
+      - status == "active"
+      - created_at is set
+      - mission_id is set and references existing mission
+
+  paused:
+    description: Conclave is temporarily suspended, ideation halted
+    terminal: false
+    invariants:
+      - status == "paused"
+      - child entities (tasks, questions, plans) should not be modified while paused
+
+  complete:
+    description: Ideation finished, CompletedAt is set
+    terminal: true  # Soft terminal - delete still possible
+    invariants:
+      - status == "complete"
+      - completed_at is set
+      - pinned == false (cannot complete pinned conclaves)
+
+  deleted:
+    description: Conclave removed from database (true terminal state)
+    terminal: true
+
+# =============================================================================
+# EVENTS
+# =============================================================================
+events:
+  create:
+    description: Create a new conclave within a mission
+    payload:
+      title: { type: string, required: true }
+      description: { type: string, required: false, default: "" }
+      mission_id: { type: string, required: true }
+
+  update:
+    description: Update conclave title and/or description
+    payload:
+      title: { type: string, required: false }
+      description: { type: string, required: false }
+
+  pause:
+    description: Temporarily suspend conclave ideation
+    payload: {}
+
+  resume:
+    description: Resume a paused conclave
+    payload: {}
+
+  complete:
+    description: Mark conclave as finished
+    payload: {}
+
+  pin:
+    description: Pin conclave to prevent completion
+    payload: {}
+
+  unpin:
+    description: Unpin conclave to allow completion
+    payload: {}
+
+  delete:
+    description: Hard-delete conclave from database
+    payload: {}
+
+# =============================================================================
+# TRANSITIONS
+# =============================================================================
+transitions:
+  # --- Creation ---
+  - name: create_conclave
+    from: initial
+    to: active
+    event: create
+    guards:
+      - mission_exists  # Mission must exist
+    effects:
+      - { type: WriteDB, operation: INSERT, table: conclaves }
+    test_cases:
+      - "Create conclave with existing mission"
+      - "Create conclave for non-existent mission (error)"
+
+  # --- Updating (no state change) ---
+  - name: update_conclave
+    from: active
+    to: active
+    event: update
+    guards: []
+    effects:
+      - { type: WriteDB, operation: UPDATE, table: conclaves, fields: [title, description, updated_at] }
+    test_cases:
+      - "Update conclave title"
+      - "Update conclave description"
+
+  # --- Pausing ---
+  - name: pause_conclave
+    from: active
+    to: paused
+    event: pause
+    guards:
+      - is_active  # Can only pause active conclaves
+    effects:
+      - { type: WriteDB, operation: UPDATE, table: conclaves, fields: [status, updated_at] }
+    test_cases:
+      - "Pause active conclave"
+      - "Pause paused conclave (error)"
+      - "Pause complete conclave (error)"
+
+  # --- Resuming ---
+  - name: resume_conclave
+    from: paused
+    to: active
+    event: resume
+    guards:
+      - is_paused  # Can only resume paused conclaves
+    effects:
+      - { type: WriteDB, operation: UPDATE, table: conclaves, fields: [status, updated_at] }
+    test_cases:
+      - "Resume paused conclave"
+      - "Resume active conclave (error)"
+      - "Resume complete conclave (error)"
+
+  # --- Completing ---
+  - name: complete_conclave
+    from: active
+    to: complete
+    event: complete
+    guards:
+      - not_pinned  # Cannot complete pinned conclaves
+    effects:
+      - { type: WriteDB, operation: UPDATE, table: conclaves, fields: [status, completed_at, updated_at] }
+    test_cases:
+      - "Complete unpinned conclave"
+      - "Complete pinned conclave (error)"
+
+  # --- Pin/Unpin (no state change) ---
+  - name: pin_conclave
+    from: active
+    to: active
+    event: pin
+    guards: []
+    effects:
+      - { type: WriteDB, operation: UPDATE, table: conclaves, fields: [pinned, updated_at] }
+    test_cases:
+      - "Pin conclave"
+
+  - name: unpin_conclave
+    from: active
+    to: active
+    event: unpin
+    guards: []
+    effects:
+      - { type: WriteDB, operation: UPDATE, table: conclaves, fields: [pinned, updated_at] }
+    test_cases:
+      - "Unpin conclave"
+
+  # --- Deletion ---
+  - name: delete_active_conclave
+    from: active
+    to: deleted
+    event: delete
+    guards: []
+    effects:
+      - { type: WriteDB, operation: DELETE, table: conclaves }
+    test_cases:
+      - "Delete active conclave"
+
+  - name: delete_paused_conclave
+    from: paused
+    to: deleted
+    event: delete
+    guards: []
+    effects:
+      - { type: WriteDB, operation: DELETE, table: conclaves }
+    test_cases:
+      - "Delete paused conclave"
+
+  - name: delete_complete_conclave
+    from: complete
+    to: deleted
+    event: delete
+    guards: []
+    effects:
+      - { type: WriteDB, operation: DELETE, table: conclaves }
+    test_cases:
+      - "Delete complete conclave"
+
+# =============================================================================
+# GUARDS
+# =============================================================================
+guards:
+  mission_exists:
+    description: |
+      Check that the target mission exists.
+      Conclaves must belong to an existing mission.
+    implementation: |
+      exists, err := repo.MissionExists(ctx, mission_id)
+      return err == nil && exists
+    error_message: "mission {mission_id} not found"
+
+  is_active:
+    description: |
+      Check that conclave status is "active".
+      Required for pause transition.
+    implementation: |
+      conclave, _ := repo.GetByID(ctx, conclave_id)
+      return conclave.Status == "active"
+    error_message: "can only pause active conclaves (current status: {status})"
+
+  is_paused:
+    description: |
+      Check that conclave status is "paused".
+      Required for resume transition.
+    implementation: |
+      conclave, _ := repo.GetByID(ctx, conclave_id)
+      return conclave.Status == "paused"
+    error_message: "can only resume paused conclaves (current status: {status})"
+
+  not_pinned:
+    description: |
+      Check that conclave is not pinned.
+      Pinned conclaves cannot be completed until unpinned.
+    implementation: |
+      conclave, _ := repo.GetByID(ctx, conclave_id)
+      return !conclave.Pinned
+    error_message: "cannot complete pinned conclave {conclave_id}. Unpin first with: orc conclave unpin {conclave_id}"
+
+# =============================================================================
+# EFFECTS
+# =============================================================================
+effects:
+  WriteDB:
+    description: Database write operation
+    parameters:
+      operation: { type: enum, values: [INSERT, UPDATE, DELETE] }
+      table: { type: string }
+      fields: { type: array, items: string, optional: true }
+
+# =============================================================================
+# INVARIANTS
+# =============================================================================
+invariants:
+  - name: id_format
+    description: Conclave IDs follow CON-XXX format
+    check: id matches /^CON-\d{3}$/
+
+  - name: id_unique
+    description: Conclave IDs are unique
+    check: COUNT(SELECT id FROM conclaves WHERE id = {id}) == 1
+
+  - name: status_valid
+    description: Status is one of valid values
+    check: status IN ('active', 'paused', 'complete')
+
+  - name: mission_reference
+    description: Conclave must reference existing mission
+    check: EXISTS(SELECT 1 FROM missions WHERE id = mission_id)
+
+  - name: title_not_empty
+    description: Conclave title must not be empty
+    check: LENGTH(title) > 0
+
+  - name: complete_requires_completed_at
+    description: Complete conclaves must have completed_at set
+    check: status == 'complete' IMPLIES completed_at IS NOT NULL
+
+  - name: complete_not_pinned
+    description: Complete conclaves cannot be pinned
+    check: status == 'complete' IMPLIES pinned == false
+
+# =============================================================================
+# DIFFERENCES FROM SHIPMENT
+# =============================================================================
+differences_from_shipment:
+  - |
+    Conclaves aggregate Tasks, Questions, and Plans.
+    Shipments only aggregate Tasks.
+  - |
+    Conclaves do NOT have grove assignment with exclusivity.
+    Shipments have exclusive grove assignment (one grove per shipment).
+  - |
+    Conclaves focus on ideation and planning.
+    Shipments focus on execution and delivery.
+  - |
+    Conclaves may promote items to shipments.
+    Shipments do not have promotion semantics.
+  - |
+    Both have identical state machines: active -> paused <-> active -> complete.
+    Both have pinned semantics to prevent accidental completion.
+
+# =============================================================================
+# NOTES
+# =============================================================================
+notes:
+  - |
+    Conclave is an ideation entity - it represents a brainstorming/planning session.
+    Unlike Shipment (execution), conclaves focus on gathering ideas before committing to work.
+  - |
+    The 'pinned' flag prevents accidental completion of important conclaves.
+    Users must explicitly unpin before completing.
+  - |
+    Conclaves can contain Tasks, Questions, and Plans - all of which may be
+    "promoted" to become real work items in shipments.
+  - |
+    No grove assignment exclusivity - conclaves are not tied to specific groves
+    the way shipments are. This reflects their ideation-focused nature.
