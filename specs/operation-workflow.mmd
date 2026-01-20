@@ -1,0 +1,38 @@
+%% Operation Workflow State Diagram
+%% Generated: 2026-01-20
+%% Context: CON-003 FSM-First Testing Strategy (Slice 8)
+%% Source: specs/operation-workflow.yaml
+
+stateDiagram-v2
+    [*] --> initial
+
+    %% Creation
+    initial --> ready : create\n[mission_exists]
+
+    %% Self-transitions in ready state
+    ready --> ready : update
+
+    %% Completion
+    ready --> complete : complete\n[is_ready]
+
+    %% Terminal state
+    complete --> [*]
+
+    %% State descriptions
+    note right of initial
+        Pre-creation state
+    end note
+
+    note right of ready
+        Default state
+        Awaiting completion
+        Can update title/description
+        No pin/unpin, no delete
+    end note
+
+    note right of complete
+        Operation completed
+        CompletedAt set
+        True terminal state
+        (no delete possible)
+    end note
