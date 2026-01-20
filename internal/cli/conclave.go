@@ -1,12 +1,14 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"text/tabwriter"
 
-	"github.com/example/orc/internal/context"
-	"github.com/example/orc/internal/models"
+	orcctx "github.com/example/orc/internal/context"
+	"github.com/example/orc/internal/ports/primary"
+	"github.com/example/orc/internal/wire"
 	"github.com/spf13/cobra"
 )
 
@@ -27,20 +29,24 @@ var conclaveCreateCmd = &cobra.Command{
 
 		// Get mission from context or require explicit flag
 		if missionID == "" {
-			missionID = context.GetContextMissionID()
+			missionID = orcctx.GetContextMissionID()
 			if missionID == "" {
 				return fmt.Errorf("no mission context detected\nHint: Use --mission flag or run from a grove/mission directory")
 			}
 		}
 
-		conclave, err := models.CreateConclave(missionID, title, description)
+		resp, err := wire.ConclaveService().CreateConclave(context.Background(), primary.CreateConclaveRequest{
+			MissionID:   missionID,
+			Title:       title,
+			Description: description,
+		})
 		if err != nil {
 			return fmt.Errorf("failed to create conclave: %w", err)
 		}
 
-		fmt.Printf("✓ Created conclave %s: %s\n", conclave.ID, conclave.Title)
-		fmt.Printf("  Mission: %s\n", conclave.MissionID)
-		fmt.Printf("  Status: %s\n", conclave.Status)
+		fmt.Printf("✓ Created conclave %s: %s\n", resp.Conclave.ID, resp.Conclave.Title)
+		fmt.Printf("  Mission: %s\n", resp.Conclave.MissionID)
+		fmt.Printf("  Status: %s\n", resp.Conclave.Status)
 		fmt.Println()
 		fmt.Println("Next steps:")
 		fmt.Println("   Conclaves collect tasks, questions, and plans generated during ideation")
@@ -57,10 +63,13 @@ var conclaveListCmd = &cobra.Command{
 
 		// Get mission from context if not specified
 		if missionID == "" {
-			missionID = context.GetContextMissionID()
+			missionID = orcctx.GetContextMissionID()
 		}
 
-		conclaves, err := models.ListConclaves(missionID, status)
+		conclaves, err := wire.ConclaveService().ListConclaves(context.Background(), primary.ConclaveFilters{
+			MissionID: missionID,
+			Status:    status,
+		})
 		if err != nil {
 			return fmt.Errorf("failed to list conclaves: %w", err)
 		}
@@ -95,32 +104,33 @@ var conclaveShowCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		conclaveID := args[0]
+		ctx := context.Background()
 
-		conclave, err := models.GetConclave(conclaveID)
+		conclave, err := wire.ConclaveService().GetConclave(ctx, conclaveID)
 		if err != nil {
 			return fmt.Errorf("conclave not found: %w", err)
 		}
 
 		fmt.Printf("Conclave: %s\n", conclave.ID)
 		fmt.Printf("Title: %s\n", conclave.Title)
-		if conclave.Description.Valid {
-			fmt.Printf("Description: %s\n", conclave.Description.String)
+		if conclave.Description != "" {
+			fmt.Printf("Description: %s\n", conclave.Description)
 		}
 		fmt.Printf("Status: %s\n", conclave.Status)
 		fmt.Printf("Mission: %s\n", conclave.MissionID)
-		if conclave.AssignedGroveID.Valid {
-			fmt.Printf("Assigned Grove: %s\n", conclave.AssignedGroveID.String)
+		if conclave.AssignedGroveID != "" {
+			fmt.Printf("Assigned Grove: %s\n", conclave.AssignedGroveID)
 		}
 		if conclave.Pinned {
 			fmt.Printf("Pinned: yes\n")
 		}
-		fmt.Printf("Created: %s\n", conclave.CreatedAt.Format("2006-01-02 15:04"))
-		if conclave.CompletedAt.Valid {
-			fmt.Printf("Completed: %s\n", conclave.CompletedAt.Time.Format("2006-01-02 15:04"))
+		fmt.Printf("Created: %s\n", conclave.CreatedAt)
+		if conclave.CompletedAt != "" {
+			fmt.Printf("Completed: %s\n", conclave.CompletedAt)
 		}
 
 		// Show tasks in this conclave
-		tasks, err := models.GetConclaveTasks(conclaveID)
+		tasks, err := wire.ConclaveService().GetConclaveTasks(ctx, conclaveID)
 		if err != nil {
 			return fmt.Errorf("failed to get tasks: %w", err)
 		}
@@ -134,7 +144,7 @@ var conclaveShowCmd = &cobra.Command{
 		}
 
 		// Show questions in this conclave
-		questions, err := models.GetConclaveQuestions(conclaveID)
+		questions, err := wire.ConclaveService().GetConclaveQuestions(ctx, conclaveID)
 		if err != nil {
 			return fmt.Errorf("failed to get questions: %w", err)
 		}
@@ -151,7 +161,7 @@ var conclaveShowCmd = &cobra.Command{
 		}
 
 		// Show plans in this conclave
-		plans, err := models.GetConclavePlans(conclaveID)
+		plans, err := wire.ConclaveService().GetConclavePlans(ctx, conclaveID)
 		if err != nil {
 			return fmt.Errorf("failed to get plans: %w", err)
 		}
@@ -178,7 +188,7 @@ var conclaveCompleteCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		conclaveID := args[0]
 
-		err := models.CompleteConclave(conclaveID)
+		err := wire.ConclaveService().CompleteConclave(context.Background(), conclaveID)
 		if err != nil {
 			return fmt.Errorf("failed to complete conclave: %w", err)
 		}
@@ -195,7 +205,7 @@ var conclavePauseCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		conclaveID := args[0]
 
-		err := models.PauseConclave(conclaveID)
+		err := wire.ConclaveService().PauseConclave(context.Background(), conclaveID)
 		if err != nil {
 			return fmt.Errorf("failed to pause conclave: %w", err)
 		}
@@ -212,7 +222,7 @@ var conclaveResumeCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		conclaveID := args[0]
 
-		err := models.ResumeConclave(conclaveID)
+		err := wire.ConclaveService().ResumeConclave(context.Background(), conclaveID)
 		if err != nil {
 			return fmt.Errorf("failed to resume conclave: %w", err)
 		}
@@ -235,7 +245,11 @@ var conclaveUpdateCmd = &cobra.Command{
 			return fmt.Errorf("must specify --title and/or --description")
 		}
 
-		err := models.UpdateConclave(conclaveID, title, description)
+		err := wire.ConclaveService().UpdateConclave(context.Background(), primary.UpdateConclaveRequest{
+			ConclaveID:  conclaveID,
+			Title:       title,
+			Description: description,
+		})
 		if err != nil {
 			return fmt.Errorf("failed to update conclave: %w", err)
 		}
@@ -252,7 +266,7 @@ var conclavePinCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		conclaveID := args[0]
 
-		err := models.PinConclave(conclaveID)
+		err := wire.ConclaveService().PinConclave(context.Background(), conclaveID)
 		if err != nil {
 			return fmt.Errorf("failed to pin conclave: %w", err)
 		}
@@ -269,7 +283,7 @@ var conclaveUnpinCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		conclaveID := args[0]
 
-		err := models.UnpinConclave(conclaveID)
+		err := wire.ConclaveService().UnpinConclave(context.Background(), conclaveID)
 		if err != nil {
 			return fmt.Errorf("failed to unpin conclave: %w", err)
 		}
@@ -286,7 +300,7 @@ var conclaveDeleteCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		conclaveID := args[0]
 
-		err := models.DeleteConclave(conclaveID)
+		err := wire.ConclaveService().DeleteConclave(context.Background(), conclaveID)
 		if err != nil {
 			return fmt.Errorf("failed to delete conclave: %w", err)
 		}

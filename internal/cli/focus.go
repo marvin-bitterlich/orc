@@ -103,7 +103,7 @@ func validateAndGetInfo(id string) (containerType string, title string, err erro
 		return "Shipment", ship.Title, nil
 
 	case strings.HasPrefix(id, "CON-"):
-		con, err := models.GetConclave(id)
+		con, err := wire.ConclaveService().GetConclave(ctx, id)
 		if err != nil {
 			return "", "", fmt.Errorf("conclave %s not found", id)
 		}
@@ -242,7 +242,7 @@ func GetFocusInfo(focusID string) (containerType, title, status string) {
 			return "Shipment", ship.Title, ship.Status
 		}
 	case strings.HasPrefix(focusID, "CON-"):
-		if con, err := models.GetConclave(focusID); err == nil {
+		if con, err := wire.ConclaveService().GetConclave(ctx, focusID); err == nil {
 			return "Conclave", con.Title, con.Status
 		}
 	case strings.HasPrefix(focusID, "INV-"):

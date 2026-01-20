@@ -426,3 +426,165 @@ type TomeFilters struct {
 	MissionID string
 	Status    string
 }
+
+// ConclaveRepository defines the secondary port for conclave persistence.
+type ConclaveRepository interface {
+	// Create persists a new conclave.
+	Create(ctx context.Context, conclave *ConclaveRecord) error
+
+	// GetByID retrieves a conclave by its ID.
+	GetByID(ctx context.Context, id string) (*ConclaveRecord, error)
+
+	// List retrieves conclaves matching the given filters.
+	List(ctx context.Context, filters ConclaveFilters) ([]*ConclaveRecord, error)
+
+	// Update updates an existing conclave.
+	Update(ctx context.Context, conclave *ConclaveRecord) error
+
+	// Delete removes a conclave from persistence.
+	Delete(ctx context.Context, id string) error
+
+	// Pin pins a conclave.
+	Pin(ctx context.Context, id string) error
+
+	// Unpin unpins a conclave.
+	Unpin(ctx context.Context, id string) error
+
+	// GetNextID returns the next available conclave ID.
+	GetNextID(ctx context.Context) (string, error)
+
+	// UpdateStatus updates the status and optionally completed_at timestamp.
+	UpdateStatus(ctx context.Context, id, status string, setCompleted bool) error
+
+	// GetByGrove retrieves conclaves assigned to a grove.
+	GetByGrove(ctx context.Context, groveID string) ([]*ConclaveRecord, error)
+
+	// MissionExists checks if a mission exists (for validation).
+	MissionExists(ctx context.Context, missionID string) (bool, error)
+
+	// GetTasksByConclave retrieves tasks belonging to a conclave.
+	GetTasksByConclave(ctx context.Context, conclaveID string) ([]*ConclaveTaskRecord, error)
+
+	// GetQuestionsByConclave retrieves questions belonging to a conclave.
+	GetQuestionsByConclave(ctx context.Context, conclaveID string) ([]*ConclaveQuestionRecord, error)
+
+	// GetPlansByConclave retrieves plans belonging to a conclave.
+	GetPlansByConclave(ctx context.Context, conclaveID string) ([]*ConclavePlanRecord, error)
+}
+
+// ConclaveRecord represents a conclave as stored in persistence.
+type ConclaveRecord struct {
+	ID              string
+	MissionID       string
+	Title           string
+	Description     string // Empty string means null
+	Status          string
+	AssignedGroveID string // Empty string means null
+	Pinned          bool
+	CreatedAt       string
+	UpdatedAt       string
+	CompletedAt     string // Empty string means null
+}
+
+// ConclaveFilters contains filter options for querying conclaves.
+type ConclaveFilters struct {
+	MissionID string
+	Status    string
+}
+
+// ConclaveTaskRecord represents a task as returned from conclave cross-entity query.
+type ConclaveTaskRecord struct {
+	ID               string
+	ShipmentID       string
+	MissionID        string
+	Title            string
+	Description      string
+	Type             string
+	Status           string
+	Priority         string
+	AssignedGroveID  string
+	Pinned           bool
+	CreatedAt        string
+	UpdatedAt        string
+	ClaimedAt        string
+	CompletedAt      string
+	ConclaveID       string
+	PromotedFromID   string
+	PromotedFromType string
+}
+
+// ConclaveQuestionRecord represents a question as returned from conclave cross-entity query.
+type ConclaveQuestionRecord struct {
+	ID               string
+	InvestigationID  string
+	MissionID        string
+	Title            string
+	Description      string
+	Status           string
+	Answer           string
+	Pinned           bool
+	CreatedAt        string
+	UpdatedAt        string
+	AnsweredAt       string
+	ConclaveID       string
+	PromotedFromID   string
+	PromotedFromType string
+}
+
+// ConclavePlanRecord represents a plan as returned from conclave cross-entity query.
+type ConclavePlanRecord struct {
+	ID               string
+	ShipmentID       string
+	MissionID        string
+	Title            string
+	Description      string
+	Status           string
+	Content          string
+	Pinned           bool
+	CreatedAt        string
+	UpdatedAt        string
+	ApprovedAt       string
+	ConclaveID       string
+	PromotedFromID   string
+	PromotedFromType string
+}
+
+// OperationRepository defines the secondary port for operation persistence.
+// Operations are minimal entities with no Delete operation.
+type OperationRepository interface {
+	// Create persists a new operation.
+	Create(ctx context.Context, operation *OperationRecord) error
+
+	// GetByID retrieves an operation by its ID.
+	GetByID(ctx context.Context, id string) (*OperationRecord, error)
+
+	// List retrieves operations matching the given filters.
+	List(ctx context.Context, filters OperationFilters) ([]*OperationRecord, error)
+
+	// UpdateStatus updates the status and optionally completed_at timestamp.
+	UpdateStatus(ctx context.Context, id, status string, setCompleted bool) error
+
+	// GetNextID returns the next available operation ID.
+	GetNextID(ctx context.Context) (string, error)
+
+	// MissionExists checks if a mission exists (for validation).
+	MissionExists(ctx context.Context, missionID string) (bool, error)
+}
+
+// OperationRecord represents an operation as stored in persistence.
+type OperationRecord struct {
+	ID          string
+	MissionID   string
+	Title       string
+	Description string // Empty string means null
+	Status      string
+	CreatedAt   string
+	UpdatedAt   string
+	CompletedAt string // Empty string means null
+}
+
+// OperationFilters contains filter options for querying operations.
+type OperationFilters struct {
+	MissionID string
+	Status    string
+}

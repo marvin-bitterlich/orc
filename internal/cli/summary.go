@@ -262,14 +262,42 @@ func displayShipmentChildren(shipmentID, prefix string, filters *filterConfig) i
 // displayConclaveChildren shows tasks/questions/plans/notes under a conclave with tag filtering
 // Returns count of visible items
 func displayConclaveChildren(conclaveID, prefix string, filters *filterConfig) int {
-	// Get tasks
-	tasks, _ := models.GetConclaveTasks(conclaveID)
-	// Get questions
-	questions, _ := models.GetConclaveQuestions(conclaveID)
-	// Get plans
-	plans, _ := models.GetConclavePlans(conclaveID)
+	ctx := context.Background()
+	// Get tasks via ConclaveService
+	serviceTasks, _ := wire.ConclaveService().GetConclaveTasks(ctx, conclaveID)
+	var tasks []*models.Task
+	for _, t := range serviceTasks {
+		tasks = append(tasks, &models.Task{
+			ID:     t.ID,
+			Title:  t.Title,
+			Status: t.Status,
+			Pinned: t.Pinned,
+		})
+	}
+	// Get questions via ConclaveService
+	serviceQuestions, _ := wire.ConclaveService().GetConclaveQuestions(ctx, conclaveID)
+	var questions []*models.Question
+	for _, q := range serviceQuestions {
+		questions = append(questions, &models.Question{
+			ID:     q.ID,
+			Title:  q.Title,
+			Status: q.Status,
+			Pinned: q.Pinned,
+		})
+	}
+	// Get plans via ConclaveService
+	servicePlans, _ := wire.ConclaveService().GetConclavePlans(ctx, conclaveID)
+	var plans []*models.Plan
+	for _, p := range servicePlans {
+		plans = append(plans, &models.Plan{
+			ID:     p.ID,
+			Title:  p.Title,
+			Status: p.Status,
+			Pinned: p.Pinned,
+		})
+	}
 	// Get notes
-	serviceNotes, _ := wire.NoteService().GetNotesByContainer(context.Background(), "conclave", conclaveID)
+	serviceNotes, _ := wire.NoteService().GetNotesByContainer(ctx, "conclave", conclaveID)
 	// Convert to models.Note for the rest of the function
 	var notes []*models.Note
 	for _, n := range serviceNotes {
@@ -664,18 +692,14 @@ Examples:
 
 				// Collect conclaves
 				if len(filters.containerTypes) == 0 || filters.containerTypes["CON"] {
-					conclaves, _ := models.ListConclaves(mission.ID, "")
+					conclaves, _ := wire.ConclaveService().ListConclaves(context.Background(), primary.ConclaveFilters{MissionID: mission.ID})
 					for _, c := range conclaves {
 						if c.Status == "complete" || filters.statusMap[c.Status] {
 							continue
 						}
-						groveID := ""
-						if c.AssignedGroveID.Valid {
-							groveID = c.AssignedGroveID.String
-						}
 						cont := containerInfo{
 							id: c.ID, title: c.Title, status: c.Status,
-							pinned: c.Pinned, groveID: groveID, containerType: "conclave",
+							pinned: c.Pinned, groveID: c.AssignedGroveID, containerType: "conclave",
 						}
 						if c.ID == focusID {
 							focusedContainer = &cont
@@ -883,9 +907,9 @@ func containerHasMatchingLeaves(c containerInfo, filters *filterConfig) bool {
 			}
 		}
 	case "conclave":
-		tasks, _ := models.GetConclaveTasks(c.id)
-		questions, _ := models.GetConclaveQuestions(c.id)
-		plans, _ := models.GetConclavePlans(c.id)
+		tasks, _ := wire.ConclaveService().GetConclaveTasks(context.Background(), c.id)
+		questions, _ := wire.ConclaveService().GetConclaveQuestions(context.Background(), c.id)
+		plans, _ := wire.ConclaveService().GetConclavePlans(context.Background(), c.id)
 		serviceNotes, _ := wire.NoteService().GetNotesByContainer(context.Background(), "conclave", c.id)
 		var notes []*models.Note
 		for _, n := range serviceNotes {

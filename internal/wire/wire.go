@@ -17,14 +17,16 @@ import (
 )
 
 var (
-	missionService  primary.MissionService
-	groveService    primary.GroveService
-	shipmentService primary.ShipmentService
-	taskService     primary.TaskService
-	noteService     primary.NoteService
-	handoffService  primary.HandoffService
-	tomeService     primary.TomeService
-	once            sync.Once
+	missionService   primary.MissionService
+	groveService     primary.GroveService
+	shipmentService  primary.ShipmentService
+	taskService      primary.TaskService
+	noteService      primary.NoteService
+	handoffService   primary.HandoffService
+	tomeService      primary.TomeService
+	conclaveService  primary.ConclaveService
+	operationService primary.OperationService
+	once             sync.Once
 )
 
 // MissionService returns the singleton MissionService instance.
@@ -69,6 +71,18 @@ func TomeService() primary.TomeService {
 	return tomeService
 }
 
+// ConclaveService returns the singleton ConclaveService instance.
+func ConclaveService() primary.ConclaveService {
+	once.Do(initServices)
+	return conclaveService
+}
+
+// OperationService returns the singleton OperationService instance.
+func OperationService() primary.OperationService {
+	once.Do(initServices)
+	return operationService
+}
+
 // initServices initializes all services and their dependencies.
 // This is called once via sync.Once.
 func initServices() {
@@ -104,6 +118,12 @@ func initServices() {
 	noteService = app.NewNoteService(noteRepo)
 	handoffService = app.NewHandoffService(handoffRepo)
 	tomeService = app.NewTomeService(tomeRepo, noteService) // Tome needs NoteService for GetTomeNotes
+
+	// Create conclave and operation services
+	conclaveRepo := sqlite.NewConclaveRepository(database)
+	operationRepo := sqlite.NewOperationRepository(database)
+	conclaveService = app.NewConclaveService(conclaveRepo)
+	operationService = app.NewOperationService(operationRepo)
 }
 
 // MissionAdapter returns a new MissionAdapter writing to stdout.
