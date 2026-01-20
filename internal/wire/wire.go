@@ -29,6 +29,8 @@ var (
 	investigationService primary.InvestigationService
 	questionService      primary.QuestionService
 	planService          primary.PlanService
+	tagService           primary.TagService
+	messageService       primary.MessageService
 	once                 sync.Once
 )
 
@@ -104,6 +106,18 @@ func PlanService() primary.PlanService {
 	return planService
 }
 
+// TagService returns the singleton TagService instance.
+func TagService() primary.TagService {
+	once.Do(initServices)
+	return tagService
+}
+
+// MessageService returns the singleton MessageService instance.
+func MessageService() primary.MessageService {
+	once.Do(initServices)
+	return messageService
+}
+
 // initServices initializes all services and their dependencies.
 // This is called once via sync.Once.
 func initServices() {
@@ -153,6 +167,11 @@ func initServices() {
 	investigationService = app.NewInvestigationService(investigationRepo)
 	questionService = app.NewQuestionService(questionRepo)
 	planService = app.NewPlanService(planRepo)
+
+	// Create tag and message services
+	tagService = app.NewTagService(tagRepo)
+	messageRepo := sqlite.NewMessageRepository(database)
+	messageService = app.NewMessageService(messageRepo)
 }
 
 // MissionAdapter returns a new MissionAdapter writing to stdout.

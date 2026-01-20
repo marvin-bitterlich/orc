@@ -152,7 +152,7 @@ func shouldShowLeaf(entityID string, filters *filterConfig) (bool, string) {
 		}
 	}
 
-	tag, _ := models.GetEntityTag(entityID, entityType)
+	tag, _ := wire.TagService().GetEntityTag(context.Background(), entityID, entityType)
 	tagName := ""
 	if tag != nil {
 		tagName = tag.Name

@@ -273,10 +273,37 @@ type TaskFilters struct {
 	MissionID  string
 }
 
-// TagRecord represents a tag reference for task tagging.
+// TagRecord represents a tag as stored in persistence.
 type TagRecord struct {
-	ID   string
-	Name string
+	ID          string
+	Name        string
+	Description string // Empty string means null
+	CreatedAt   string
+	UpdatedAt   string
+}
+
+// TagRepository defines the secondary port for tag persistence.
+type TagRepository interface {
+	// Create persists a new tag.
+	Create(ctx context.Context, tag *TagRecord) error
+
+	// GetByID retrieves a tag by its ID.
+	GetByID(ctx context.Context, id string) (*TagRecord, error)
+
+	// GetByName retrieves a tag by its name.
+	GetByName(ctx context.Context, name string) (*TagRecord, error)
+
+	// List retrieves all tags ordered by name.
+	List(ctx context.Context) ([]*TagRecord, error)
+
+	// Delete removes a tag from persistence.
+	Delete(ctx context.Context, id string) error
+
+	// GetNextID returns the next available tag ID.
+	GetNextID(ctx context.Context) (string, error)
+
+	// GetEntityTag retrieves the tag for an entity (nil if none).
+	GetEntityTag(ctx context.Context, entityID, entityType string) (*TagRecord, error)
 }
 
 // NoteRepository defines the secondary port for note persistence.
@@ -795,4 +822,49 @@ type PlanFilters struct {
 	ShipmentID string
 	MissionID  string
 	Status     string
+}
+
+// MessageRepository defines the secondary port for message persistence.
+type MessageRepository interface {
+	// Create persists a new message.
+	Create(ctx context.Context, message *MessageRecord) error
+
+	// GetByID retrieves a message by its ID.
+	GetByID(ctx context.Context, id string) (*MessageRecord, error)
+
+	// List retrieves messages for a recipient, optionally filtering to unread only.
+	List(ctx context.Context, filters MessageFilters) ([]*MessageRecord, error)
+
+	// MarkRead marks a message as read.
+	MarkRead(ctx context.Context, id string) error
+
+	// GetConversation retrieves all messages between two agents.
+	GetConversation(ctx context.Context, agent1, agent2 string) ([]*MessageRecord, error)
+
+	// GetUnreadCount returns the count of unread messages for a recipient.
+	GetUnreadCount(ctx context.Context, recipient string) (int, error)
+
+	// GetNextID returns the next available message ID for a mission.
+	GetNextID(ctx context.Context, missionID string) (string, error)
+
+	// MissionExists checks if a mission exists (for validation).
+	MissionExists(ctx context.Context, missionID string) (bool, error)
+}
+
+// MessageRecord represents a message as stored in persistence.
+type MessageRecord struct {
+	ID        string
+	Sender    string
+	Recipient string
+	Subject   string
+	Body      string
+	Timestamp string
+	Read      bool
+	MissionID string
+}
+
+// MessageFilters contains filter options for querying messages.
+type MessageFilters struct {
+	Recipient  string
+	UnreadOnly bool
 }

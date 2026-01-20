@@ -11,19 +11,13 @@ import (
 // TaskServiceImpl implements the TaskService interface.
 type TaskServiceImpl struct {
 	taskRepo secondary.TaskRepository
-	tagRepo  TagRepository
-}
-
-// TagRepository is a minimal interface for tag lookup.
-// This avoids creating a full secondary port just for tag name lookup.
-type TagRepository interface {
-	GetTagByName(ctx context.Context, name string) (*secondary.TagRecord, error)
+	tagRepo  secondary.TagRepository
 }
 
 // NewTaskService creates a new TaskService with injected dependencies.
 func NewTaskService(
 	taskRepo secondary.TaskRepository,
-	tagRepo TagRepository,
+	tagRepo secondary.TagRepository,
 ) *TaskServiceImpl {
 	return &TaskServiceImpl{
 		taskRepo: taskRepo,
@@ -232,7 +226,7 @@ func (s *TaskServiceImpl) TagTask(ctx context.Context, taskID, tagName string) e
 	}
 
 	// Get tag by name
-	tag, err := s.tagRepo.GetTagByName(ctx, tagName)
+	tag, err := s.tagRepo.GetByName(ctx, tagName)
 	if err != nil {
 		return fmt.Errorf("tag '%s' not found", tagName)
 	}
@@ -272,7 +266,7 @@ func (s *TaskServiceImpl) UntagTask(ctx context.Context, taskID string) error {
 // ListTasksByTag retrieves tasks with a specific tag.
 func (s *TaskServiceImpl) ListTasksByTag(ctx context.Context, tagName string) ([]*primary.Task, error) {
 	// Get tag by name
-	tag, err := s.tagRepo.GetTagByName(ctx, tagName)
+	tag, err := s.tagRepo.GetByName(ctx, tagName)
 	if err != nil {
 		return nil, fmt.Errorf("tag '%s' not found", tagName)
 	}
