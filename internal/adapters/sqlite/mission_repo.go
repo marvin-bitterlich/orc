@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	coremission "github.com/example/orc/internal/core/mission"
 	"github.com/example/orc/internal/ports/secondary"
 )
 
@@ -21,33 +22,28 @@ func NewMissionRepository(db *sql.DB) *MissionRepository {
 }
 
 // Create persists a new mission.
+// The mission record must have ID and Status pre-populated by the service layer.
 func (r *MissionRepository) Create(ctx context.Context, mission *secondary.MissionRecord) error {
-	// Generate mission ID by finding max existing ID
-	var maxID int
-	err := r.db.QueryRowContext(ctx,
-		"SELECT COALESCE(MAX(CAST(SUBSTR(id, 9) AS INTEGER)), 0) FROM missions",
-	).Scan(&maxID)
-	if err != nil {
-		return fmt.Errorf("failed to generate mission ID: %w", err)
+	if mission.ID == "" {
+		return fmt.Errorf("mission ID must be pre-populated by service layer")
 	}
-
-	id := fmt.Sprintf("MISSION-%03d", maxID+1)
+	if mission.Status == "" {
+		return fmt.Errorf("mission Status must be pre-populated by service layer")
+	}
 
 	var desc sql.NullString
 	if mission.Description != "" {
 		desc = sql.NullString{String: mission.Description, Valid: true}
 	}
 
-	_, err = r.db.ExecContext(ctx,
+	_, err := r.db.ExecContext(ctx,
 		"INSERT INTO missions (id, title, description, status) VALUES (?, ?, ?, ?)",
-		id, mission.Title, desc, "active",
+		mission.ID, mission.Title, desc, mission.Status,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create mission: %w", err)
 	}
 
-	// Update the record with the generated ID
-	mission.ID = id
 	return nil
 }
 
@@ -137,6 +133,7 @@ func (r *MissionRepository) List(ctx context.Context, filters secondary.MissionF
 }
 
 // Update updates an existing mission.
+// The service layer is responsible for setting CompletedAt when status changes to complete.
 func (r *MissionRepository) Update(ctx context.Context, mission *secondary.MissionRecord) error {
 	// Build dynamic query based on what's being updated
 	query := "UPDATE missions SET updated_at = CURRENT_TIMESTAMP"
@@ -155,11 +152,14 @@ func (r *MissionRepository) Update(ctx context.Context, mission *secondary.Missi
 	if mission.Status != "" {
 		query += ", status = ?"
 		args = append(args, mission.Status)
+	}
 
-		// Set completed_at if completing
-		if mission.Status == "complete" {
+	// CompletedAt is set by service layer when transitioning to complete status
+	if mission.CompletedAt != "" {
+		completedTime, err := time.Parse(time.RFC3339, mission.CompletedAt)
+		if err == nil {
 			query += ", completed_at = ?"
-			args = append(args, sql.NullTime{Time: time.Now(), Valid: true})
+			args = append(args, sql.NullTime{Time: completedTime, Valid: true})
 		}
 	}
 
@@ -195,6 +195,7 @@ func (r *MissionRepository) Delete(ctx context.Context, id string) error {
 }
 
 // GetNextID returns the next available mission ID.
+// Uses core function for ID format to keep business logic in the functional core.
 func (r *MissionRepository) GetNextID(ctx context.Context) (string, error) {
 	var maxID int
 	err := r.db.QueryRowContext(ctx,
@@ -204,7 +205,7 @@ func (r *MissionRepository) GetNextID(ctx context.Context) (string, error) {
 		return "", fmt.Errorf("failed to get next mission ID: %w", err)
 	}
 
-	return fmt.Sprintf("MISSION-%03d", maxID+1), nil
+	return coremission.GenerateMissionID(maxID), nil
 }
 
 // CountShipments returns the number of shipments for a mission.

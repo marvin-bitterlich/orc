@@ -345,3 +345,111 @@ func TestCanDeleteMission(t *testing.T) {
 		})
 	}
 }
+
+func TestCanPinMission(t *testing.T) {
+	tests := []struct {
+		name        string
+		ctx         PinContext
+		wantAllowed bool
+		wantReason  string
+	}{
+		{
+			name: "can pin existing mission",
+			ctx: PinContext{
+				MissionID:     "MISSION-001",
+				MissionExists: true,
+				IsPinned:      false,
+			},
+			wantAllowed: true,
+			wantReason:  "",
+		},
+		{
+			name: "cannot pin non-existent mission",
+			ctx: PinContext{
+				MissionID:     "MISSION-999",
+				MissionExists: false,
+				IsPinned:      false,
+			},
+			wantAllowed: false,
+			wantReason:  "Mission MISSION-999 not found",
+		},
+		{
+			name: "pin already pinned mission is allowed (no-op)",
+			ctx: PinContext{
+				MissionID:     "MISSION-001",
+				MissionExists: true,
+				IsPinned:      true,
+			},
+			wantAllowed: true,
+			wantReason:  "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := CanPinMission(tt.ctx)
+
+			if result.Allowed != tt.wantAllowed {
+				t.Errorf("CanPinMission() Allowed = %v, want %v", result.Allowed, tt.wantAllowed)
+			}
+
+			if result.Reason != tt.wantReason {
+				t.Errorf("CanPinMission() Reason = %q, want %q", result.Reason, tt.wantReason)
+			}
+		})
+	}
+}
+
+func TestCanUnpinMission(t *testing.T) {
+	tests := []struct {
+		name        string
+		ctx         PinContext
+		wantAllowed bool
+		wantReason  string
+	}{
+		{
+			name: "can unpin existing pinned mission",
+			ctx: PinContext{
+				MissionID:     "MISSION-001",
+				MissionExists: true,
+				IsPinned:      true,
+			},
+			wantAllowed: true,
+			wantReason:  "",
+		},
+		{
+			name: "cannot unpin non-existent mission",
+			ctx: PinContext{
+				MissionID:     "MISSION-999",
+				MissionExists: false,
+				IsPinned:      false,
+			},
+			wantAllowed: false,
+			wantReason:  "Mission MISSION-999 not found",
+		},
+		{
+			name: "unpin already unpinned mission is allowed (no-op)",
+			ctx: PinContext{
+				MissionID:     "MISSION-001",
+				MissionExists: true,
+				IsPinned:      false,
+			},
+			wantAllowed: true,
+			wantReason:  "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := CanUnpinMission(tt.ctx)
+
+			if result.Allowed != tt.wantAllowed {
+				t.Errorf("CanUnpinMission() Allowed = %v, want %v", result.Allowed, tt.wantAllowed)
+			}
+
+			if result.Reason != tt.wantReason {
+				t.Errorf("CanUnpinMission() Reason = %q, want %q", result.Reason, tt.wantReason)
+			}
+		})
+	}
+}

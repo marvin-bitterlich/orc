@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	coremission "github.com/example/orc/internal/core/mission"
 	"github.com/example/orc/internal/ports/primary"
@@ -52,18 +53,25 @@ func (s *MissionServiceImpl) CreateMission(ctx context.Context, req primary.Crea
 		return nil, result.Error()
 	}
 
-	// 3. Create mission record
+	// 3. Generate ID using core business rule
+	nextID, err := s.missionRepo.GetNextID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate mission ID: %w", err)
+	}
+
+	// 4. Create mission record with pre-populated ID and initial status from core
 	record := &secondary.MissionRecord{
+		ID:          nextID,
 		Title:       req.Title,
 		Description: req.Description,
-		Status:      "active",
+		Status:      string(coremission.InitialStatus()),
 	}
 
 	if err := s.missionRepo.Create(ctx, record); err != nil {
 		return nil, fmt.Errorf("failed to create mission: %w", err)
 	}
 
-	// 4. Return response
+	// 5. Return response
 	return &primary.CreateMissionResponse{
 		MissionID: record.ID,
 		Mission:   s.recordToMission(record),
@@ -213,8 +221,13 @@ func (s *MissionServiceImpl) CompleteMission(ctx context.Context, missionID stri
 		return result.Error()
 	}
 
-	// 3. Update status
-	record.Status = "complete"
+	// 3. Apply status transition using core business logic
+	transition := coremission.ApplyStatusTransition(coremission.StatusComplete, time.Now())
+	record.Status = string(transition.NewStatus)
+	if transition.CompletedAt != nil {
+		record.CompletedAt = transition.CompletedAt.Format(time.RFC3339)
+	}
+
 	return s.missionRepo.Update(ctx, record)
 }
 
@@ -235,8 +248,10 @@ func (s *MissionServiceImpl) ArchiveMission(ctx context.Context, missionID strin
 		return result.Error()
 	}
 
-	// 3. Update status
-	record.Status = "archived"
+	// 3. Apply status transition using core business logic
+	transition := coremission.ApplyStatusTransition(coremission.StatusArchived, time.Now())
+	record.Status = string(transition.NewStatus)
+
 	return s.missionRepo.Update(ctx, record)
 }
 
@@ -287,24 +302,42 @@ func (s *MissionServiceImpl) DeleteMission(ctx context.Context, req primary.Dele
 
 // PinMission pins a mission.
 func (s *MissionServiceImpl) PinMission(ctx context.Context, missionID string) error {
+	// 1. Check if mission exists
 	record, err := s.missionRepo.GetByID(ctx, missionID)
-	if err != nil {
-		return fmt.Errorf("mission not found: %w", err)
+	missionExists := err == nil
+
+	// 2. Guard check
+	pinCtx := coremission.PinContext{
+		MissionID:     missionID,
+		MissionExists: missionExists,
+		IsPinned:      missionExists && record.Pinned,
+	}
+	if result := coremission.CanPinMission(pinCtx); !result.Allowed {
+		return result.Error()
 	}
 
-	record.Pinned = true
-	return s.missionRepo.Update(ctx, record)
+	// 3. Pin the mission
+	return s.missionRepo.Pin(ctx, missionID)
 }
 
 // UnpinMission unpins a mission.
 func (s *MissionServiceImpl) UnpinMission(ctx context.Context, missionID string) error {
+	// 1. Check if mission exists
 	record, err := s.missionRepo.GetByID(ctx, missionID)
-	if err != nil {
-		return fmt.Errorf("mission not found: %w", err)
+	missionExists := err == nil
+
+	// 2. Guard check
+	pinCtx := coremission.PinContext{
+		MissionID:     missionID,
+		MissionExists: missionExists,
+		IsPinned:      missionExists && record.Pinned,
+	}
+	if result := coremission.CanUnpinMission(pinCtx); !result.Allowed {
+		return result.Error()
 	}
 
-	record.Pinned = false
-	return s.missionRepo.Update(ctx, record)
+	// 3. Unpin the mission
+	return s.missionRepo.Unpin(ctx, missionID)
 }
 
 // Helper methods

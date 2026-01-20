@@ -17,21 +17,22 @@ import (
 )
 
 var (
-	missionService       primary.MissionService
-	groveService         primary.GroveService
-	shipmentService      primary.ShipmentService
-	taskService          primary.TaskService
-	noteService          primary.NoteService
-	handoffService       primary.HandoffService
-	tomeService          primary.TomeService
-	conclaveService      primary.ConclaveService
-	operationService     primary.OperationService
-	investigationService primary.InvestigationService
-	questionService      primary.QuestionService
-	planService          primary.PlanService
-	tagService           primary.TagService
-	messageService       primary.MessageService
-	once                 sync.Once
+	missionService              primary.MissionService
+	groveService                primary.GroveService
+	shipmentService             primary.ShipmentService
+	taskService                 primary.TaskService
+	noteService                 primary.NoteService
+	handoffService              primary.HandoffService
+	tomeService                 primary.TomeService
+	conclaveService             primary.ConclaveService
+	operationService            primary.OperationService
+	investigationService        primary.InvestigationService
+	questionService             primary.QuestionService
+	planService                 primary.PlanService
+	tagService                  primary.TagService
+	messageService              primary.MessageService
+	missionOrchestrationService *app.MissionOrchestrationService
+	once                        sync.Once
 )
 
 // MissionService returns the singleton MissionService instance.
@@ -118,6 +119,12 @@ func MessageService() primary.MessageService {
 	return messageService
 }
 
+// MissionOrchestrationService returns the singleton MissionOrchestrationService instance.
+func MissionOrchestrationService() *app.MissionOrchestrationService {
+	once.Do(initServices)
+	return missionOrchestrationService
+}
+
 // initServices initializes all services and their dependencies.
 // This is called once via sync.Once.
 func initServices() {
@@ -172,6 +179,9 @@ func initServices() {
 	tagService = app.NewTagService(tagRepo)
 	messageRepo := sqlite.NewMessageRepository(database)
 	messageService = app.NewMessageService(messageRepo)
+
+	// Create orchestration services
+	missionOrchestrationService = app.NewMissionOrchestrationService(missionService, groveService)
 }
 
 // MissionAdapter returns a new MissionAdapter writing to stdout.

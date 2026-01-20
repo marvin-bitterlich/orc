@@ -2,15 +2,13 @@ package cli
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 
 	"github.com/example/orc/internal/agent"
-	"github.com/example/orc/internal/config"
+	"github.com/example/orc/internal/app"
 	orccontext "github.com/example/orc/internal/context"
 	coremission "github.com/example/orc/internal/core/mission"
 	"github.com/example/orc/internal/ports/primary"
@@ -28,36 +26,6 @@ var (
 	colorDelete = color.New(color.FgRed).SprintFunc()
 	colorDim    = color.New(color.Faint).SprintFunc()
 )
-
-// readJSONConfig reads a JSON config file and returns its pretty-printed contents
-func readJSONConfig(path string) (string, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return "", err
-	}
-
-	// Parse and re-format for consistent display
-	var parsed interface{}
-	if err := json.Unmarshal(data, &parsed); err != nil {
-		return "", err
-	}
-
-	formatted, err := json.MarshalIndent(parsed, "       ", "  ")
-	if err != nil {
-		return "", err
-	}
-
-	return string(formatted), nil
-}
-
-// formatConfigContent formats JSON config content with indentation for plan display
-func formatConfigContent(content string) []string {
-	lines := []string{}
-	for _, line := range strings.Split(content, "\n") {
-		lines = append(lines, colorDim(line))
-	}
-	return lines
-}
 
 var missionCmd = &cobra.Command{
 	Use:   "mission",
@@ -341,6 +309,8 @@ Examples:
   orc mission launch MISSION-001 --workspace ~/custom/path`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx := context.Background()
+
 		// Check agent identity - only ORC can launch missions
 		identity, _ := agent.GetCurrentAgentID()
 		guardCtx := coremission.GuardContext{
@@ -358,202 +328,36 @@ Examples:
 
 		// Default workspace path
 		if workspacePath == "" {
-			homeDir, err := os.UserHomeDir()
+			var err error
+			workspacePath, err = app.DefaultWorkspacePath(missionID)
 			if err != nil {
-				return fmt.Errorf("failed to get home directory: %w", err)
+				return err
 			}
-			workspacePath = filepath.Join(homeDir, "src", "missions", missionID)
 		}
 
-		// Phase 1: Load desired state from database
+		// Phase 1: Load state using orchestration service
 		fmt.Printf("🔍 Analyzing mission: %s\n\n", missionID)
+		orchSvc := wire.MissionOrchestrationService()
 
-		mission, err := wire.MissionService().GetMission(context.Background(), missionID)
+		state, err := orchSvc.LoadMissionState(ctx, missionID)
 		if err != nil {
 			return fmt.Errorf("mission not found in database: %w\nCreate it first: orc mission create", err)
 		}
 
-		groves, err := wire.GroveService().ListGroves(context.Background(), primary.GroveFilters{MissionID: missionID})
-		if err != nil {
-			return fmt.Errorf("failed to load groves: %w", err)
-		}
+		// Phase 2: Generate infrastructure plan
+		infraPlan := orchSvc.AnalyzeInfrastructure(state, workspacePath)
 
-		// Phase 2: Analyze current state and generate plan
-		var dbState []string
-		var infraPlan []string
-		var tmuxPlan []string
+		// Phase 3: Display plan
+		displayMissionState(state, workspacePath)
+		displayInfrastructurePlan(infraPlan)
 
-		// Section 1: Database State
-		dbState = append(dbState, fmt.Sprintf("Mission: %s - %s", colorDim(mission.ID), mission.Title))
-		dbState = append(dbState, fmt.Sprintf("  Workspace: %s", workspacePath))
-		dbState = append(dbState, fmt.Sprintf("  Created: %s", mission.CreatedAt))
-		dbState = append(dbState, "")
-		dbState = append(dbState, fmt.Sprintf("Groves in DB: %d", len(groves)))
-		for _, grove := range groves {
-			dbState = append(dbState, fmt.Sprintf("  %s - %s", colorDim(grove.ID), grove.Name))
-			dbState = append(dbState, fmt.Sprintf("    Path: %s", grove.Path))
-			if len(grove.Repos) > 0 {
-				dbState = append(dbState, fmt.Sprintf("    Repos: %v", grove.Repos))
-			}
-			dbState = append(dbState, fmt.Sprintf("    Status: %s", grove.Status))
-		}
-
-		// Section 2: Infrastructure Plan
-		// Check mission workspace
-		if _, err := os.Stat(workspacePath); os.IsNotExist(err) {
-			infraPlan = append(infraPlan, fmt.Sprintf("%s mission workspace: %s", colorCreate("CREATE"), workspacePath))
-		} else {
-			infraPlan = append(infraPlan, fmt.Sprintf("%s mission workspace: %s", colorExists("EXISTS"), workspacePath))
-		}
-
-		// Check groves directory
-		// Note: No mission-level config needed - missions are just container directories
-		// Only groves need config files to mark IMP territory
-		grovesDir := filepath.Join(workspacePath, "groves")
-		if _, err := os.Stat(grovesDir); os.IsNotExist(err) {
-			infraPlan = append(infraPlan, fmt.Sprintf("%s groves directory: %s", colorCreate("CREATE"), grovesDir))
-		} else {
-			infraPlan = append(infraPlan, fmt.Sprintf("%s groves directory: %s", colorExists("EXISTS"), grovesDir))
-		}
-
-		// Plan for each grove
-		for _, grove := range groves {
-			desiredPath := filepath.Join(grovesDir, grove.Name)
-			currentPath := grove.Path
-
-			// Check if grove exists at current path
-			currentExists := false
-			if _, err := os.Stat(currentPath); err == nil {
-				currentExists = true
-			}
-
-			// Check if grove exists at desired path
-			desiredExists := false
-			if _, err := os.Stat(desiredPath); err == nil {
-				desiredExists = true
-			}
-
-			if currentPath != desiredPath {
-				if currentExists && !desiredExists {
-					infraPlan = append(infraPlan, fmt.Sprintf("MOVE grove %s: %s → %s", grove.ID, currentPath, desiredPath))
-				} else if !currentExists && !desiredExists {
-					infraPlan = append(infraPlan, fmt.Sprintf("MISSING grove %s: %s (needs materialization)", grove.ID, desiredPath))
-				} else if desiredExists {
-					infraPlan = append(infraPlan, fmt.Sprintf("%s grove %s: %s", colorExists("EXISTS"), grove.ID, desiredPath))
-					infraPlan = append(infraPlan, fmt.Sprintf("UPDATE DB path for %s: %s → %s", grove.ID, currentPath, desiredPath))
-				}
-			} else {
-				if currentExists {
-					infraPlan = append(infraPlan, fmt.Sprintf("%s grove %s: %s", colorExists("EXISTS"), grove.ID, desiredPath))
-				} else {
-					infraPlan = append(infraPlan, fmt.Sprintf("MISSING grove %s: %s (needs materialization)", grove.ID, desiredPath))
-				}
-			}
-
-			// Check grove config
-			groveConfigPath := filepath.Join(desiredPath, ".orc", "config.json")
-			if _, err := os.Stat(groveConfigPath); os.IsNotExist(err) {
-				infraPlan = append(infraPlan, fmt.Sprintf("%s grove config: %s", colorCreate("CREATE"), groveConfigPath))
-				// Show what will be created
-				reposJSON := "[]"
-				if len(grove.Repos) > 0 {
-					reposBytes, _ := json.Marshal(grove.Repos)
-					reposJSON = string(reposBytes)
-				}
-				expectedConfig := fmt.Sprintf(`{
-  "version": "1.0",
-  "type": "grove",
-  "grove": {
-    "grove_id": "%s",
-    "mission_id": "%s",
-    "name": "%s",
-    "repos": %s,
-    "created_at": "<timestamp>"
-  }
-}`, grove.ID, grove.MissionID, grove.Name, reposJSON)
-				for _, line := range formatConfigContent(expectedConfig) {
-					infraPlan = append(infraPlan, line)
-				}
-			} else {
-				infraPlan = append(infraPlan, fmt.Sprintf("%s grove config: %s", colorExists("EXISTS"), groveConfigPath))
-				// Show current contents
-				if contents, err := readJSONConfig(groveConfigPath); err == nil {
-					for _, line := range formatConfigContent(contents) {
-						infraPlan = append(infraPlan, line)
-					}
-				}
-			}
-		}
-
-		// Check for old .orc-mission files to clean up
-		oldMissionFile := filepath.Join(workspacePath, ".orc-mission")
-		if _, err := os.Stat(oldMissionFile); err == nil {
-			infraPlan = append(infraPlan, fmt.Sprintf("%s old .orc-mission: %s", colorDelete("DELETE"), oldMissionFile))
-		}
-
-		// Section 3: TMux Plan
 		if createTmux {
 			sessionName := fmt.Sprintf("orc-%s", missionID)
-			if tmux.SessionExists(sessionName) {
-				tmuxPlan = append(tmuxPlan, fmt.Sprintf("%s session: %s", colorExists("EXISTS"), sessionName))
-				// Check each grove window
-				for i, grove := range groves {
-					grovePath := filepath.Join(grovesDir, grove.Name)
-					if _, err := os.Stat(grovePath); err == nil {
-						if tmux.WindowExists(sessionName, grove.Name) {
-							paneCount := tmux.GetPaneCount(sessionName, grove.Name)
-							pane2Cmd := tmux.GetPaneCommand(sessionName, grove.Name, 2)
-
-							if paneCount == 3 && pane2Cmd == "orc" {
-								tmuxPlan = append(tmuxPlan, fmt.Sprintf("%s window %d (%s): 3 panes, IMP running - Grove %s", colorExists("EXISTS"), i+1, grove.Name, grove.ID))
-							} else if paneCount == 3 {
-								tmuxPlan = append(tmuxPlan, fmt.Sprintf("%s window %d (%s): respawn pane 2 with orc connect - Grove %s", colorCreate("UPDATE"), i+1, grove.Name, grove.ID))
-							} else {
-								tmuxPlan = append(tmuxPlan, fmt.Sprintf("%s window %d (%s): recreate with 3 panes - Grove %s", colorCreate("UPDATE"), i+1, grove.Name, grove.ID))
-							}
-						} else {
-							tmuxPlan = append(tmuxPlan, fmt.Sprintf("%s window %d (%s): 3 panes in %s - Grove %s IMP", colorCreate("CREATE"), i+1, grove.Name, grovePath, grove.ID))
-						}
-					}
-				}
-			} else {
-				tmuxPlan = append(tmuxPlan, fmt.Sprintf("%s session: %s", colorCreate("CREATE"), sessionName))
-				for i, grove := range groves {
-					grovePath := filepath.Join(grovesDir, grove.Name)
-					if _, err := os.Stat(grovePath); err == nil {
-						tmuxPlan = append(tmuxPlan, fmt.Sprintf("%s window %d (%s): 3 panes in %s - Grove %s IMP", colorCreate("CREATE"), i+1, grove.Name, grovePath, grove.ID))
-					}
-				}
-			}
+			tmuxPlan := orchSvc.PlanTmuxSession(state, workspacePath, sessionName, tmux.SessionExists(sessionName), &tmuxChecker{})
+			displayTmuxPlan(tmuxPlan)
 		}
 
-		// Phase 3: Show plan (combine all sections)
-		fmt.Print("📋 Plan:\n\n")
-
-		// Section 1: Database State
-		fmt.Println(color.New(color.Bold).Sprint("Database State:"))
-		for _, line := range dbState {
-			fmt.Printf("  %s\n", line)
-		}
-		fmt.Println()
-
-		// Section 2: Infrastructure
-		fmt.Println(color.New(color.Bold).Sprint("Infrastructure:"))
-		for _, line := range infraPlan {
-			fmt.Printf("  %s\n", line)
-		}
-		fmt.Println()
-
-		// Section 3: TMux (if requested)
-		if createTmux && len(tmuxPlan) > 0 {
-			fmt.Println(color.New(color.Bold).Sprint("TMux Session:"))
-			for _, line := range tmuxPlan {
-				fmt.Printf("  %s\n", line)
-			}
-			fmt.Println()
-		}
-
-		// Phase 4: Ask for confirmation
+		// Phase 4: Confirm
 		fmt.Print("Apply changes? [y/N]: ")
 		var response string
 		fmt.Scanln(&response)
@@ -562,213 +366,19 @@ Examples:
 			return nil
 		}
 
-		// Phase 5: Apply changes
+		// Phase 5: Apply infrastructure
 		fmt.Print("\n🚀 Applying changes...\n\n")
+		result := orchSvc.ApplyInfrastructure(ctx, infraPlan)
+		displayInfrastructureResult(result, missionID)
 
-		// Create mission workspace (just a container directory)
-		if err := os.MkdirAll(workspacePath, 0755); err != nil {
-			return fmt.Errorf("failed to create mission workspace: %w", err)
-		}
-		fmt.Printf("✓ Mission workspace ready\n")
-
-		// Create groves directory
-		// Note: No mission-level config needed - missions are just containers
-		// Only groves get .orc/config.json to mark IMP territory
-		if err := os.MkdirAll(grovesDir, 0755); err != nil {
-			return fmt.Errorf("failed to create groves directory: %w", err)
-		}
-		fmt.Printf("✓ Groves directory ready\n")
-
-		// Process each grove
-		for _, grove := range groves {
-			desiredPath := filepath.Join(grovesDir, grove.Name)
-			currentPath := grove.Path
-
-			// Move grove if it exists elsewhere
-			if currentPath != desiredPath {
-				if _, err := os.Stat(currentPath); err == nil {
-					// Grove exists at old location - move it
-					if err := os.Rename(currentPath, desiredPath); err != nil {
-						fmt.Printf("  ⚠️  Could not move grove %s: %v\n", grove.ID, err)
-						fmt.Printf("      Manual move required: %s → %s\n", currentPath, desiredPath)
-					} else {
-						fmt.Printf("✓ Moved grove %s\n", grove.ID)
-					}
-				}
-			}
-
-			// Create grove directory if it doesn't exist
-			if _, err := os.Stat(desiredPath); os.IsNotExist(err) {
-				fmt.Printf("  ℹ️  Grove %s worktree missing: %s\n", grove.ID, desiredPath)
-				fmt.Printf("      Materialize with: orc grove create %s --repos <repo> --mission %s\n", grove.Name, missionID)
-			}
-
-			// Create .orc directory in grove
-			groveOrcDir := filepath.Join(desiredPath, ".orc")
-			os.MkdirAll(groveOrcDir, 0755)
-
-			// Write grove config if grove directory exists
-			if _, err := os.Stat(desiredPath); err == nil {
-				if err := writeGroveConfig(desiredPath, grove); err != nil {
-					fmt.Printf("  ⚠️  Could not write config for grove %s: %v\n", grove.ID, err)
-				} else {
-					fmt.Printf("✓ Grove %s config written\n", grove.ID)
-				}
-
-				// Write Claude settings to override enterprise plugins
-				if err := writeClaudeSettings(desiredPath); err != nil {
-					fmt.Printf("  ⚠️  Could not write Claude settings for grove %s: %v\n", grove.ID, err)
-				} else {
-					fmt.Printf("✓ Grove %s Claude settings written\n", grove.ID)
-				}
-			}
-
-			// Update DB path if changed
-			if currentPath != desiredPath {
-				if err := wire.GroveService().UpdateGrovePath(context.Background(), grove.ID, desiredPath); err != nil {
-					return fmt.Errorf("failed to update grove path in DB: %w", err)
-				}
-				fmt.Printf("✓ Updated DB path for grove %s\n", grove.ID)
-			}
-		}
-
-		// Clean up old .orc-mission file
-		oldMissionFile = filepath.Join(workspacePath, ".orc-mission")
-		if _, err := os.Stat(oldMissionFile); err == nil {
-			if err := os.Remove(oldMissionFile); err != nil {
-				fmt.Printf("  ⚠️  Could not remove old .orc-mission: %v\n", err)
-			} else {
-				fmt.Printf("✓ Removed old .orc-mission file\n")
-			}
-		}
-
-		fmt.Println()
-		fmt.Printf("✅ Mission infrastructure ready at: %s\n", workspacePath)
-
-		// Create TMux session if requested
+		// Phase 6: Apply TMux if requested
 		if createTmux {
-			fmt.Println()
-			fmt.Println("🖥️  Creating TMux session...")
-
 			sessionName := fmt.Sprintf("orc-%s", missionID)
-
-			// Check if session already exists
-			if tmux.SessionExists(sessionName) {
-				fmt.Printf("  ℹ️  Session %s already exists - checking windows\n", sessionName)
-
-				// Update each grove window to ensure proper pane configuration
-				for i, grove := range groves {
-					windowIndex := i + 1
-					grovePath := filepath.Join(grovesDir, grove.Name)
-
-					if _, err := os.Stat(grovePath); err == nil {
-						if tmux.WindowExists(sessionName, grove.Name) {
-							paneCount := tmux.GetPaneCount(sessionName, grove.Name)
-							pane2Cmd := tmux.GetPaneCommand(sessionName, grove.Name, 2)
-
-							if paneCount == 3 && pane2Cmd == "orc" {
-								fmt.Printf("  ✓ Window %d (%s): IMP already running [%s]\n", windowIndex, grove.Name, grove.ID)
-							} else if paneCount == 3 {
-								// Respawn pane 2 with orc connect
-								target := fmt.Sprintf("%s:%s.2", sessionName, grove.Name)
-								connectCmd := exec.Command("tmux", "respawn-pane", "-t", target, "-k", "orc", "connect")
-								if err := connectCmd.Run(); err != nil {
-									fmt.Printf("  ⚠️  Could not respawn pane in window %s: %v\n", grove.Name, err)
-								} else {
-									fmt.Printf("  ✓ Window %d (%s): IMP rebooted [%s]\n", windowIndex, grove.Name, grove.ID)
-								}
-							} else {
-								fmt.Printf("  ⚠️  Window %d (%s): has %d panes (expected 3) - manual fix needed\n", windowIndex, grove.Name, paneCount)
-							}
-						} else {
-							// Window doesn't exist, create it
-							// Note: can't easily add windows to existing session, would need session object
-							fmt.Printf("  ⚠️  Window %d (%s): missing - attach to session and create manually\n", windowIndex, grove.Name)
-						}
-					}
-				}
-
-				fmt.Println()
-				fmt.Printf("✓ Session updated: %s\n", sessionName)
-				fmt.Printf("  Attach with: tmux attach -t %s\n", sessionName)
-			} else {
-				// Determine starting directory: use first grove's path if available
-				startDir := workspacePath
-				if len(groves) > 0 {
-					firstGrovePath := filepath.Join(grovesDir, groves[0].Name)
-					if _, err := os.Stat(firstGrovePath); err == nil {
-						startDir = firstGrovePath
-					}
-				}
-
-				// Create session (first window starts in first grove's directory)
-				session, err := tmux.NewSession(sessionName, startDir)
-				if err != nil {
-					return fmt.Errorf("failed to create TMux session: %w", err)
-				}
-
-				// Create window for each grove (starting at window 1)
-				for i, grove := range groves {
-					windowIndex := i + 1 // Windows start at 1, groves start at 1
-					grovePath := filepath.Join(grovesDir, grove.Name)
-
-					// Check if grove path exists
-					if _, err := os.Stat(grovePath); err == nil {
-						if i == 0 {
-							// First grove: rename the default first window and create 3-pane layout
-							target := fmt.Sprintf("%s:1", sessionName)
-							if err := exec.Command("tmux", "rename-window", "-t", target, grove.Name).Run(); err != nil {
-								return fmt.Errorf("failed to rename first window: %w", err)
-							}
-							// Create the 3-pane layout (all panes already in grovePath from session creation)
-							target = fmt.Sprintf("%s:%s", sessionName, grove.Name)
-							if err := session.SplitVertical(target, grovePath); err != nil {
-								return fmt.Errorf("failed to split vertical: %w", err)
-							}
-							rightPane := fmt.Sprintf("%s.2", target)
-							if err := session.SplitHorizontal(rightPane, grovePath); err != nil {
-								return fmt.Errorf("failed to split horizontal: %w", err)
-							}
-							// Launch orc connect in top-right pane
-							topRightPane := fmt.Sprintf("%s.2", target)
-							connectCmd := exec.Command("tmux", "respawn-pane", "-t", topRightPane, "-k", "orc", "connect")
-							if err := connectCmd.Run(); err != nil {
-								return fmt.Errorf("failed to launch orc connect: %w", err)
-							}
-							fmt.Printf("✓ Window %d: %s (IMP auto-booting) [%s]\n", windowIndex, grove.Name, grove.ID)
-						} else {
-							// Other groves: create new window
-							if _, err := session.CreateGroveWindowShell(windowIndex, grove.Name, grovePath); err != nil {
-								fmt.Printf("  ⚠️  Could not create window for grove %s: %v\n", grove.ID, err)
-								continue
-							}
-							fmt.Printf("✓ Window %d: %s (IMP auto-booting) [%s]\n", windowIndex, grove.Name, grove.ID)
-						}
-					} else {
-						fmt.Printf("  ℹ️  Grove %s worktree missing, skipping window\n", grove.ID)
-					}
-				}
-
-				// Select first grove window
-				if len(groves) > 0 {
-					session.SelectWindow(1)
-				}
-
-				fmt.Println()
-				fmt.Printf("✓ TMux session created: %s\n", sessionName)
-				fmt.Printf("  Attach with: tmux attach -t %s\n", sessionName)
-				fmt.Println()
-				fmt.Println("Window Layout:")
-				for i, grove := range groves {
-					if _, err := os.Stat(filepath.Join(grovesDir, grove.Name)); err == nil {
-						fmt.Printf("  Window %d (%s): Grove %s IMP - 3 panes (empty shells)\n", i+1, grove.Name, grove.ID)
-					}
-				}
-				fmt.Println()
-				fmt.Println("Each window has layout: Left: (vim) | Right Top: (claude) | Right Bottom: (shell)")
-			}
+			grovesDir := filepath.Join(workspacePath, "groves")
+			applyTmuxSession(sessionName, state.Groves, grovesDir, workspacePath)
 		}
 
+		// Next steps
 		fmt.Println()
 		fmt.Println("Next steps:")
 		fmt.Printf("  cd %s\n", workspacePath)
@@ -781,56 +391,235 @@ Examples:
 	},
 }
 
-// writeGroveConfig writes .orc/config.json for a grove
-func writeGroveConfig(grovePath string, grove *primary.Grove) error {
-	cfg := &config.Config{
-		Version: "1.0",
-		Type:    config.TypeGrove,
-		Grove: &config.GroveConfig{
-			GroveID:   grove.ID,
-			MissionID: grove.MissionID,
-			Name:      grove.Name,
-			Repos:     grove.Repos,
-			CreatedAt: grove.CreatedAt,
-		},
-	}
+// tmuxChecker implements app.TmuxWindowChecker for the tmux package
+type tmuxChecker struct{}
 
-	return config.SaveConfig(grovePath, cfg)
+func (t *tmuxChecker) WindowExists(session, window string) bool {
+	return tmux.WindowExists(session, window)
 }
 
-// writeClaudeSettings creates a .claude/settings.local.json file in the grove directory
-// to override project and global Claude Code settings without modifying checked-in files
-func writeClaudeSettings(grovePath string) error {
-	claudeDir := filepath.Join(grovePath, ".claude")
-	if err := os.MkdirAll(claudeDir, 0755); err != nil {
-		return fmt.Errorf("failed to create .claude directory: %w", err)
+func (t *tmuxChecker) GetPaneCount(session, window string) int {
+	return tmux.GetPaneCount(session, window)
+}
+
+func (t *tmuxChecker) GetPaneCommand(session, window string, pane int) string {
+	return tmux.GetPaneCommand(session, window, pane)
+}
+
+// displayMissionState shows the database state section of the plan
+func displayMissionState(state *app.MissionState, workspacePath string) {
+	fmt.Print("📋 Plan:\n\n")
+	fmt.Println(color.New(color.Bold).Sprint("Database State:"))
+	fmt.Printf("  Mission: %s - %s\n", colorDim(state.Mission.ID), state.Mission.Title)
+	fmt.Printf("    Workspace: %s\n", workspacePath)
+	fmt.Printf("    Created: %s\n", state.Mission.CreatedAt)
+	fmt.Println()
+	fmt.Printf("  Groves in DB: %d\n", len(state.Groves))
+	for _, grove := range state.Groves {
+		fmt.Printf("    %s - %s\n", colorDim(grove.ID), grove.Name)
+		fmt.Printf("      Path: %s\n", grove.Path)
+		if len(grove.Repos) > 0 {
+			fmt.Printf("      Repos: %v\n", grove.Repos)
+		}
+		fmt.Printf("      Status: %s\n", grove.Status)
+	}
+	fmt.Println()
+}
+
+// displayInfrastructurePlan shows the infrastructure plan section
+func displayInfrastructurePlan(plan *app.InfrastructurePlan) {
+	fmt.Println(color.New(color.Bold).Sprint("Infrastructure:"))
+
+	if plan.CreateWorkspace {
+		fmt.Printf("  %s mission workspace: %s\n", colorCreate("CREATE"), plan.WorkspacePath)
+	} else {
+		fmt.Printf("  %s mission workspace: %s\n", colorExists("EXISTS"), plan.WorkspacePath)
 	}
 
-	// Use settings.local.json (not settings.json) to avoid modifying git-tracked files
-	// settings.local.json has higher precedence and is automatically git-ignored by Claude Code
-	// This ensures IMPs boot in normal mode without dirtying the repository
-	settings := map[string]interface{}{
-		"permissions": map[string]interface{}{
-			"defaultMode": "default", // Override any global or project plan mode setting
-		},
-		"enabledPlugins": map[string]bool{
-			"developer-tools@intercom-plugins": false, // Disable if it forces plan mode
-		},
-		"hooks": map[string]interface{}{}, // Clear any forced hooks
+	if plan.CreateGrovesDir {
+		fmt.Printf("  %s groves directory: %s\n", colorCreate("CREATE"), plan.GrovesDir)
+	} else {
+		fmt.Printf("  %s groves directory: %s\n", colorExists("EXISTS"), plan.GrovesDir)
 	}
 
-	data, err := json.MarshalIndent(settings, "", "  ")
-	if err != nil {
-		return fmt.Errorf("failed to marshal settings: %w", err)
+	for _, action := range plan.GroveActions {
+		switch action.Action {
+		case "exists":
+			fmt.Printf("  %s grove %s: %s\n", colorExists("EXISTS"), action.GroveID, action.DesiredPath)
+		case "move":
+			fmt.Printf("  MOVE grove %s: %s → %s\n", action.GroveID, action.CurrentPath, action.DesiredPath)
+		case "missing":
+			fmt.Printf("  MISSING grove %s: %s (needs materialization)\n", action.GroveID, action.DesiredPath)
+		}
+		if action.UpdateDBPath && action.Action != "move" {
+			fmt.Printf("  UPDATE DB path for %s: %s → %s\n", action.GroveID, action.CurrentPath, action.DesiredPath)
+		}
 	}
 
-	// Write to settings.local.json (not settings.json)
-	settingsPath := filepath.Join(claudeDir, "settings.local.json")
-	if err := os.WriteFile(settingsPath, data, 0644); err != nil {
-		return fmt.Errorf("failed to write settings.local.json: %w", err)
+	for _, configWrite := range plan.ConfigWrites {
+		fmt.Printf("  %s %s config: %s\n", colorCreate("CREATE"), configWrite.Type, configWrite.Path)
 	}
 
-	return nil
+	for _, cleanup := range plan.Cleanups {
+		fmt.Printf("  %s %s: %s\n", colorDelete("DELETE"), cleanup.Reason, cleanup.Path)
+	}
+	fmt.Println()
+}
+
+// displayTmuxPlan shows the TMux plan section
+func displayTmuxPlan(plan *app.TmuxSessionPlan) {
+	fmt.Println(color.New(color.Bold).Sprint("TMux Session:"))
+	if plan.SessionExists {
+		fmt.Printf("  %s session: %s\n", colorExists("EXISTS"), plan.SessionName)
+	} else {
+		fmt.Printf("  %s session: %s\n", colorCreate("CREATE"), plan.SessionName)
+	}
+
+	for _, wp := range plan.WindowPlans {
+		switch wp.Action {
+		case "exists":
+			fmt.Printf("  %s window %d (%s): 3 panes, IMP running - Grove %s\n", colorExists("EXISTS"), wp.Index, wp.Name, wp.GroveID)
+		case "create":
+			fmt.Printf("  %s window %d (%s): 3 panes in %s - Grove %s IMP\n", colorCreate("CREATE"), wp.Index, wp.Name, wp.GrovePath, wp.GroveID)
+		case "update":
+			fmt.Printf("  %s window %d (%s): needs update - Grove %s\n", colorUpdate("UPDATE"), wp.Index, wp.Name, wp.GroveID)
+		case "skip":
+			fmt.Printf("  SKIP window %d (%s): grove path missing\n", wp.Index, wp.Name)
+		}
+	}
+	fmt.Println()
+}
+
+// displayInfrastructureResult shows the results of applying infrastructure changes
+func displayInfrastructureResult(result *app.InfrastructureApplyResult, missionID string) {
+	if result.WorkspaceCreated {
+		fmt.Println("✓ Mission workspace created")
+	} else {
+		fmt.Println("✓ Mission workspace ready")
+	}
+
+	if result.GrovesDirCreated {
+		fmt.Println("✓ Groves directory created")
+	} else {
+		fmt.Println("✓ Groves directory ready")
+	}
+
+	if result.GrovesProcessed > 0 {
+		fmt.Printf("✓ Processed %d groves\n", result.GrovesProcessed)
+	}
+
+	if result.ConfigsWritten > 0 {
+		fmt.Printf("✓ Wrote %d config files\n", result.ConfigsWritten)
+	}
+
+	if result.CleanupsDone > 0 {
+		fmt.Printf("✓ Cleaned up %d old files\n", result.CleanupsDone)
+	}
+
+	for _, grove := range result.GrovesNeedingWork {
+		fmt.Printf("  ℹ️  Grove %s worktree missing: %s\n", grove.GroveID, grove.DesiredPath)
+		fmt.Printf("      Materialize with: orc grove create %s --repos <repo> --mission %s\n", grove.GroveName, missionID)
+	}
+
+	for _, err := range result.Errors {
+		fmt.Printf("  ⚠️  %s\n", err)
+	}
+
+	fmt.Println()
+	fmt.Println("✅ Mission infrastructure ready")
+}
+
+// applyTmuxSession creates or updates the TMux session for a mission
+func applyTmuxSession(sessionName string, groves []*primary.Grove, grovesDir, workspacePath string) {
+	fmt.Println()
+	fmt.Println("🖥️  Creating TMux session...")
+
+	if tmux.SessionExists(sessionName) {
+		fmt.Printf("  ℹ️  Session %s already exists - checking windows\n", sessionName)
+
+		for i, grove := range groves {
+			windowIndex := i + 1
+			grovePath := filepath.Join(grovesDir, grove.Name)
+
+			if _, err := os.Stat(grovePath); err == nil {
+				if tmux.WindowExists(sessionName, grove.Name) {
+					paneCount := tmux.GetPaneCount(sessionName, grove.Name)
+					pane2Cmd := tmux.GetPaneCommand(sessionName, grove.Name, 2)
+
+					if paneCount == 3 && pane2Cmd == "orc" {
+						fmt.Printf("  ✓ Window %d (%s): IMP already running [%s]\n", windowIndex, grove.Name, grove.ID)
+					} else if paneCount == 3 {
+						target := fmt.Sprintf("%s:%s.2", sessionName, grove.Name)
+						connectCmd := exec.Command("tmux", "respawn-pane", "-t", target, "-k", "orc", "connect")
+						if err := connectCmd.Run(); err != nil {
+							fmt.Printf("  ⚠️  Could not respawn pane in window %s: %v\n", grove.Name, err)
+						} else {
+							fmt.Printf("  ✓ Window %d (%s): IMP rebooted [%s]\n", windowIndex, grove.Name, grove.ID)
+						}
+					} else {
+						fmt.Printf("  ⚠️  Window %d (%s): has %d panes (expected 3) - manual fix needed\n", windowIndex, grove.Name, paneCount)
+					}
+				} else {
+					fmt.Printf("  ⚠️  Window %d (%s): missing - attach to session and create manually\n", windowIndex, grove.Name)
+				}
+			}
+		}
+
+		fmt.Println()
+		fmt.Printf("✓ Session updated: %s\n", sessionName)
+		fmt.Printf("  Attach with: tmux attach -t %s\n", sessionName)
+	} else {
+		startDir := workspacePath
+		if len(groves) > 0 {
+			firstGrovePath := filepath.Join(grovesDir, groves[0].Name)
+			if _, err := os.Stat(firstGrovePath); err == nil {
+				startDir = firstGrovePath
+			}
+		}
+
+		session, err := tmux.NewSession(sessionName, startDir)
+		if err != nil {
+			fmt.Printf("  ⚠️  Failed to create TMux session: %v\n", err)
+			return
+		}
+
+		for i, grove := range groves {
+			windowIndex := i + 1
+			grovePath := filepath.Join(grovesDir, grove.Name)
+
+			if _, err := os.Stat(grovePath); err == nil {
+				if i == 0 {
+					target := fmt.Sprintf("%s:1", sessionName)
+					exec.Command("tmux", "rename-window", "-t", target, grove.Name).Run()
+					target = fmt.Sprintf("%s:%s", sessionName, grove.Name)
+					session.SplitVertical(target, grovePath)
+					rightPane := fmt.Sprintf("%s.2", target)
+					session.SplitHorizontal(rightPane, grovePath)
+					topRightPane := fmt.Sprintf("%s.2", target)
+					exec.Command("tmux", "respawn-pane", "-t", topRightPane, "-k", "orc", "connect").Run()
+					fmt.Printf("✓ Window %d: %s (IMP auto-booting) [%s]\n", windowIndex, grove.Name, grove.ID)
+				} else {
+					if _, err := session.CreateGroveWindowShell(windowIndex, grove.Name, grovePath); err != nil {
+						fmt.Printf("  ⚠️  Could not create window for grove %s: %v\n", grove.ID, err)
+						continue
+					}
+					fmt.Printf("✓ Window %d: %s (IMP auto-booting) [%s]\n", windowIndex, grove.Name, grove.ID)
+				}
+			} else {
+				fmt.Printf("  ℹ️  Grove %s worktree missing, skipping window\n", grove.ID)
+			}
+		}
+
+		if len(groves) > 0 {
+			session.SelectWindow(1)
+		}
+
+		fmt.Println()
+		fmt.Printf("✓ TMux session created: %s\n", sessionName)
+		fmt.Printf("  Attach with: tmux attach -t %s\n", sessionName)
+		fmt.Println()
+		fmt.Println("Window Layout: Left: (vim) | Right Top: (claude) | Right Bottom: (shell)")
+	}
 }
 
 var missionPinCmd = &cobra.Command{

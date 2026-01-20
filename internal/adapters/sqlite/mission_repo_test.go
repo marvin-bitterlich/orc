@@ -8,6 +8,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 
 	"github.com/example/orc/internal/adapters/sqlite"
+	coremission "github.com/example/orc/internal/core/mission"
 	"github.com/example/orc/internal/ports/secondary"
 )
 
@@ -56,14 +57,43 @@ func setupTestDB(t *testing.T) *sql.DB {
 	return db
 }
 
+// createTestMission is a helper that simulates service-layer behavior:
+// gets next ID, sets initial status, then creates.
+func createTestMission(t *testing.T, repo *sqlite.MissionRepository, ctx context.Context, title, description string) *secondary.MissionRecord {
+	t.Helper()
+
+	// Service would call GetNextID first
+	nextID, err := repo.GetNextID(ctx)
+	if err != nil {
+		t.Fatalf("GetNextID failed: %v", err)
+	}
+
+	mission := &secondary.MissionRecord{
+		ID:          nextID,
+		Title:       title,
+		Description: description,
+		Status:      string(coremission.InitialStatus()),
+	}
+
+	err = repo.Create(ctx, mission)
+	if err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+
+	return mission
+}
+
 func TestMissionRepository_Create(t *testing.T) {
 	db := setupTestDB(t)
 	repo := sqlite.NewMissionRepository(db)
 	ctx := context.Background()
 
+	// Pre-populate ID and Status as service layer would
 	mission := &secondary.MissionRecord{
+		ID:          "MISSION-001",
 		Title:       "Test Mission",
 		Description: "A test mission description",
+		Status:      "active",
 	}
 
 	err := repo.Create(ctx, mission)
@@ -71,12 +101,47 @@ func TestMissionRepository_Create(t *testing.T) {
 		t.Fatalf("Create failed: %v", err)
 	}
 
-	if mission.ID == "" {
-		t.Error("expected mission ID to be set")
+	// Verify mission was created
+	retrieved, err := repo.GetByID(ctx, "MISSION-001")
+	if err != nil {
+		t.Fatalf("GetByID failed: %v", err)
+	}
+	if retrieved.Title != "Test Mission" {
+		t.Errorf("expected title 'Test Mission', got '%s'", retrieved.Title)
+	}
+}
+
+func TestMissionRepository_Create_RequiresID(t *testing.T) {
+	db := setupTestDB(t)
+	repo := sqlite.NewMissionRepository(db)
+	ctx := context.Background()
+
+	// Missing ID should fail
+	mission := &secondary.MissionRecord{
+		Title:  "Test Mission",
+		Status: "active",
 	}
 
-	if mission.ID != "MISSION-001" {
-		t.Errorf("expected ID MISSION-001, got %s", mission.ID)
+	err := repo.Create(ctx, mission)
+	if err == nil {
+		t.Error("expected error for missing ID")
+	}
+}
+
+func TestMissionRepository_Create_RequiresStatus(t *testing.T) {
+	db := setupTestDB(t)
+	repo := sqlite.NewMissionRepository(db)
+	ctx := context.Background()
+
+	// Missing Status should fail
+	mission := &secondary.MissionRecord{
+		ID:    "MISSION-001",
+		Title: "Test Mission",
+	}
+
+	err := repo.Create(ctx, mission)
+	if err == nil {
+		t.Error("expected error for missing Status")
 	}
 }
 
@@ -85,12 +150,8 @@ func TestMissionRepository_GetByID(t *testing.T) {
 	repo := sqlite.NewMissionRepository(db)
 	ctx := context.Background()
 
-	// Create a mission first
-	mission := &secondary.MissionRecord{
-		Title:       "Test Mission",
-		Description: "Description",
-	}
-	_ = repo.Create(ctx, mission)
+	// Create a mission using helper
+	mission := createTestMission(t, repo, ctx, "Test Mission", "Description")
 
 	// Retrieve it
 	retrieved, err := repo.GetByID(ctx, mission.ID)
@@ -127,10 +188,10 @@ func TestMissionRepository_List(t *testing.T) {
 	repo := sqlite.NewMissionRepository(db)
 	ctx := context.Background()
 
-	// Create multiple missions
-	_ = repo.Create(ctx, &secondary.MissionRecord{Title: "Mission 1"})
-	_ = repo.Create(ctx, &secondary.MissionRecord{Title: "Mission 2"})
-	_ = repo.Create(ctx, &secondary.MissionRecord{Title: "Mission 3"})
+	// Create multiple missions using helper
+	createTestMission(t, repo, ctx, "Mission 1", "")
+	createTestMission(t, repo, ctx, "Mission 2", "")
+	createTestMission(t, repo, ctx, "Mission 3", "")
 
 	missions, err := repo.List(ctx, secondary.MissionFilters{})
 	if err != nil {
@@ -147,12 +208,11 @@ func TestMissionRepository_List_FilterByStatus(t *testing.T) {
 	repo := sqlite.NewMissionRepository(db)
 	ctx := context.Background()
 
-	// Create missions with different statuses
-	m1 := &secondary.MissionRecord{Title: "Active Mission"}
-	_ = repo.Create(ctx, m1)
+	// Create active mission
+	createTestMission(t, repo, ctx, "Active Mission", "")
 
-	m2 := &secondary.MissionRecord{Title: "Complete Mission"}
-	_ = repo.Create(ctx, m2)
+	// Create and complete a mission
+	m2 := createTestMission(t, repo, ctx, "Complete Mission", "")
 	_ = repo.Update(ctx, &secondary.MissionRecord{ID: m2.ID, Status: "complete"})
 
 	// List only active
@@ -172,8 +232,7 @@ func TestMissionRepository_Update(t *testing.T) {
 	ctx := context.Background()
 
 	// Create a mission
-	mission := &secondary.MissionRecord{Title: "Original Title"}
-	_ = repo.Create(ctx, mission)
+	mission := createTestMission(t, repo, ctx, "Original Title", "")
 
 	// Update it
 	err := repo.Update(ctx, &secondary.MissionRecord{
@@ -191,14 +250,41 @@ func TestMissionRepository_Update(t *testing.T) {
 	}
 }
 
+func TestMissionRepository_Update_CompletedAt(t *testing.T) {
+	db := setupTestDB(t)
+	repo := sqlite.NewMissionRepository(db)
+	ctx := context.Background()
+
+	// Create a mission
+	mission := createTestMission(t, repo, ctx, "Test", "")
+
+	// Update with CompletedAt (service layer would set this)
+	err := repo.Update(ctx, &secondary.MissionRecord{
+		ID:          mission.ID,
+		Status:      "complete",
+		CompletedAt: "2026-01-20T12:00:00Z",
+	})
+	if err != nil {
+		t.Fatalf("Update failed: %v", err)
+	}
+
+	// Verify CompletedAt was set
+	retrieved, _ := repo.GetByID(ctx, mission.ID)
+	if retrieved.CompletedAt == "" {
+		t.Error("expected CompletedAt to be set")
+	}
+	if retrieved.Status != "complete" {
+		t.Errorf("expected status 'complete', got '%s'", retrieved.Status)
+	}
+}
+
 func TestMissionRepository_Delete(t *testing.T) {
 	db := setupTestDB(t)
 	repo := sqlite.NewMissionRepository(db)
 	ctx := context.Background()
 
 	// Create a mission
-	mission := &secondary.MissionRecord{Title: "To Delete"}
-	_ = repo.Create(ctx, mission)
+	mission := createTestMission(t, repo, ctx, "To Delete", "")
 
 	// Delete it
 	err := repo.Delete(ctx, mission.ID)
@@ -219,8 +305,7 @@ func TestMissionRepository_Pin_Unpin(t *testing.T) {
 	ctx := context.Background()
 
 	// Create a mission
-	mission := &secondary.MissionRecord{Title: "Pin Test"}
-	_ = repo.Create(ctx, mission)
+	mission := createTestMission(t, repo, ctx, "Pin Test", "")
 
 	// Pin it
 	err := repo.Pin(ctx, mission.ID)
@@ -261,8 +346,8 @@ func TestMissionRepository_GetNextID(t *testing.T) {
 		t.Errorf("expected MISSION-001, got %s", id)
 	}
 
-	// Create a mission
-	_ = repo.Create(ctx, &secondary.MissionRecord{Title: "Test"})
+	// Create a mission using that ID
+	createTestMission(t, repo, ctx, "Test", "")
 
 	// Next ID should be MISSION-002
 	id, err = repo.GetNextID(ctx)
@@ -280,8 +365,7 @@ func TestMissionRepository_CountShipments(t *testing.T) {
 	ctx := context.Background()
 
 	// Create a mission
-	mission := &secondary.MissionRecord{Title: "Test"}
-	_ = repo.Create(ctx, mission)
+	mission := createTestMission(t, repo, ctx, "Test", "")
 
 	// Count should be 0
 	count, err := repo.CountShipments(ctx, mission.ID)

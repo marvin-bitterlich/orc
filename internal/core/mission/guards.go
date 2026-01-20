@@ -125,3 +125,36 @@ func CanDeleteMission(ctx DeleteContext) GuardResult {
 	}
 	return GuardResult{Allowed: true}
 }
+
+// PinContext provides context for mission pin/unpin guards.
+type PinContext struct {
+	MissionID     string
+	MissionExists bool
+	IsPinned      bool
+}
+
+// CanPinMission evaluates whether a mission can be pinned.
+// Rule: Mission must exist to be pinned.
+func CanPinMission(ctx PinContext) GuardResult {
+	if !ctx.MissionExists {
+		return GuardResult{
+			Allowed: false,
+			Reason:  fmt.Sprintf("Mission %s not found", ctx.MissionID),
+		}
+	}
+	// If already pinned, this is a no-op (still allowed, just does nothing)
+	return GuardResult{Allowed: true}
+}
+
+// CanUnpinMission evaluates whether a mission can be unpinned.
+// Rule: Mission must exist to be unpinned.
+func CanUnpinMission(ctx PinContext) GuardResult {
+	if !ctx.MissionExists {
+		return GuardResult{
+			Allowed: false,
+			Reason:  fmt.Sprintf("Mission %s not found", ctx.MissionID),
+		}
+	}
+	// If already unpinned, this is a no-op (still allowed, just does nothing)
+	return GuardResult{Allowed: true}
+}
