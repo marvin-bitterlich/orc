@@ -1,0 +1,376 @@
+# Shipment Workflow Finite State Machine
+# Single source of truth for shipment lifecycle in ORC
+#
+# Generated: 2026-01-20
+# Context: CON-003 FSM-First Testing Strategy (Slice 2)
+
+name: shipment-workflow
+version: "1.0"
+description: |
+  Defines the complete lifecycle of a Shipment entity in ORC.
+  Shipments are work packages within a mission that contain related tasks.
+  Unlike groves (infrastructure), shipments are workflow entities with pause/resume semantics.
+
+# =============================================================================
+# STATES
+# =============================================================================
+states:
+  initial:
+    description: No shipment exists yet (pre-creation)
+    terminal: false
+
+  active:
+    description: Shipment is in progress, work can proceed on tasks
+    terminal: false
+    invariants:
+      - status == "active"
+      - created_at is set
+      - mission_id is set and references existing mission
+
+  paused:
+    description: Shipment is temporarily suspended, work halted
+    terminal: false
+    invariants:
+      - status == "paused"
+      - tasks should not be claimable while paused
+
+  complete:
+    description: Shipment work is finished, CompletedAt is set
+    terminal: true  # Soft terminal - delete still possible
+    invariants:
+      - status == "complete"
+      - completed_at is set
+      - pinned == false (cannot complete pinned shipments)
+
+  deleted:
+    description: Shipment removed from database (true terminal state)
+    terminal: true
+
+# =============================================================================
+# EVENTS
+# =============================================================================
+events:
+  create:
+    description: Create a new shipment within a mission
+    payload:
+      title: { type: string, required: true }
+      description: { type: string, required: false, default: "" }
+      mission_id: { type: string, required: true }
+
+  update:
+    description: Update shipment title and/or description
+    payload:
+      title: { type: string, required: false }
+      description: { type: string, required: false }
+
+  pause:
+    description: Temporarily suspend shipment work
+    payload: {}
+
+  resume:
+    description: Resume a paused shipment
+    payload: {}
+
+  complete:
+    description: Mark shipment as finished
+    payload: {}
+
+  pin:
+    description: Pin shipment to prevent completion
+    payload: {}
+
+  unpin:
+    description: Unpin shipment to allow completion
+    payload: {}
+
+  assign_grove:
+    description: Assign shipment to a grove for execution
+    payload:
+      grove_id: { type: string, required: true }
+
+  delete:
+    description: Hard-delete shipment from database
+    payload: {}
+
+# =============================================================================
+# TRANSITIONS
+# =============================================================================
+transitions:
+  # --- Creation ---
+  - name: create_shipment
+    from: initial
+    to: active
+    event: create
+    guards:
+      - mission_exists  # Mission must exist
+    effects:
+      - { type: WriteDB, operation: INSERT, table: shipments }
+    test_cases:
+      - "Create shipment with existing mission"
+      - "Create shipment for non-existent mission (error)"
+
+  # --- Updating (no state change) ---
+  - name: update_shipment
+    from: active
+    to: active
+    event: update
+    guards: []
+    effects:
+      - { type: WriteDB, operation: UPDATE, table: shipments, fields: [title, description, updated_at] }
+    test_cases:
+      - "Update shipment title"
+      - "Update shipment description"
+
+  # --- Pausing ---
+  - name: pause_shipment
+    from: active
+    to: paused
+    event: pause
+    guards:
+      - is_active  # Can only pause active shipments
+    effects:
+      - { type: WriteDB, operation: UPDATE, table: shipments, fields: [status, updated_at] }
+    test_cases:
+      - "Pause active shipment"
+      - "Pause paused shipment (error)"
+      - "Pause complete shipment (error)"
+
+  # --- Resuming ---
+  - name: resume_shipment
+    from: paused
+    to: active
+    event: resume
+    guards:
+      - is_paused  # Can only resume paused shipments
+    effects:
+      - { type: WriteDB, operation: UPDATE, table: shipments, fields: [status, updated_at] }
+    test_cases:
+      - "Resume paused shipment"
+      - "Resume active shipment (error)"
+      - "Resume complete shipment (error)"
+
+  # --- Completing ---
+  - name: complete_shipment
+    from: active
+    to: complete
+    event: complete
+    guards:
+      - not_pinned  # Cannot complete pinned shipments
+    effects:
+      - { type: WriteDB, operation: UPDATE, table: shipments, fields: [status, completed_at, updated_at] }
+    test_cases:
+      - "Complete unpinned shipment"
+      - "Complete pinned shipment (error)"
+
+  # --- Pin/Unpin (no state change) ---
+  - name: pin_shipment
+    from: active
+    to: active
+    event: pin
+    guards: []
+    effects:
+      - { type: WriteDB, operation: UPDATE, table: shipments, fields: [pinned, updated_at] }
+    test_cases:
+      - "Pin shipment"
+
+  - name: unpin_shipment
+    from: active
+    to: active
+    event: unpin
+    guards: []
+    effects:
+      - { type: WriteDB, operation: UPDATE, table: shipments, fields: [pinned, updated_at] }
+    test_cases:
+      - "Unpin shipment"
+
+  # --- Grove Assignment (no state change) ---
+  - name: assign_grove
+    from: active
+    to: active
+    event: assign_grove
+    guards:
+      - shipment_exists
+      - grove_not_assigned_elsewhere  # Grove exclusivity check
+    effects:
+      - { type: WriteDB, operation: UPDATE, table: shipments, fields: [assigned_grove_id, updated_at] }
+      - { type: CascadeGrove, target: tasks }  # Cascade to child tasks
+    test_cases:
+      - "Assign grove to shipment (unassigned grove)"
+      - "Assign grove already assigned to this shipment (OK)"
+      - "Assign grove assigned to another shipment (error)"
+      - "Assign grove to non-existent shipment (error)"
+
+  # --- Deletion ---
+  - name: delete_active_shipment
+    from: active
+    to: deleted
+    event: delete
+    guards: []
+    effects:
+      - { type: WriteDB, operation: DELETE, table: shipments }
+    test_cases:
+      - "Delete active shipment"
+
+  - name: delete_paused_shipment
+    from: paused
+    to: deleted
+    event: delete
+    guards: []
+    effects:
+      - { type: WriteDB, operation: DELETE, table: shipments }
+    test_cases:
+      - "Delete paused shipment"
+
+  - name: delete_complete_shipment
+    from: complete
+    to: deleted
+    event: delete
+    guards: []
+    effects:
+      - { type: WriteDB, operation: DELETE, table: shipments }
+    test_cases:
+      - "Delete complete shipment"
+
+# =============================================================================
+# GUARDS
+# =============================================================================
+guards:
+  mission_exists:
+    description: |
+      Check that the target mission exists.
+      Shipments must belong to an existing mission.
+    implementation: |
+      exists, err := repo.MissionExists(ctx, mission_id)
+      return err == nil && exists
+    error_message: "mission {mission_id} not found"
+
+  shipment_exists:
+    description: Shipment must exist in database
+    implementation: |
+      _, err := repo.GetByID(ctx, shipment_id)
+      return err == nil
+    error_message: "shipment {shipment_id} not found"
+
+  is_active:
+    description: |
+      Check that shipment status is "active".
+      Required for pause transition.
+    implementation: |
+      shipment, _ := repo.GetByID(ctx, shipment_id)
+      return shipment.Status == "active"
+    error_message: "can only pause active shipments (current status: {status})"
+
+  is_paused:
+    description: |
+      Check that shipment status is "paused".
+      Required for resume transition.
+    implementation: |
+      shipment, _ := repo.GetByID(ctx, shipment_id)
+      return shipment.Status == "paused"
+    error_message: "can only resume paused shipments (current status: {status})"
+
+  not_pinned:
+    description: |
+      Check that shipment is not pinned.
+      Pinned shipments cannot be completed until unpinned.
+    implementation: |
+      shipment, _ := repo.GetByID(ctx, shipment_id)
+      return !shipment.Pinned
+    error_message: "cannot complete pinned shipment {shipment_id}. Unpin first with: orc shipment unpin {shipment_id}"
+
+  grove_not_assigned_elsewhere:
+    description: |
+      Check that grove is not already assigned to another shipment.
+      Each grove can only be assigned to one shipment at a time.
+    implementation: |
+      otherID, err := repo.GroveAssignedToOther(ctx, grove_id, shipment_id)
+      return err == nil && otherID == ""
+    error_message: "grove already assigned to shipment {other_shipment_id}"
+
+# =============================================================================
+# EFFECTS
+# =============================================================================
+effects:
+  WriteDB:
+    description: Database write operation
+    parameters:
+      operation: { type: enum, values: [INSERT, UPDATE, DELETE] }
+      table: { type: string }
+      fields: { type: array, items: string, optional: true }
+
+  CascadeGrove:
+    description: Cascade grove assignment to related entities
+    parameters:
+      target: { type: enum, values: [tasks] }
+
+# =============================================================================
+# INVARIANTS
+# =============================================================================
+invariants:
+  - name: id_format
+    description: Shipment IDs follow SHIP-XXX format
+    check: id matches /^SHIP-\d{3}$/
+
+  - name: id_unique
+    description: Shipment IDs are unique
+    check: COUNT(SELECT id FROM shipments WHERE id = {id}) == 1
+
+  - name: status_valid
+    description: Status is one of valid values
+    check: status IN ('active', 'paused', 'complete')
+
+  - name: mission_reference
+    description: Shipment must reference existing mission
+    check: EXISTS(SELECT 1 FROM missions WHERE id = mission_id)
+
+  - name: title_not_empty
+    description: Shipment title must not be empty
+    check: LENGTH(title) > 0
+
+  - name: complete_requires_completed_at
+    description: Complete shipments must have completed_at set
+    check: status == 'complete' IMPLIES completed_at IS NOT NULL
+
+  - name: complete_not_pinned
+    description: Complete shipments cannot be pinned
+    check: status == 'complete' IMPLIES pinned == false
+
+# =============================================================================
+# DIFFERENCES FROM GROVE
+# =============================================================================
+differences_from_grove:
+  - |
+    Shipments have 'paused' state; groves do not.
+    Pausing a shipment halts work; groves are infrastructure.
+  - |
+    Shipments have 'complete' state; groves have 'archived'.
+    Completion is a workflow state; archival is soft-delete.
+  - |
+    Shipments have 'pinned' flag; groves do not.
+    Pinning prevents accidental completion of important work.
+  - |
+    Shipments do NOT have 'archived' state.
+    Shipments are either active/paused/complete or deleted.
+  - |
+    Shipments do NOT have ORC-only guards.
+    Any agent (ORC or IMP) can manage shipments.
+  - |
+    Shipments have grove assignment with exclusivity.
+    Groves don't have this inverse relationship.
+
+# =============================================================================
+# NOTES
+# =============================================================================
+notes:
+  - |
+    Shipment is a workflow entity - it represents a package of work.
+    Unlike Grove (infrastructure), shipments have pause/resume/complete semantics.
+  - |
+    The 'pinned' flag prevents accidental completion of important shipments.
+    Users must explicitly unpin before completing.
+  - |
+    Grove assignment is exclusive - a grove can only be assigned to one shipment.
+    This prevents work conflicts and maintains clear ownership.
+  - |
+    No ORC-only guards - shipments are managed by both ORC and IMPs.
+    This differs from groves where only ORC can create/archive.
