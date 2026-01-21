@@ -337,6 +337,9 @@ type NoteRepository interface {
 
 	// MissionExists checks if a mission exists (for validation).
 	MissionExists(ctx context.Context, missionID string) (bool, error)
+
+	// UpdateStatus updates the status of a note (open/closed).
+	UpdateStatus(ctx context.Context, id string, status string) error
 }
 
 // NoteRecord represents a note as stored in persistence.
@@ -346,6 +349,7 @@ type NoteRecord struct {
 	Title            string
 	Content          string // Empty string means null
 	Type             string // Empty string means null
+	Status           string // "open" or "closed"
 	ShipmentID       string // Empty string means null
 	InvestigationID  string // Empty string means null
 	ConclaveID       string // Empty string means null
@@ -353,6 +357,7 @@ type NoteRecord struct {
 	Pinned           bool
 	CreatedAt        string
 	UpdatedAt        string
+	ClosedAt         string // Empty string means null
 	PromotedFromID   string // Empty string means null
 	PromotedFromType string // Empty string means null
 }

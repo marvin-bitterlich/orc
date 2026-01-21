@@ -260,6 +260,7 @@ func setupIntegrationDB(t *testing.T) *sql.DB {
 			title TEXT NOT NULL,
 			content TEXT,
 			type TEXT,
+			status TEXT NOT NULL DEFAULT 'open',
 			shipment_id TEXT,
 			investigation_id TEXT,
 			conclave_id TEXT,
@@ -267,6 +268,7 @@ func setupIntegrationDB(t *testing.T) *sql.DB {
 			pinned INTEGER NOT NULL DEFAULT 0,
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			closed_at DATETIME,
 			promoted_from_id TEXT,
 			promoted_from_type TEXT
 		)

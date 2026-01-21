@@ -44,9 +44,14 @@ func (r *NoteRepository) Create(ctx context.Context, note *secondary.NoteRecord)
 		tomeID = sql.NullString{String: note.TomeID, Valid: true}
 	}
 
+	status := "open"
+	if note.Status != "" {
+		status = note.Status
+	}
+
 	_, err := r.db.ExecContext(ctx,
-		"INSERT INTO notes (id, mission_id, title, content, type, shipment_id, investigation_id, conclave_id, tome_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-		note.ID, note.MissionID, note.Title, content, noteType, shipmentID, investigationID, conclaveID, tomeID,
+		"INSERT INTO notes (id, mission_id, title, content, type, status, shipment_id, investigation_id, conclave_id, tome_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+		note.ID, note.MissionID, note.Title, content, noteType, status, shipmentID, investigationID, conclaveID, tomeID,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create note: %w", err)
@@ -60,6 +65,7 @@ func (r *NoteRepository) GetByID(ctx context.Context, id string) (*secondary.Not
 	var (
 		content          sql.NullString
 		noteType         sql.NullString
+		status           string
 		shipmentID       sql.NullString
 		investigationID  sql.NullString
 		conclaveID       sql.NullString
@@ -67,15 +73,16 @@ func (r *NoteRepository) GetByID(ctx context.Context, id string) (*secondary.Not
 		pinned           bool
 		createdAt        time.Time
 		updatedAt        time.Time
+		closedAt         sql.NullTime
 		promotedFromID   sql.NullString
 		promotedFromType sql.NullString
 	)
 
 	record := &secondary.NoteRecord{}
 	err := r.db.QueryRowContext(ctx,
-		"SELECT id, mission_id, title, content, type, shipment_id, investigation_id, conclave_id, tome_id, pinned, created_at, updated_at, promoted_from_id, promoted_from_type FROM notes WHERE id = ?",
+		"SELECT id, mission_id, title, content, type, status, shipment_id, investigation_id, conclave_id, tome_id, pinned, created_at, updated_at, closed_at, promoted_from_id, promoted_from_type FROM notes WHERE id = ?",
 		id,
-	).Scan(&record.ID, &record.MissionID, &record.Title, &content, &noteType, &shipmentID, &investigationID, &conclaveID, &tomeID, &pinned, &createdAt, &updatedAt, &promotedFromID, &promotedFromType)
+	).Scan(&record.ID, &record.MissionID, &record.Title, &content, &noteType, &status, &shipmentID, &investigationID, &conclaveID, &tomeID, &pinned, &createdAt, &updatedAt, &closedAt, &promotedFromID, &promotedFromType)
 
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("note %s not found", id)
@@ -86,6 +93,7 @@ func (r *NoteRepository) GetByID(ctx context.Context, id string) (*secondary.Not
 
 	record.Content = content.String
 	record.Type = noteType.String
+	record.Status = status
 	record.ShipmentID = shipmentID.String
 	record.InvestigationID = investigationID.String
 	record.ConclaveID = conclaveID.String
@@ -93,6 +101,9 @@ func (r *NoteRepository) GetByID(ctx context.Context, id string) (*secondary.Not
 	record.Pinned = pinned
 	record.CreatedAt = createdAt.Format(time.RFC3339)
 	record.UpdatedAt = updatedAt.Format(time.RFC3339)
+	if closedAt.Valid {
+		record.ClosedAt = closedAt.Time.Format(time.RFC3339)
+	}
 	record.PromotedFromID = promotedFromID.String
 	record.PromotedFromType = promotedFromType.String
 
@@ -101,7 +112,7 @@ func (r *NoteRepository) GetByID(ctx context.Context, id string) (*secondary.Not
 
 // List retrieves notes matching the given filters.
 func (r *NoteRepository) List(ctx context.Context, filters secondary.NoteFilters) ([]*secondary.NoteRecord, error) {
-	query := "SELECT id, mission_id, title, content, type, shipment_id, investigation_id, conclave_id, tome_id, pinned, created_at, updated_at, promoted_from_id, promoted_from_type FROM notes WHERE 1=1"
+	query := "SELECT id, mission_id, title, content, type, status, shipment_id, investigation_id, conclave_id, tome_id, pinned, created_at, updated_at, closed_at, promoted_from_id, promoted_from_type FROM notes WHERE 1=1"
 	args := []any{}
 
 	if filters.Type != "" {
@@ -127,6 +138,7 @@ func (r *NoteRepository) List(ctx context.Context, filters secondary.NoteFilters
 		var (
 			content          sql.NullString
 			noteType         sql.NullString
+			status           string
 			shipmentID       sql.NullString
 			investigationID  sql.NullString
 			conclaveID       sql.NullString
@@ -134,18 +146,20 @@ func (r *NoteRepository) List(ctx context.Context, filters secondary.NoteFilters
 			pinned           bool
 			createdAt        time.Time
 			updatedAt        time.Time
+			closedAt         sql.NullTime
 			promotedFromID   sql.NullString
 			promotedFromType sql.NullString
 		)
 
 		record := &secondary.NoteRecord{}
-		err := rows.Scan(&record.ID, &record.MissionID, &record.Title, &content, &noteType, &shipmentID, &investigationID, &conclaveID, &tomeID, &pinned, &createdAt, &updatedAt, &promotedFromID, &promotedFromType)
+		err := rows.Scan(&record.ID, &record.MissionID, &record.Title, &content, &noteType, &status, &shipmentID, &investigationID, &conclaveID, &tomeID, &pinned, &createdAt, &updatedAt, &closedAt, &promotedFromID, &promotedFromType)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan note: %w", err)
 		}
 
 		record.Content = content.String
 		record.Type = noteType.String
+		record.Status = status
 		record.ShipmentID = shipmentID.String
 		record.InvestigationID = investigationID.String
 		record.ConclaveID = conclaveID.String
@@ -153,6 +167,9 @@ func (r *NoteRepository) List(ctx context.Context, filters secondary.NoteFilters
 		record.Pinned = pinned
 		record.CreatedAt = createdAt.Format(time.RFC3339)
 		record.UpdatedAt = updatedAt.Format(time.RFC3339)
+		if closedAt.Valid {
+			record.ClosedAt = closedAt.Time.Format(time.RFC3339)
+		}
 		record.PromotedFromID = promotedFromID.String
 		record.PromotedFromType = promotedFromType.String
 
@@ -262,13 +279,13 @@ func (r *NoteRepository) GetByContainer(ctx context.Context, containerType, cont
 	var query string
 	switch containerType {
 	case "shipment":
-		query = "SELECT id, mission_id, title, content, type, shipment_id, investigation_id, conclave_id, tome_id, pinned, created_at, updated_at, promoted_from_id, promoted_from_type FROM notes WHERE shipment_id = ? ORDER BY created_at DESC"
+		query = "SELECT id, mission_id, title, content, type, status, shipment_id, investigation_id, conclave_id, tome_id, pinned, created_at, updated_at, closed_at, promoted_from_id, promoted_from_type FROM notes WHERE shipment_id = ? ORDER BY created_at DESC"
 	case "investigation":
-		query = "SELECT id, mission_id, title, content, type, shipment_id, investigation_id, conclave_id, tome_id, pinned, created_at, updated_at, promoted_from_id, promoted_from_type FROM notes WHERE investigation_id = ? ORDER BY created_at DESC"
+		query = "SELECT id, mission_id, title, content, type, status, shipment_id, investigation_id, conclave_id, tome_id, pinned, created_at, updated_at, closed_at, promoted_from_id, promoted_from_type FROM notes WHERE investigation_id = ? ORDER BY created_at DESC"
 	case "conclave":
-		query = "SELECT id, mission_id, title, content, type, shipment_id, investigation_id, conclave_id, tome_id, pinned, created_at, updated_at, promoted_from_id, promoted_from_type FROM notes WHERE conclave_id = ? ORDER BY created_at DESC"
+		query = "SELECT id, mission_id, title, content, type, status, shipment_id, investigation_id, conclave_id, tome_id, pinned, created_at, updated_at, closed_at, promoted_from_id, promoted_from_type FROM notes WHERE conclave_id = ? ORDER BY created_at DESC"
 	case "tome":
-		query = "SELECT id, mission_id, title, content, type, shipment_id, investigation_id, conclave_id, tome_id, pinned, created_at, updated_at, promoted_from_id, promoted_from_type FROM notes WHERE tome_id = ? ORDER BY created_at DESC"
+		query = "SELECT id, mission_id, title, content, type, status, shipment_id, investigation_id, conclave_id, tome_id, pinned, created_at, updated_at, closed_at, promoted_from_id, promoted_from_type FROM notes WHERE tome_id = ? ORDER BY created_at DESC"
 	default:
 		return nil, fmt.Errorf("unknown container type: %s", containerType)
 	}
@@ -284,6 +301,7 @@ func (r *NoteRepository) GetByContainer(ctx context.Context, containerType, cont
 		var (
 			content          sql.NullString
 			noteType         sql.NullString
+			status           string
 			shipmentID       sql.NullString
 			investigationID  sql.NullString
 			conclaveID       sql.NullString
@@ -291,18 +309,20 @@ func (r *NoteRepository) GetByContainer(ctx context.Context, containerType, cont
 			pinned           bool
 			createdAt        time.Time
 			updatedAt        time.Time
+			closedAt         sql.NullTime
 			promotedFromID   sql.NullString
 			promotedFromType sql.NullString
 		)
 
 		record := &secondary.NoteRecord{}
-		err := rows.Scan(&record.ID, &record.MissionID, &record.Title, &content, &noteType, &shipmentID, &investigationID, &conclaveID, &tomeID, &pinned, &createdAt, &updatedAt, &promotedFromID, &promotedFromType)
+		err := rows.Scan(&record.ID, &record.MissionID, &record.Title, &content, &noteType, &status, &shipmentID, &investigationID, &conclaveID, &tomeID, &pinned, &createdAt, &updatedAt, &closedAt, &promotedFromID, &promotedFromType)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan note: %w", err)
 		}
 
 		record.Content = content.String
 		record.Type = noteType.String
+		record.Status = status
 		record.ShipmentID = shipmentID.String
 		record.InvestigationID = investigationID.String
 		record.ConclaveID = conclaveID.String
@@ -310,6 +330,9 @@ func (r *NoteRepository) GetByContainer(ctx context.Context, containerType, cont
 		record.Pinned = pinned
 		record.CreatedAt = createdAt.Format(time.RFC3339)
 		record.UpdatedAt = updatedAt.Format(time.RFC3339)
+		if closedAt.Valid {
+			record.ClosedAt = closedAt.Time.Format(time.RFC3339)
+		}
 		record.PromotedFromID = promotedFromID.String
 		record.PromotedFromType = promotedFromType.String
 
@@ -327,6 +350,28 @@ func (r *NoteRepository) MissionExists(ctx context.Context, missionID string) (b
 		return false, fmt.Errorf("failed to check mission existence: %w", err)
 	}
 	return count > 0, nil
+}
+
+// UpdateStatus updates the status of a note (open/closed).
+func (r *NoteRepository) UpdateStatus(ctx context.Context, id string, status string) error {
+	var query string
+	if status == "closed" {
+		query = "UPDATE notes SET status = ?, closed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?"
+	} else {
+		query = "UPDATE notes SET status = ?, closed_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?"
+	}
+
+	result, err := r.db.ExecContext(ctx, query, status, id)
+	if err != nil {
+		return fmt.Errorf("failed to update note status: %w", err)
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		return fmt.Errorf("note %s not found", id)
+	}
+
+	return nil
 }
 
 // Ensure NoteRepository implements the interface

@@ -196,6 +196,14 @@ func (m *mockNoteServiceForTome) GetNotesByContainer(ctx context.Context, contai
 	return []*primary.Note{}, nil
 }
 
+func (m *mockNoteServiceForTome) CloseNote(ctx context.Context, noteID string) error {
+	return nil
+}
+
+func (m *mockNoteServiceForTome) ReopenNote(ctx context.Context, noteID string) error {
+	return nil
+}
+
 // ============================================================================
 // Test Helper
 // ============================================================================

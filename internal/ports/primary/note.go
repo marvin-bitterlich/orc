@@ -27,6 +27,12 @@ type NoteService interface {
 
 	// GetNotesByContainer retrieves notes for a specific container.
 	GetNotesByContainer(ctx context.Context, containerType, containerID string) ([]*Note, error)
+
+	// CloseNote closes a note.
+	CloseNote(ctx context.Context, noteID string) error
+
+	// ReopenNote reopens a closed note.
+	ReopenNote(ctx context.Context, noteID string) error
 }
 
 // CreateNoteRequest contains parameters for creating a note.
@@ -59,6 +65,7 @@ type Note struct {
 	Title            string
 	Content          string
 	Type             string
+	Status           string // "open" or "closed"
 	ShipmentID       string
 	InvestigationID  string
 	ConclaveID       string
@@ -66,6 +73,7 @@ type Note struct {
 	Pinned           bool
 	CreatedAt        string
 	UpdatedAt        string
+	ClosedAt         string
 	PromotedFromID   string
 	PromotedFromType string
 }
@@ -84,4 +92,10 @@ const (
 	NoteTypeFRQ                 = "frq"
 	NoteTypeBug                 = "bug"
 	NoteTypeInvestigationReport = "investigation_report"
+)
+
+// Note status constants
+const (
+	NoteStatusOpen   = "open"
+	NoteStatusClosed = "closed"
 )

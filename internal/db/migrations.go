@@ -6,7 +6,7 @@ import (
 )
 
 // schemaVersion tracks the current schema version
-const currentSchemaVersion = 20
+const currentSchemaVersion = 21
 
 // Migration represents a database migration
 type Migration struct {
@@ -116,6 +116,11 @@ var migrations = []Migration{
 		Version: 20,
 		Name:    "add_paused_status_to_tasks",
 		Up:      migrationV20,
+	},
+	{
+		Version: 21,
+		Name:    "add_status_to_notes",
+		Up:      migrationV21,
 	},
 }
 
@@ -1965,6 +1970,76 @@ func migrationV20(db *sql.DB) error {
 	`)
 	if err != nil {
 		return fmt.Errorf("failed to recreate tasks indexes: %w", err)
+	}
+
+	return nil
+}
+
+// migrationV21 adds status field to notes (open/closed)
+func migrationV21(db *sql.DB) error {
+	// Notes table - recreate with status column
+	_, err := db.Exec(`
+		CREATE TABLE notes_new (
+			id TEXT PRIMARY KEY,
+			mission_id TEXT NOT NULL,
+			title TEXT NOT NULL,
+			content TEXT,
+			type TEXT CHECK(type IN ('learning', 'concern', 'finding', 'frq', 'bug', 'investigation_report')),
+			status TEXT NOT NULL CHECK(status IN ('open', 'closed')) DEFAULT 'open',
+			shipment_id TEXT,
+			investigation_id TEXT,
+			conclave_id TEXT,
+			tome_id TEXT,
+			pinned INTEGER DEFAULT 0,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			closed_at DATETIME,
+			promoted_from_id TEXT,
+			promoted_from_type TEXT,
+			FOREIGN KEY (mission_id) REFERENCES missions(id),
+			FOREIGN KEY (shipment_id) REFERENCES shipments(id) ON DELETE SET NULL,
+			FOREIGN KEY (investigation_id) REFERENCES investigations(id) ON DELETE SET NULL,
+			FOREIGN KEY (conclave_id) REFERENCES conclaves(id) ON DELETE SET NULL,
+			FOREIGN KEY (tome_id) REFERENCES tomes(id) ON DELETE SET NULL
+		)
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to create notes_new table: %w", err)
+	}
+
+	// Copy existing data (all existing notes default to 'open' status)
+	_, err = db.Exec(`
+		INSERT INTO notes_new (id, mission_id, title, content, type, status, shipment_id, investigation_id, conclave_id, tome_id, pinned, created_at, updated_at, promoted_from_id, promoted_from_type)
+		SELECT id, mission_id, title, content, type, 'open', shipment_id, investigation_id, conclave_id, tome_id, pinned, created_at, updated_at, promoted_from_id, promoted_from_type FROM notes
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to copy notes data: %w", err)
+	}
+
+	// Drop old table
+	_, err = db.Exec(`DROP TABLE notes`)
+	if err != nil {
+		return fmt.Errorf("failed to drop old notes table: %w", err)
+	}
+
+	// Rename new table
+	_, err = db.Exec(`ALTER TABLE notes_new RENAME TO notes`)
+	if err != nil {
+		return fmt.Errorf("failed to rename notes_new to notes: %w", err)
+	}
+
+	// Recreate indexes
+	_, err = db.Exec(`
+		CREATE INDEX idx_notes_mission ON notes(mission_id);
+		CREATE INDEX idx_notes_type ON notes(type);
+		CREATE INDEX idx_notes_status ON notes(status);
+		CREATE INDEX idx_notes_shipment ON notes(shipment_id);
+		CREATE INDEX idx_notes_investigation ON notes(investigation_id);
+		CREATE INDEX idx_notes_conclave ON notes(conclave_id);
+		CREATE INDEX idx_notes_tome ON notes(tome_id);
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to recreate notes indexes: %w", err)
 	}
 
 	return nil

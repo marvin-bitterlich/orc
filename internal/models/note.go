@@ -11,6 +11,7 @@ type Note struct {
 	Title            string
 	Content          sql.NullString
 	Type             sql.NullString // learning, concern, finding, frq, bug, investigation_report
+	Status           string         // open, closed
 	ShipmentID       sql.NullString
 	InvestigationID  sql.NullString
 	ConclaveID       sql.NullString
@@ -18,6 +19,7 @@ type Note struct {
 	Pinned           bool
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
+	ClosedAt         sql.NullTime
 	PromotedFromID   sql.NullString
 	PromotedFromType sql.NullString
 }
@@ -30,4 +32,10 @@ const (
 	NoteTypeFRQ                 = "frq"
 	NoteTypeBug                 = "bug"
 	NoteTypeInvestigationReport = "investigation_report"
+)
+
+// Note statuses
+const (
+	NoteStatusOpen   = "open"
+	NoteStatusClosed = "closed"
 )

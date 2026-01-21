@@ -139,8 +139,8 @@ var noteListCmd = &cobra.Command{
 		}
 
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-		fmt.Fprintln(w, "ID\tTITLE\tTYPE\tCONTAINER")
-		fmt.Fprintln(w, "--\t-----\t----\t---------")
+		fmt.Fprintln(w, "ID\tTITLE\tTYPE\tSTATUS\tCONTAINER")
+		fmt.Fprintln(w, "--\t-----\t----\t------\t---------")
 		for _, n := range notes {
 			pinnedMark := ""
 			if n.Pinned {
@@ -149,6 +149,10 @@ var noteListCmd = &cobra.Command{
 			typeStr := "-"
 			if n.Type != "" {
 				typeStr = n.Type
+			}
+			statusStr := n.Status
+			if statusStr == "" {
+				statusStr = "open"
 			}
 			container := "-"
 			if n.ShipmentID != "" {
@@ -160,7 +164,7 @@ var noteListCmd = &cobra.Command{
 			} else if n.ConclaveID != "" {
 				container = n.ConclaveID
 			}
-			fmt.Fprintf(w, "%s\t%s%s\t%s\t%s\n", n.ID, n.Title, pinnedMark, typeStr, container)
+			fmt.Fprintf(w, "%s\t%s%s\t%s\t%s\t%s\n", n.ID, n.Title, pinnedMark, typeStr, statusStr, container)
 		}
 		w.Flush()
 		return nil
@@ -188,6 +192,11 @@ var noteShowCmd = &cobra.Command{
 		if note.Type != "" {
 			fmt.Printf("Type: %s\n", note.Type)
 		}
+		status := note.Status
+		if status == "" {
+			status = "open"
+		}
+		fmt.Printf("Status: %s\n", status)
 		fmt.Printf("Mission: %s\n", note.MissionID)
 		if note.ShipmentID != "" {
 			fmt.Printf("Shipment: %s\n", note.ShipmentID)
@@ -296,6 +305,42 @@ var noteDeleteCmd = &cobra.Command{
 	},
 }
 
+var noteCloseCmd = &cobra.Command{
+	Use:   "close [note-id]",
+	Short: "Close a note",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx := context.Background()
+		noteID := args[0]
+
+		err := wire.NoteService().CloseNote(ctx, noteID)
+		if err != nil {
+			return fmt.Errorf("failed to close note: %w", err)
+		}
+
+		fmt.Printf("✓ Note %s closed\n", noteID)
+		return nil
+	},
+}
+
+var noteReopenCmd = &cobra.Command{
+	Use:   "reopen [note-id]",
+	Short: "Reopen a closed note",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx := context.Background()
+		noteID := args[0]
+
+		err := wire.NoteService().ReopenNote(ctx, noteID)
+		if err != nil {
+			return fmt.Errorf("failed to reopen note: %w", err)
+		}
+
+		fmt.Printf("✓ Note %s reopened\n", noteID)
+		return nil
+	},
+}
+
 func init() {
 	// note create flags
 	noteCreateCmd.Flags().StringP("mission", "m", "", "Mission ID (defaults to context)")
@@ -325,6 +370,8 @@ func init() {
 	noteCmd.AddCommand(notePinCmd)
 	noteCmd.AddCommand(noteUnpinCmd)
 	noteCmd.AddCommand(noteDeleteCmd)
+	noteCmd.AddCommand(noteCloseCmd)
+	noteCmd.AddCommand(noteReopenCmd)
 }
 
 // NoteCmd returns the note command

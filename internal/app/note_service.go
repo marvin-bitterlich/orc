@@ -141,6 +141,36 @@ func (s *NoteServiceImpl) GetNotesByContainer(ctx context.Context, containerType
 	return notes, nil
 }
 
+// CloseNote closes a note.
+func (s *NoteServiceImpl) CloseNote(ctx context.Context, noteID string) error {
+	// Get current note to verify it exists and check status
+	note, err := s.noteRepo.GetByID(ctx, noteID)
+	if err != nil {
+		return err
+	}
+
+	if note.Status == "closed" {
+		return fmt.Errorf("note %s is already closed", noteID)
+	}
+
+	return s.noteRepo.UpdateStatus(ctx, noteID, "closed")
+}
+
+// ReopenNote reopens a closed note.
+func (s *NoteServiceImpl) ReopenNote(ctx context.Context, noteID string) error {
+	// Get current note to verify it exists and check status
+	note, err := s.noteRepo.GetByID(ctx, noteID)
+	if err != nil {
+		return err
+	}
+
+	if note.Status == "open" {
+		return fmt.Errorf("note %s is already open", noteID)
+	}
+
+	return s.noteRepo.UpdateStatus(ctx, noteID, "open")
+}
+
 // Helper methods
 
 func (s *NoteServiceImpl) recordToNote(r *secondary.NoteRecord) *primary.Note {
@@ -150,6 +180,7 @@ func (s *NoteServiceImpl) recordToNote(r *secondary.NoteRecord) *primary.Note {
 		Title:            r.Title,
 		Content:          r.Content,
 		Type:             r.Type,
+		Status:           r.Status,
 		ShipmentID:       r.ShipmentID,
 		InvestigationID:  r.InvestigationID,
 		ConclaveID:       r.ConclaveID,
@@ -157,6 +188,7 @@ func (s *NoteServiceImpl) recordToNote(r *secondary.NoteRecord) *primary.Note {
 		Pinned:           r.Pinned,
 		CreatedAt:        r.CreatedAt,
 		UpdatedAt:        r.UpdatedAt,
+		ClosedAt:         r.ClosedAt,
 		PromotedFromID:   r.PromotedFromID,
 		PromotedFromType: r.PromotedFromType,
 	}

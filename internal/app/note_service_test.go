@@ -140,6 +140,14 @@ func (m *mockNoteRepository) MissionExists(ctx context.Context, missionID string
 	return m.missionExistsResult, nil
 }
 
+func (m *mockNoteRepository) UpdateStatus(ctx context.Context, id string, status string) error {
+	if note, ok := m.notes[id]; ok {
+		note.Status = status
+		return nil
+	}
+	return errors.New("note not found")
+}
+
 // ============================================================================
 // Test Helper
 // ============================================================================
