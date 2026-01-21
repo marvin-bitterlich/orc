@@ -276,17 +276,17 @@ func (s *ConclaveServiceImpl) questionRecordToConclaveQuestion(r *secondary.Conc
 
 func (s *ConclaveServiceImpl) planRecordToConclavePlan(r *secondary.ConclavePlanRecord) *primary.ConclavePlan {
 	return &primary.ConclavePlan{
-		ID:          r.ID,
+		ID:           r.ID,
 		CommissionID: r.CommissionID,
-		ShipmentID:  r.ShipmentID,
-		Title:       r.Title,
-		Description: r.Description,
-		Content:     r.Content,
-		Status:      r.Status,
-		Pinned:      r.Pinned,
-		CreatedAt:   r.CreatedAt,
-		UpdatedAt:   r.UpdatedAt,
-		ApprovedAt:  r.ApprovedAt,
+		ShipmentID:   r.ShipmentID,
+		Title:        r.Title,
+		Description:  r.Description,
+		Content:      r.Content,
+		Status:       r.Status,
+		Pinned:       r.Pinned,
+		CreatedAt:    r.CreatedAt,
+		UpdatedAt:    r.UpdatedAt,
+		ApprovedAt:   r.ApprovedAt,
 	}
 }
 

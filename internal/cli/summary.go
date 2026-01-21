@@ -722,7 +722,7 @@ Examples:
 				if len(filters.containerTypes) == 0 || filters.containerTypes["CON"] {
 					conclaves, _ := wire.ConclaveService().ListConclaves(context.Background(), primary.ConclaveFilters{CommissionID: commission.ID})
 					for _, c := range conclaves {
-						if c.Status == "complete" || filters.statusMap[c.Status] {
+						if c.Status == "closed" || filters.statusMap[c.Status] {
 							continue
 						}
 						cont := containerInfo{
