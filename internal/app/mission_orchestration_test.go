@@ -166,7 +166,7 @@ func TestMissionOrchestrationService_AnalyzeInfrastructure(t *testing.T) {
 	groveSvc := newMockGroveService()
 	svc := NewMissionOrchestrationService(missionSvc, groveSvc)
 
-	state := &MissionState{
+	state := &primary.MissionState{
 		Mission: &primary.Mission{ID: "MISSION-001", Title: "Test"},
 		Groves: []*primary.Grove{
 			{ID: "GROVE-001", Name: "grove-a", MissionID: "MISSION-001", Path: "/some/path/grove-a"},
@@ -213,14 +213,14 @@ func TestMissionOrchestrationService_ApplyInfrastructure(t *testing.T) {
 	workspacePath := filepath.Join(tempDir, "mission-workspace")
 	grovesDir := filepath.Join(workspacePath, "groves")
 
-	plan := &InfrastructurePlan{
+	plan := &primary.InfrastructurePlan{
 		WorkspacePath:   workspacePath,
 		GrovesDir:       grovesDir,
 		CreateWorkspace: true,
 		CreateGrovesDir: true,
-		GroveActions:    []GroveAction{},
-		ConfigWrites:    []ConfigWrite{},
-		Cleanups:        []CleanupAction{},
+		GroveActions:    []primary.GroveAction{},
+		ConfigWrites:    []primary.ConfigWrite{},
+		Cleanups:        []primary.CleanupAction{},
 	}
 
 	result := svc.ApplyInfrastructure(ctx, plan)
@@ -262,7 +262,7 @@ func TestMissionOrchestrationService_PlanTmuxSession(t *testing.T) {
 	grovePath := filepath.Join(tempDir, "groves", "grove-a")
 	os.MkdirAll(grovePath, 0755)
 
-	state := &MissionState{
+	state := &primary.MissionState{
 		Mission: &primary.Mission{ID: "MISSION-001", Title: "Test"},
 		Groves: []*primary.Grove{
 			{ID: "GROVE-001", Name: "grove-a", MissionID: "MISSION-001", Path: grovePath},
@@ -288,16 +288,3 @@ func TestMissionOrchestrationService_PlanTmuxSession(t *testing.T) {
 	}
 }
 
-func TestDefaultWorkspacePath(t *testing.T) {
-	path, err := DefaultWorkspacePath("MISSION-001")
-	if err != nil {
-		t.Fatalf("DefaultWorkspacePath failed: %v", err)
-	}
-
-	home, _ := os.UserHomeDir()
-	expected := filepath.Join(home, "src", "missions", "MISSION-001")
-
-	if path != expected {
-		t.Errorf("expected %s, got %s", expected, path)
-	}
-}

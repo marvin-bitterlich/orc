@@ -10,7 +10,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/example/orc/internal/agent"
-	"github.com/example/orc/internal/app"
+	"github.com/example/orc/internal/config"
 	orccontext "github.com/example/orc/internal/context"
 	coremission "github.com/example/orc/internal/core/mission"
 	"github.com/example/orc/internal/ports/primary"
@@ -331,7 +331,7 @@ Examples:
 		// Default workspace path
 		if workspacePath == "" {
 			var err error
-			workspacePath, err = app.DefaultWorkspacePath(missionID)
+			workspacePath, err = config.DefaultWorkspacePath(missionID)
 			if err != nil {
 				return err
 			}
@@ -395,7 +395,7 @@ Examples:
 	},
 }
 
-// tmuxChecker implements app.TmuxWindowChecker using the TMuxAdapter
+// tmuxChecker implements primary.TmuxWindowChecker using the TMuxAdapter
 type tmuxChecker struct {
 	adapter secondary.TMuxAdapter
 }
@@ -413,7 +413,7 @@ func (t *tmuxChecker) GetPaneCommand(session, window string, pane int) string {
 }
 
 // displayMissionState shows the database state section of the plan
-func displayMissionState(state *app.MissionState, workspacePath string) {
+func displayMissionState(state *primary.MissionState, workspacePath string) {
 	fmt.Print("📋 Plan:\n\n")
 	fmt.Println(color.New(color.Bold).Sprint("Database State:"))
 	fmt.Printf("  Mission: %s - %s\n", colorDim(state.Mission.ID), state.Mission.Title)
@@ -433,7 +433,7 @@ func displayMissionState(state *app.MissionState, workspacePath string) {
 }
 
 // displayInfrastructurePlan shows the infrastructure plan section
-func displayInfrastructurePlan(plan *app.InfrastructurePlan) {
+func displayInfrastructurePlan(plan *primary.InfrastructurePlan) {
 	fmt.Println(color.New(color.Bold).Sprint("Infrastructure:"))
 
 	if plan.CreateWorkspace {
@@ -473,7 +473,7 @@ func displayInfrastructurePlan(plan *app.InfrastructurePlan) {
 }
 
 // displayTmuxPlan shows the TMux plan section
-func displayTmuxPlan(plan *app.TmuxSessionPlan) {
+func displayTmuxPlan(plan *primary.TmuxSessionPlan) {
 	fmt.Println(color.New(color.Bold).Sprint("TMux Session:"))
 	if plan.SessionExists {
 		fmt.Printf("  %s session: %s\n", colorExists("EXISTS"), plan.SessionName)
@@ -497,7 +497,7 @@ func displayTmuxPlan(plan *app.TmuxSessionPlan) {
 }
 
 // displayInfrastructureResult shows the results of applying infrastructure changes
-func displayInfrastructureResult(result *app.InfrastructureApplyResult, missionID string) {
+func displayInfrastructureResult(result *primary.InfrastructureApplyResult, missionID string) {
 	if result.WorkspaceCreated {
 		fmt.Println("✓ Mission workspace created")
 	} else {

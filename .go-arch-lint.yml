@@ -137,8 +137,7 @@ deps:
       - version
 
   # CLI: thin adapter; depends on wire + contracts + models for formatting
-  # TODO: Refactor to remove app/core dependencies:
-  # - app: MissionOrchestrationService types should move to ports/primary
+  # TODO: Refactor to remove core dependency:
   # - core: Guards should be exposed via service interface in ports/primary
   cli:
     mayDependOn:
@@ -152,7 +151,6 @@ deps:
       - scaffold   # For scaffold command
       - agent      # For identity detection
       - db         # For init command (bootstrap)
-      - app        # TODO: Move orchestration types to ports/primary
       - core       # TODO: Expose guards via service interface
 
   # cmd: entrypoints should only bootstrap CLI (and version if needed)

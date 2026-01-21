@@ -137,3 +137,12 @@ func (c *Config) Validate() error {
 func LoadConfigWithFallback(dir string) (*Config, error) {
 	return LoadConfig(dir)
 }
+
+// DefaultWorkspacePath returns the default workspace path for a mission.
+func DefaultWorkspacePath(missionID string) (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("failed to get home directory: %w", err)
+	}
+	return filepath.Join(home, "src", "missions", missionID), nil
+}
