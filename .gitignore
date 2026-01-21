@@ -32,3 +32,6 @@ go.work
 
 # Local ORC config
 .orc/
+
+# El Presidente's desk
+desk.md
