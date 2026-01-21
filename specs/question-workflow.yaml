@@ -1,0 +1,290 @@
+# Question Workflow Finite State Machine
+# Single source of truth for question lifecycle in ORC
+#
+# Generated: 2026-01-20
+# Context: CON-003 FSM-First Testing Strategy (Slice 6)
+
+name: question-workflow
+version: "1.0"
+description: |
+  Defines the complete lifecycle of a Question entity in ORC.
+  Questions are inquiry items within a mission that can optionally belong to an investigation.
+  Questions have a simpler state machine than conclaves/investigations: open -> answered (no pause/resume).
+
+# =============================================================================
+# STATES
+# =============================================================================
+states:
+  initial:
+    description: No question exists yet (pre-creation)
+    terminal: false
+
+  open:
+    description: Question is awaiting an answer
+    terminal: false
+    invariants:
+      - status == "open"
+      - created_at is set
+      - mission_id is set and references existing mission
+      - investigation_id references existing investigation IF provided
+
+  answered:
+    description: Question has been answered, AnsweredAt is set
+    terminal: true  # Soft terminal - delete still possible
+    invariants:
+      - status == "answered"
+      - answered_at is set
+      - answer is not empty
+      - pinned == false (cannot answer pinned questions)
+
+  deleted:
+    description: Question removed from database (true terminal state)
+    terminal: true
+
+# =============================================================================
+# EVENTS
+# =============================================================================
+events:
+  create:
+    description: Create a new question within a mission
+    payload:
+      title: { type: string, required: true }
+      description: { type: string, required: false, default: "" }
+      mission_id: { type: string, required: true }
+      investigation_id: { type: string, required: false }
+
+  update:
+    description: Update question title and/or description
+    payload:
+      title: { type: string, required: false }
+      description: { type: string, required: false }
+
+  answer:
+    description: Provide an answer to the question
+    payload:
+      answer: { type: string, required: true }
+
+  pin:
+    description: Pin question to prevent answering
+    payload: {}
+
+  unpin:
+    description: Unpin question to allow answering
+    payload: {}
+
+  delete:
+    description: Hard-delete question from database
+    payload: {}
+
+# =============================================================================
+# TRANSITIONS
+# =============================================================================
+transitions:
+  # --- Creation ---
+  - name: create_question
+    from: initial
+    to: open
+    event: create
+    guards:
+      - mission_exists  # Mission must exist
+      - investigation_exists_if_provided  # Investigation must exist if provided
+    effects:
+      - { type: WriteDB, operation: INSERT, table: questions }
+    test_cases:
+      - "Create question with existing mission, no investigation"
+      - "Create question with existing mission and investigation"
+      - "Create question for non-existent mission (error)"
+      - "Create question for non-existent investigation (error)"
+
+  # --- Updating (no state change) ---
+  - name: update_question
+    from: open
+    to: open
+    event: update
+    guards: []
+    effects:
+      - { type: WriteDB, operation: UPDATE, table: questions, fields: [title, description, updated_at] }
+    test_cases:
+      - "Update question title"
+      - "Update question description"
+
+  # --- Pin/Unpin (no state change) ---
+  - name: pin_question
+    from: open
+    to: open
+    event: pin
+    guards: []
+    effects:
+      - { type: WriteDB, operation: UPDATE, table: questions, fields: [pinned, updated_at] }
+    test_cases:
+      - "Pin question"
+
+  - name: unpin_question
+    from: open
+    to: open
+    event: unpin
+    guards: []
+    effects:
+      - { type: WriteDB, operation: UPDATE, table: questions, fields: [pinned, updated_at] }
+    test_cases:
+      - "Unpin question"
+
+  # --- Answering ---
+  - name: answer_question
+    from: open
+    to: answered
+    event: answer
+    guards:
+      - is_open  # Status must be "open"
+      - not_pinned  # Cannot answer pinned questions
+    effects:
+      - { type: WriteDB, operation: UPDATE, table: questions, fields: [status, answer, answered_at, updated_at] }
+    test_cases:
+      - "Answer open unpinned question"
+      - "Answer pinned question (error)"
+      - "Answer already answered question (error)"
+
+  # --- Deletion ---
+  - name: delete_open_question
+    from: open
+    to: deleted
+    event: delete
+    guards: []
+    effects:
+      - { type: WriteDB, operation: DELETE, table: questions }
+    test_cases:
+      - "Delete open question"
+
+  - name: delete_answered_question
+    from: answered
+    to: deleted
+    event: delete
+    guards: []
+    effects:
+      - { type: WriteDB, operation: DELETE, table: questions }
+    test_cases:
+      - "Delete answered question"
+
+# =============================================================================
+# GUARDS
+# =============================================================================
+guards:
+  mission_exists:
+    description: |
+      Check that the target mission exists.
+      Questions must belong to an existing mission.
+    implementation: |
+      exists, err := repo.MissionExists(ctx, mission_id)
+      return err == nil && exists
+    error_message: "mission {mission_id} not found"
+
+  investigation_exists_if_provided:
+    description: |
+      Check that the investigation exists if an investigation_id is provided.
+      Questions can optionally belong to an investigation.
+    implementation: |
+      if investigation_id == "" { return true }
+      exists, err := repo.InvestigationExists(ctx, investigation_id)
+      return err == nil && exists
+    error_message: "investigation {investigation_id} not found"
+
+  is_open:
+    description: |
+      Check that question status is "open".
+      Required for answer transition.
+    implementation: |
+      question, _ := repo.GetByID(ctx, question_id)
+      return question.Status == "open"
+    error_message: "can only answer open questions (current status: {status})"
+
+  not_pinned:
+    description: |
+      Check that question is not pinned.
+      Pinned questions cannot be answered until unpinned.
+    implementation: |
+      question, _ := repo.GetByID(ctx, question_id)
+      return !question.Pinned
+    error_message: "cannot answer pinned question {question_id}. Unpin first with: orc question unpin {question_id}"
+
+# =============================================================================
+# EFFECTS
+# =============================================================================
+effects:
+  WriteDB:
+    description: Database write operation
+    parameters:
+      operation: { type: enum, values: [INSERT, UPDATE, DELETE] }
+      table: { type: string }
+      fields: { type: array, items: string, optional: true }
+
+# =============================================================================
+# INVARIANTS
+# =============================================================================
+invariants:
+  - name: id_format
+    description: Question IDs follow Q-XXX format
+    check: id matches /^Q-\d{3}$/
+
+  - name: id_unique
+    description: Question IDs are unique
+    check: COUNT(SELECT id FROM questions WHERE id = {id}) == 1
+
+  - name: status_valid
+    description: Status is one of valid values
+    check: status IN ('open', 'answered')
+
+  - name: mission_reference
+    description: Question must reference existing mission
+    check: EXISTS(SELECT 1 FROM missions WHERE id = mission_id)
+
+  - name: investigation_reference_if_set
+    description: If investigation_id is set, investigation must exist
+    check: investigation_id IS NULL OR EXISTS(SELECT 1 FROM investigations WHERE id = investigation_id)
+
+  - name: title_not_empty
+    description: Question title must not be empty
+    check: LENGTH(title) > 0
+
+  - name: answered_requires_answered_at
+    description: Answered questions must have answered_at set
+    check: status == 'answered' IMPLIES answered_at IS NOT NULL
+
+  - name: answered_requires_answer
+    description: Answered questions must have answer set
+    check: status == 'answered' IMPLIES LENGTH(answer) > 0
+
+  - name: answered_not_pinned
+    description: Answered questions cannot be pinned
+    check: status == 'answered' IMPLIES pinned == false
+
+# =============================================================================
+# DIFFERENCES FROM CONCLAVE/INVESTIGATION
+# =============================================================================
+differences_from_conclave_investigation:
+  - |
+    Questions have only 2 states (open, answered) vs 4 states (active, paused, complete, deleted).
+    No pause/resume semantics.
+  - |
+    State names differ: open/answered instead of active/complete.
+  - |
+    Questions can optionally belong to an investigation (adds investigation_exists_if_provided guard).
+  - |
+    ID format: Q-XXX (vs CON-XXX for conclaves, INV-XXX for investigations).
+  - |
+    Fewer guards: 2 guards (CanCreateQuestion, CanAnswerQuestion) vs 4 guards for other entities.
+
+# =============================================================================
+# NOTES
+# =============================================================================
+notes:
+  - |
+    Question is an inquiry entity - it represents something that needs an answer.
+    Questions are simpler than conclaves/investigations with no pause/resume workflow.
+  - |
+    The 'pinned' flag prevents accidental answering of important questions.
+    Users must explicitly unpin before answering.
+  - |
+    Questions belong to a mission (required) and optionally to an investigation.
+    This makes the create guard more complex with conditional investigation validation.
+  - |
+    The answer field stores the response text, and answered_at tracks when it was answered.

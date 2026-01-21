@@ -1,0 +1,17 @@
+
+// --- BEGIN {{.Name}} SERVICE WIRING ---
+
+var {{.NameLower}}Service primary.{{.Name}}Service
+
+// {{.Name}}Service returns the singleton {{.Name}}Service instance.
+func {{.Name}}Service() primary.{{.Name}}Service {
+	once.Do(initServices)
+	return {{.NameLower}}Service
+}
+
+// In initServices(), add:
+// {{.NameLower}}Repo := sqlite.New{{.Name}}Repository(database)
+// {{.NameLower}}Service = app.New{{.Name}}Service({{.NameLower}}Repo)
+
+// --- END {{.Name}} SERVICE WIRING ---
+

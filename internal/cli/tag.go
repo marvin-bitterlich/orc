@@ -1,10 +1,13 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 
-	"github.com/example/orc/internal/models"
 	"github.com/spf13/cobra"
+
+	"github.com/example/orc/internal/ports/primary"
+	"github.com/example/orc/internal/wire"
 )
 
 var tagCmd = &cobra.Command{
@@ -18,17 +21,22 @@ var tagCreateCmd = &cobra.Command{
 	Short: "Create a new tag",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx := context.Background()
 		name := args[0]
 		description, _ := cmd.Flags().GetString("description")
 
-		tag, err := models.CreateTag(name, description)
+		resp, err := wire.TagService().CreateTag(ctx, primary.CreateTagRequest{
+			Name:        name,
+			Description: description,
+		})
 		if err != nil {
 			return fmt.Errorf("failed to create tag: %w", err)
 		}
 
+		tag := resp.Tag
 		fmt.Printf("✓ Created tag %s: %s\n", tag.ID, tag.Name)
-		if tag.Description.Valid {
-			fmt.Printf("  Description: %s\n", tag.Description.String)
+		if tag.Description != "" {
+			fmt.Printf("  Description: %s\n", tag.Description)
 		}
 		return nil
 	},
@@ -38,7 +46,8 @@ var tagListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List all tags",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		tags, err := models.ListTags()
+		ctx := context.Background()
+		tags, err := wire.TagService().ListTags(ctx)
 		if err != nil {
 			return fmt.Errorf("failed to list tags: %w", err)
 		}
@@ -51,8 +60,8 @@ var tagListCmd = &cobra.Command{
 		fmt.Printf("Found %d tag(s):\n\n", len(tags))
 		for _, tag := range tags {
 			fmt.Printf("%-10s %s", tag.ID, tag.Name)
-			if tag.Description.Valid {
-				fmt.Printf(" - %s", tag.Description.String)
+			if tag.Description != "" {
+				fmt.Printf(" - %s", tag.Description)
 			}
 			fmt.Println()
 		}
@@ -65,23 +74,24 @@ var tagShowCmd = &cobra.Command{
 	Short: "Show tag details and associated tasks",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx := context.Background()
 		name := args[0]
 
-		tag, err := models.GetTagByName(name)
+		tag, err := wire.TagService().GetTagByName(ctx, name)
 		if err != nil {
 			return fmt.Errorf("tag not found: %w", err)
 		}
 
 		// Display tag details
 		fmt.Printf("Tag: %s (%s)\n", tag.Name, tag.ID)
-		if tag.Description.Valid {
-			fmt.Printf("Description: %s\n", tag.Description.String)
+		if tag.Description != "" {
+			fmt.Printf("Description: %s\n", tag.Description)
 		}
-		fmt.Printf("Created: %s\n", tag.CreatedAt.Format("2006-01-02 15:04"))
+		fmt.Printf("Created: %s\n", tag.CreatedAt)
 		fmt.Println()
 
 		// Display tasks with this tag
-		tasks, err := models.ListTasksByTag(name)
+		tasks, err := wire.TaskService().ListTasksByTag(ctx, name)
 		if err != nil {
 			return fmt.Errorf("failed to get tasks: %w", err)
 		}
@@ -105,16 +115,17 @@ var tagDeleteCmd = &cobra.Command{
 	Short: "Delete a tag (removes from all tasks)",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx := context.Background()
 		name := args[0]
 
 		// Get tag by name
-		tag, err := models.GetTagByName(name)
+		tag, err := wire.TagService().GetTagByName(ctx, name)
 		if err != nil {
 			return fmt.Errorf("tag not found: %w", err)
 		}
 
-		// Delete the tag (cascade removes task_tags)
-		err = models.DeleteTag(tag.ID)
+		// Delete the tag (cascade removes entity_tags)
+		err = wire.TagService().DeleteTag(ctx, tag.ID)
 		if err != nil {
 			return fmt.Errorf("failed to delete tag: %w", err)
 		}

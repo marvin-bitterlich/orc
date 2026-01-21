@@ -11,6 +11,8 @@ import (
 
 var db *sql.DB
 
+var dbInitialized bool
+
 // GetDB returns the database connection, initializing if needed
 func GetDB() (*sql.DB, error) {
 	if db != nil {
@@ -39,6 +41,14 @@ func GetDB() (*sql.DB, error) {
 	// Enable foreign keys
 	if _, err := db.Exec("PRAGMA foreign_keys = ON"); err != nil {
 		return nil, fmt.Errorf("failed to enable foreign keys: %w", err)
+	}
+
+	// Run migrations on first connection (but avoid recursion)
+	if !dbInitialized {
+		dbInitialized = true
+		if err := InitSchema(); err != nil {
+			return nil, fmt.Errorf("failed to initialize schema: %w", err)
+		}
 	}
 
 	return db, nil

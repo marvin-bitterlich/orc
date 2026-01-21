@@ -1,0 +1,59 @@
+---
+title: Mission Provisioning FSM
+---
+stateDiagram-v2
+    %% States
+    [*] --> initial
+    initial --> active : create\n[is_orc]
+
+    %% Active state transitions (self-loops and outbound)
+    active --> active : update
+    active --> active : start\n[is_orc, not_in_orc_source]
+    active --> active : launch\n[is_orc, not_in_orc_source]
+    active --> active : pin
+    active --> active : unpin
+    active --> paused : pause\n[status_change_to_paused]
+    active --> complete : complete\n[not_pinned]
+    active --> archived : archive\n[not_pinned]
+    active --> deleted : delete\n[no_dependents_or_force]
+
+    %% Paused transitions
+    paused --> active : resume\n[status_change_to_active]
+
+    %% Complete transitions
+    complete --> archived : archive\n[not_pinned]
+
+    %% Archived transitions
+    archived --> deleted : delete\n[no_dependents_or_force]
+
+    %% Terminal states
+    deleted --> [*]
+
+    %% State notes
+    note right of initial
+        Pre-creation state
+        No mission exists
+    end note
+
+    note right of active
+        Primary working state
+        Invariants:
+        - status == "active"
+        - created_at is set
+    end note
+
+    note right of complete
+        Work finished
+        Invariant: not pinned
+        completed_at is set
+    end note
+
+    note right of archived
+        Historical record
+        Terminal for normal ops
+    end note
+
+    note right of deleted
+        True terminal state
+        Removed from DB
+    end note

@@ -1,0 +1,62 @@
+# golangci-lint configuration
+# Run: golangci-lint run ./...
+# Or via Makefile: make lint
+#
+# Note: This config starts conservative and can be tightened over time.
+# Focus on catching real bugs rather than style nitpicks.
+
+run:
+  timeout: 5m
+  tests: true
+
+linters:
+  # Start with a focused set of linters
+  disable-all: true
+  enable:
+    # Critical - catch real bugs
+    - govet         # Examine Go source code for suspicious constructs
+    - staticcheck   # Comprehensive static analysis
+    - unused        # Check for unused code
+
+    # Important - prevent common mistakes
+    - gosimple      # Simplify code
+    - ineffassign   # Detect ineffectual assignments
+
+    # Formatting
+    - gofmt         # Check formatting
+    - goimports     # Check import order
+
+    # Helpful but not critical
+    - misspell      # Find misspelled words
+    - durationcheck # Check for duration multiplication issues
+    - nilerr        # Find code returning nil error incorrectly
+    - predeclared   # Find shadowed predeclared identifiers
+    - unconvert     # Remove unnecessary type conversions
+
+linters-settings:
+  govet:
+    enable-all: true
+    disable:
+      - fieldalignment  # Too noisy for development
+      - shadow          # Common Go pattern of reusing err
+
+  goimports:
+    local-prefixes: github.com/example/orc
+
+  misspell:
+    locale: US
+
+  staticcheck:
+    checks: ["all"]
+
+issues:
+  exclude-use-default: false
+
+  exclude-rules:
+    # Exclude some linters from running on test files
+    - path: _test\.go
+      linters:
+        - unused    # Test helpers may appear unused
+
+  max-issues-per-linter: 50
+  max-same-issues: 10

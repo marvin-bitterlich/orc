@@ -1,0 +1,54 @@
+
+// {{.Name}}Repository defines the secondary port for {{.NameLower}} persistence.
+type {{.Name}}Repository interface {
+	// Create persists a new {{.NameLower}}.
+	Create(ctx context.Context, {{.NameLower}} *{{.Name}}Record) error
+
+	// GetByID retrieves a {{.NameLower}} by its ID.
+	GetByID(ctx context.Context, id string) (*{{.Name}}Record, error)
+
+	// List retrieves {{.NamePlural}} matching the given filters.
+	List(ctx context.Context, filters {{.Name}}Filters) ([]*{{.Name}}Record, error)
+
+	// Update updates an existing {{.NameLower}}.
+	Update(ctx context.Context, {{.NameLower}} *{{.Name}}Record) error
+
+	// Delete removes a {{.NameLower}} from persistence.
+	Delete(ctx context.Context, id string) error
+
+	// Pin pins a {{.NameLower}}.
+	Pin(ctx context.Context, id string) error
+
+	// Unpin unpins a {{.NameLower}}.
+	Unpin(ctx context.Context, id string) error
+
+	// GetNextID returns the next available {{.NameLower}} ID.
+	GetNextID(ctx context.Context) (string, error)
+
+	// MissionExists checks if a mission exists.
+	MissionExists(ctx context.Context, missionID string) (bool, error)
+}
+
+// {{.Name}}Record represents a {{.NameLower}} as stored in persistence.
+type {{.Name}}Record struct {
+	ID        string
+	MissionID string
+{{- range .Fields}}
+	{{.Name}} {{if eq .Type "time.Time"}}string{{else}}{{.Type}}{{end}}
+{{- end}}
+{{- if .HasStatus}}
+	Status string
+{{- end}}
+	Pinned    bool
+	CreatedAt string
+	UpdatedAt string
+}
+
+// {{.Name}}Filters contains filter options for querying {{.NamePlural}}.
+type {{.Name}}Filters struct {
+	MissionID string
+{{- if .HasStatus}}
+	Status string
+{{- end}}
+}
+

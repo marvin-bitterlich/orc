@@ -1,7 +1,7 @@
 package cli
 
 import (
-	"encoding/json"
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -11,11 +11,13 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/example/orc/internal/config"
-	"github.com/example/orc/internal/context"
-	"github.com/example/orc/internal/models"
-	"github.com/example/orc/internal/tmux"
 	"github.com/spf13/cobra"
+
+	"github.com/example/orc/internal/config"
+	orccontext "github.com/example/orc/internal/context"
+	"github.com/example/orc/internal/ports/primary"
+	"github.com/example/orc/internal/tmux"
+	"github.com/example/orc/internal/wire"
 )
 
 // GroveCmd returns the grove command
@@ -57,6 +59,8 @@ Examples:
   orc grove create multi --repos main-app,api-service --mission MISSION-002`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			ctx := context.Background()
+
 			// Validate Claude workspace trust before creating grove
 			if err := validateClaudeWorkspaceTrust(); err != nil {
 				return fmt.Errorf("Claude workspace trust validation failed:\n\n%w\n\nRun 'orc doctor' for detailed diagnostics", err)
@@ -66,31 +70,24 @@ Examples:
 
 			// Get mission from context or require explicit flag
 			if missionID == "" {
-				missionID = context.GetContextMissionID()
+				missionID = orccontext.GetContextMissionID()
 				if missionID == "" {
 					return fmt.Errorf("no mission context detected\nHint: Use --mission flag or run from a grove/mission directory")
 				}
 			}
 
-			// Default base path
-			if basePath == "" {
-				home, err := os.UserHomeDir()
-				if err != nil {
-					return fmt.Errorf("failed to get home directory: %w", err)
-				}
-				basePath = filepath.Join(home, "src", "worktrees")
-			}
-
-			// Full path for this grove - include mission ID to avoid conflicts
-			grovePathName := fmt.Sprintf("%s-%s", missionID, name)
-			grovePath := filepath.Join(basePath, grovePathName)
-
-			// Create grove in database
-			grove, err := models.CreateGrove(missionID, name, grovePath, repos)
+			// Create grove via service (handles DB + directory + config)
+			resp, err := wire.GroveService().CreateGrove(ctx, primary.CreateGroveRequest{
+				Name:      name,
+				MissionID: missionID,
+				Repos:     repos,
+				BasePath:  basePath,
+			})
 			if err != nil {
-				return fmt.Errorf("failed to create grove in database: %w", err)
+				return fmt.Errorf("failed to create grove: %w", err)
 			}
 
+			grove := resp.Grove
 			fmt.Printf("✓ Created grove %s: %s\n", grove.ID, grove.Name)
 			fmt.Printf("  Mission: %s\n", grove.MissionID)
 			fmt.Printf("  Path: %s\n", grove.Path)
@@ -98,36 +95,25 @@ Examples:
 				fmt.Printf("  Repos: %v\n", repos)
 			}
 			fmt.Println()
+			fmt.Printf("  ✓ Created directory and .orc/config.json\n")
 
-			// Create worktree directory if it doesn't exist
-			if err := os.MkdirAll(grovePath, 0755); err != nil {
-				return fmt.Errorf("failed to create grove directory: %w", err)
-			}
-
-			// For each repo, try to create git worktree
+			// For each repo, try to create git worktree (not handled by service)
 			if len(repos) > 0 {
+				fmt.Println()
 				fmt.Println("Creating git worktrees...")
 				for _, repo := range repos {
-					if err := createWorktree(repo, name, grovePath); err != nil {
+					if err := createWorktree(repo, name, grove.Path); err != nil {
 						fmt.Printf("  ⚠️  Warning: Could not create worktree for %s: %v\n", repo, err)
 						fmt.Printf("     You may need to create it manually\n")
 					} else {
 						fmt.Printf("  ✓ Created worktree for %s\n", repo)
 					}
 				}
-				fmt.Println()
-			}
-
-			// Write .orc/config.json (grove config - includes mission context)
-			if err := writeGroveMetadata(grove); err != nil {
-				fmt.Printf("  ⚠️  Warning: Could not write .orc/config.json: %v\n", err)
-			} else {
-				fmt.Printf("  ✓ Wrote .orc/config.json (grove config + mission context)\n")
 			}
 
 			fmt.Println()
-			fmt.Printf("Grove ready at: %s\n", grovePath)
-			fmt.Printf("Start working: cd %s\n", grovePath)
+			fmt.Printf("Grove ready at: %s\n", grove.Path)
+			fmt.Printf("Start working: cd %s\n", grove.Path)
 
 			return nil
 		},
@@ -148,12 +134,22 @@ func groveListCmd() *cobra.Command {
 		Short: "List all groves",
 		Long:  `List all groves with their current status.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			groves, err := models.ListGroves(missionID)
+			ctx := context.Background()
+
+			// Use adapter for listing - now supports empty missionID (lists all)
+			if missionID != "" {
+				_, err := wire.GroveAdapter().List(ctx, missionID)
+				return err
+			}
+
+			// List all groves via service (now supports empty missionID)
+			groveService := wire.GroveService()
+			serviceGroves, err := groveService.ListGroves(ctx, primary.GroveFilters{})
 			if err != nil {
 				return fmt.Errorf("failed to list groves: %w", err)
 			}
 
-			if len(groves) == 0 {
+			if len(serviceGroves) == 0 {
 				fmt.Println("No groves found.")
 				fmt.Println()
 				fmt.Println("Create your first grove:")
@@ -165,13 +161,13 @@ func groveListCmd() *cobra.Command {
 			fmt.Fprintln(w, "ID\tNAME\tMISSION\tSTATUS\tPATH")
 			fmt.Fprintln(w, "--\t----\t-------\t------\t----")
 
-			for _, grove := range groves {
+			for _, g := range serviceGroves {
 				fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
-					grove.ID,
-					grove.Name,
-					grove.MissionID,
-					grove.Status,
-					grove.Path,
+					g.ID,
+					g.Name,
+					g.MissionID,
+					g.Status,
+					g.Path,
 				)
 			}
 
@@ -191,25 +187,9 @@ func groveShowCmd() *cobra.Command {
 		Short: "Show grove details",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			id := args[0]
-
-			grove, err := models.GetGrove(id)
-			if err != nil {
-				return fmt.Errorf("failed to get grove: %w", err)
-			}
-
-			fmt.Printf("\nGrove: %s\n", grove.ID)
-			fmt.Printf("Name:    %s\n", grove.Name)
-			fmt.Printf("Mission: %s\n", grove.MissionID)
-			fmt.Printf("Path:    %s\n", grove.Path)
-			fmt.Printf("Status:  %s\n", grove.Status)
-			if grove.Repos.Valid {
-				fmt.Printf("Repos:   %s\n", grove.Repos.String)
-			}
-			fmt.Printf("Created: %s\n", grove.CreatedAt.Format("2006-01-02 15:04"))
-			fmt.Println()
-
-			return nil
+			ctx := context.Background()
+			_, err := wire.GroveAdapter().Show(ctx, args[0])
+			return err
 		},
 	}
 }
@@ -227,30 +207,20 @@ Examples:
   orc grove rename GROVE-001 backend-refactor --update-config`,
 		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			ctx := context.Background()
 			id := args[0]
 			newName := args[1]
 
-			// Get grove before rename
-			grove, err := models.GetGrove(id)
+			// Rename via adapter (handles get + rename + output)
+			_, err := wire.GroveAdapter().Rename(ctx, id, newName)
 			if err != nil {
-				return fmt.Errorf("failed to get grove: %w", err)
+				return err
 			}
 
-			oldName := grove.Name
-
-			// Rename in database
-			err = models.RenameGrove(id, newName)
-			if err != nil {
-				return fmt.Errorf("failed to rename grove: %w", err)
-			}
-
-			fmt.Printf("✓ Grove %s renamed\n", id)
-			fmt.Printf("  %s → %s\n", oldName, newName)
-
-			// Update .orc/config.json if requested
+			// Update .orc/config.json if requested (CLI-specific filesystem logic)
 			if updateMetadata {
-				// Reload grove with new name
-				grove, err = models.GetGrove(id)
+				// Reload grove with new name via service
+				grove, err := wire.GroveService().GetGrove(ctx, id)
 				if err != nil {
 					fmt.Printf("  ⚠️  Warning: Could not reload grove for config update: %v\n", err)
 					return nil
@@ -290,43 +260,45 @@ Examples:
   orc grove delete GROVE-TEST-001 --force --remove-worktree`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			ctx := context.Background()
 			groveID := args[0]
 
-			// Get grove details before deleting
-			grove, err := models.GetGrove(groveID)
+			// Get grove path before deleting (for worktree removal)
+			grove, err := wire.GroveAdapter().GetGrove(ctx, groveID)
 			if err != nil {
-				return fmt.Errorf("failed to get grove: %w", err)
+				return err
 			}
+			grovePath := grove.Path
 
-			// Remove worktree if requested
+			// Remove worktree if requested (CLI-specific filesystem operation)
 			if removeWorktree {
-				if _, err := os.Stat(grove.Path); err == nil {
-					fmt.Printf("Removing worktree at: %s\n", grove.Path)
+				if _, err := os.Stat(grovePath); err == nil {
+					fmt.Printf("Removing worktree at: %s\n", grovePath)
 
 					// Try to remove git worktree first
-					if err := exec.Command("git", "worktree", "remove", grove.Path, "--force").Run(); err != nil {
+					if err := exec.Command("git", "worktree", "remove", grovePath, "--force").Run(); err != nil {
 						fmt.Printf("  ⚠️  Warning: git worktree remove failed: %v\n", err)
 						fmt.Printf("  Attempting direct directory removal...\n")
 
 						// Fall back to direct directory removal
-						if err := os.RemoveAll(grove.Path); err != nil {
+						if err := os.RemoveAll(grovePath); err != nil {
 							return fmt.Errorf("failed to remove worktree directory: %w", err)
 						}
 					}
 					fmt.Printf("  ✓ Worktree removed\n")
 				} else {
-					fmt.Printf("  ℹ️  Worktree not found at %s (already removed)\n", grove.Path)
+					fmt.Printf("  ℹ️  Worktree not found at %s (already removed)\n", grovePath)
 				}
 			}
 
-			// Delete from database
-			if err := models.DeleteGrove(groveID); err != nil {
-				return fmt.Errorf("failed to delete grove from database: %w", err)
+			// Delete from database via adapter
+			_, err = wire.GroveAdapter().Delete(ctx, groveID, force)
+			if err != nil {
+				return err
 			}
 
-			fmt.Printf("✓ Deleted grove %s: %s\n", grove.ID, grove.Name)
 			if !removeWorktree {
-				fmt.Printf("  ℹ️  Worktree still exists at: %s\n", grove.Path)
+				fmt.Printf("  ℹ️  Worktree still exists at: %s\n", grovePath)
 				fmt.Printf("     Use --remove-worktree to delete it\n")
 			}
 
@@ -360,8 +332,8 @@ Examples:
 		RunE: func(cmd *cobra.Command, args []string) error {
 			groveID := args[0]
 
-			// Get grove from database
-			grove, err := models.GetGrove(groveID)
+			// Get grove from service
+			grove, err := wire.GroveService().GetGrove(context.Background(), groveID)
 			if err != nil {
 				return fmt.Errorf("failed to get grove: %w", err)
 			}
@@ -452,16 +424,7 @@ func createWorktree(repo, branch, targetPath string) error {
 }
 
 // writeGroveMetadata writes .orc/config.json with type="grove"
-func writeGroveMetadata(grove *models.Grove) error {
-	// Parse repos JSON if present
-	repos := []string{}
-	if grove.Repos.Valid {
-		if err := json.Unmarshal([]byte(grove.Repos.String), &repos); err != nil {
-			// If unmarshal fails, leave as empty slice
-			repos = []string{}
-		}
-	}
-
+func writeGroveMetadata(grove *primary.Grove) error {
 	cfg := &config.Config{
 		Version: "1.0",
 		Type:    config.TypeGrove,
@@ -469,7 +432,7 @@ func writeGroveMetadata(grove *models.Grove) error {
 			GroveID:   grove.ID,
 			MissionID: grove.MissionID,
 			Name:      grove.Name,
-			Repos:     repos,
+			Repos:     grove.Repos,
 			CreatedAt: time.Now().Format(time.RFC3339),
 		},
 	}

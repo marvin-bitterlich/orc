@@ -1,0 +1,47 @@
+%% Question Workflow State Diagram
+%% Generated: 2026-01-20
+%% Context: CON-003 FSM-First Testing Strategy (Slice 6)
+%% Source: specs/question-workflow.yaml
+
+stateDiagram-v2
+    [*] --> initial
+
+    %% Creation
+    initial --> open : create\n[mission_exists,\ninvestigation_exists_if_provided]
+
+    %% Self-transitions in open state
+    open --> open : update
+    open --> open : pin
+    open --> open : unpin
+
+    %% Answering
+    open --> answered : answer\n[is_open, not_pinned]
+
+    %% Deletion from any non-terminal state
+    open --> deleted : delete
+    answered --> deleted : delete
+
+    %% Terminal states
+    deleted --> [*]
+
+    %% State descriptions
+    note right of initial
+        Pre-creation state
+    end note
+
+    note right of open
+        Default state
+        Awaiting answer
+        Can update, pin/unpin, answer, or delete
+    end note
+
+    note right of answered
+        Question answered
+        AnsweredAt set
+        Soft terminal (can delete)
+    end note
+
+    note right of deleted
+        Hard-deleted
+        True terminal state
+    end note

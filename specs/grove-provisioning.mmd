@@ -1,0 +1,50 @@
+%% Grove Provisioning FSM - State Diagram
+%% Generated: 2026-01-20
+%% Context: CON-003 FSM-First Testing Strategy (Slice 1)
+
+stateDiagram-v2
+    %% Entry point
+    [*] --> initial
+
+    %% Creation: initial -> active
+    initial --> active : create\n[is_orc, mission_exists]
+
+    %% Operations within active state (no state change)
+    active --> active : open\n[grove_exists, path_exists, in_tmux]
+    active --> active : rename\n[grove_exists]
+
+    %% Archiving: active -> archived
+    active --> archived : archive\n[is_orc, not_archived]
+
+    %% Restoring: archived -> active
+    archived --> active : restore\n[is_orc, is_archived]
+
+    %% Deletion from either state
+    active --> deleted : delete\n[no_tasks_or_force]
+    archived --> deleted : delete\n[no_tasks_or_force]
+
+    %% Terminal state
+    deleted --> [*]
+
+    %% State descriptions
+    note right of initial
+        Pre-creation state
+        No grove exists yet
+    end note
+
+    note right of active
+        Grove is operational
+        Status: "active"
+        Can be opened, renamed, archived, or deleted
+    end note
+
+    note right of archived
+        Soft-deleted grove
+        Status: "archived"
+        Can be restored or hard-deleted
+    end note
+
+    note right of deleted
+        Removed from database
+        True terminal state
+    end note

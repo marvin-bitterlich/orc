@@ -1,0 +1,180 @@
+# .go-arch-lint.yml
+# Architecture Rules for go-arch-lint
+# Enforces hexagonal architecture layer boundaries via import direction rules.
+#
+# Run: go-arch-lint check
+# Or via Makefile: make lint
+#
+# Note: This config reflects the current codebase patterns.
+# The key rules enforced are dependency directions: inner layers shouldn't depend on outer.
+
+version: 3
+
+workdir: .
+
+allow:
+  depOnAnyVendor: true   # Allow vendor deps where permitted below
+  deepScan: false        # Focus on import rules, not DI patterns
+
+excludeFiles:
+  - ".*/scripts/.*"      # Exclude scripts from analysis
+
+components:
+  # Core domain logic - guards, state machines, pure functions
+  core:
+    in: internal/core/**
+
+  # Port interfaces - contracts only
+  ports:
+    in: internal/ports/**
+
+  # Application services - orchestration layer
+  app:
+    in: internal/app/**
+
+  # Adapter implementations - external system bindings
+  adapters:
+    in: internal/adapters/**
+
+  # Models - shared data structures
+  models:
+    in: internal/models/**
+
+  # Database utilities
+  db:
+    in: internal/db/**
+
+  # Dependency injection / wiring
+  wire:
+    in: internal/wire/**
+
+  # CLI commands (Cobra)
+  cli:
+    in: internal/cli/**
+
+  # Entry points
+  cmd:
+    in: cmd/**
+
+  # Supporting / utility packages
+  agent:
+    in: internal/agent/**
+
+  config:
+    in: internal/config/**
+
+  context:
+    in: internal/context/**
+
+  templates:
+    in: internal/templates/**
+
+  # tmux executor (imperative)
+  tmux:
+    in: internal/tmux/**
+
+  # Version info (build-time injected)
+  version:
+    in: internal/version/**
+
+deps:
+  # Core: pure domain logic
+  core:
+    anyProjectDeps: false
+    anyVendorDeps: false
+    mayDependOn:
+      - core
+
+  # Ports: interfaces only
+  ports:
+    anyProjectDeps: false
+    anyVendorDeps: false
+
+  # Models: data structures only
+  models:
+    anyProjectDeps: false
+    anyVendorDeps: false
+
+  # App: orchestration using core + ports (no direct I/O)
+  app:
+    mayDependOn:
+      - core
+      - ports
+      - models
+      - config
+      - context
+      - agent
+
+  # Adapters: perform I/O; implement ports
+  adapters:
+    mayDependOn:
+      - ports
+      - models
+      - db
+      - core
+      - config
+      - context
+      - agent
+      - tmux
+
+  # Wire: composes the system
+  wire:
+    mayDependOn:
+      - app
+      - adapters
+      - ports
+      - models
+      - db
+      - config
+      - context
+      - agent
+      - tmux
+      - version
+
+  # CLI: thin adapter; depends on wire + contracts + models for formatting
+  cli:
+    mayDependOn:
+      - wire
+      - ports
+      - models
+      - config
+      - context
+      - version
+
+  # cmd: entrypoints should only bootstrap CLI (and version if needed)
+  cmd:
+    mayDependOn:
+      - cli
+      - version
+
+  # DB utilities
+  db:
+    mayDependOn:
+      - models
+      - config
+
+  # Supporting packages (relaxed)
+  agent:
+    anyProjectDeps: true
+
+  config:
+    anyProjectDeps: false
+    anyVendorDeps: true
+
+  context:
+    anyProjectDeps: true
+
+  templates:
+    anyProjectDeps: false
+    anyVendorDeps: true
+
+  # tmux is imperative infra; keep it out of app by policy
+  tmux:
+    mayDependOn:
+      - config
+      - context
+
+  # Version: stdlib only
+  version:
+    anyProjectDeps: false
+    anyVendorDeps: false

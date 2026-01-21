@@ -1,0 +1,143 @@
+package app
+
+import (
+	"context"
+	"fmt"
+
+	"github.com/example/orc/internal/ports/primary"
+	"github.com/example/orc/internal/ports/secondary"
+)
+
+// {{.Name}}ServiceImpl implements the {{.Name}}Service interface.
+type {{.Name}}ServiceImpl struct {
+	{{.NameLower}}Repo secondary.{{.Name}}Repository
+}
+
+// New{{.Name}}Service creates a new {{.Name}}Service with injected dependencies.
+func New{{.Name}}Service({{.NameLower}}Repo secondary.{{.Name}}Repository) *{{.Name}}ServiceImpl {
+	return &{{.Name}}ServiceImpl{
+		{{.NameLower}}Repo: {{.NameLower}}Repo,
+	}
+}
+
+// Create{{.Name}} creates a new {{.NameLower}}.
+func (s *{{.Name}}ServiceImpl) Create{{.Name}}(ctx context.Context, req primary.Create{{.Name}}Request) (*primary.Create{{.Name}}Response, error) {
+	// Validate mission exists
+	exists, err := s.{{.NameLower}}Repo.MissionExists(ctx, req.MissionID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to validate mission: %w", err)
+	}
+	if !exists {
+		return nil, fmt.Errorf("mission %s not found", req.MissionID)
+	}
+
+	// Get next ID
+	nextID, err := s.{{.NameLower}}Repo.GetNextID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate {{.NameLower}} ID: %w", err)
+	}
+
+	// Create record
+	record := &secondary.{{.Name}}Record{
+		ID:        nextID,
+		MissionID: req.MissionID,
+{{- range .Fields}}
+{{- if not .Nullable}}
+		{{.Name}}: req.{{.Name}},
+{{- end}}
+{{- end}}
+{{- if .HasStatus}}
+		Status: "{{index .StatusValues 0}}",
+{{- end}}
+	}
+
+	if err := s.{{.NameLower}}Repo.Create(ctx, record); err != nil {
+		return nil, fmt.Errorf("failed to create {{.NameLower}}: %w", err)
+	}
+
+	// Fetch created {{.NameLower}}
+	created, err := s.{{.NameLower}}Repo.GetByID(ctx, nextID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch created {{.NameLower}}: %w", err)
+	}
+
+	return &primary.Create{{.Name}}Response{
+		{{.Name}}ID: created.ID,
+		{{.Name}}:   s.recordTo{{.Name}}(created),
+	}, nil
+}
+
+// Get{{.Name}} retrieves a {{.NameLower}} by ID.
+func (s *{{.Name}}ServiceImpl) Get{{.Name}}(ctx context.Context, {{.NameLower}}ID string) (*primary.{{.Name}}, error) {
+	record, err := s.{{.NameLower}}Repo.GetByID(ctx, {{.NameLower}}ID)
+	if err != nil {
+		return nil, err
+	}
+	return s.recordTo{{.Name}}(record), nil
+}
+
+// List{{.NamePlural | title}} lists {{.NamePlural}} with optional filters.
+func (s *{{.Name}}ServiceImpl) List{{.NamePlural | title}}(ctx context.Context, filters primary.{{.Name}}Filters) ([]*primary.{{.Name}}, error) {
+	records, err := s.{{.NameLower}}Repo.List(ctx, secondary.{{.Name}}Filters{
+		MissionID: filters.MissionID,
+{{- if .HasStatus}}
+		Status: filters.Status,
+{{- end}}
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list {{.NamePlural}}: %w", err)
+	}
+
+	{{.NamePlural}} := make([]*primary.{{.Name}}, len(records))
+	for i, r := range records {
+		{{.NamePlural}}[i] = s.recordTo{{.Name}}(r)
+	}
+	return {{.NamePlural}}, nil
+}
+
+// Update{{.Name}} updates a {{.NameLower}}.
+func (s *{{.Name}}ServiceImpl) Update{{.Name}}(ctx context.Context, req primary.Update{{.Name}}Request) error {
+	record := &secondary.{{.Name}}Record{
+		ID: req.{{.Name}}ID,
+{{- range .Fields}}
+		{{.Name}}: req.{{.Name}},
+{{- end}}
+	}
+	return s.{{.NameLower}}Repo.Update(ctx, record)
+}
+
+// Delete{{.Name}} deletes a {{.NameLower}}.
+func (s *{{.Name}}ServiceImpl) Delete{{.Name}}(ctx context.Context, {{.NameLower}}ID string) error {
+	return s.{{.NameLower}}Repo.Delete(ctx, {{.NameLower}}ID)
+}
+
+// Pin{{.Name}} pins a {{.NameLower}}.
+func (s *{{.Name}}ServiceImpl) Pin{{.Name}}(ctx context.Context, {{.NameLower}}ID string) error {
+	return s.{{.NameLower}}Repo.Pin(ctx, {{.NameLower}}ID)
+}
+
+// Unpin{{.Name}} unpins a {{.NameLower}}.
+func (s *{{.Name}}ServiceImpl) Unpin{{.Name}}(ctx context.Context, {{.NameLower}}ID string) error {
+	return s.{{.NameLower}}Repo.Unpin(ctx, {{.NameLower}}ID)
+}
+
+// Helper methods
+
+func (s *{{.Name}}ServiceImpl) recordTo{{.Name}}(r *secondary.{{.Name}}Record) *primary.{{.Name}} {
+	return &primary.{{.Name}}{
+		ID:        r.ID,
+		MissionID: r.MissionID,
+{{- range .Fields}}
+		{{.Name}}: r.{{.Name}},
+{{- end}}
+{{- if .HasStatus}}
+		Status: r.Status,
+{{- end}}
+		Pinned:    r.Pinned,
+		CreatedAt: r.CreatedAt,
+		UpdatedAt: r.UpdatedAt,
+	}
+}
+
+// Ensure {{.Name}}ServiceImpl implements the interface
+var _ primary.{{.Name}}Service = (*{{.Name}}ServiceImpl)(nil)

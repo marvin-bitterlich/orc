@@ -1,0 +1,754 @@
+package sqlite_test
+
+import (
+	"context"
+	"database/sql"
+	"testing"
+
+	_ "github.com/mattn/go-sqlite3"
+
+	"github.com/example/orc/internal/adapters/sqlite"
+	"github.com/example/orc/internal/ports/secondary"
+)
+
+func setupTaskTestDB(t *testing.T) *sql.DB {
+	t.Helper()
+
+	db, err := sql.Open("sqlite3", ":memory:")
+	if err != nil {
+		t.Fatalf("failed to open test db: %v", err)
+	}
+
+	// Create missions table
+	_, err = db.Exec(`
+		CREATE TABLE missions (
+			id TEXT PRIMARY KEY,
+			title TEXT NOT NULL,
+			status TEXT NOT NULL DEFAULT 'active',
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		)
+	`)
+	if err != nil {
+		t.Fatalf("failed to create missions table: %v", err)
+	}
+
+	// Create shipments table
+	_, err = db.Exec(`
+		CREATE TABLE shipments (
+			id TEXT PRIMARY KEY,
+			mission_id TEXT NOT NULL,
+			title TEXT NOT NULL,
+			status TEXT NOT NULL DEFAULT 'active',
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		)
+	`)
+	if err != nil {
+		t.Fatalf("failed to create shipments table: %v", err)
+	}
+
+	// Create groves table
+	_, err = db.Exec(`
+		CREATE TABLE groves (
+			id TEXT PRIMARY KEY,
+			mission_id TEXT NOT NULL,
+			name TEXT NOT NULL,
+			status TEXT NOT NULL DEFAULT 'active',
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		)
+	`)
+	if err != nil {
+		t.Fatalf("failed to create groves table: %v", err)
+	}
+
+	// Create tasks table
+	_, err = db.Exec(`
+		CREATE TABLE tasks (
+			id TEXT PRIMARY KEY,
+			shipment_id TEXT,
+			mission_id TEXT NOT NULL,
+			title TEXT NOT NULL,
+			description TEXT,
+			type TEXT,
+			status TEXT NOT NULL DEFAULT 'ready',
+			priority TEXT,
+			assigned_grove_id TEXT,
+			pinned INTEGER NOT NULL DEFAULT 0,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			claimed_at DATETIME,
+			completed_at DATETIME,
+			conclave_id TEXT,
+			promoted_from_id TEXT,
+			promoted_from_type TEXT
+		)
+	`)
+	if err != nil {
+		t.Fatalf("failed to create tasks table: %v", err)
+	}
+
+	// Create tags table
+	_, err = db.Exec(`
+		CREATE TABLE tags (
+			id TEXT PRIMARY KEY,
+			name TEXT NOT NULL UNIQUE,
+			description TEXT,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		)
+	`)
+	if err != nil {
+		t.Fatalf("failed to create tags table: %v", err)
+	}
+
+	// Create entity_tags table
+	_, err = db.Exec(`
+		CREATE TABLE entity_tags (
+			id TEXT PRIMARY KEY,
+			entity_id TEXT NOT NULL,
+			entity_type TEXT NOT NULL,
+			tag_id TEXT NOT NULL,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		)
+	`)
+	if err != nil {
+		t.Fatalf("failed to create entity_tags table: %v", err)
+	}
+
+	// Insert test data
+	_, _ = db.Exec("INSERT INTO missions (id, title, status) VALUES ('MISSION-001', 'Test Mission', 'active')")
+	_, _ = db.Exec("INSERT INTO shipments (id, mission_id, title, status) VALUES ('SHIP-001', 'MISSION-001', 'Test Shipment', 'active')")
+	_, _ = db.Exec("INSERT INTO groves (id, mission_id, name, status) VALUES ('GROVE-001', 'MISSION-001', 'test-grove', 'active')")
+
+	t.Cleanup(func() {
+		db.Close()
+	})
+
+	return db
+}
+
+// createTestTask is a helper that creates a task with a generated ID.
+func createTestTask(t *testing.T, repo *sqlite.TaskRepository, ctx context.Context, missionID, shipmentID, title string) *secondary.TaskRecord {
+	t.Helper()
+
+	nextID, err := repo.GetNextID(ctx)
+	if err != nil {
+		t.Fatalf("GetNextID failed: %v", err)
+	}
+
+	task := &secondary.TaskRecord{
+		ID:         nextID,
+		MissionID:  missionID,
+		ShipmentID: shipmentID,
+		Title:      title,
+	}
+
+	err = repo.Create(ctx, task)
+	if err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+
+	return task
+}
+
+func TestTaskRepository_Create(t *testing.T) {
+	db := setupTaskTestDB(t)
+	repo := sqlite.NewTaskRepository(db)
+	ctx := context.Background()
+
+	task := &secondary.TaskRecord{
+		ID:          "TASK-001",
+		MissionID:   "MISSION-001",
+		ShipmentID:  "SHIP-001",
+		Title:       "Test Task",
+		Description: "A test task description",
+		Type:        "implementation",
+	}
+
+	err := repo.Create(ctx, task)
+	if err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+
+	// Verify task was created
+	retrieved, err := repo.GetByID(ctx, "TASK-001")
+	if err != nil {
+		t.Fatalf("GetByID failed: %v", err)
+	}
+	if retrieved.Title != "Test Task" {
+		t.Errorf("expected title 'Test Task', got '%s'", retrieved.Title)
+	}
+	if retrieved.Status != "ready" {
+		t.Errorf("expected status 'ready', got '%s'", retrieved.Status)
+	}
+	if retrieved.ShipmentID != "SHIP-001" {
+		t.Errorf("expected shipment 'SHIP-001', got '%s'", retrieved.ShipmentID)
+	}
+}
+
+func TestTaskRepository_Create_WithoutShipment(t *testing.T) {
+	db := setupTaskTestDB(t)
+	repo := sqlite.NewTaskRepository(db)
+	ctx := context.Background()
+
+	task := &secondary.TaskRecord{
+		ID:        "TASK-001",
+		MissionID: "MISSION-001",
+		Title:     "Standalone Task",
+	}
+
+	err := repo.Create(ctx, task)
+	if err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+
+	retrieved, _ := repo.GetByID(ctx, "TASK-001")
+	if retrieved.ShipmentID != "" {
+		t.Errorf("expected empty shipment ID, got '%s'", retrieved.ShipmentID)
+	}
+}
+
+func TestTaskRepository_GetByID(t *testing.T) {
+	db := setupTaskTestDB(t)
+	repo := sqlite.NewTaskRepository(db)
+	ctx := context.Background()
+
+	task := createTestTask(t, repo, ctx, "MISSION-001", "SHIP-001", "Test Task")
+
+	retrieved, err := repo.GetByID(ctx, task.ID)
+	if err != nil {
+		t.Fatalf("GetByID failed: %v", err)
+	}
+
+	if retrieved.Title != "Test Task" {
+		t.Errorf("expected title 'Test Task', got '%s'", retrieved.Title)
+	}
+	if retrieved.MissionID != "MISSION-001" {
+		t.Errorf("expected mission 'MISSION-001', got '%s'", retrieved.MissionID)
+	}
+}
+
+func TestTaskRepository_GetByID_NotFound(t *testing.T) {
+	db := setupTaskTestDB(t)
+	repo := sqlite.NewTaskRepository(db)
+	ctx := context.Background()
+
+	_, err := repo.GetByID(ctx, "TASK-999")
+	if err == nil {
+		t.Error("expected error for non-existent task")
+	}
+}
+
+func TestTaskRepository_List(t *testing.T) {
+	db := setupTaskTestDB(t)
+	repo := sqlite.NewTaskRepository(db)
+	ctx := context.Background()
+
+	createTestTask(t, repo, ctx, "MISSION-001", "", "Task 1")
+	createTestTask(t, repo, ctx, "MISSION-001", "", "Task 2")
+	createTestTask(t, repo, ctx, "MISSION-001", "", "Task 3")
+
+	tasks, err := repo.List(ctx, secondary.TaskFilters{})
+	if err != nil {
+		t.Fatalf("List failed: %v", err)
+	}
+
+	if len(tasks) != 3 {
+		t.Errorf("expected 3 tasks, got %d", len(tasks))
+	}
+}
+
+func TestTaskRepository_List_FilterByShipment(t *testing.T) {
+	db := setupTaskTestDB(t)
+	repo := sqlite.NewTaskRepository(db)
+	ctx := context.Background()
+
+	// Add another shipment
+	_, _ = db.Exec("INSERT INTO shipments (id, mission_id, title) VALUES ('SHIP-002', 'MISSION-001', 'Ship 2')")
+
+	createTestTask(t, repo, ctx, "MISSION-001", "SHIP-001", "Task 1")
+	createTestTask(t, repo, ctx, "MISSION-001", "SHIP-001", "Task 2")
+	createTestTask(t, repo, ctx, "MISSION-001", "SHIP-002", "Task 3")
+
+	tasks, err := repo.List(ctx, secondary.TaskFilters{ShipmentID: "SHIP-001"})
+	if err != nil {
+		t.Fatalf("List failed: %v", err)
+	}
+
+	if len(tasks) != 2 {
+		t.Errorf("expected 2 tasks for SHIP-001, got %d", len(tasks))
+	}
+}
+
+func TestTaskRepository_List_FilterByStatus(t *testing.T) {
+	db := setupTaskTestDB(t)
+	repo := sqlite.NewTaskRepository(db)
+	ctx := context.Background()
+
+	task1 := createTestTask(t, repo, ctx, "MISSION-001", "", "Ready Task")
+	createTestTask(t, repo, ctx, "MISSION-001", "", "Another Ready Task")
+
+	// Change status of task1
+	_ = repo.UpdateStatus(ctx, task1.ID, "in_progress", true, false)
+
+	tasks, err := repo.List(ctx, secondary.TaskFilters{Status: "ready"})
+	if err != nil {
+		t.Fatalf("List failed: %v", err)
+	}
+
+	if len(tasks) != 1 {
+		t.Errorf("expected 1 ready task, got %d", len(tasks))
+	}
+}
+
+func TestTaskRepository_List_FilterByMission(t *testing.T) {
+	db := setupTaskTestDB(t)
+	repo := sqlite.NewTaskRepository(db)
+	ctx := context.Background()
+
+	// Add another mission
+	_, _ = db.Exec("INSERT INTO missions (id, title, status) VALUES ('MISSION-002', 'Mission 2', 'active')")
+
+	createTestTask(t, repo, ctx, "MISSION-001", "", "Task 1")
+	createTestTask(t, repo, ctx, "MISSION-002", "", "Task 2")
+
+	tasks, err := repo.List(ctx, secondary.TaskFilters{MissionID: "MISSION-001"})
+	if err != nil {
+		t.Fatalf("List failed: %v", err)
+	}
+
+	if len(tasks) != 1 {
+		t.Errorf("expected 1 task for MISSION-001, got %d", len(tasks))
+	}
+}
+
+func TestTaskRepository_Update(t *testing.T) {
+	db := setupTaskTestDB(t)
+	repo := sqlite.NewTaskRepository(db)
+	ctx := context.Background()
+
+	task := createTestTask(t, repo, ctx, "MISSION-001", "", "Original Title")
+
+	err := repo.Update(ctx, &secondary.TaskRecord{
+		ID:    task.ID,
+		Title: "Updated Title",
+	})
+	if err != nil {
+		t.Fatalf("Update failed: %v", err)
+	}
+
+	retrieved, _ := repo.GetByID(ctx, task.ID)
+	if retrieved.Title != "Updated Title" {
+		t.Errorf("expected title 'Updated Title', got '%s'", retrieved.Title)
+	}
+}
+
+func TestTaskRepository_Update_NotFound(t *testing.T) {
+	db := setupTaskTestDB(t)
+	repo := sqlite.NewTaskRepository(db)
+	ctx := context.Background()
+
+	err := repo.Update(ctx, &secondary.TaskRecord{
+		ID:    "TASK-999",
+		Title: "Updated Title",
+	})
+	if err == nil {
+		t.Error("expected error for non-existent task")
+	}
+}
+
+func TestTaskRepository_Delete(t *testing.T) {
+	db := setupTaskTestDB(t)
+	repo := sqlite.NewTaskRepository(db)
+	ctx := context.Background()
+
+	task := createTestTask(t, repo, ctx, "MISSION-001", "", "To Delete")
+
+	err := repo.Delete(ctx, task.ID)
+	if err != nil {
+		t.Fatalf("Delete failed: %v", err)
+	}
+
+	_, err = repo.GetByID(ctx, task.ID)
+	if err == nil {
+		t.Error("expected error after deletion")
+	}
+}
+
+func TestTaskRepository_Delete_NotFound(t *testing.T) {
+	db := setupTaskTestDB(t)
+	repo := sqlite.NewTaskRepository(db)
+	ctx := context.Background()
+
+	err := repo.Delete(ctx, "TASK-999")
+	if err == nil {
+		t.Error("expected error for non-existent task")
+	}
+}
+
+func TestTaskRepository_Pin_Unpin(t *testing.T) {
+	db := setupTaskTestDB(t)
+	repo := sqlite.NewTaskRepository(db)
+	ctx := context.Background()
+
+	task := createTestTask(t, repo, ctx, "MISSION-001", "", "Pin Test")
+
+	// Pin
+	err := repo.Pin(ctx, task.ID)
+	if err != nil {
+		t.Fatalf("Pin failed: %v", err)
+	}
+
+	retrieved, _ := repo.GetByID(ctx, task.ID)
+	if !retrieved.Pinned {
+		t.Error("expected task to be pinned")
+	}
+
+	// Unpin
+	err = repo.Unpin(ctx, task.ID)
+	if err != nil {
+		t.Fatalf("Unpin failed: %v", err)
+	}
+
+	retrieved, _ = repo.GetByID(ctx, task.ID)
+	if retrieved.Pinned {
+		t.Error("expected task to be unpinned")
+	}
+}
+
+func TestTaskRepository_GetNextID(t *testing.T) {
+	db := setupTaskTestDB(t)
+	repo := sqlite.NewTaskRepository(db)
+	ctx := context.Background()
+
+	id, err := repo.GetNextID(ctx)
+	if err != nil {
+		t.Fatalf("GetNextID failed: %v", err)
+	}
+	if id != "TASK-001" {
+		t.Errorf("expected TASK-001, got %s", id)
+	}
+
+	createTestTask(t, repo, ctx, "MISSION-001", "", "Test")
+
+	id, err = repo.GetNextID(ctx)
+	if err != nil {
+		t.Fatalf("GetNextID failed: %v", err)
+	}
+	if id != "TASK-002" {
+		t.Errorf("expected TASK-002, got %s", id)
+	}
+}
+
+func TestTaskRepository_UpdateStatus(t *testing.T) {
+	db := setupTaskTestDB(t)
+	repo := sqlite.NewTaskRepository(db)
+	ctx := context.Background()
+
+	task := createTestTask(t, repo, ctx, "MISSION-001", "", "Status Test")
+
+	// Update status with claimed timestamp
+	err := repo.UpdateStatus(ctx, task.ID, "in_progress", true, false)
+	if err != nil {
+		t.Fatalf("UpdateStatus failed: %v", err)
+	}
+
+	retrieved, _ := repo.GetByID(ctx, task.ID)
+	if retrieved.Status != "in_progress" {
+		t.Errorf("expected status 'in_progress', got '%s'", retrieved.Status)
+	}
+	if retrieved.ClaimedAt == "" {
+		t.Error("expected ClaimedAt to be set")
+	}
+	if retrieved.CompletedAt != "" {
+		t.Error("expected CompletedAt to be empty")
+	}
+
+	// Update to complete
+	err = repo.UpdateStatus(ctx, task.ID, "complete", false, true)
+	if err != nil {
+		t.Fatalf("UpdateStatus failed: %v", err)
+	}
+
+	retrieved, _ = repo.GetByID(ctx, task.ID)
+	if retrieved.Status != "complete" {
+		t.Errorf("expected status 'complete', got '%s'", retrieved.Status)
+	}
+	if retrieved.CompletedAt == "" {
+		t.Error("expected CompletedAt to be set")
+	}
+}
+
+func TestTaskRepository_UpdateStatus_NotFound(t *testing.T) {
+	db := setupTaskTestDB(t)
+	repo := sqlite.NewTaskRepository(db)
+	ctx := context.Background()
+
+	err := repo.UpdateStatus(ctx, "TASK-999", "complete", false, true)
+	if err == nil {
+		t.Error("expected error for non-existent task")
+	}
+}
+
+func TestTaskRepository_Claim(t *testing.T) {
+	db := setupTaskTestDB(t)
+	repo := sqlite.NewTaskRepository(db)
+	ctx := context.Background()
+
+	task := createTestTask(t, repo, ctx, "MISSION-001", "", "Claim Test")
+
+	err := repo.Claim(ctx, task.ID, "GROVE-001")
+	if err != nil {
+		t.Fatalf("Claim failed: %v", err)
+	}
+
+	retrieved, _ := repo.GetByID(ctx, task.ID)
+	if retrieved.Status != "in_progress" {
+		t.Errorf("expected status 'in_progress', got '%s'", retrieved.Status)
+	}
+	if retrieved.AssignedGroveID != "GROVE-001" {
+		t.Errorf("expected assigned grove 'GROVE-001', got '%s'", retrieved.AssignedGroveID)
+	}
+	if retrieved.ClaimedAt == "" {
+		t.Error("expected ClaimedAt to be set")
+	}
+}
+
+func TestTaskRepository_Claim_NotFound(t *testing.T) {
+	db := setupTaskTestDB(t)
+	repo := sqlite.NewTaskRepository(db)
+	ctx := context.Background()
+
+	err := repo.Claim(ctx, "TASK-999", "GROVE-001")
+	if err == nil {
+		t.Error("expected error for non-existent task")
+	}
+}
+
+func TestTaskRepository_GetByGrove(t *testing.T) {
+	db := setupTaskTestDB(t)
+	repo := sqlite.NewTaskRepository(db)
+	ctx := context.Background()
+
+	task1 := createTestTask(t, repo, ctx, "MISSION-001", "", "Task 1")
+	task2 := createTestTask(t, repo, ctx, "MISSION-001", "", "Task 2")
+	createTestTask(t, repo, ctx, "MISSION-001", "", "Task 3 (unclaimed)")
+
+	_ = repo.Claim(ctx, task1.ID, "GROVE-001")
+	_ = repo.Claim(ctx, task2.ID, "GROVE-001")
+
+	tasks, err := repo.GetByGrove(ctx, "GROVE-001")
+	if err != nil {
+		t.Fatalf("GetByGrove failed: %v", err)
+	}
+
+	if len(tasks) != 2 {
+		t.Errorf("expected 2 tasks for grove, got %d", len(tasks))
+	}
+}
+
+func TestTaskRepository_GetByShipment(t *testing.T) {
+	db := setupTaskTestDB(t)
+	repo := sqlite.NewTaskRepository(db)
+	ctx := context.Background()
+
+	createTestTask(t, repo, ctx, "MISSION-001", "SHIP-001", "Task 1")
+	createTestTask(t, repo, ctx, "MISSION-001", "SHIP-001", "Task 2")
+	createTestTask(t, repo, ctx, "MISSION-001", "", "Task 3 (no shipment)")
+
+	tasks, err := repo.GetByShipment(ctx, "SHIP-001")
+	if err != nil {
+		t.Fatalf("GetByShipment failed: %v", err)
+	}
+
+	if len(tasks) != 2 {
+		t.Errorf("expected 2 tasks for shipment, got %d", len(tasks))
+	}
+}
+
+func TestTaskRepository_AssignGroveByShipment(t *testing.T) {
+	db := setupTaskTestDB(t)
+	repo := sqlite.NewTaskRepository(db)
+	ctx := context.Background()
+
+	task1 := createTestTask(t, repo, ctx, "MISSION-001", "SHIP-001", "Task 1")
+	task2 := createTestTask(t, repo, ctx, "MISSION-001", "SHIP-001", "Task 2")
+	task3 := createTestTask(t, repo, ctx, "MISSION-001", "", "Task 3 (no shipment)")
+
+	err := repo.AssignGroveByShipment(ctx, "SHIP-001", "GROVE-001")
+	if err != nil {
+		t.Fatalf("AssignGroveByShipment failed: %v", err)
+	}
+
+	// Tasks in shipment should have grove assigned
+	retrieved1, _ := repo.GetByID(ctx, task1.ID)
+	if retrieved1.AssignedGroveID != "GROVE-001" {
+		t.Errorf("expected task1 to have grove assigned")
+	}
+
+	retrieved2, _ := repo.GetByID(ctx, task2.ID)
+	if retrieved2.AssignedGroveID != "GROVE-001" {
+		t.Errorf("expected task2 to have grove assigned")
+	}
+
+	// Task without shipment should not be affected
+	retrieved3, _ := repo.GetByID(ctx, task3.ID)
+	if retrieved3.AssignedGroveID != "" {
+		t.Errorf("expected task3 to not have grove assigned")
+	}
+}
+
+func TestTaskRepository_MissionExists(t *testing.T) {
+	db := setupTaskTestDB(t)
+	repo := sqlite.NewTaskRepository(db)
+	ctx := context.Background()
+
+	exists, err := repo.MissionExists(ctx, "MISSION-001")
+	if err != nil {
+		t.Fatalf("MissionExists failed: %v", err)
+	}
+	if !exists {
+		t.Error("expected mission to exist")
+	}
+
+	exists, err = repo.MissionExists(ctx, "MISSION-999")
+	if err != nil {
+		t.Fatalf("MissionExists failed: %v", err)
+	}
+	if exists {
+		t.Error("expected mission to not exist")
+	}
+}
+
+func TestTaskRepository_ShipmentExists(t *testing.T) {
+	db := setupTaskTestDB(t)
+	repo := sqlite.NewTaskRepository(db)
+	ctx := context.Background()
+
+	exists, err := repo.ShipmentExists(ctx, "SHIP-001")
+	if err != nil {
+		t.Fatalf("ShipmentExists failed: %v", err)
+	}
+	if !exists {
+		t.Error("expected shipment to exist")
+	}
+
+	exists, err = repo.ShipmentExists(ctx, "SHIP-999")
+	if err != nil {
+		t.Fatalf("ShipmentExists failed: %v", err)
+	}
+	if exists {
+		t.Error("expected shipment to not exist")
+	}
+}
+
+// Tag-related tests
+
+func TestTaskRepository_AddTag_GetTag_RemoveTag(t *testing.T) {
+	db := setupTaskTestDB(t)
+	repo := sqlite.NewTaskRepository(db)
+	ctx := context.Background()
+
+	// Insert a test tag
+	_, _ = db.Exec("INSERT INTO tags (id, name) VALUES ('TAG-001', 'urgent')")
+
+	task := createTestTask(t, repo, ctx, "MISSION-001", "", "Tagged Task")
+
+	// Initially no tag
+	tag, err := repo.GetTag(ctx, task.ID)
+	if err != nil {
+		t.Fatalf("GetTag failed: %v", err)
+	}
+	if tag != nil {
+		t.Error("expected no tag initially")
+	}
+
+	// Add tag
+	err = repo.AddTag(ctx, task.ID, "TAG-001")
+	if err != nil {
+		t.Fatalf("AddTag failed: %v", err)
+	}
+
+	// Get tag
+	tag, err = repo.GetTag(ctx, task.ID)
+	if err != nil {
+		t.Fatalf("GetTag failed: %v", err)
+	}
+	if tag == nil {
+		t.Fatal("expected tag to be returned")
+	}
+	if tag.ID != "TAG-001" {
+		t.Errorf("expected tag ID 'TAG-001', got '%s'", tag.ID)
+	}
+	if tag.Name != "urgent" {
+		t.Errorf("expected tag name 'urgent', got '%s'", tag.Name)
+	}
+
+	// Remove tag
+	err = repo.RemoveTag(ctx, task.ID)
+	if err != nil {
+		t.Fatalf("RemoveTag failed: %v", err)
+	}
+
+	// Tag should be gone
+	tag, err = repo.GetTag(ctx, task.ID)
+	if err != nil {
+		t.Fatalf("GetTag failed: %v", err)
+	}
+	if tag != nil {
+		t.Error("expected no tag after removal")
+	}
+}
+
+func TestTaskRepository_ListByTag(t *testing.T) {
+	db := setupTaskTestDB(t)
+	repo := sqlite.NewTaskRepository(db)
+	ctx := context.Background()
+
+	// Insert test tags
+	_, _ = db.Exec("INSERT INTO tags (id, name) VALUES ('TAG-001', 'urgent')")
+	_, _ = db.Exec("INSERT INTO tags (id, name) VALUES ('TAG-002', 'low-priority')")
+
+	task1 := createTestTask(t, repo, ctx, "MISSION-001", "", "Task 1")
+	task2 := createTestTask(t, repo, ctx, "MISSION-001", "", "Task 2")
+	createTestTask(t, repo, ctx, "MISSION-001", "", "Task 3 (no tag)")
+
+	_ = repo.AddTag(ctx, task1.ID, "TAG-001")
+	_ = repo.AddTag(ctx, task2.ID, "TAG-001")
+
+	tasks, err := repo.ListByTag(ctx, "TAG-001")
+	if err != nil {
+		t.Fatalf("ListByTag failed: %v", err)
+	}
+
+	if len(tasks) != 2 {
+		t.Errorf("expected 2 tasks with tag, got %d", len(tasks))
+	}
+}
+
+func TestTaskRepository_GetNextEntityTagID(t *testing.T) {
+	db := setupTaskTestDB(t)
+	repo := sqlite.NewTaskRepository(db)
+	ctx := context.Background()
+
+	id, err := repo.GetNextEntityTagID(ctx)
+	if err != nil {
+		t.Fatalf("GetNextEntityTagID failed: %v", err)
+	}
+	if id != "ET-001" {
+		t.Errorf("expected ET-001, got %s", id)
+	}
+
+	// Insert an entity tag
+	_, _ = db.Exec("INSERT INTO entity_tags (id, entity_id, entity_type, tag_id) VALUES ('ET-001', 'TASK-001', 'task', 'TAG-001')")
+
+	id, err = repo.GetNextEntityTagID(ctx)
+	if err != nil {
+		t.Fatalf("GetNextEntityTagID failed: %v", err)
+	}
+	if id != "ET-002" {
+		t.Errorf("expected ET-002, got %s", id)
+	}
+}

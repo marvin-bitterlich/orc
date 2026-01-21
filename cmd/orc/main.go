@@ -4,14 +4,17 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/example/orc/internal/cli"
 	"github.com/spf13/cobra"
+
+	"github.com/example/orc/internal/cli"
+	"github.com/example/orc/internal/version"
 )
 
 func main() {
 	rootCmd := &cobra.Command{
-		Use:   "orc",
-		Short: "ORC - Orchestrator for Forest Factory missions",
+		Use:     "orc",
+		Short:   "ORC - Orchestrator for Forest Factory missions",
+		Version: version.String(),
 		Long: `ORC is a CLI tool for managing missions, groves, shipments, and tasks.
 It coordinates IMPs (Implementation Agents) working in isolated groves (worktrees).`,
 	}
@@ -42,6 +45,9 @@ It coordinates IMPs (Implementation Agents) working in isolated groves (worktree
 	rootCmd.AddCommand(cli.TomeCmd())
 	rootCmd.AddCommand(cli.InvestigationCmd())
 	rootCmd.AddCommand(cli.ConclaveCmd())
+
+	// Developer tools
+	rootCmd.AddCommand(cli.ScaffoldCmd())
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)

@@ -1,0 +1,552 @@
+package sqlite_test
+
+import (
+	"context"
+	"database/sql"
+	"testing"
+
+	_ "github.com/mattn/go-sqlite3"
+
+	"github.com/example/orc/internal/adapters/sqlite"
+	"github.com/example/orc/internal/ports/secondary"
+)
+
+func setupShipmentTestDB(t *testing.T) *sql.DB {
+	t.Helper()
+
+	db, err := sql.Open("sqlite3", ":memory:")
+	if err != nil {
+		t.Fatalf("failed to open test db: %v", err)
+	}
+
+	// Create missions table (required for foreign key checks)
+	_, err = db.Exec(`
+		CREATE TABLE missions (
+			id TEXT PRIMARY KEY,
+			title TEXT NOT NULL,
+			description TEXT,
+			status TEXT NOT NULL DEFAULT 'active',
+			pinned INTEGER NOT NULL DEFAULT 0,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			completed_at DATETIME
+		)
+	`)
+	if err != nil {
+		t.Fatalf("failed to create missions table: %v", err)
+	}
+
+	// Create groves table (for grove assignment tests)
+	_, err = db.Exec(`
+		CREATE TABLE groves (
+			id TEXT PRIMARY KEY,
+			mission_id TEXT NOT NULL,
+			name TEXT NOT NULL,
+			path TEXT,
+			status TEXT NOT NULL DEFAULT 'active',
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		)
+	`)
+	if err != nil {
+		t.Fatalf("failed to create groves table: %v", err)
+	}
+
+	// Create shipments table
+	_, err = db.Exec(`
+		CREATE TABLE shipments (
+			id TEXT PRIMARY KEY,
+			mission_id TEXT NOT NULL,
+			title TEXT NOT NULL,
+			description TEXT,
+			status TEXT NOT NULL DEFAULT 'active',
+			assigned_grove_id TEXT,
+			pinned INTEGER NOT NULL DEFAULT 0,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			completed_at DATETIME
+		)
+	`)
+	if err != nil {
+		t.Fatalf("failed to create shipments table: %v", err)
+	}
+
+	// Insert a test mission
+	_, err = db.Exec("INSERT INTO missions (id, title, status) VALUES ('MISSION-001', 'Test Mission', 'active')")
+	if err != nil {
+		t.Fatalf("failed to insert test mission: %v", err)
+	}
+
+	t.Cleanup(func() {
+		db.Close()
+	})
+
+	return db
+}
+
+// createTestShipment is a helper that creates a shipment with a generated ID.
+func createTestShipment(t *testing.T, repo *sqlite.ShipmentRepository, ctx context.Context, missionID, title, description string) *secondary.ShipmentRecord {
+	t.Helper()
+
+	nextID, err := repo.GetNextID(ctx)
+	if err != nil {
+		t.Fatalf("GetNextID failed: %v", err)
+	}
+
+	shipment := &secondary.ShipmentRecord{
+		ID:          nextID,
+		MissionID:   missionID,
+		Title:       title,
+		Description: description,
+	}
+
+	err = repo.Create(ctx, shipment)
+	if err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+
+	return shipment
+}
+
+func TestShipmentRepository_Create(t *testing.T) {
+	db := setupShipmentTestDB(t)
+	repo := sqlite.NewShipmentRepository(db)
+	ctx := context.Background()
+
+	shipment := &secondary.ShipmentRecord{
+		ID:          "SHIP-001",
+		MissionID:   "MISSION-001",
+		Title:       "Test Shipment",
+		Description: "A test shipment description",
+	}
+
+	err := repo.Create(ctx, shipment)
+	if err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+
+	// Verify shipment was created
+	retrieved, err := repo.GetByID(ctx, "SHIP-001")
+	if err != nil {
+		t.Fatalf("GetByID failed: %v", err)
+	}
+	if retrieved.Title != "Test Shipment" {
+		t.Errorf("expected title 'Test Shipment', got '%s'", retrieved.Title)
+	}
+	if retrieved.Status != "active" {
+		t.Errorf("expected status 'active', got '%s'", retrieved.Status)
+	}
+}
+
+func TestShipmentRepository_GetByID(t *testing.T) {
+	db := setupShipmentTestDB(t)
+	repo := sqlite.NewShipmentRepository(db)
+	ctx := context.Background()
+
+	// Create a shipment using helper
+	shipment := createTestShipment(t, repo, ctx, "MISSION-001", "Test Shipment", "Description")
+
+	// Retrieve it
+	retrieved, err := repo.GetByID(ctx, shipment.ID)
+	if err != nil {
+		t.Fatalf("GetByID failed: %v", err)
+	}
+
+	if retrieved.Title != "Test Shipment" {
+		t.Errorf("expected title 'Test Shipment', got '%s'", retrieved.Title)
+	}
+
+	if retrieved.Description != "Description" {
+		t.Errorf("expected description 'Description', got '%s'", retrieved.Description)
+	}
+
+	if retrieved.Status != "active" {
+		t.Errorf("expected status 'active', got '%s'", retrieved.Status)
+	}
+}
+
+func TestShipmentRepository_GetByID_NotFound(t *testing.T) {
+	db := setupShipmentTestDB(t)
+	repo := sqlite.NewShipmentRepository(db)
+	ctx := context.Background()
+
+	_, err := repo.GetByID(ctx, "SHIP-999")
+	if err == nil {
+		t.Error("expected error for non-existent shipment")
+	}
+}
+
+func TestShipmentRepository_List(t *testing.T) {
+	db := setupShipmentTestDB(t)
+	repo := sqlite.NewShipmentRepository(db)
+	ctx := context.Background()
+
+	// Create multiple shipments
+	createTestShipment(t, repo, ctx, "MISSION-001", "Shipment 1", "")
+	createTestShipment(t, repo, ctx, "MISSION-001", "Shipment 2", "")
+	createTestShipment(t, repo, ctx, "MISSION-001", "Shipment 3", "")
+
+	shipments, err := repo.List(ctx, secondary.ShipmentFilters{})
+	if err != nil {
+		t.Fatalf("List failed: %v", err)
+	}
+
+	if len(shipments) != 3 {
+		t.Errorf("expected 3 shipments, got %d", len(shipments))
+	}
+}
+
+func TestShipmentRepository_List_FilterByMission(t *testing.T) {
+	db := setupShipmentTestDB(t)
+	repo := sqlite.NewShipmentRepository(db)
+	ctx := context.Background()
+
+	// Add another mission
+	_, _ = db.Exec("INSERT INTO missions (id, title, status) VALUES ('MISSION-002', 'Test Mission 2', 'active')")
+
+	// Create shipments for different missions
+	createTestShipment(t, repo, ctx, "MISSION-001", "Shipment 1", "")
+	createTestShipment(t, repo, ctx, "MISSION-002", "Shipment 2", "")
+
+	// List only MISSION-001 shipments
+	shipments, err := repo.List(ctx, secondary.ShipmentFilters{MissionID: "MISSION-001"})
+	if err != nil {
+		t.Fatalf("List failed: %v", err)
+	}
+
+	if len(shipments) != 1 {
+		t.Errorf("expected 1 shipment for MISSION-001, got %d", len(shipments))
+	}
+}
+
+func TestShipmentRepository_List_FilterByStatus(t *testing.T) {
+	db := setupShipmentTestDB(t)
+	repo := sqlite.NewShipmentRepository(db)
+	ctx := context.Background()
+
+	// Create active shipment
+	createTestShipment(t, repo, ctx, "MISSION-001", "Active Shipment", "")
+
+	// Create and complete a shipment
+	s2 := createTestShipment(t, repo, ctx, "MISSION-001", "Complete Shipment", "")
+	_ = repo.UpdateStatus(ctx, s2.ID, "complete", true)
+
+	// List only active
+	shipments, err := repo.List(ctx, secondary.ShipmentFilters{Status: "active"})
+	if err != nil {
+		t.Fatalf("List failed: %v", err)
+	}
+
+	if len(shipments) != 1 {
+		t.Errorf("expected 1 active shipment, got %d", len(shipments))
+	}
+}
+
+func TestShipmentRepository_Update(t *testing.T) {
+	db := setupShipmentTestDB(t)
+	repo := sqlite.NewShipmentRepository(db)
+	ctx := context.Background()
+
+	// Create a shipment
+	shipment := createTestShipment(t, repo, ctx, "MISSION-001", "Original Title", "")
+
+	// Update it
+	err := repo.Update(ctx, &secondary.ShipmentRecord{
+		ID:    shipment.ID,
+		Title: "Updated Title",
+	})
+	if err != nil {
+		t.Fatalf("Update failed: %v", err)
+	}
+
+	// Verify update
+	retrieved, _ := repo.GetByID(ctx, shipment.ID)
+	if retrieved.Title != "Updated Title" {
+		t.Errorf("expected title 'Updated Title', got '%s'", retrieved.Title)
+	}
+}
+
+func TestShipmentRepository_Update_NotFound(t *testing.T) {
+	db := setupShipmentTestDB(t)
+	repo := sqlite.NewShipmentRepository(db)
+	ctx := context.Background()
+
+	err := repo.Update(ctx, &secondary.ShipmentRecord{
+		ID:    "SHIP-999",
+		Title: "Updated Title",
+	})
+	if err == nil {
+		t.Error("expected error for non-existent shipment")
+	}
+}
+
+func TestShipmentRepository_Delete(t *testing.T) {
+	db := setupShipmentTestDB(t)
+	repo := sqlite.NewShipmentRepository(db)
+	ctx := context.Background()
+
+	// Create a shipment
+	shipment := createTestShipment(t, repo, ctx, "MISSION-001", "To Delete", "")
+
+	// Delete it
+	err := repo.Delete(ctx, shipment.ID)
+	if err != nil {
+		t.Fatalf("Delete failed: %v", err)
+	}
+
+	// Verify deletion
+	_, err = repo.GetByID(ctx, shipment.ID)
+	if err == nil {
+		t.Error("expected error after deletion")
+	}
+}
+
+func TestShipmentRepository_Delete_NotFound(t *testing.T) {
+	db := setupShipmentTestDB(t)
+	repo := sqlite.NewShipmentRepository(db)
+	ctx := context.Background()
+
+	err := repo.Delete(ctx, "SHIP-999")
+	if err == nil {
+		t.Error("expected error for non-existent shipment")
+	}
+}
+
+func TestShipmentRepository_Pin_Unpin(t *testing.T) {
+	db := setupShipmentTestDB(t)
+	repo := sqlite.NewShipmentRepository(db)
+	ctx := context.Background()
+
+	// Create a shipment
+	shipment := createTestShipment(t, repo, ctx, "MISSION-001", "Pin Test", "")
+
+	// Pin it
+	err := repo.Pin(ctx, shipment.ID)
+	if err != nil {
+		t.Fatalf("Pin failed: %v", err)
+	}
+
+	// Verify pinned
+	retrieved, _ := repo.GetByID(ctx, shipment.ID)
+	if !retrieved.Pinned {
+		t.Error("expected shipment to be pinned")
+	}
+
+	// Unpin it
+	err = repo.Unpin(ctx, shipment.ID)
+	if err != nil {
+		t.Fatalf("Unpin failed: %v", err)
+	}
+
+	// Verify unpinned
+	retrieved, _ = repo.GetByID(ctx, shipment.ID)
+	if retrieved.Pinned {
+		t.Error("expected shipment to be unpinned")
+	}
+}
+
+func TestShipmentRepository_Pin_NotFound(t *testing.T) {
+	db := setupShipmentTestDB(t)
+	repo := sqlite.NewShipmentRepository(db)
+	ctx := context.Background()
+
+	err := repo.Pin(ctx, "SHIP-999")
+	if err == nil {
+		t.Error("expected error for non-existent shipment")
+	}
+}
+
+func TestShipmentRepository_GetNextID(t *testing.T) {
+	db := setupShipmentTestDB(t)
+	repo := sqlite.NewShipmentRepository(db)
+	ctx := context.Background()
+
+	// First ID should be SHIP-001
+	id, err := repo.GetNextID(ctx)
+	if err != nil {
+		t.Fatalf("GetNextID failed: %v", err)
+	}
+	if id != "SHIP-001" {
+		t.Errorf("expected SHIP-001, got %s", id)
+	}
+
+	// Create a shipment
+	createTestShipment(t, repo, ctx, "MISSION-001", "Test", "")
+
+	// Next ID should be SHIP-002
+	id, err = repo.GetNextID(ctx)
+	if err != nil {
+		t.Fatalf("GetNextID failed: %v", err)
+	}
+	if id != "SHIP-002" {
+		t.Errorf("expected SHIP-002, got %s", id)
+	}
+}
+
+func TestShipmentRepository_UpdateStatus(t *testing.T) {
+	db := setupShipmentTestDB(t)
+	repo := sqlite.NewShipmentRepository(db)
+	ctx := context.Background()
+
+	// Create a shipment
+	shipment := createTestShipment(t, repo, ctx, "MISSION-001", "Status Test", "")
+
+	// Update status without completed timestamp
+	err := repo.UpdateStatus(ctx, shipment.ID, "in_progress", false)
+	if err != nil {
+		t.Fatalf("UpdateStatus failed: %v", err)
+	}
+
+	retrieved, _ := repo.GetByID(ctx, shipment.ID)
+	if retrieved.Status != "in_progress" {
+		t.Errorf("expected status 'in_progress', got '%s'", retrieved.Status)
+	}
+	if retrieved.CompletedAt != "" {
+		t.Error("expected CompletedAt to be empty")
+	}
+
+	// Update to complete with timestamp
+	err = repo.UpdateStatus(ctx, shipment.ID, "complete", true)
+	if err != nil {
+		t.Fatalf("UpdateStatus failed: %v", err)
+	}
+
+	retrieved, _ = repo.GetByID(ctx, shipment.ID)
+	if retrieved.Status != "complete" {
+		t.Errorf("expected status 'complete', got '%s'", retrieved.Status)
+	}
+	if retrieved.CompletedAt == "" {
+		t.Error("expected CompletedAt to be set")
+	}
+}
+
+func TestShipmentRepository_UpdateStatus_NotFound(t *testing.T) {
+	db := setupShipmentTestDB(t)
+	repo := sqlite.NewShipmentRepository(db)
+	ctx := context.Background()
+
+	err := repo.UpdateStatus(ctx, "SHIP-999", "complete", true)
+	if err == nil {
+		t.Error("expected error for non-existent shipment")
+	}
+}
+
+func TestShipmentRepository_AssignGrove(t *testing.T) {
+	db := setupShipmentTestDB(t)
+	repo := sqlite.NewShipmentRepository(db)
+	ctx := context.Background()
+
+	// Insert a test grove
+	_, _ = db.Exec("INSERT INTO groves (id, mission_id, name, status) VALUES ('GROVE-001', 'MISSION-001', 'test-grove', 'active')")
+
+	// Create a shipment
+	shipment := createTestShipment(t, repo, ctx, "MISSION-001", "Grove Test", "")
+
+	// Assign grove
+	err := repo.AssignGrove(ctx, shipment.ID, "GROVE-001")
+	if err != nil {
+		t.Fatalf("AssignGrove failed: %v", err)
+	}
+
+	// Verify assignment
+	retrieved, _ := repo.GetByID(ctx, shipment.ID)
+	if retrieved.AssignedGroveID != "GROVE-001" {
+		t.Errorf("expected assigned grove 'GROVE-001', got '%s'", retrieved.AssignedGroveID)
+	}
+}
+
+func TestShipmentRepository_AssignGrove_NotFound(t *testing.T) {
+	db := setupShipmentTestDB(t)
+	repo := sqlite.NewShipmentRepository(db)
+	ctx := context.Background()
+
+	err := repo.AssignGrove(ctx, "SHIP-999", "GROVE-001")
+	if err == nil {
+		t.Error("expected error for non-existent shipment")
+	}
+}
+
+func TestShipmentRepository_GetByGrove(t *testing.T) {
+	db := setupShipmentTestDB(t)
+	repo := sqlite.NewShipmentRepository(db)
+	ctx := context.Background()
+
+	// Insert a test grove
+	_, _ = db.Exec("INSERT INTO groves (id, mission_id, name, status) VALUES ('GROVE-001', 'MISSION-001', 'test-grove', 'active')")
+
+	// Create shipments and assign to grove
+	s1 := createTestShipment(t, repo, ctx, "MISSION-001", "Ship 1", "")
+	s2 := createTestShipment(t, repo, ctx, "MISSION-001", "Ship 2", "")
+	createTestShipment(t, repo, ctx, "MISSION-001", "Ship 3 (unassigned)", "")
+
+	_ = repo.AssignGrove(ctx, s1.ID, "GROVE-001")
+	_ = repo.AssignGrove(ctx, s2.ID, "GROVE-001")
+
+	// Get by grove
+	shipments, err := repo.GetByGrove(ctx, "GROVE-001")
+	if err != nil {
+		t.Fatalf("GetByGrove failed: %v", err)
+	}
+
+	if len(shipments) != 2 {
+		t.Errorf("expected 2 shipments for grove, got %d", len(shipments))
+	}
+}
+
+func TestShipmentRepository_MissionExists(t *testing.T) {
+	db := setupShipmentTestDB(t)
+	repo := sqlite.NewShipmentRepository(db)
+	ctx := context.Background()
+
+	// Existing mission
+	exists, err := repo.MissionExists(ctx, "MISSION-001")
+	if err != nil {
+		t.Fatalf("MissionExists failed: %v", err)
+	}
+	if !exists {
+		t.Error("expected mission to exist")
+	}
+
+	// Non-existing mission
+	exists, err = repo.MissionExists(ctx, "MISSION-999")
+	if err != nil {
+		t.Fatalf("MissionExists failed: %v", err)
+	}
+	if exists {
+		t.Error("expected mission to not exist")
+	}
+}
+
+func TestShipmentRepository_GroveAssignedToOther(t *testing.T) {
+	db := setupShipmentTestDB(t)
+	repo := sqlite.NewShipmentRepository(db)
+	ctx := context.Background()
+
+	// Insert a test grove
+	_, _ = db.Exec("INSERT INTO groves (id, mission_id, name, status) VALUES ('GROVE-001', 'MISSION-001', 'test-grove', 'active')")
+
+	// Create two shipments
+	s1 := createTestShipment(t, repo, ctx, "MISSION-001", "Ship 1", "")
+	s2 := createTestShipment(t, repo, ctx, "MISSION-001", "Ship 2", "")
+
+	// Assign grove to s1
+	_ = repo.AssignGrove(ctx, s1.ID, "GROVE-001")
+
+	// Check if grove is assigned to another shipment (excluding s1)
+	otherID, err := repo.GroveAssignedToOther(ctx, "GROVE-001", s1.ID)
+	if err != nil {
+		t.Fatalf("GroveAssignedToOther failed: %v", err)
+	}
+	if otherID != "" {
+		t.Error("expected no other shipment to have the grove")
+	}
+
+	// Check from s2's perspective
+	otherID, err = repo.GroveAssignedToOther(ctx, "GROVE-001", s2.ID)
+	if err != nil {
+		t.Fatalf("GroveAssignedToOther failed: %v", err)
+	}
+	if otherID != s1.ID {
+		t.Errorf("expected s1 to have the grove, got '%s'", otherID)
+	}
+}

@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -8,9 +9,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/example/orc/internal/config"
-	"github.com/example/orc/internal/models"
 	"github.com/spf13/cobra"
+
+	"github.com/example/orc/internal/config"
+	"github.com/example/orc/internal/ports/primary"
+	"github.com/example/orc/internal/wire"
 )
 
 var handoffCmd = &cobra.Command{
@@ -35,6 +38,7 @@ Examples:
   orc handoff create --file handoff.md
   echo "Context..." | orc handoff create --stdin`,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx := context.Background()
 		var note string
 		var err error
 
@@ -88,18 +92,24 @@ Examples:
 			}
 		}
 
-		handoff, err := models.CreateHandoff(note, missionID, todosJSON, groveID)
+		resp, err := wire.HandoffService().CreateHandoff(ctx, primary.CreateHandoffRequest{
+			HandoffNote:     note,
+			ActiveMissionID: missionID,
+			ActiveGroveID:   groveID,
+			TodosSnapshot:   todosJSON,
+		})
 		if err != nil {
 			return fmt.Errorf("failed to create handoff: %w", err)
 		}
 
+		handoff := resp.Handoff
 		fmt.Printf("✓ Created handoff %s\n", handoff.ID)
-		fmt.Printf("  Created: %s\n", handoff.CreatedAt.Format("2006-01-02 15:04"))
-		if handoff.ActiveMissionID.Valid {
-			fmt.Printf("  Mission: %s\n", handoff.ActiveMissionID.String)
+		fmt.Printf("  Created: %s\n", handoff.CreatedAt)
+		if handoff.ActiveMissionID != "" {
+			fmt.Printf("  Mission: %s\n", handoff.ActiveMissionID)
 		}
-		if handoff.ActiveGroveID.Valid {
-			fmt.Printf("  Grove: %s\n", handoff.ActiveGroveID.String)
+		if handoff.ActiveGroveID != "" {
+			fmt.Printf("  Grove: %s\n", handoff.ActiveGroveID)
 		}
 
 		// Update global state config
@@ -118,26 +128,27 @@ var handoffShowCmd = &cobra.Command{
 	Short: "Show handoff details",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx := context.Background()
 		id := args[0]
 
-		handoff, err := models.GetHandoff(id)
+		handoff, err := wire.HandoffService().GetHandoff(ctx, id)
 		if err != nil {
 			return fmt.Errorf("failed to get handoff: %w", err)
 		}
 
 		fmt.Printf("\nHandoff: %s\n", handoff.ID)
-		fmt.Printf("Created: %s\n", handoff.CreatedAt.Format("2006-01-02 15:04:05"))
-		if handoff.ActiveMissionID.Valid {
-			fmt.Printf("Mission: %s\n", handoff.ActiveMissionID.String)
+		fmt.Printf("Created: %s\n", handoff.CreatedAt)
+		if handoff.ActiveMissionID != "" {
+			fmt.Printf("Mission: %s\n", handoff.ActiveMissionID)
 		}
-		if handoff.ActiveGroveID.Valid {
-			fmt.Printf("Grove: %s\n", handoff.ActiveGroveID.String)
+		if handoff.ActiveGroveID != "" {
+			fmt.Printf("Grove: %s\n", handoff.ActiveGroveID)
 		}
 
 		fmt.Printf("\n--- HANDOFF NOTE ---\n\n%s\n\n", handoff.HandoffNote)
 
-		if handoff.TodosSnapshot.Valid {
-			fmt.Printf("--- TODOS SNAPSHOT ---\n\n%s\n\n", handoff.TodosSnapshot.String)
+		if handoff.TodosSnapshot != "" {
+			fmt.Printf("--- TODOS SNAPSHOT ---\n\n%s\n\n", handoff.TodosSnapshot)
 		}
 
 		return nil
@@ -148,9 +159,10 @@ var handoffListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List recent handoffs",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx := context.Background()
 		limit, _ := cmd.Flags().GetInt("limit")
 
-		handoffs, err := models.ListHandoffs(limit)
+		handoffs, err := wire.HandoffService().ListHandoffs(ctx, limit)
 		if err != nil {
 			return fmt.Errorf("failed to list handoffs: %w", err)
 		}
@@ -164,16 +176,16 @@ var handoffListCmd = &cobra.Command{
 		fmt.Println("────────────────────────────────────────────────────────────────")
 		for _, h := range handoffs {
 			mission := "-"
-			if h.ActiveMissionID.Valid {
-				mission = h.ActiveMissionID.String
+			if h.ActiveMissionID != "" {
+				mission = h.ActiveMissionID
 			}
 			grove := "-"
-			if h.ActiveGroveID.Valid {
-				grove = h.ActiveGroveID.String
+			if h.ActiveGroveID != "" {
+				grove = h.ActiveGroveID
 			}
 			fmt.Printf("%-10s %-20s %-15s %-15s\n",
 				h.ID,
-				h.CreatedAt.Format("2006-01-02 15:04"),
+				h.CreatedAt,
 				mission,
 				grove,
 			)
@@ -185,16 +197,13 @@ var handoffListCmd = &cobra.Command{
 }
 
 // updateMetadata updates the .orc/config.json file with global state
-func updateMetadata(handoff *models.Handoff) error {
+func updateMetadata(handoff *primary.Handoff) error {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		return err
 	}
 
-	activeMissionID := ""
-	if handoff.ActiveMissionID.Valid {
-		activeMissionID = handoff.ActiveMissionID.String
-	}
+	activeMissionID := handoff.ActiveMissionID
 
 	cfg := &config.Config{
 		Version: "1.0",

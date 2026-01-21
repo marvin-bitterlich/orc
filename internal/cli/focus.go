@@ -1,13 +1,15 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
 
-	"github.com/example/orc/internal/config"
-	"github.com/example/orc/internal/models"
 	"github.com/spf13/cobra"
+
+	"github.com/example/orc/internal/config"
+	"github.com/example/orc/internal/wire"
 )
 
 // FocusCmd returns the focus command
@@ -91,30 +93,31 @@ func loadConfigWithDir(dir string) (*config.Config, string, error) {
 
 // validateAndGetInfo validates the container ID exists and returns its type and title
 func validateAndGetInfo(id string) (containerType string, title string, err error) {
+	ctx := context.Background()
 	switch {
 	case strings.HasPrefix(id, "SHIP-"):
-		ship, err := models.GetShipment(id)
+		ship, err := wire.ShipmentService().GetShipment(ctx, id)
 		if err != nil {
 			return "", "", fmt.Errorf("shipment %s not found", id)
 		}
 		return "Shipment", ship.Title, nil
 
 	case strings.HasPrefix(id, "CON-"):
-		con, err := models.GetConclave(id)
+		con, err := wire.ConclaveService().GetConclave(ctx, id)
 		if err != nil {
 			return "", "", fmt.Errorf("conclave %s not found", id)
 		}
 		return "Conclave", con.Title, nil
 
 	case strings.HasPrefix(id, "INV-"):
-		inv, err := models.GetInvestigation(id)
+		inv, err := wire.InvestigationService().GetInvestigation(ctx, id)
 		if err != nil {
 			return "", "", fmt.Errorf("investigation %s not found", id)
 		}
 		return "Investigation", inv.Title, nil
 
 	case strings.HasPrefix(id, "TOME-"):
-		tome, err := models.GetTome(id)
+		tome, err := wire.TomeService().GetTome(ctx, id)
 		if err != nil {
 			return "", "", fmt.Errorf("tome %s not found", id)
 		}
@@ -137,9 +140,9 @@ func showCurrentFocus(cfg *config.Config) error {
 
 	containerType, title, err := validateAndGetInfo(focusID)
 	if err != nil {
-		// Focus is set but container no longer exists
+		// Focus is set but container no longer exists - graceful degradation, not an error
 		fmt.Printf("Focus: %s (container not found - may have been deleted)\n", focusID)
-		return nil
+		return nil //nolint:nilerr // intentional: show info even if container deleted
 	}
 
 	fmt.Printf("Focus: %s\n", focusID)
@@ -149,6 +152,9 @@ func showCurrentFocus(cfg *config.Config) error {
 
 // getCurrentFocus gets the current focus from config based on config type
 func getCurrentFocus(cfg *config.Config) string {
+	if cfg == nil {
+		return ""
+	}
 	switch cfg.Type {
 	case config.TypeMission:
 		if cfg.Mission != nil {
@@ -229,21 +235,22 @@ func GetFocusInfo(focusID string) (containerType, title, status string) {
 		return "", "", ""
 	}
 
+	ctx := context.Background()
 	switch {
 	case strings.HasPrefix(focusID, "SHIP-"):
-		if ship, err := models.GetShipment(focusID); err == nil {
+		if ship, err := wire.ShipmentService().GetShipment(ctx, focusID); err == nil {
 			return "Shipment", ship.Title, ship.Status
 		}
 	case strings.HasPrefix(focusID, "CON-"):
-		if con, err := models.GetConclave(focusID); err == nil {
+		if con, err := wire.ConclaveService().GetConclave(ctx, focusID); err == nil {
 			return "Conclave", con.Title, con.Status
 		}
 	case strings.HasPrefix(focusID, "INV-"):
-		if inv, err := models.GetInvestigation(focusID); err == nil {
+		if inv, err := wire.InvestigationService().GetInvestigation(ctx, focusID); err == nil {
 			return "Investigation", inv.Title, inv.Status
 		}
 	case strings.HasPrefix(focusID, "TOME-"):
-		if tome, err := models.GetTome(focusID); err == nil {
+		if tome, err := wire.TomeService().GetTome(ctx, focusID); err == nil {
 			return "Tome", tome.Title, tome.Status
 		}
 	}

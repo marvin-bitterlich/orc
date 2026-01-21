@@ -1,0 +1,690 @@
+package app
+
+import (
+	"context"
+	"errors"
+	"testing"
+
+	"github.com/example/orc/internal/ports/primary"
+	"github.com/example/orc/internal/ports/secondary"
+)
+
+// ============================================================================
+// Mock Implementations
+// ============================================================================
+
+// mockTomeRepository implements secondary.TomeRepository for testing.
+type mockTomeRepository struct {
+	tomes               map[string]*secondary.TomeRecord
+	createErr           error
+	getErr              error
+	updateErr           error
+	deleteErr           error
+	listErr             error
+	updateStatusErr     error
+	assignGroveErr      error
+	missionExistsResult bool
+	missionExistsErr    error
+}
+
+func newMockTomeRepository() *mockTomeRepository {
+	return &mockTomeRepository{
+		tomes:               make(map[string]*secondary.TomeRecord),
+		missionExistsResult: true,
+	}
+}
+
+func (m *mockTomeRepository) Create(ctx context.Context, tome *secondary.TomeRecord) error {
+	if m.createErr != nil {
+		return m.createErr
+	}
+	m.tomes[tome.ID] = tome
+	return nil
+}
+
+func (m *mockTomeRepository) GetByID(ctx context.Context, id string) (*secondary.TomeRecord, error) {
+	if m.getErr != nil {
+		return nil, m.getErr
+	}
+	if tome, ok := m.tomes[id]; ok {
+		return tome, nil
+	}
+	return nil, errors.New("tome not found")
+}
+
+func (m *mockTomeRepository) List(ctx context.Context, filters secondary.TomeFilters) ([]*secondary.TomeRecord, error) {
+	if m.listErr != nil {
+		return nil, m.listErr
+	}
+	var result []*secondary.TomeRecord
+	for _, t := range m.tomes {
+		if filters.MissionID != "" && t.MissionID != filters.MissionID {
+			continue
+		}
+		if filters.Status != "" && t.Status != filters.Status {
+			continue
+		}
+		result = append(result, t)
+	}
+	return result, nil
+}
+
+func (m *mockTomeRepository) Update(ctx context.Context, tome *secondary.TomeRecord) error {
+	if m.updateErr != nil {
+		return m.updateErr
+	}
+	if existing, ok := m.tomes[tome.ID]; ok {
+		if tome.Title != "" {
+			existing.Title = tome.Title
+		}
+		if tome.Description != "" {
+			existing.Description = tome.Description
+		}
+	}
+	return nil
+}
+
+func (m *mockTomeRepository) Delete(ctx context.Context, id string) error {
+	if m.deleteErr != nil {
+		return m.deleteErr
+	}
+	delete(m.tomes, id)
+	return nil
+}
+
+func (m *mockTomeRepository) Pin(ctx context.Context, id string) error {
+	if tome, ok := m.tomes[id]; ok {
+		tome.Pinned = true
+	}
+	return nil
+}
+
+func (m *mockTomeRepository) Unpin(ctx context.Context, id string) error {
+	if tome, ok := m.tomes[id]; ok {
+		tome.Pinned = false
+	}
+	return nil
+}
+
+func (m *mockTomeRepository) GetNextID(ctx context.Context) (string, error) {
+	return "TOME-001", nil
+}
+
+func (m *mockTomeRepository) UpdateStatus(ctx context.Context, id, status string, setCompleted bool) error {
+	if m.updateStatusErr != nil {
+		return m.updateStatusErr
+	}
+	if tome, ok := m.tomes[id]; ok {
+		tome.Status = status
+		if setCompleted {
+			tome.CompletedAt = "2026-01-20T10:00:00Z"
+		}
+	}
+	return nil
+}
+
+func (m *mockTomeRepository) GetByGrove(ctx context.Context, groveID string) ([]*secondary.TomeRecord, error) {
+	var result []*secondary.TomeRecord
+	for _, t := range m.tomes {
+		if t.AssignedGroveID == groveID {
+			result = append(result, t)
+		}
+	}
+	return result, nil
+}
+
+func (m *mockTomeRepository) AssignGrove(ctx context.Context, tomeID, groveID string) error {
+	if m.assignGroveErr != nil {
+		return m.assignGroveErr
+	}
+	if tome, ok := m.tomes[tomeID]; ok {
+		tome.AssignedGroveID = groveID
+	}
+	return nil
+}
+
+func (m *mockTomeRepository) MissionExists(ctx context.Context, missionID string) (bool, error) {
+	if m.missionExistsErr != nil {
+		return false, m.missionExistsErr
+	}
+	return m.missionExistsResult, nil
+}
+
+// mockNoteServiceForTome implements minimal NoteService for tome tests.
+type mockNoteServiceForTome struct {
+	notes map[string][]*primary.Note // containerID -> notes
+}
+
+func newMockNoteServiceForTome() *mockNoteServiceForTome {
+	return &mockNoteServiceForTome{
+		notes: make(map[string][]*primary.Note),
+	}
+}
+
+func (m *mockNoteServiceForTome) CreateNote(ctx context.Context, req primary.CreateNoteRequest) (*primary.CreateNoteResponse, error) {
+	return nil, nil
+}
+
+func (m *mockNoteServiceForTome) GetNote(ctx context.Context, noteID string) (*primary.Note, error) {
+	return nil, nil
+}
+
+func (m *mockNoteServiceForTome) ListNotes(ctx context.Context, filters primary.NoteFilters) ([]*primary.Note, error) {
+	return nil, nil
+}
+
+func (m *mockNoteServiceForTome) UpdateNote(ctx context.Context, req primary.UpdateNoteRequest) error {
+	return nil
+}
+
+func (m *mockNoteServiceForTome) DeleteNote(ctx context.Context, noteID string) error {
+	return nil
+}
+
+func (m *mockNoteServiceForTome) PinNote(ctx context.Context, noteID string) error {
+	return nil
+}
+
+func (m *mockNoteServiceForTome) UnpinNote(ctx context.Context, noteID string) error {
+	return nil
+}
+
+func (m *mockNoteServiceForTome) GetNotesByContainer(ctx context.Context, containerType, containerID string) ([]*primary.Note, error) {
+	if notes, ok := m.notes[containerID]; ok {
+		return notes, nil
+	}
+	return []*primary.Note{}, nil
+}
+
+func (m *mockNoteServiceForTome) CloseNote(ctx context.Context, noteID string) error {
+	return nil
+}
+
+func (m *mockNoteServiceForTome) ReopenNote(ctx context.Context, noteID string) error {
+	return nil
+}
+
+// ============================================================================
+// Test Helper
+// ============================================================================
+
+func newTestTomeService() (*TomeServiceImpl, *mockTomeRepository, *mockNoteServiceForTome) {
+	tomeRepo := newMockTomeRepository()
+	noteService := newMockNoteServiceForTome()
+	service := NewTomeService(tomeRepo, noteService)
+	return service, tomeRepo, noteService
+}
+
+// ============================================================================
+// CreateTome Tests
+// ============================================================================
+
+func TestCreateTome_Success(t *testing.T) {
+	service, _, _ := newTestTomeService()
+	ctx := context.Background()
+
+	resp, err := service.CreateTome(ctx, primary.CreateTomeRequest{
+		MissionID:   "MISSION-001",
+		Title:       "Test Tome",
+		Description: "A test tome",
+	})
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if resp.TomeID == "" {
+		t.Error("expected tome ID to be set")
+	}
+	if resp.Tome.Title != "Test Tome" {
+		t.Errorf("expected title 'Test Tome', got '%s'", resp.Tome.Title)
+	}
+	if resp.Tome.Status != "active" {
+		t.Errorf("expected status 'active', got '%s'", resp.Tome.Status)
+	}
+}
+
+func TestCreateTome_MissionNotFound(t *testing.T) {
+	service, tomeRepo, _ := newTestTomeService()
+	ctx := context.Background()
+
+	tomeRepo.missionExistsResult = false
+
+	_, err := service.CreateTome(ctx, primary.CreateTomeRequest{
+		MissionID:   "MISSION-NONEXISTENT",
+		Title:       "Test Tome",
+		Description: "A test tome",
+	})
+
+	if err == nil {
+		t.Fatal("expected error for non-existent mission, got nil")
+	}
+}
+
+// ============================================================================
+// GetTome Tests
+// ============================================================================
+
+func TestGetTome_Found(t *testing.T) {
+	service, tomeRepo, _ := newTestTomeService()
+	ctx := context.Background()
+
+	tomeRepo.tomes["TOME-001"] = &secondary.TomeRecord{
+		ID:        "TOME-001",
+		MissionID: "MISSION-001",
+		Title:     "Test Tome",
+		Status:    "active",
+	}
+
+	tome, err := service.GetTome(ctx, "TOME-001")
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if tome.Title != "Test Tome" {
+		t.Errorf("expected title 'Test Tome', got '%s'", tome.Title)
+	}
+}
+
+func TestGetTome_NotFound(t *testing.T) {
+	service, _, _ := newTestTomeService()
+	ctx := context.Background()
+
+	_, err := service.GetTome(ctx, "TOME-NONEXISTENT")
+
+	if err == nil {
+		t.Fatal("expected error for non-existent tome, got nil")
+	}
+}
+
+// ============================================================================
+// ListTomes Tests
+// ============================================================================
+
+func TestListTomes_FilterByMission(t *testing.T) {
+	service, tomeRepo, _ := newTestTomeService()
+	ctx := context.Background()
+
+	tomeRepo.tomes["TOME-001"] = &secondary.TomeRecord{
+		ID:        "TOME-001",
+		MissionID: "MISSION-001",
+		Title:     "Tome 1",
+		Status:    "active",
+	}
+	tomeRepo.tomes["TOME-002"] = &secondary.TomeRecord{
+		ID:        "TOME-002",
+		MissionID: "MISSION-002",
+		Title:     "Tome 2",
+		Status:    "active",
+	}
+
+	tomes, err := service.ListTomes(ctx, primary.TomeFilters{MissionID: "MISSION-001"})
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if len(tomes) != 1 {
+		t.Errorf("expected 1 tome, got %d", len(tomes))
+	}
+}
+
+func TestListTomes_FilterByStatus(t *testing.T) {
+	service, tomeRepo, _ := newTestTomeService()
+	ctx := context.Background()
+
+	tomeRepo.tomes["TOME-001"] = &secondary.TomeRecord{
+		ID:        "TOME-001",
+		MissionID: "MISSION-001",
+		Title:     "Active Tome",
+		Status:    "active",
+	}
+	tomeRepo.tomes["TOME-002"] = &secondary.TomeRecord{
+		ID:        "TOME-002",
+		MissionID: "MISSION-001",
+		Title:     "Paused Tome",
+		Status:    "paused",
+	}
+
+	tomes, err := service.ListTomes(ctx, primary.TomeFilters{Status: "active"})
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if len(tomes) != 1 {
+		t.Errorf("expected 1 active tome, got %d", len(tomes))
+	}
+}
+
+// ============================================================================
+// CompleteTome Tests
+// ============================================================================
+
+func TestCompleteTome_UnpinnedAllowed(t *testing.T) {
+	service, tomeRepo, _ := newTestTomeService()
+	ctx := context.Background()
+
+	tomeRepo.tomes["TOME-001"] = &secondary.TomeRecord{
+		ID:        "TOME-001",
+		MissionID: "MISSION-001",
+		Title:     "Test Tome",
+		Status:    "active",
+		Pinned:    false,
+	}
+
+	err := service.CompleteTome(ctx, "TOME-001")
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if tomeRepo.tomes["TOME-001"].Status != "complete" {
+		t.Errorf("expected status 'complete', got '%s'", tomeRepo.tomes["TOME-001"].Status)
+	}
+}
+
+func TestCompleteTome_PinnedBlocked(t *testing.T) {
+	service, tomeRepo, _ := newTestTomeService()
+	ctx := context.Background()
+
+	tomeRepo.tomes["TOME-001"] = &secondary.TomeRecord{
+		ID:        "TOME-001",
+		MissionID: "MISSION-001",
+		Title:     "Pinned Tome",
+		Status:    "active",
+		Pinned:    true,
+	}
+
+	err := service.CompleteTome(ctx, "TOME-001")
+
+	if err == nil {
+		t.Fatal("expected error for completing pinned tome, got nil")
+	}
+}
+
+func TestCompleteTome_NotFound(t *testing.T) {
+	service, _, _ := newTestTomeService()
+	ctx := context.Background()
+
+	err := service.CompleteTome(ctx, "TOME-NONEXISTENT")
+
+	if err == nil {
+		t.Fatal("expected error for non-existent tome, got nil")
+	}
+}
+
+// ============================================================================
+// PauseTome Tests
+// ============================================================================
+
+func TestPauseTome_ActiveAllowed(t *testing.T) {
+	service, tomeRepo, _ := newTestTomeService()
+	ctx := context.Background()
+
+	tomeRepo.tomes["TOME-001"] = &secondary.TomeRecord{
+		ID:        "TOME-001",
+		MissionID: "MISSION-001",
+		Title:     "Active Tome",
+		Status:    "active",
+	}
+
+	err := service.PauseTome(ctx, "TOME-001")
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if tomeRepo.tomes["TOME-001"].Status != "paused" {
+		t.Errorf("expected status 'paused', got '%s'", tomeRepo.tomes["TOME-001"].Status)
+	}
+}
+
+func TestPauseTome_NotActiveBlocked(t *testing.T) {
+	service, tomeRepo, _ := newTestTomeService()
+	ctx := context.Background()
+
+	tomeRepo.tomes["TOME-001"] = &secondary.TomeRecord{
+		ID:        "TOME-001",
+		MissionID: "MISSION-001",
+		Title:     "Paused Tome",
+		Status:    "paused",
+	}
+
+	err := service.PauseTome(ctx, "TOME-001")
+
+	if err == nil {
+		t.Fatal("expected error for pausing non-active tome, got nil")
+	}
+}
+
+// ============================================================================
+// ResumeTome Tests
+// ============================================================================
+
+func TestResumeTome_PausedAllowed(t *testing.T) {
+	service, tomeRepo, _ := newTestTomeService()
+	ctx := context.Background()
+
+	tomeRepo.tomes["TOME-001"] = &secondary.TomeRecord{
+		ID:        "TOME-001",
+		MissionID: "MISSION-001",
+		Title:     "Paused Tome",
+		Status:    "paused",
+	}
+
+	err := service.ResumeTome(ctx, "TOME-001")
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if tomeRepo.tomes["TOME-001"].Status != "active" {
+		t.Errorf("expected status 'active', got '%s'", tomeRepo.tomes["TOME-001"].Status)
+	}
+}
+
+func TestResumeTome_NotPausedBlocked(t *testing.T) {
+	service, tomeRepo, _ := newTestTomeService()
+	ctx := context.Background()
+
+	tomeRepo.tomes["TOME-001"] = &secondary.TomeRecord{
+		ID:        "TOME-001",
+		MissionID: "MISSION-001",
+		Title:     "Active Tome",
+		Status:    "active",
+	}
+
+	err := service.ResumeTome(ctx, "TOME-001")
+
+	if err == nil {
+		t.Fatal("expected error for resuming non-paused tome, got nil")
+	}
+}
+
+// ============================================================================
+// Pin/Unpin Tests
+// ============================================================================
+
+func TestPinTome(t *testing.T) {
+	service, tomeRepo, _ := newTestTomeService()
+	ctx := context.Background()
+
+	tomeRepo.tomes["TOME-001"] = &secondary.TomeRecord{
+		ID:        "TOME-001",
+		MissionID: "MISSION-001",
+		Title:     "Test Tome",
+		Status:    "active",
+		Pinned:    false,
+	}
+
+	err := service.PinTome(ctx, "TOME-001")
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if !tomeRepo.tomes["TOME-001"].Pinned {
+		t.Error("expected tome to be pinned")
+	}
+}
+
+func TestUnpinTome(t *testing.T) {
+	service, tomeRepo, _ := newTestTomeService()
+	ctx := context.Background()
+
+	tomeRepo.tomes["TOME-001"] = &secondary.TomeRecord{
+		ID:        "TOME-001",
+		MissionID: "MISSION-001",
+		Title:     "Pinned Tome",
+		Status:    "active",
+		Pinned:    true,
+	}
+
+	err := service.UnpinTome(ctx, "TOME-001")
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if tomeRepo.tomes["TOME-001"].Pinned {
+		t.Error("expected tome to be unpinned")
+	}
+}
+
+// ============================================================================
+// UpdateTome Tests
+// ============================================================================
+
+func TestUpdateTome_Title(t *testing.T) {
+	service, tomeRepo, _ := newTestTomeService()
+	ctx := context.Background()
+
+	tomeRepo.tomes["TOME-001"] = &secondary.TomeRecord{
+		ID:          "TOME-001",
+		MissionID:   "MISSION-001",
+		Title:       "Old Title",
+		Description: "Original description",
+		Status:      "active",
+	}
+
+	err := service.UpdateTome(ctx, primary.UpdateTomeRequest{
+		TomeID: "TOME-001",
+		Title:  "New Title",
+	})
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if tomeRepo.tomes["TOME-001"].Title != "New Title" {
+		t.Errorf("expected title 'New Title', got '%s'", tomeRepo.tomes["TOME-001"].Title)
+	}
+}
+
+// ============================================================================
+// DeleteTome Tests
+// ============================================================================
+
+func TestDeleteTome_Success(t *testing.T) {
+	service, tomeRepo, _ := newTestTomeService()
+	ctx := context.Background()
+
+	tomeRepo.tomes["TOME-001"] = &secondary.TomeRecord{
+		ID:        "TOME-001",
+		MissionID: "MISSION-001",
+		Title:     "Test Tome",
+		Status:    "active",
+	}
+
+	err := service.DeleteTome(ctx, "TOME-001")
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if _, exists := tomeRepo.tomes["TOME-001"]; exists {
+		t.Error("expected tome to be deleted")
+	}
+}
+
+// ============================================================================
+// AssignTomeToGrove Tests
+// ============================================================================
+
+func TestAssignTomeToGrove_Success(t *testing.T) {
+	service, tomeRepo, _ := newTestTomeService()
+	ctx := context.Background()
+
+	tomeRepo.tomes["TOME-001"] = &secondary.TomeRecord{
+		ID:        "TOME-001",
+		MissionID: "MISSION-001",
+		Title:     "Test Tome",
+		Status:    "active",
+	}
+
+	err := service.AssignTomeToGrove(ctx, "TOME-001", "GROVE-001")
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if tomeRepo.tomes["TOME-001"].AssignedGroveID != "GROVE-001" {
+		t.Errorf("expected grove ID 'GROVE-001', got '%s'", tomeRepo.tomes["TOME-001"].AssignedGroveID)
+	}
+}
+
+func TestAssignTomeToGrove_TomeNotFound(t *testing.T) {
+	service, _, _ := newTestTomeService()
+	ctx := context.Background()
+
+	err := service.AssignTomeToGrove(ctx, "TOME-NONEXISTENT", "GROVE-001")
+
+	if err == nil {
+		t.Fatal("expected error for non-existent tome, got nil")
+	}
+}
+
+// ============================================================================
+// GetTomesByGrove Tests
+// ============================================================================
+
+func TestGetTomesByGrove_Success(t *testing.T) {
+	service, tomeRepo, _ := newTestTomeService()
+	ctx := context.Background()
+
+	tomeRepo.tomes["TOME-001"] = &secondary.TomeRecord{
+		ID:              "TOME-001",
+		MissionID:       "MISSION-001",
+		Title:           "Assigned Tome",
+		Status:          "active",
+		AssignedGroveID: "GROVE-001",
+	}
+	tomeRepo.tomes["TOME-002"] = &secondary.TomeRecord{
+		ID:        "TOME-002",
+		MissionID: "MISSION-001",
+		Title:     "Unassigned Tome",
+		Status:    "active",
+	}
+
+	tomes, err := service.GetTomesByGrove(ctx, "GROVE-001")
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if len(tomes) != 1 {
+		t.Errorf("expected 1 tome, got %d", len(tomes))
+	}
+}
+
+// ============================================================================
+// GetTomeNotes Tests
+// ============================================================================
+
+func TestGetTomeNotes_Success(t *testing.T) {
+	service, _, noteService := newTestTomeService()
+	ctx := context.Background()
+
+	noteService.notes["TOME-001"] = []*primary.Note{
+		{ID: "NOTE-001", Title: "Note 1"},
+		{ID: "NOTE-002", Title: "Note 2"},
+	}
+
+	notes, err := service.GetTomeNotes(ctx, "TOME-001")
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if len(notes) != 2 {
+		t.Errorf("expected 2 notes, got %d", len(notes))
+	}
+}

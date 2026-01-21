@@ -1,16 +1,20 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"hash/fnv"
 	"os"
 	"strings"
 
-	"github.com/example/orc/internal/config"
-	"github.com/example/orc/internal/context"
-	"github.com/example/orc/internal/models"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
+
+	"github.com/example/orc/internal/config"
+	ctx "github.com/example/orc/internal/context"
+	"github.com/example/orc/internal/models"
+	"github.com/example/orc/internal/ports/primary"
+	"github.com/example/orc/internal/wire"
 )
 
 // filterConfig holds all filtering settings for the summary display
@@ -19,6 +23,7 @@ type filterConfig struct {
 	containerTypes map[string]bool // container types to show (empty = all)
 	includeTags    map[string]bool // tags to include (empty = all)
 	excludeTags    map[string]bool // tags to exclude
+	leafTypes      map[string]bool // leaf types to show (empty = all): tasks, notes, questions, plans
 }
 
 // getTagColor returns a deterministic color for a tag name
@@ -105,8 +110,8 @@ func getStatusColor(status string) *color.Color {
 // colorizeStatus formats status as uppercase with semantic color
 // Returns empty string for "ready" status (default, not shown)
 func colorizeStatus(status string) string {
-	if status == "ready" {
-		return "" // Don't show default status
+	if status == "" || status == "ready" || status == "active" {
+		return "" // Don't show empty or default statuses
 	}
 	c := getStatusColor(status)
 	return c.Sprintf("%s", strings.ToUpper(status))
@@ -140,7 +145,15 @@ func shouldShowLeaf(entityID string, filters *filterConfig) (bool, string) {
 		return true, "" // Unknown type, show it
 	}
 
-	tag, _ := models.GetEntityTag(entityID, entityType)
+	// Check leaf type filter (hide specified types)
+	if len(filters.leafTypes) > 0 {
+		// Support both singular (task) and plural (tasks) forms
+		if filters.leafTypes[entityType] || filters.leafTypes[entityType+"s"] {
+			return false, ""
+		}
+	}
+
+	tag, _ := wire.TagService().GetEntityTag(context.Background(), entityID, entityType)
 	tagName := ""
 	if tag != nil {
 		tagName = tag.Name
@@ -161,39 +174,68 @@ func shouldShowLeaf(entityID string, filters *filterConfig) (bool, string) {
 	return true, tagName
 }
 
-// displayShipmentChildren shows tasks under a shipment with tag filtering
+// displayShipmentChildren shows tasks and notes under a shipment with tag filtering
 // Returns count of visible items
 func displayShipmentChildren(shipmentID, prefix string, filters *filterConfig) int {
-	tasks, err := models.GetShipmentTasks(shipmentID)
-	if err != nil {
-		return 0
+	shipmentTasks, _ := wire.ShipmentService().GetShipmentTasks(context.Background(), shipmentID)
+	// Convert to models.Task for the rest of the function
+	var tasks []*models.Task
+	for _, t := range shipmentTasks {
+		tasks = append(tasks, &models.Task{
+			ID:     t.ID,
+			Title:  t.Title,
+			Status: t.Status,
+			Pinned: t.Pinned,
+		})
+	}
+	serviceNotes, _ := wire.NoteService().GetNotesByContainer(context.Background(), "shipment", shipmentID)
+	// Convert to models.Note for the rest of the function (filter out closed notes)
+	var notes []*models.Note
+	for _, n := range serviceNotes {
+		if n.Status == "closed" {
+			continue
+		}
+		notes = append(notes, &models.Note{
+			ID:     n.ID,
+			Title:  n.Title,
+			Pinned: n.Pinned,
+		})
 	}
 
-	// Collect visible and hidden items
-	type taskDisplay struct {
-		task    *models.Task
+	// Collect all children with tag filtering
+	type childItem struct {
+		id      string
+		title   string
+		status  string
+		pinned  bool
 		tagName string
 	}
-	var visible []taskDisplay
+	var visible []childItem
 	hiddenCount := 0
 
 	for _, t := range tasks {
 		if t.Status == "complete" || filters.statusMap[t.Status] {
 			continue
 		}
-
 		show, tagName := shouldShowLeaf(t.ID, filters)
 		if show {
-			visible = append(visible, taskDisplay{t, tagName})
+			visible = append(visible, childItem{t.ID, t.Title, t.Status, t.Pinned, tagName})
+		} else {
+			hiddenCount++
+		}
+	}
+	for _, n := range notes {
+		show, tagName := shouldShowLeaf(n.ID, filters)
+		if show {
+			visible = append(visible, childItem{n.ID, n.Title, "", n.Pinned, tagName})
 		} else {
 			hiddenCount++
 		}
 	}
 
-	// Display visible items
-	for k, item := range visible {
+	for k, child := range visible {
 		pinnedEmoji := ""
-		if item.task.Pinned {
+		if child.pinned {
 			pinnedEmoji = "📌 "
 		}
 		isLast := k == len(visible)-1 && hiddenCount == 0
@@ -202,14 +244,14 @@ func displayShipmentChildren(shipmentID, prefix string, filters *filterConfig) i
 			childPrefix = prefix + "└── "
 		}
 		tagInfo := ""
-		if item.tagName != "" {
-			tagInfo = " " + colorizeTag(item.tagName)
+		if child.tagName != "" {
+			tagInfo = " " + colorizeTag(child.tagName)
 		}
-		statusInfo := colorizeStatus(item.task.Status)
+		statusInfo := colorizeStatus(child.status)
 		if statusInfo != "" {
-			fmt.Printf("%s%s%s - %s - %s%s\n", childPrefix, pinnedEmoji, colorizeID(item.task.ID), statusInfo, item.task.Title, tagInfo)
+			fmt.Printf("%s%s%s - %s - %s%s\n", childPrefix, pinnedEmoji, colorizeID(child.id), statusInfo, child.title, tagInfo)
 		} else {
-			fmt.Printf("%s%s%s - %s%s\n", childPrefix, pinnedEmoji, colorizeID(item.task.ID), item.task.Title, tagInfo)
+			fmt.Printf("%s%s%s - %s%s\n", childPrefix, pinnedEmoji, colorizeID(child.id), child.title, tagInfo)
 		}
 	}
 
@@ -221,15 +263,57 @@ func displayShipmentChildren(shipmentID, prefix string, filters *filterConfig) i
 	return len(visible)
 }
 
-// displayConclaveChildren shows tasks/questions/plans under a conclave with tag filtering
+// displayConclaveChildren shows tasks/questions/plans/notes under a conclave with tag filtering
 // Returns count of visible items
 func displayConclaveChildren(conclaveID, prefix string, filters *filterConfig) int {
-	// Get tasks
-	tasks, _ := models.GetConclaveTasks(conclaveID)
-	// Get questions
-	questions, _ := models.GetConclaveQuestions(conclaveID)
-	// Get plans
-	plans, _ := models.GetConclavePlans(conclaveID)
+	ctx := context.Background()
+	// Get tasks via ConclaveService
+	serviceTasks, _ := wire.ConclaveService().GetConclaveTasks(ctx, conclaveID)
+	var tasks []*models.Task
+	for _, t := range serviceTasks {
+		tasks = append(tasks, &models.Task{
+			ID:     t.ID,
+			Title:  t.Title,
+			Status: t.Status,
+			Pinned: t.Pinned,
+		})
+	}
+	// Get questions via ConclaveService
+	serviceQuestions, _ := wire.ConclaveService().GetConclaveQuestions(ctx, conclaveID)
+	var questions []*models.Question
+	for _, q := range serviceQuestions {
+		questions = append(questions, &models.Question{
+			ID:     q.ID,
+			Title:  q.Title,
+			Status: q.Status,
+			Pinned: q.Pinned,
+		})
+	}
+	// Get plans via ConclaveService
+	servicePlans, _ := wire.ConclaveService().GetConclavePlans(ctx, conclaveID)
+	var plans []*models.Plan
+	for _, p := range servicePlans {
+		plans = append(plans, &models.Plan{
+			ID:     p.ID,
+			Title:  p.Title,
+			Status: p.Status,
+			Pinned: p.Pinned,
+		})
+	}
+	// Get notes (filter out closed notes)
+	serviceNotes, _ := wire.NoteService().GetNotesByContainer(ctx, "conclave", conclaveID)
+	// Convert to models.Note for the rest of the function
+	var notes []*models.Note
+	for _, n := range serviceNotes {
+		if n.Status == "closed" {
+			continue
+		}
+		notes = append(notes, &models.Note{
+			ID:     n.ID,
+			Title:  n.Title,
+			Pinned: n.Pinned,
+		})
+	}
 
 	// Collect all children with tag filtering
 	type childItem struct {
@@ -275,6 +359,14 @@ func displayConclaveChildren(conclaveID, prefix string, filters *filterConfig) i
 			hiddenCount++
 		}
 	}
+	for _, n := range notes {
+		show, tagName := shouldShowLeaf(n.ID, filters)
+		if show {
+			visible = append(visible, childItem{n.ID, n.Title, "", n.Pinned, tagName})
+		} else {
+			hiddenCount++
+		}
+	}
 
 	for k, child := range visible {
 		pinnedEmoji := ""
@@ -306,19 +398,43 @@ func displayConclaveChildren(conclaveID, prefix string, filters *filterConfig) i
 	return len(visible)
 }
 
-// displayInvestigationChildren shows questions under an investigation with tag filtering
+// displayInvestigationChildren shows questions and notes under an investigation with tag filtering
 // Returns count of visible items
 func displayInvestigationChildren(investigationID, prefix string, filters *filterConfig) int {
-	questions, err := models.GetInvestigationQuestions(investigationID)
-	if err != nil {
-		return 0
+	invQuestions, _ := wire.InvestigationService().GetInvestigationQuestions(context.Background(), investigationID)
+	// Convert to models.Question for the rest of the function
+	var questions []*models.Question
+	for _, q := range invQuestions {
+		questions = append(questions, &models.Question{
+			ID:     q.ID,
+			Title:  q.Title,
+			Status: q.Status,
+			Pinned: q.Pinned,
+		})
+	}
+	serviceNotes, _ := wire.NoteService().GetNotesByContainer(context.Background(), "investigation", investigationID)
+	// Convert to models.Note for the rest of the function (filter out closed notes)
+	var notes []*models.Note
+	for _, n := range serviceNotes {
+		if n.Status == "closed" {
+			continue
+		}
+		notes = append(notes, &models.Note{
+			ID:     n.ID,
+			Title:  n.Title,
+			Pinned: n.Pinned,
+		})
 	}
 
-	type questionDisplay struct {
-		question *models.Question
-		tagName  string
+	// Collect all children with tag filtering
+	type childItem struct {
+		id      string
+		title   string
+		status  string
+		pinned  bool
+		tagName string
 	}
-	var visible []questionDisplay
+	var visible []childItem
 	hiddenCount := 0
 
 	for _, q := range questions {
@@ -327,15 +443,23 @@ func displayInvestigationChildren(investigationID, prefix string, filters *filte
 		}
 		show, tagName := shouldShowLeaf(q.ID, filters)
 		if show {
-			visible = append(visible, questionDisplay{q, tagName})
+			visible = append(visible, childItem{q.ID, q.Title, q.Status, q.Pinned, tagName})
+		} else {
+			hiddenCount++
+		}
+	}
+	for _, n := range notes {
+		show, tagName := shouldShowLeaf(n.ID, filters)
+		if show {
+			visible = append(visible, childItem{n.ID, n.Title, "", n.Pinned, tagName})
 		} else {
 			hiddenCount++
 		}
 	}
 
-	for k, item := range visible {
+	for k, child := range visible {
 		pinnedEmoji := ""
-		if item.question.Pinned {
+		if child.pinned {
 			pinnedEmoji = "📌 "
 		}
 		isLast := k == len(visible)-1 && hiddenCount == 0
@@ -344,14 +468,14 @@ func displayInvestigationChildren(investigationID, prefix string, filters *filte
 			childPrefix = prefix + "└── "
 		}
 		tagInfo := ""
-		if item.tagName != "" {
-			tagInfo = " " + colorizeTag(item.tagName)
+		if child.tagName != "" {
+			tagInfo = " " + colorizeTag(child.tagName)
 		}
-		statusInfo := colorizeStatus(item.question.Status)
+		statusInfo := colorizeStatus(child.status)
 		if statusInfo != "" {
-			fmt.Printf("%s%s%s - %s - %s%s\n", childPrefix, pinnedEmoji, colorizeID(item.question.ID), statusInfo, item.question.Title, tagInfo)
+			fmt.Printf("%s%s%s - %s - %s%s\n", childPrefix, pinnedEmoji, colorizeID(child.id), statusInfo, child.title, tagInfo)
 		} else {
-			fmt.Printf("%s%s%s - %s%s\n", childPrefix, pinnedEmoji, colorizeID(item.question.ID), item.question.Title, tagInfo)
+			fmt.Printf("%s%s%s - %s%s\n", childPrefix, pinnedEmoji, colorizeID(child.id), child.title, tagInfo)
 		}
 	}
 
@@ -363,40 +487,68 @@ func displayInvestigationChildren(investigationID, prefix string, filters *filte
 	return len(visible)
 }
 
-// displayTomeChildren shows notes count under a tome
-// Returns count of notes
+// displayTomeChildren shows notes under a tome with tag filtering
+// Returns count of visible notes
 func displayTomeChildren(tomeID, prefix string, filters *filterConfig) int {
-	notes, err := models.GetTomeNotes(tomeID)
-	if err != nil || len(notes) == 0 {
+	serviceNotes, err := wire.TomeService().GetTomeNotes(context.Background(), tomeID)
+	if err != nil || len(serviceNotes) == 0 {
 		return 0
 	}
-
-	// For tomes with tag filtering, count matching notes
-	visibleCount := 0
-	hiddenCount := 0
-
-	if len(filters.includeTags) > 0 || len(filters.excludeTags) > 0 {
-		for _, n := range notes {
-			show, _ := shouldShowLeaf(n.ID, filters)
-			if show {
-				visibleCount++
-			} else {
-				hiddenCount++
-			}
+	// Convert to models.Note for the rest of the function (filter out closed notes)
+	var notes []*models.Note
+	for _, n := range serviceNotes {
+		if n.Status == "closed" {
+			continue
 		}
-		if visibleCount > 0 || hiddenCount > 0 {
-			if hiddenCount > 0 {
-				fmt.Printf("%s└── (%d notes, %d filtered)\n", prefix, visibleCount, hiddenCount)
-			} else {
-				fmt.Printf("%s└── (%d notes)\n", prefix, visibleCount)
-			}
-		}
-		return visibleCount
+		notes = append(notes, &models.Note{
+			ID:     n.ID,
+			Title:  n.Title,
+			Pinned: n.Pinned,
+		})
 	}
 
-	// No tag filtering - just show count
-	fmt.Printf("%s└── (%d notes)\n", prefix, len(notes))
-	return len(notes)
+	// Collect all children with tag filtering
+	type childItem struct {
+		id      string
+		title   string
+		pinned  bool
+		tagName string
+	}
+	var visible []childItem
+	hiddenCount := 0
+
+	for _, n := range notes {
+		show, tagName := shouldShowLeaf(n.ID, filters)
+		if show {
+			visible = append(visible, childItem{n.ID, n.Title, n.Pinned, tagName})
+		} else {
+			hiddenCount++
+		}
+	}
+
+	for k, child := range visible {
+		pinnedEmoji := ""
+		if child.pinned {
+			pinnedEmoji = "📌 "
+		}
+		isLast := k == len(visible)-1 && hiddenCount == 0
+		childPrefix := prefix + "├── "
+		if isLast {
+			childPrefix = prefix + "└── "
+		}
+		tagInfo := ""
+		if child.tagName != "" {
+			tagInfo = " " + colorizeTag(child.tagName)
+		}
+		fmt.Printf("%s%s%s - %s%s\n", childPrefix, pinnedEmoji, colorizeID(child.id), child.title, tagInfo)
+	}
+
+	// Show hidden count if any
+	if hiddenCount > 0 {
+		fmt.Printf("%s└── (%d other items)\n", prefix, hiddenCount)
+	}
+
+	return len(visible)
 }
 
 // containerInfo holds container display information
@@ -418,7 +570,7 @@ func SummaryCmd() *cobra.Command {
 
 Display modes:
   Default: Show only focused container (if focus is set)
-  --expand: Show all containers
+  --all: Show all containers
 
 Containers shown:
   - Shipments (SHIP-*) with Tasks
@@ -435,9 +587,9 @@ Filtering:
 
 Examples:
   orc summary                          # focused container only (if set)
-  orc summary --expand                 # all containers
-  orc summary --filter-containers SHIP,CON --expand
-  orc summary --tags research --expand
+  orc summary --all                    # all containers
+  orc summary --filter-containers SHIP,CON --all
+  orc summary --tags research --all
   orc summary --filter-statuses paused,blocked`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Get current working directory for config
@@ -448,9 +600,10 @@ Examples:
 
 			// Get flags
 			missionFilter, _ := cmd.Flags().GetString("mission")
-			expandAll, _ := cmd.Flags().GetBool("expand")
+			expandAll, _ := cmd.Flags().GetBool("all")
 			filterStatuses, _ := cmd.Flags().GetStringSlice("filter-statuses")
 			filterContainers, _ := cmd.Flags().GetStringSlice("filter-containers")
+			filterLeaves, _ := cmd.Flags().GetStringSlice("filter-leaves")
 			includeTags, _ := cmd.Flags().GetStringSlice("tags")
 			excludeTags, _ := cmd.Flags().GetStringSlice("not-tags")
 
@@ -460,12 +613,16 @@ Examples:
 				containerTypes: make(map[string]bool),
 				includeTags:    make(map[string]bool),
 				excludeTags:    make(map[string]bool),
+				leafTypes:      make(map[string]bool),
 			}
 			for _, s := range filterStatuses {
 				filters.statusMap[s] = true
 			}
 			for _, c := range filterContainers {
 				filters.containerTypes[strings.ToUpper(c)] = true
+			}
+			for _, lt := range filterLeaves {
+				filters.leafTypes[strings.ToLower(strings.TrimSpace(lt))] = true
 			}
 			for _, t := range includeTags {
 				filters.includeTags[t] = true
@@ -482,7 +639,7 @@ Examples:
 			var filterMissionID string
 			if missionFilter == "current" {
 				// Get current mission from context
-				missionCtx, _ := context.DetectMissionContext()
+				missionCtx, _ := ctx.DetectMissionContext()
 				if missionCtx == nil || missionCtx.MissionID == "" {
 					return fmt.Errorf("--mission current requires being in a mission context (no .orc/config.json found)")
 				}
@@ -502,14 +659,14 @@ Examples:
 			fmt.Println(strings.Join(headerParts, " - "))
 			fmt.Println()
 
-			// Get all non-complete missions
-			missions, err := models.ListMissions("")
+			// Get all non-complete missions via service
+			missions, err := wire.MissionService().ListMissions(context.Background(), primary.MissionFilters{})
 			if err != nil {
 				return fmt.Errorf("failed to list missions: %w", err)
 			}
 
 			// Filter to open missions (not complete or archived)
-			var openMissions []*models.Mission
+			var openMissions []*primary.Mission
 			for _, m := range missions {
 				if m.Status == "complete" || m.Status == "archived" {
 					continue
@@ -540,18 +697,14 @@ Examples:
 
 				// Collect shipments
 				if len(filters.containerTypes) == 0 || filters.containerTypes["SHIP"] {
-					shipments, _ := models.ListShipments(mission.ID, "")
+					shipments, _ := wire.ShipmentService().ListShipments(context.Background(), primary.ShipmentFilters{MissionID: mission.ID})
 					for _, s := range shipments {
 						if s.Status == "complete" || filters.statusMap[s.Status] {
 							continue
 						}
-						groveID := ""
-						if s.AssignedGroveID.Valid {
-							groveID = s.AssignedGroveID.String
-						}
 						c := containerInfo{
 							id: s.ID, title: s.Title, status: s.Status,
-							pinned: s.Pinned, groveID: groveID, containerType: "shipment",
+							pinned: s.Pinned, groveID: s.AssignedGroveID, containerType: "shipment",
 						}
 						if s.ID == focusID {
 							focusedContainer = &c
@@ -562,18 +715,14 @@ Examples:
 
 				// Collect conclaves
 				if len(filters.containerTypes) == 0 || filters.containerTypes["CON"] {
-					conclaves, _ := models.ListConclaves(mission.ID, "")
+					conclaves, _ := wire.ConclaveService().ListConclaves(context.Background(), primary.ConclaveFilters{MissionID: mission.ID})
 					for _, c := range conclaves {
 						if c.Status == "complete" || filters.statusMap[c.Status] {
 							continue
 						}
-						groveID := ""
-						if c.AssignedGroveID.Valid {
-							groveID = c.AssignedGroveID.String
-						}
 						cont := containerInfo{
 							id: c.ID, title: c.Title, status: c.Status,
-							pinned: c.Pinned, groveID: groveID, containerType: "conclave",
+							pinned: c.Pinned, groveID: c.AssignedGroveID, containerType: "conclave",
 						}
 						if c.ID == focusID {
 							focusedContainer = &cont
@@ -584,18 +733,14 @@ Examples:
 
 				// Collect investigations
 				if len(filters.containerTypes) == 0 || filters.containerTypes["INV"] {
-					investigations, _ := models.ListInvestigations(mission.ID, "")
+					investigations, _ := wire.InvestigationService().ListInvestigations(context.Background(), primary.InvestigationFilters{MissionID: mission.ID})
 					for _, inv := range investigations {
 						if inv.Status == "complete" || filters.statusMap[inv.Status] {
 							continue
 						}
-						groveID := ""
-						if inv.AssignedGroveID.Valid {
-							groveID = inv.AssignedGroveID.String
-						}
 						c := containerInfo{
 							id: inv.ID, title: inv.Title, status: inv.Status,
-							pinned: inv.Pinned, groveID: groveID, containerType: "investigation",
+							pinned: inv.Pinned, groveID: inv.AssignedGroveID, containerType: "investigation",
 						}
 						if inv.ID == focusID {
 							focusedContainer = &c
@@ -606,7 +751,7 @@ Examples:
 
 				// Collect tomes
 				if len(filters.containerTypes) == 0 || filters.containerTypes["TOME"] {
-					tomes, _ := models.ListTomes(mission.ID, "")
+					tomes, _ := wire.TomeService().ListTomes(context.Background(), primary.TomeFilters{MissionID: mission.ID})
 					for _, t := range tomes {
 						if t.Status == "complete" || filters.statusMap[t.Status] {
 							continue
@@ -665,7 +810,7 @@ Examples:
 						}
 						groveInfo := ""
 						if container.groveID != "" {
-							grove, err := models.GetGrove(container.groveID)
+							grove, err := wire.GroveService().GetGrove(context.Background(), container.groveID)
 							if err == nil {
 								groveInfo = " " + colorizeGrove(grove.Name, grove.ID)
 							}
@@ -717,7 +862,7 @@ Examples:
 				if otherContainerCount > 0 {
 					msg := fmt.Sprintf("(%d other containers", otherContainerCount)
 					if focusedContainer != nil && !expandAll {
-						msg += " - use --expand to show all"
+						msg += " - use --all to show"
 					}
 					msg += ")"
 					fmt.Printf("└── %s\n", msg)
@@ -735,9 +880,10 @@ Examples:
 	}
 
 	cmd.Flags().StringP("mission", "m", "", "Mission filter: mission ID or 'current' for context mission")
-	cmd.Flags().Bool("expand", false, "Show all containers (default: only show focused container if set)")
+	cmd.Flags().Bool("all", false, "Show all containers (default: only show focused container if set)")
 	cmd.Flags().StringSlice("filter-statuses", []string{}, "Hide items with these statuses (comma-separated: paused,blocked)")
 	cmd.Flags().StringSlice("filter-containers", []string{}, "Show only these container types (comma-separated: SHIP,CON,INV,TOME)")
+	cmd.Flags().StringSlice("filter-leaves", []string{}, "Hide these leaf types (comma-separated: tasks,notes,questions,plans)")
 	cmd.Flags().StringSlice("tags", []string{}, "Show only leaves with these tags")
 	cmd.Flags().StringSlice("not-tags", []string{}, "Hide leaves with these tags")
 
@@ -748,7 +894,25 @@ Examples:
 func containerHasMatchingLeaves(c containerInfo, filters *filterConfig) bool {
 	switch c.containerType {
 	case "shipment":
-		tasks, _ := models.GetShipmentTasks(c.id)
+		shipmentTasks, _ := wire.ShipmentService().GetShipmentTasks(context.Background(), c.id)
+		// Convert to models.Task for tag checking
+		var tasks []*models.Task
+		for _, t := range shipmentTasks {
+			tasks = append(tasks, &models.Task{
+				ID:     t.ID,
+				Title:  t.Title,
+				Status: t.Status,
+				Pinned: t.Pinned,
+			})
+		}
+		serviceNotes, _ := wire.NoteService().GetNotesByContainer(context.Background(), "shipment", c.id)
+		var notes []*models.Note
+		for _, n := range serviceNotes {
+			if n.Status == "closed" {
+				continue
+			}
+			notes = append(notes, &models.Note{ID: n.ID, Title: n.Title, Pinned: n.Pinned})
+		}
 		for _, t := range tasks {
 			if t.Status == "complete" || filters.statusMap[t.Status] {
 				continue
@@ -758,10 +922,24 @@ func containerHasMatchingLeaves(c containerInfo, filters *filterConfig) bool {
 				return true
 			}
 		}
+		for _, n := range notes {
+			show, _ := shouldShowLeaf(n.ID, filters)
+			if show {
+				return true
+			}
+		}
 	case "conclave":
-		tasks, _ := models.GetConclaveTasks(c.id)
-		questions, _ := models.GetConclaveQuestions(c.id)
-		plans, _ := models.GetConclavePlans(c.id)
+		tasks, _ := wire.ConclaveService().GetConclaveTasks(context.Background(), c.id)
+		questions, _ := wire.ConclaveService().GetConclaveQuestions(context.Background(), c.id)
+		plans, _ := wire.ConclaveService().GetConclavePlans(context.Background(), c.id)
+		serviceNotes, _ := wire.NoteService().GetNotesByContainer(context.Background(), "conclave", c.id)
+		var notes []*models.Note
+		for _, n := range serviceNotes {
+			if n.Status == "closed" {
+				continue
+			}
+			notes = append(notes, &models.Note{ID: n.ID, Title: n.Title, Pinned: n.Pinned})
+		}
 		for _, t := range tasks {
 			if t.Status == "complete" || filters.statusMap[t.Status] {
 				continue
@@ -789,8 +967,26 @@ func containerHasMatchingLeaves(c containerInfo, filters *filterConfig) bool {
 				return true
 			}
 		}
+		for _, n := range notes {
+			show, _ := shouldShowLeaf(n.ID, filters)
+			if show {
+				return true
+			}
+		}
 	case "investigation":
-		questions, _ := models.GetInvestigationQuestions(c.id)
+		invQuestions, _ := wire.InvestigationService().GetInvestigationQuestions(context.Background(), c.id)
+		var questions []*models.Question
+		for _, q := range invQuestions {
+			questions = append(questions, &models.Question{ID: q.ID, Title: q.Title, Status: q.Status, Pinned: q.Pinned})
+		}
+		serviceNotes, _ := wire.NoteService().GetNotesByContainer(context.Background(), "investigation", c.id)
+		var notes []*models.Note
+		for _, n := range serviceNotes {
+			if n.Status == "closed" {
+				continue
+			}
+			notes = append(notes, &models.Note{ID: n.ID, Title: n.Title, Pinned: n.Pinned})
+		}
 		for _, q := range questions {
 			if q.Status == "answered" || filters.statusMap[q.Status] {
 				continue
@@ -800,9 +996,18 @@ func containerHasMatchingLeaves(c containerInfo, filters *filterConfig) bool {
 				return true
 			}
 		}
-	case "tome":
-		notes, _ := models.GetTomeNotes(c.id)
 		for _, n := range notes {
+			show, _ := shouldShowLeaf(n.ID, filters)
+			if show {
+				return true
+			}
+		}
+	case "tome":
+		serviceNotes, _ := wire.TomeService().GetTomeNotes(context.Background(), c.id)
+		for _, n := range serviceNotes {
+			if n.Status == "closed" {
+				continue
+			}
 			show, _ := shouldShowLeaf(n.ID, filters)
 			if show {
 				return true

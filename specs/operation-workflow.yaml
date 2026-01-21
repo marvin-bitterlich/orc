@@ -1,0 +1,201 @@
+# Operation Workflow Finite State Machine
+# Single source of truth for operation lifecycle in ORC
+#
+# Generated: 2026-01-20
+# Context: CON-003 FSM-First Testing Strategy (Slice 8)
+
+name: operation-workflow
+version: "1.0"
+description: |
+  Defines the complete lifecycle of an Operation entity in ORC.
+  Operations are units of work within a mission - the simplest entity in ORC.
+  Operations have only 2 states: ready -> complete (no pause/resume, no pin/unpin, no delete).
+  Key characteristic: Simplest entity, permanent record once created.
+
+# =============================================================================
+# STATES
+# =============================================================================
+states:
+  initial:
+    description: No operation exists yet (pre-creation)
+    terminal: false
+
+  ready:
+    description: Operation created, awaiting completion
+    terminal: false
+    invariants:
+      - status == "ready"
+      - created_at is set
+      - mission_id is set and references existing mission
+      - completed_at is NULL
+
+  complete:
+    description: Operation completed, CompletedAt is set
+    terminal: true
+    invariants:
+      - status == "complete"
+      - completed_at is set
+
+# =============================================================================
+# EVENTS
+# =============================================================================
+events:
+  create:
+    description: Create a new operation within a mission
+    payload:
+      title: { type: string, required: true }
+      description: { type: string, required: false, default: "" }
+      mission_id: { type: string, required: true }
+
+  update:
+    description: Update operation title and/or description
+    payload:
+      title: { type: string, required: false }
+      description: { type: string, required: false }
+
+  complete:
+    description: Mark operation as complete
+    payload: {}
+
+# =============================================================================
+# TRANSITIONS
+# =============================================================================
+transitions:
+  # --- Creation ---
+  - name: create_operation
+    from: initial
+    to: ready
+    event: create
+    guards:
+      - mission_exists  # Mission must exist
+    effects:
+      - { type: WriteDB, operation: INSERT, table: operations }
+    test_cases:
+      - "Create operation with existing mission"
+      - "Create operation for non-existent mission (error)"
+
+  # --- Updating (no state change) ---
+  - name: update_operation
+    from: ready
+    to: ready
+    event: update
+    guards: []
+    effects:
+      - { type: WriteDB, operation: UPDATE, table: operations, fields: [title, description, updated_at] }
+    test_cases:
+      - "Update operation title"
+      - "Update operation description"
+
+  # --- Completion ---
+  - name: complete_operation
+    from: ready
+    to: complete
+    event: complete
+    guards:
+      - is_ready  # Status must be "ready"
+    effects:
+      - { type: WriteDB, operation: UPDATE, table: operations, fields: [status, completed_at, updated_at] }
+    test_cases:
+      - "Complete ready operation"
+      - "Complete already completed operation (error)"
+
+# =============================================================================
+# GUARDS
+# =============================================================================
+guards:
+  mission_exists:
+    description: |
+      Check that the target mission exists.
+      Operations must belong to an existing mission.
+    implementation: |
+      exists, err := repo.MissionExists(ctx, mission_id)
+      return err == nil && exists
+    error_message: "mission {mission_id} not found"
+
+  is_ready:
+    description: |
+      Check that operation status is "ready".
+      Required for complete transition.
+    implementation: |
+      operation, _ := repo.GetByID(ctx, operation_id)
+      return operation.Status == "ready"
+    error_message: "can only complete ready operations (current status: {status})"
+
+# =============================================================================
+# EFFECTS
+# =============================================================================
+effects:
+  WriteDB:
+    description: Database write operation
+    parameters:
+      operation: { type: enum, values: [INSERT, UPDATE] }
+      table: { type: string }
+      fields: { type: array, items: string, optional: true }
+
+# =============================================================================
+# INVARIANTS
+# =============================================================================
+invariants:
+  - name: id_format
+    description: Operation IDs follow OP-XXX format
+    check: id matches /^OP-\d{3}$/
+
+  - name: id_unique
+    description: Operation IDs are unique
+    check: COUNT(SELECT id FROM operations WHERE id = {id}) == 1
+
+  - name: status_valid
+    description: Status is one of valid values
+    check: status IN ('ready', 'complete')
+
+  - name: mission_reference
+    description: Operation must reference existing mission
+    check: EXISTS(SELECT 1 FROM missions WHERE id = mission_id)
+
+  - name: title_not_empty
+    description: Operation title must not be empty
+    check: LENGTH(title) > 0
+
+  - name: complete_requires_completed_at
+    description: Completed operations must have completed_at set
+    check: status == 'complete' IMPLIES completed_at IS NOT NULL
+
+  - name: ready_has_no_completed_at
+    description: Ready operations must not have completed_at set
+    check: status == 'ready' IMPLIES completed_at IS NULL
+
+# =============================================================================
+# DIFFERENCES FROM OTHER ENTITIES
+# =============================================================================
+differences_from_others:
+  - |
+    Simplest entity: Only 2 states (ready, complete) vs 3-4 for others.
+  - |
+    No pin/unpin: Operations cannot be pinned.
+  - |
+    No delete: Operations are permanent records, cannot be deleted.
+  - |
+    No pause/resume: Operations go directly from ready to complete.
+  - |
+    Single parent: Only Mission (no optional secondary parent like shipment/investigation).
+  - |
+    Fewest guards: Only 2 guards (CanCreateOperation, CanCompleteOperation).
+  - |
+    ID format: OP-XXX (shortest prefix).
+
+# =============================================================================
+# NOTES
+# =============================================================================
+notes:
+  - |
+    Operation is the simplest entity in ORC - represents a basic unit of work.
+    It exists to track completion of discrete tasks within a mission.
+  - |
+    Operations cannot be deleted because they serve as a permanent audit trail.
+    Once created, they exist until completed.
+  - |
+    The completed_at field tracks when the operation was marked complete.
+    This provides a timestamp for completion tracking.
+  - |
+    No pinning mechanism is needed because operations are simple and have no
+    complex lifecycle that needs protection from accidental state changes.

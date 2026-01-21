@@ -1,0 +1,231 @@
+package cli
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"text/tabwriter"
+
+	"github.com/spf13/cobra"
+
+	orccontext "github.com/example/orc/internal/context"
+	"github.com/example/orc/internal/ports/primary"
+	"github.com/example/orc/internal/wire"
+)
+
+var {{.NameLower}}Cmd = &cobra.Command{
+	Use:   "{{.NameSnake}}",
+	Short: "Manage {{.NamePlural}}",
+	Long:  "Create, list, update, and manage {{.NamePlural}} in the ORC ledger",
+}
+
+var {{.NameLower}}CreateCmd = &cobra.Command{
+	Use:   "create{{range .Fields}}{{if not .Nullable}} [{{.NameSnake}}]{{end}}{{end}}",
+	Short: "Create a new {{.NameLower}}",
+{{- $requiredFields := 0}}
+{{- range .Fields}}{{if not .Nullable}}{{$requiredFields = add $requiredFields 1}}{{end}}{{end}}
+	Args:  cobra.MinimumNArgs({{$requiredFields}}),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx := context.Background()
+		missionID, _ := cmd.Flags().GetString("mission")
+
+		// Get mission from context or require explicit flag
+		if missionID == "" {
+			missionID = orccontext.GetContextMissionID()
+			if missionID == "" {
+				return fmt.Errorf("no mission context detected\nHint: Use --mission flag or run from a grove/mission directory")
+			}
+		}
+
+		req := primary.Create{{.Name}}Request{
+			MissionID: missionID,
+		}
+
+		// Parse positional arguments
+{{- $argIndex := 0}}
+{{- range .Fields}}
+{{- if not .Nullable}}
+		req.{{.Name}} = args[{{$argIndex}}]
+{{- $argIndex = add $argIndex 1}}
+{{- end}}
+{{- end}}
+
+		resp, err := wire.{{.Name}}Service().Create{{.Name}}(ctx, req)
+		if err != nil {
+			return fmt.Errorf("failed to create {{.NameLower}}: %w", err)
+		}
+
+		{{.NameLower}} := resp.{{.Name}}
+		fmt.Printf("✓ Created {{.NameLower}} %s\n", {{.NameLower}}.ID)
+{{- range .Fields}}
+{{- if not .Nullable}}
+		fmt.Printf("  {{.Name}}: %v\n", {{$.NameLower}}.{{.Name}})
+{{- end}}
+{{- end}}
+		fmt.Printf("  Mission: %s\n", {{.NameLower}}.MissionID)
+		return nil
+	},
+}
+
+var {{.NameLower}}ListCmd = &cobra.Command{
+	Use:   "list",
+	Short: "List {{.NamePlural}}",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx := context.Background()
+		missionID, _ := cmd.Flags().GetString("mission")
+{{- if .HasStatus}}
+		status, _ := cmd.Flags().GetString("status")
+{{- end}}
+
+		// Get mission from context if not specified
+		if missionID == "" {
+			missionID = orccontext.GetContextMissionID()
+		}
+
+		{{.NamePlural}}, err := wire.{{.Name}}Service().List{{.NamePlural | title}}(ctx, primary.{{.Name}}Filters{
+			MissionID: missionID,
+{{- if .HasStatus}}
+			Status: status,
+{{- end}}
+		})
+		if err != nil {
+			return fmt.Errorf("failed to list {{.NamePlural}}: %w", err)
+		}
+
+		if len({{.NamePlural}}) == 0 {
+			fmt.Println("No {{.NamePlural}} found")
+			return nil
+		}
+
+		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+		fmt.Fprintln(w, "ID\t{{- range .Fields}}{{.Name | toUpper}}\t{{end}}{{if .HasStatus}}STATUS\t{{end}}PINNED")
+		fmt.Fprintln(w, "--\t{{- range .Fields}}{{repeat "-" (len .Name)}}\t{{end}}{{if .HasStatus}}------\t{{end}}------")
+		for _, item := range {{.NamePlural}} {
+			pinnedMark := ""
+			if item.Pinned {
+				pinnedMark = "yes"
+			}
+			fmt.Fprintf(w, "%s\t{{range .Fields}}%v\t{{end}}{{if .HasStatus}}%s\t{{end}}%s\n",
+				item.ID,
+{{- range .Fields}}
+				item.{{.Name}},
+{{- end}}
+{{- if .HasStatus}}
+				item.Status,
+{{- end}}
+				pinnedMark,
+			)
+		}
+		w.Flush()
+		return nil
+	},
+}
+
+var {{.NameLower}}ShowCmd = &cobra.Command{
+	Use:   "show [{{.NameSnake}}-id]",
+	Short: "Show {{.NameLower}} details",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx := context.Background()
+		{{.NameLower}}ID := args[0]
+
+		{{.NameLower}}, err := wire.{{.Name}}Service().Get{{.Name}}(ctx, {{.NameLower}}ID)
+		if err != nil {
+			return fmt.Errorf("{{.NameLower}} not found: %w", err)
+		}
+
+		fmt.Printf("{{.Name}}: %s\n", {{.NameLower}}.ID)
+{{- range .Fields}}
+		fmt.Printf("{{.Name}}: %v\n", {{$.NameLower}}.{{.Name}})
+{{- end}}
+{{- if .HasStatus}}
+		fmt.Printf("Status: %s\n", {{.NameLower}}.Status)
+{{- end}}
+		fmt.Printf("Mission: %s\n", {{.NameLower}}.MissionID)
+		if {{.NameLower}}.Pinned {
+			fmt.Printf("Pinned: yes\n")
+		}
+		fmt.Printf("Created: %s\n", {{.NameLower}}.CreatedAt)
+		fmt.Printf("Updated: %s\n", {{.NameLower}}.UpdatedAt)
+
+		return nil
+	},
+}
+
+var {{.NameLower}}PinCmd = &cobra.Command{
+	Use:   "pin [{{.NameSnake}}-id]",
+	Short: "Pin {{.NameLower}} to keep it visible",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx := context.Background()
+		{{.NameLower}}ID := args[0]
+
+		err := wire.{{.Name}}Service().Pin{{.Name}}(ctx, {{.NameLower}}ID)
+		if err != nil {
+			return fmt.Errorf("failed to pin {{.NameLower}}: %w", err)
+		}
+
+		fmt.Printf("✓ {{.Name}} %s pinned\n", {{.NameLower}}ID)
+		return nil
+	},
+}
+
+var {{.NameLower}}UnpinCmd = &cobra.Command{
+	Use:   "unpin [{{.NameSnake}}-id]",
+	Short: "Unpin {{.NameLower}}",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx := context.Background()
+		{{.NameLower}}ID := args[0]
+
+		err := wire.{{.Name}}Service().Unpin{{.Name}}(ctx, {{.NameLower}}ID)
+		if err != nil {
+			return fmt.Errorf("failed to unpin {{.NameLower}}: %w", err)
+		}
+
+		fmt.Printf("✓ {{.Name}} %s unpinned\n", {{.NameLower}}ID)
+		return nil
+	},
+}
+
+var {{.NameLower}}DeleteCmd = &cobra.Command{
+	Use:   "delete [{{.NameSnake}}-id]",
+	Short: "Delete a {{.NameLower}}",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx := context.Background()
+		{{.NameLower}}ID := args[0]
+
+		err := wire.{{.Name}}Service().Delete{{.Name}}(ctx, {{.NameLower}}ID)
+		if err != nil {
+			return fmt.Errorf("failed to delete {{.NameLower}}: %w", err)
+		}
+
+		fmt.Printf("✓ {{.Name}} %s deleted\n", {{.NameLower}}ID)
+		return nil
+	},
+}
+
+func init() {
+	// {{.NameLower}} create flags
+	{{.NameLower}}CreateCmd.Flags().StringP("mission", "m", "", "Mission ID (defaults to context)")
+
+	// {{.NameLower}} list flags
+	{{.NameLower}}ListCmd.Flags().StringP("mission", "m", "", "Filter by mission")
+{{- if .HasStatus}}
+	{{.NameLower}}ListCmd.Flags().StringP("status", "s", "", "Filter by status")
+{{- end}}
+
+	// Register subcommands
+	{{.NameLower}}Cmd.AddCommand({{.NameLower}}CreateCmd)
+	{{.NameLower}}Cmd.AddCommand({{.NameLower}}ListCmd)
+	{{.NameLower}}Cmd.AddCommand({{.NameLower}}ShowCmd)
+	{{.NameLower}}Cmd.AddCommand({{.NameLower}}PinCmd)
+	{{.NameLower}}Cmd.AddCommand({{.NameLower}}UnpinCmd)
+	{{.NameLower}}Cmd.AddCommand({{.NameLower}}DeleteCmd)
+}
+
+// {{.Name}}Cmd returns the {{.NameLower}} command
+func {{.Name}}Cmd() *cobra.Command {
+	return {{.NameLower}}Cmd
+}

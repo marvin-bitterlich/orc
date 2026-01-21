@@ -1,0 +1,308 @@
+# Plan Workflow Finite State Machine
+# Single source of truth for plan lifecycle in ORC
+#
+# Generated: 2026-01-20
+# Context: CON-003 FSM-First Testing Strategy (Slice 7)
+
+name: plan-workflow
+version: "1.0"
+description: |
+  Defines the complete lifecycle of a Plan entity in ORC.
+  Plans are implementation plans within a mission that can optionally belong to a shipment.
+  Plans have a simple state machine: draft -> approved (no pause/resume).
+  Key constraint: Maximum 1 draft plan per shipment.
+
+# =============================================================================
+# STATES
+# =============================================================================
+states:
+  initial:
+    description: No plan exists yet (pre-creation)
+    terminal: false
+
+  draft:
+    description: Plan is being developed, awaiting approval
+    terminal: false
+    invariants:
+      - status == "draft"
+      - created_at is set
+      - mission_id is set and references existing mission
+      - shipment_id references existing shipment IF provided
+      - at most one draft plan per shipment (if shipment_id is set)
+
+  approved:
+    description: Plan approved, ApprovedAt is set
+    terminal: true  # Soft terminal - delete still possible
+    invariants:
+      - status == "approved"
+      - approved_at is set
+      - pinned == false (cannot approve pinned plans)
+
+  deleted:
+    description: Plan removed from database (true terminal state)
+    terminal: true
+
+# =============================================================================
+# EVENTS
+# =============================================================================
+events:
+  create:
+    description: Create a new plan within a mission
+    payload:
+      title: { type: string, required: true }
+      description: { type: string, required: false, default: "" }
+      mission_id: { type: string, required: true }
+      shipment_id: { type: string, required: false }
+
+  update:
+    description: Update plan title and/or description
+    payload:
+      title: { type: string, required: false }
+      description: { type: string, required: false }
+
+  approve:
+    description: Approve the plan
+    payload: {}
+
+  pin:
+    description: Pin plan to prevent approval
+    payload: {}
+
+  unpin:
+    description: Unpin plan to allow approval
+    payload: {}
+
+  delete:
+    description: Hard-delete plan from database
+    payload: {}
+
+# =============================================================================
+# TRANSITIONS
+# =============================================================================
+transitions:
+  # --- Creation ---
+  - name: create_plan
+    from: initial
+    to: draft
+    event: create
+    guards:
+      - mission_exists  # Mission must exist
+      - shipment_exists_if_provided  # Shipment must exist if provided
+      - no_active_plan  # No active plan for shipment (if shipment provided)
+    effects:
+      - { type: WriteDB, operation: INSERT, table: plans }
+    test_cases:
+      - "Create plan with existing mission, no shipment"
+      - "Create plan with existing mission and shipment"
+      - "Create plan for non-existent mission (error)"
+      - "Create plan for non-existent shipment (error)"
+      - "Create plan when shipment already has active plan (error)"
+
+  # --- Updating (no state change) ---
+  - name: update_plan
+    from: draft
+    to: draft
+    event: update
+    guards: []
+    effects:
+      - { type: WriteDB, operation: UPDATE, table: plans, fields: [title, description, updated_at] }
+    test_cases:
+      - "Update plan title"
+      - "Update plan description"
+
+  # --- Pin/Unpin (no state change) ---
+  - name: pin_plan
+    from: draft
+    to: draft
+    event: pin
+    guards: []
+    effects:
+      - { type: WriteDB, operation: UPDATE, table: plans, fields: [pinned, updated_at] }
+    test_cases:
+      - "Pin plan"
+
+  - name: unpin_plan
+    from: draft
+    to: draft
+    event: unpin
+    guards: []
+    effects:
+      - { type: WriteDB, operation: UPDATE, table: plans, fields: [pinned, updated_at] }
+    test_cases:
+      - "Unpin plan"
+
+  # --- Approval ---
+  - name: approve_plan
+    from: draft
+    to: approved
+    event: approve
+    guards:
+      - is_draft  # Status must be "draft"
+      - not_pinned  # Cannot approve pinned plans
+    effects:
+      - { type: WriteDB, operation: UPDATE, table: plans, fields: [status, approved_at, updated_at] }
+    test_cases:
+      - "Approve draft unpinned plan"
+      - "Approve pinned plan (error)"
+      - "Approve already approved plan (error)"
+
+  # --- Deletion ---
+  - name: delete_draft_plan
+    from: draft
+    to: deleted
+    event: delete
+    guards:
+      - not_pinned  # Cannot delete pinned plans
+    effects:
+      - { type: WriteDB, operation: DELETE, table: plans }
+    test_cases:
+      - "Delete draft unpinned plan"
+      - "Delete draft pinned plan (error)"
+
+  - name: delete_approved_plan
+    from: approved
+    to: deleted
+    event: delete
+    guards:
+      - not_pinned  # Cannot delete pinned plans (approved plans should not be pinned, but guard for safety)
+    effects:
+      - { type: WriteDB, operation: DELETE, table: plans }
+    test_cases:
+      - "Delete approved plan"
+
+# =============================================================================
+# GUARDS
+# =============================================================================
+guards:
+  mission_exists:
+    description: |
+      Check that the target mission exists.
+      Plans must belong to an existing mission.
+    implementation: |
+      exists, err := repo.MissionExists(ctx, mission_id)
+      return err == nil && exists
+    error_message: "mission {mission_id} not found"
+
+  shipment_exists_if_provided:
+    description: |
+      Check that the shipment exists if a shipment_id is provided.
+      Plans can optionally belong to a shipment.
+    implementation: |
+      if shipment_id == "" { return true }
+      exists, err := repo.ShipmentExists(ctx, shipment_id)
+      return err == nil && exists
+    error_message: "shipment {shipment_id} not found"
+
+  no_active_plan:
+    description: |
+      Check that the shipment does not already have an active (draft) plan.
+      Only one draft plan per shipment is allowed.
+    implementation: |
+      if shipment_id == "" { return true }
+      hasActivePlan, err := repo.ShipmentHasActivePlan(ctx, shipment_id)
+      return err == nil && !hasActivePlan
+    error_message: "shipment {shipment_id} already has an active plan"
+
+  is_draft:
+    description: |
+      Check that plan status is "draft".
+      Required for approve transition.
+    implementation: |
+      plan, _ := repo.GetByID(ctx, plan_id)
+      return plan.Status == "draft"
+    error_message: "can only approve draft plans (current status: {status})"
+
+  not_pinned:
+    description: |
+      Check that plan is not pinned.
+      Pinned plans cannot be approved or deleted until unpinned.
+    implementation: |
+      plan, _ := repo.GetByID(ctx, plan_id)
+      return !plan.Pinned
+    error_message: "cannot {action} pinned plan {plan_id}. Unpin first with: orc plan unpin {plan_id}"
+
+# =============================================================================
+# EFFECTS
+# =============================================================================
+effects:
+  WriteDB:
+    description: Database write operation
+    parameters:
+      operation: { type: enum, values: [INSERT, UPDATE, DELETE] }
+      table: { type: string }
+      fields: { type: array, items: string, optional: true }
+
+# =============================================================================
+# INVARIANTS
+# =============================================================================
+invariants:
+  - name: id_format
+    description: Plan IDs follow PLAN-XXX format
+    check: id matches /^PLAN-\d{3}$/
+
+  - name: id_unique
+    description: Plan IDs are unique
+    check: COUNT(SELECT id FROM plans WHERE id = {id}) == 1
+
+  - name: status_valid
+    description: Status is one of valid values
+    check: status IN ('draft', 'approved')
+
+  - name: mission_reference
+    description: Plan must reference existing mission
+    check: EXISTS(SELECT 1 FROM missions WHERE id = mission_id)
+
+  - name: shipment_reference_if_set
+    description: If shipment_id is set, shipment must exist
+    check: shipment_id IS NULL OR EXISTS(SELECT 1 FROM shipments WHERE id = shipment_id)
+
+  - name: title_not_empty
+    description: Plan title must not be empty
+    check: LENGTH(title) > 0
+
+  - name: approved_requires_approved_at
+    description: Approved plans must have approved_at set
+    check: status == 'approved' IMPLIES approved_at IS NOT NULL
+
+  - name: approved_not_pinned
+    description: Approved plans cannot be pinned
+    check: status == 'approved' IMPLIES pinned == false
+
+  - name: one_draft_per_shipment
+    description: At most one draft plan per shipment
+    check: |
+      shipment_id IS NULL OR
+      COUNT(SELECT 1 FROM plans WHERE shipment_id = {shipment_id} AND status = 'draft') <= 1
+
+# =============================================================================
+# DIFFERENCES FROM QUESTION
+# =============================================================================
+differences_from_question:
+  - |
+    Plan has shipment as optional parent (in addition to mission), while Question has investigation.
+  - |
+    State names differ: draft/approved instead of open/answered.
+  - |
+    Plan has unique constraint: max 1 draft plan per shipment.
+  - |
+    Plan has delete guard (not_pinned), Question does not have delete guard.
+  - |
+    ID format: PLAN-XXX (vs Q-XXX for questions).
+  - |
+    3 guards (CanCreatePlan, CanApprovePlan, CanDeletePlan) vs 2 guards for Question.
+
+# =============================================================================
+# NOTES
+# =============================================================================
+notes:
+  - |
+    Plan is an implementation plan entity - it represents a proposed approach to accomplish work.
+    Plans are simpler than conclaves/investigations with no pause/resume workflow.
+  - |
+    The 'pinned' flag prevents accidental approval or deletion of important plans.
+    Users must explicitly unpin before approving or deleting.
+  - |
+    Plans belong to a mission (required) and optionally to a shipment.
+    The shipment constraint ensures only one draft plan per shipment at a time.
+  - |
+    The approved_at field tracks when the plan was approved.

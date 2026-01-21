@@ -5,9 +5,10 @@ import (
 	"os"
 	"time"
 
+	"github.com/spf13/cobra"
+
 	"github.com/example/orc/internal/config"
 	"github.com/example/orc/internal/db"
-	"github.com/spf13/cobra"
 )
 
 // InitCmd returns the init command

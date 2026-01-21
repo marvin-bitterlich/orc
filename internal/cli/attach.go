@@ -7,8 +7,9 @@ import (
 	"path/filepath"
 	"syscall"
 
-	"github.com/example/orc/internal/tmux"
 	"github.com/spf13/cobra"
+
+	"github.com/example/orc/internal/tmux"
 )
 
 var attachCmd = &cobra.Command{

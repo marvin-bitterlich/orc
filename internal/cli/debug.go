@@ -6,8 +6,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/example/orc/internal/context"
 	"github.com/spf13/cobra"
+
+	"github.com/example/orc/internal/context"
 )
 
 // DebugCmd returns the debug command

@@ -1,13 +1,16 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"text/tabwriter"
 
-	"github.com/example/orc/internal/context"
-	"github.com/example/orc/internal/models"
 	"github.com/spf13/cobra"
+
+	orccontext "github.com/example/orc/internal/context"
+	"github.com/example/orc/internal/ports/primary"
+	"github.com/example/orc/internal/wire"
 )
 
 var shipmentCmd = &cobra.Command{
@@ -21,28 +24,33 @@ var shipmentCreateCmd = &cobra.Command{
 	Short: "Create a new shipment",
 	Args:  cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx := context.Background()
 		title := args[0]
 		missionID, _ := cmd.Flags().GetString("mission")
 		description, _ := cmd.Flags().GetString("description")
 
 		// Get mission from context or require explicit flag
 		if missionID == "" {
-			missionID = context.GetContextMissionID()
+			missionID = orccontext.GetContextMissionID()
 			if missionID == "" {
 				return fmt.Errorf("no mission context detected\nHint: Use --mission flag or run from a grove/mission directory")
 			}
 		}
 
-		shipment, err := models.CreateShipment(missionID, title, description)
+		resp, err := wire.ShipmentService().CreateShipment(ctx, primary.CreateShipmentRequest{
+			MissionID:   missionID,
+			Title:       title,
+			Description: description,
+		})
 		if err != nil {
 			return fmt.Errorf("failed to create shipment: %w", err)
 		}
 
-		fmt.Printf("Created shipment %s: %s\n", shipment.ID, shipment.Title)
-		fmt.Printf("  Under mission: %s\n", shipment.MissionID)
+		fmt.Printf("Created shipment %s: %s\n", resp.Shipment.ID, resp.Shipment.Title)
+		fmt.Printf("  Under mission: %s\n", resp.Shipment.MissionID)
 		fmt.Println()
 		fmt.Println("Next steps:")
-		fmt.Printf("   orc task create \"Task title\" --shipment %s\n", shipment.ID)
+		fmt.Printf("   orc task create \"Task title\" --shipment %s\n", resp.Shipment.ID)
 		return nil
 	},
 }
@@ -51,15 +59,19 @@ var shipmentListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List shipments",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx := context.Background()
 		missionID, _ := cmd.Flags().GetString("mission")
 		status, _ := cmd.Flags().GetString("status")
 
 		// Get mission from context if not specified
 		if missionID == "" {
-			missionID = context.GetContextMissionID()
+			missionID = orccontext.GetContextMissionID()
 		}
 
-		shipments, err := models.ListShipments(missionID, status)
+		shipments, err := wire.ShipmentService().ListShipments(ctx, primary.ShipmentFilters{
+			MissionID: missionID,
+			Status:    status,
+		})
 		if err != nil {
 			return fmt.Errorf("failed to list shipments: %w", err)
 		}
@@ -89,33 +101,34 @@ var shipmentShowCmd = &cobra.Command{
 	Short: "Show shipment details",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx := context.Background()
 		shipmentID := args[0]
 
-		shipment, err := models.GetShipment(shipmentID)
+		shipment, err := wire.ShipmentService().GetShipment(ctx, shipmentID)
 		if err != nil {
 			return fmt.Errorf("shipment not found: %w", err)
 		}
 
 		fmt.Printf("Shipment: %s\n", shipment.ID)
 		fmt.Printf("Title: %s\n", shipment.Title)
-		if shipment.Description.Valid {
-			fmt.Printf("Description: %s\n", shipment.Description.String)
+		if shipment.Description != "" {
+			fmt.Printf("Description: %s\n", shipment.Description)
 		}
 		fmt.Printf("Status: %s\n", shipment.Status)
 		fmt.Printf("Mission: %s\n", shipment.MissionID)
-		if shipment.AssignedGroveID.Valid {
-			fmt.Printf("Assigned Grove: %s\n", shipment.AssignedGroveID.String)
+		if shipment.AssignedGroveID != "" {
+			fmt.Printf("Assigned Grove: %s\n", shipment.AssignedGroveID)
 		}
 		if shipment.Pinned {
 			fmt.Printf("Pinned: yes\n")
 		}
-		fmt.Printf("Created: %s\n", shipment.CreatedAt.Format("2006-01-02 15:04"))
-		if shipment.CompletedAt.Valid {
-			fmt.Printf("Completed: %s\n", shipment.CompletedAt.Time.Format("2006-01-02 15:04"))
+		fmt.Printf("Created: %s\n", shipment.CreatedAt)
+		if shipment.CompletedAt != "" {
+			fmt.Printf("Completed: %s\n", shipment.CompletedAt)
 		}
 
 		// Show tasks
-		tasks, err := models.GetShipmentTasks(shipmentID)
+		tasks, err := wire.ShipmentService().GetShipmentTasks(ctx, shipmentID)
 		if err != nil {
 			return fmt.Errorf("failed to get tasks: %w", err)
 		}
@@ -137,9 +150,10 @@ var shipmentCompleteCmd = &cobra.Command{
 	Short: "Mark shipment as complete",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx := context.Background()
 		shipmentID := args[0]
 
-		err := models.CompleteShipment(shipmentID)
+		err := wire.ShipmentService().CompleteShipment(ctx, shipmentID)
 		if err != nil {
 			return fmt.Errorf("failed to complete shipment: %w", err)
 		}
@@ -149,11 +163,48 @@ var shipmentCompleteCmd = &cobra.Command{
 	},
 }
 
+var shipmentPauseCmd = &cobra.Command{
+	Use:   "pause [shipment-id]",
+	Short: "Pause an active shipment",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx := context.Background()
+		shipmentID := args[0]
+
+		err := wire.ShipmentService().PauseShipment(ctx, shipmentID)
+		if err != nil {
+			return fmt.Errorf("failed to pause shipment: %w", err)
+		}
+
+		fmt.Printf("Shipment %s paused\n", shipmentID)
+		return nil
+	},
+}
+
+var shipmentResumeCmd = &cobra.Command{
+	Use:   "resume [shipment-id]",
+	Short: "Resume a paused shipment",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx := context.Background()
+		shipmentID := args[0]
+
+		err := wire.ShipmentService().ResumeShipment(ctx, shipmentID)
+		if err != nil {
+			return fmt.Errorf("failed to resume shipment: %w", err)
+		}
+
+		fmt.Printf("Shipment %s resumed\n", shipmentID)
+		return nil
+	},
+}
+
 var shipmentUpdateCmd = &cobra.Command{
 	Use:   "update [shipment-id]",
 	Short: "Update shipment title and/or description",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx := context.Background()
 		shipmentID := args[0]
 		title, _ := cmd.Flags().GetString("title")
 		description, _ := cmd.Flags().GetString("description")
@@ -162,7 +213,11 @@ var shipmentUpdateCmd = &cobra.Command{
 			return fmt.Errorf("must specify --title and/or --description")
 		}
 
-		err := models.UpdateShipment(shipmentID, title, description)
+		err := wire.ShipmentService().UpdateShipment(ctx, primary.UpdateShipmentRequest{
+			ShipmentID:  shipmentID,
+			Title:       title,
+			Description: description,
+		})
 		if err != nil {
 			return fmt.Errorf("failed to update shipment: %w", err)
 		}
@@ -177,9 +232,10 @@ var shipmentPinCmd = &cobra.Command{
 	Short: "Pin shipment to keep it visible",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx := context.Background()
 		shipmentID := args[0]
 
-		err := models.PinShipment(shipmentID)
+		err := wire.ShipmentService().PinShipment(ctx, shipmentID)
 		if err != nil {
 			return fmt.Errorf("failed to pin shipment: %w", err)
 		}
@@ -194,9 +250,10 @@ var shipmentUnpinCmd = &cobra.Command{
 	Short: "Unpin shipment",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx := context.Background()
 		shipmentID := args[0]
 
-		err := models.UnpinShipment(shipmentID)
+		err := wire.ShipmentService().UnpinShipment(ctx, shipmentID)
 		if err != nil {
 			return fmt.Errorf("failed to unpin shipment: %w", err)
 		}
@@ -211,10 +268,11 @@ var shipmentAssignCmd = &cobra.Command{
 	Short: "Assign shipment to a grove",
 	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx := context.Background()
 		shipmentID := args[0]
 		groveID := args[1]
 
-		err := models.AssignShipmentToGrove(shipmentID, groveID)
+		err := wire.ShipmentService().AssignShipmentToGrove(ctx, shipmentID, groveID)
 		if err != nil {
 			return fmt.Errorf("failed to assign shipment: %w", err)
 		}
@@ -242,6 +300,8 @@ func init() {
 	shipmentCmd.AddCommand(shipmentListCmd)
 	shipmentCmd.AddCommand(shipmentShowCmd)
 	shipmentCmd.AddCommand(shipmentCompleteCmd)
+	shipmentCmd.AddCommand(shipmentPauseCmd)
+	shipmentCmd.AddCommand(shipmentResumeCmd)
 	shipmentCmd.AddCommand(shipmentUpdateCmd)
 	shipmentCmd.AddCommand(shipmentPinCmd)
 	shipmentCmd.AddCommand(shipmentUnpinCmd)

@@ -1,0 +1,421 @@
+# Mission Provisioning Finite State Machine
+# Single source of truth for mission lifecycle in ORC
+#
+# Generated: 2026-01-19
+# Context: CON-003 FSM-First Testing Strategy
+
+name: mission-provisioning
+version: "1.0"
+description: |
+  Defines the complete lifecycle of a Mission entity in ORC.
+  Missions are the top-level coordination scope for work.
+
+# =============================================================================
+# STATES
+# =============================================================================
+states:
+  initial:
+    description: No mission exists yet (pre-creation)
+    terminal: false
+
+  active:
+    description: Mission is created and available for work
+    terminal: false
+    invariants:
+      - status == "active"
+      - created_at is set
+      - updated_at >= created_at
+
+  paused:
+    description: Mission is temporarily suspended (defined but rarely used)
+    terminal: false
+    invariants:
+      - status == "paused"
+      - previous_status == "active"
+
+  complete:
+    description: Mission work is finished, completed_at is set
+    terminal: false  # Can still archive
+    invariants:
+      - status == "complete"
+      - completed_at is set
+      - not pinned  # Invariant: completed missions cannot be pinned
+
+  archived:
+    description: Mission is historical record, no longer active
+    terminal: true  # Terminal for normal operations (delete still possible)
+    invariants:
+      - status == "archived"
+      - not pinned  # Invariant: archived missions cannot be pinned
+
+  deleted:
+    description: Mission removed from database (true terminal state)
+    terminal: true
+
+# =============================================================================
+# EVENTS
+# =============================================================================
+events:
+  create:
+    description: Create a new mission with title and optional description
+    payload:
+      title: { type: string, required: true }
+      description: { type: string, required: false }
+
+  update:
+    description: Update mission title and/or description
+    payload:
+      title: { type: string, required: false }
+      description: { type: string, required: false }
+
+  start:
+    description: Legacy command - create workspace and TMux session
+    payload:
+      workspace_path: { type: string, required: false, default: "~/src/missions/{MISSION_ID}" }
+
+  launch:
+    description: Plan/apply pattern for infrastructure provisioning (idempotent)
+    payload:
+      workspace_path: { type: string, required: false }
+      create_tmux: { type: boolean, required: false, default: false }
+
+  complete:
+    description: Mark mission as finished
+    payload: {}
+
+  archive:
+    description: Archive mission for historical record
+    payload: {}
+
+  pin:
+    description: Pin mission to prevent completion/archiving
+    payload: {}
+
+  unpin:
+    description: Unpin mission to allow completion/archiving
+    payload: {}
+
+  delete:
+    description: Remove mission from database
+    payload:
+      force: { type: boolean, required: false, default: false }
+
+# =============================================================================
+# TRANSITIONS
+# =============================================================================
+transitions:
+  # --- Creation ---
+  - name: create_mission
+    from: initial
+    to: active
+    event: create
+    guards:
+      - is_orc  # Only ORC can create missions
+    effects:
+      - { type: WriteDB, operation: INSERT, table: missions }
+    test_cases:
+      - "ORC creates mission with title only"
+      - "ORC creates mission with title and description"
+      - "IMP blocked from creating mission"
+
+  # --- Updates (while active) ---
+  - name: update_mission
+    from: active
+    to: active
+    event: update
+    guards: []
+    effects:
+      - { type: WriteDB, operation: UPDATE, table: missions, fields: [title, description, updated_at] }
+    test_cases:
+      - "Update title only"
+      - "Update description only"
+      - "Update both title and description"
+      - "Update with empty values (no-op)"
+
+  # --- Infrastructure Provisioning ---
+  - name: start_mission
+    from: active
+    to: active
+    event: start
+    guards:
+      - is_orc
+      - not_in_orc_source
+    effects:
+      - { type: CreateWorkspace, path: "{workspace_path}" }
+      - { type: WriteConfig, path: "{workspace_path}/.orc/config.json", config_type: mission }
+      - { type: SpawnTmux, session: "orc-{MISSION_ID}" }
+    test_cases:
+      - "ORC starts mission, creates workspace"
+      - "ORC starts mission with custom workspace path"
+      - "IMP blocked from starting mission"
+      - "Start from ORC source directory blocked"
+      - "Start with existing TMux session (error)"
+
+  - name: launch_mission
+    from: active
+    to: active
+    event: launch
+    guards:
+      - is_orc
+      - not_in_orc_source
+    effects:
+      - { type: CreateWorkspace, path: "{workspace_path}" }
+      - { type: CreateWorkspace, path: "{workspace_path}/groves" }
+      - { type: WriteConfig, path: "{grove_path}/.orc/config.json", config_type: grove, foreach: groves }
+      - { type: WriteConfig, path: "{grove_path}/.claude/settings.local.json", foreach: groves }
+      - { type: UpdateDB, operation: UPDATE, table: groves, fields: [path], condition: "path changed" }
+      - { type: SpawnTmux, session: "orc-{MISSION_ID}", conditional: "create_tmux == true" }
+    test_cases:
+      - "Launch creates workspace and groves directory"
+      - "Launch moves groves to standard location"
+      - "Launch writes grove configs"
+      - "Launch with --tmux creates session"
+      - "Launch without --tmux skips TMux"
+      - "Launch is idempotent (run twice, same result)"
+      - "IMP blocked from launching mission"
+
+  # --- Pinning ---
+  - name: pin_mission
+    from: active
+    to: active
+    event: pin
+    guards:
+      - exists  # Mission must exist
+    effects:
+      - { type: WriteDB, operation: UPDATE, table: missions, fields: [pinned, updated_at], values: [1] }
+    test_cases:
+      - "Pin active mission"
+      - "Pin already-pinned mission (no-op)"
+      - "Pin non-existent mission (error)"
+
+  - name: unpin_mission
+    from: active
+    to: active
+    event: unpin
+    guards:
+      - exists
+    effects:
+      - { type: WriteDB, operation: UPDATE, table: missions, fields: [pinned, updated_at], values: [0] }
+    test_cases:
+      - "Unpin pinned mission"
+      - "Unpin unpinned mission (no-op)"
+
+  # --- Completion ---
+  - name: complete_mission
+    from: active
+    to: complete
+    event: complete
+    guards:
+      - not_pinned  # Cannot complete pinned mission
+    effects:
+      - { type: WriteDB, operation: UPDATE, table: missions, fields: [status, completed_at, updated_at] }
+    test_cases:
+      - "Complete unpinned mission"
+      - "Complete pinned mission (error with helpful message)"
+      - "Complete already-complete mission (no-op or error)"
+
+  # --- Archiving ---
+  - name: archive_active_mission
+    from: active
+    to: archived
+    event: archive
+    guards:
+      - not_pinned
+    effects:
+      - { type: WriteDB, operation: UPDATE, table: missions, fields: [status, updated_at] }
+    test_cases:
+      - "Archive active unpinned mission"
+      - "Archive pinned mission (error)"
+
+  - name: archive_complete_mission
+    from: complete
+    to: archived
+    event: archive
+    guards:
+      - not_pinned  # Should already be unpinned, but defensive
+    effects:
+      - { type: WriteDB, operation: UPDATE, table: missions, fields: [status, updated_at] }
+    test_cases:
+      - "Archive completed mission"
+
+  # --- Pausing (rarely used) ---
+  - name: pause_mission
+    from: active
+    to: paused
+    event: update
+    guards:
+      - status_change_to_paused  # Explicit status in update
+    effects:
+      - { type: WriteDB, operation: UPDATE, table: missions, fields: [status, updated_at] }
+    test_cases:
+      - "Pause active mission"
+
+  - name: resume_mission
+    from: paused
+    to: active
+    event: update
+    guards:
+      - status_change_to_active
+    effects:
+      - { type: WriteDB, operation: UPDATE, table: missions, fields: [status, updated_at] }
+    test_cases:
+      - "Resume paused mission"
+
+  # --- Deletion ---
+  - name: delete_active_mission
+    from: active
+    to: deleted
+    event: delete
+    guards:
+      - no_dependents_or_force  # No groves/shipments, or --force flag
+    effects:
+      - { type: WriteDB, operation: DELETE, table: missions }
+      # TODO: Cascade delete when implemented
+    test_cases:
+      - "Delete mission with no dependents"
+      - "Delete mission with groves (error without --force)"
+      - "Delete mission with shipments (error without --force)"
+      - "Delete mission with --force (succeeds, orphans dependents)"
+
+  - name: delete_archived_mission
+    from: archived
+    to: deleted
+    event: delete
+    guards:
+      - no_dependents_or_force
+    effects:
+      - { type: WriteDB, operation: DELETE, table: missions }
+    test_cases:
+      - "Delete archived mission"
+
+# =============================================================================
+# GUARDS
+# =============================================================================
+guards:
+  is_orc:
+    description: |
+      Check that current agent is ORC (not IMP).
+      IMPs are blocked from mission lifecycle operations.
+    implementation: |
+      identity, err := agent.GetCurrentAgentID()
+      return err != nil || identity.Type != agent.AgentTypeIMP
+    error_message: "IMPs cannot {action} missions - only ORC can {action} missions"
+
+  not_pinned:
+    description: |
+      Check that mission is not pinned.
+      Pinned missions cannot be completed or archived.
+    implementation: |
+      mission, _ := models.GetMission(id)
+      return !mission.Pinned
+    error_message: "Cannot {action} pinned mission {id}. Unpin first with: orc mission unpin {id}"
+
+  not_in_orc_source:
+    description: |
+      Prevent running from ORC source directory.
+      Guards against accidental modification of orchestrator.
+    implementation: |
+      return !context.IsOrcSourceDirectory()
+    error_message: "Cannot run this command from ORC source directory"
+
+  no_dependents_or_force:
+    description: |
+      Check for associated groves/shipments before deletion.
+      Bypassed with --force flag (but orphans dependents).
+    implementation: |
+      if force { return true }
+      groves, _ := models.GetGrovesByMission(id)
+      shipments, _ := models.ListShipments(id, "")
+      return len(groves) == 0 && len(shipments) == 0
+    error_message: "Mission has {count} groves and {count} shipments. Use --force to delete anyway (will orphan dependents)"
+
+  exists:
+    description: Mission must exist in database
+    implementation: |
+      _, err := models.GetMission(id)
+      return err == nil
+    error_message: "Mission {id} not found"
+
+# =============================================================================
+# EFFECTS
+# =============================================================================
+effects:
+  WriteDB:
+    description: Database write operation
+    parameters:
+      operation: { type: enum, values: [INSERT, UPDATE, DELETE] }
+      table: { type: string }
+      fields: { type: array, items: string, optional: true }
+      condition: { type: string, optional: true }
+
+  CreateWorkspace:
+    description: Create directory structure
+    parameters:
+      path: { type: string }
+    idempotent: true
+
+  WriteConfig:
+    description: Write JSON config file
+    parameters:
+      path: { type: string }
+      config_type: { type: enum, values: [mission, grove, global, claude_settings] }
+    idempotent: true
+
+  SpawnTmux:
+    description: Create TMux session with windows/panes
+    parameters:
+      session: { type: string }
+    idempotent: false  # Error if session exists
+
+  UpdateDB:
+    description: Conditional database update
+    parameters:
+      operation: { type: enum, values: [UPDATE] }
+      table: { type: string }
+      fields: { type: array, items: string }
+      condition: { type: string }
+
+# =============================================================================
+# INVARIANTS
+# =============================================================================
+invariants:
+  - name: id_format
+    description: Mission IDs follow MISSION-XXX format
+    check: id matches /^MISSION-\d{3}$/
+
+  - name: id_unique
+    description: Mission IDs are unique
+    check: COUNT(SELECT id FROM missions WHERE id = {id}) == 1
+
+  - name: status_valid
+    description: Status is one of valid values
+    check: status IN ('active', 'paused', 'complete', 'archived')
+
+  - name: pinned_blocks_terminal
+    description: Pinned missions cannot be in terminal states
+    check: NOT (pinned AND status IN ('complete', 'archived'))
+
+  - name: completed_has_timestamp
+    description: Complete status requires completed_at
+    check: status == 'complete' IMPLIES completed_at IS NOT NULL
+
+  - name: timestamps_ordered
+    description: Timestamps are chronologically ordered
+    check: completed_at IS NULL OR completed_at >= created_at
+
+# =============================================================================
+# NOTES
+# =============================================================================
+notes:
+  - |
+    Status 'paused' is defined in schema but never used in practice.
+    Only 'active' and 'archived' appear in production data.
+  - |
+    The 'start' and 'launch' events both provision infrastructure but
+    'launch' uses plan/apply pattern and is idempotent.
+  - |
+    Cascade delete for dependents is marked TODO in codebase.
+    Currently deletion with --force orphans related entities.
+  - |
+    Integration tests exist but are shell-based. This FSM should
+    drive generation of Go unit tests with table-driven structure.

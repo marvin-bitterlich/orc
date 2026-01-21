@@ -1,0 +1,282 @@
+// Package sqlite contains SQLite implementations of repository interfaces.
+package sqlite
+
+import (
+	"context"
+	"database/sql"
+	"fmt"
+	"time"
+
+	"github.com/example/orc/internal/ports/secondary"
+)
+
+// {{.Name}}Repository implements secondary.{{.Name}}Repository with SQLite.
+type {{.Name}}Repository struct {
+	db *sql.DB
+}
+
+// New{{.Name}}Repository creates a new SQLite {{.NameLower}} repository.
+func New{{.Name}}Repository(db *sql.DB) *{{.Name}}Repository {
+	return &{{.Name}}Repository{db: db}
+}
+
+// Create persists a new {{.NameLower}}.
+func (r *{{.Name}}Repository) Create(ctx context.Context, {{.NameLower}} *secondary.{{.Name}}Record) error {
+{{- range .Fields}}
+{{- if .Nullable}}
+	var {{.NameLower}} {{.GoNullType}}
+	if {{$.NameLower}}.{{.Name}} != "" {
+		{{.NameLower}} = {{.GoNullType}}{String: {{$.NameLower}}.{{.Name}}, Valid: true}
+	}
+{{- end}}
+{{- end}}
+
+	_, err := r.db.ExecContext(ctx,
+		`INSERT INTO {{.NamePlural}} (id, mission_id{{range .Fields}}, {{.NameSnake}}{{end}}{{if .HasStatus}}, status{{end}}) VALUES (?{{range .Fields}}, ?{{end}}{{if .HasStatus}}, ?{{end}}, ?)`,
+		{{.NameLower}}.ID, {{.NameLower}}.MissionID,
+{{- range .Fields}}
+{{- if .Nullable}}
+		{{.NameLower}},
+{{- else}}
+		{{$.NameLower}}.{{.Name}},
+{{- end}}
+{{- end}}
+{{- if .HasStatus}}
+		{{.NameLower}}.Status,
+{{- end}}
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create {{.NameLower}}: %w", err)
+	}
+
+	return nil
+}
+
+// GetByID retrieves a {{.NameLower}} by its ID.
+func (r *{{.Name}}Repository) GetByID(ctx context.Context, id string) (*secondary.{{.Name}}Record, error) {
+	var (
+{{- range .Fields}}
+{{- if .Nullable}}
+		{{.NameLower}} {{.GoNullType}}
+{{- end}}
+{{- end}}
+		pinned    bool
+		createdAt time.Time
+		updatedAt time.Time
+	)
+
+	record := &secondary.{{.Name}}Record{}
+	err := r.db.QueryRowContext(ctx,
+		`SELECT id, mission_id{{range .Fields}}, {{.NameSnake}}{{end}}{{if .HasStatus}}, status{{end}}, pinned, created_at, updated_at FROM {{.NamePlural}} WHERE id = ?`,
+		id,
+	).Scan(&record.ID, &record.MissionID,
+{{- range .Fields}}
+{{- if .Nullable}}
+		&{{.NameLower}},
+{{- else}}
+		&record.{{.Name}},
+{{- end}}
+{{- end}}
+{{- if .HasStatus}}
+		&record.Status,
+{{- end}}
+		&pinned, &createdAt, &updatedAt)
+
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("{{.NameLower}} %s not found", id)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get {{.NameLower}}: %w", err)
+	}
+
+{{- range .Fields}}
+{{- if .Nullable}}
+	record.{{.Name}} = {{.NameLower}}.String
+{{- end}}
+{{- end}}
+	record.Pinned = pinned
+	record.CreatedAt = createdAt.Format(time.RFC3339)
+	record.UpdatedAt = updatedAt.Format(time.RFC3339)
+
+	return record, nil
+}
+
+// List retrieves {{.NamePlural}} matching the given filters.
+func (r *{{.Name}}Repository) List(ctx context.Context, filters secondary.{{.Name}}Filters) ([]*secondary.{{.Name}}Record, error) {
+	query := `SELECT id, mission_id{{range .Fields}}, {{.NameSnake}}{{end}}{{if .HasStatus}}, status{{end}}, pinned, created_at, updated_at FROM {{.NamePlural}} WHERE 1=1`
+	args := []any{}
+
+	if filters.MissionID != "" {
+		query += " AND mission_id = ?"
+		args = append(args, filters.MissionID)
+	}
+{{- if .HasStatus}}
+
+	if filters.Status != "" {
+		query += " AND status = ?"
+		args = append(args, filters.Status)
+	}
+{{- end}}
+
+	query += " ORDER BY created_at DESC"
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list {{.NamePlural}}: %w", err)
+	}
+	defer rows.Close()
+
+	var {{.NamePlural}} []*secondary.{{.Name}}Record
+	for rows.Next() {
+		var (
+{{- range .Fields}}
+{{- if .Nullable}}
+			{{.NameLower}} {{.GoNullType}}
+{{- end}}
+{{- end}}
+			pinned    bool
+			createdAt time.Time
+			updatedAt time.Time
+		)
+
+		record := &secondary.{{.Name}}Record{}
+		err := rows.Scan(&record.ID, &record.MissionID,
+{{- range .Fields}}
+{{- if .Nullable}}
+			&{{.NameLower}},
+{{- else}}
+			&record.{{.Name}},
+{{- end}}
+{{- end}}
+{{- if .HasStatus}}
+			&record.Status,
+{{- end}}
+			&pinned, &createdAt, &updatedAt)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan {{.NameLower}}: %w", err)
+		}
+
+{{- range .Fields}}
+{{- if .Nullable}}
+		record.{{.Name}} = {{.NameLower}}.String
+{{- end}}
+{{- end}}
+		record.Pinned = pinned
+		record.CreatedAt = createdAt.Format(time.RFC3339)
+		record.UpdatedAt = updatedAt.Format(time.RFC3339)
+
+		{{.NamePlural}} = append({{.NamePlural}}, record)
+	}
+
+	return {{.NamePlural}}, nil
+}
+
+// Update updates an existing {{.NameLower}}.
+func (r *{{.Name}}Repository) Update(ctx context.Context, {{.NameLower}} *secondary.{{.Name}}Record) error {
+	query := "UPDATE {{.NamePlural}} SET updated_at = CURRENT_TIMESTAMP"
+	args := []any{}
+
+{{- range .Fields}}
+	if {{$.NameLower}}.{{.Name}} != {{if eq .Type "string"}}""{{else if eq .Type "int64"}}0{{else if eq .Type "bool"}}false{{else}}""{{end}} {
+		query += ", {{.NameSnake}} = ?"
+{{- if .Nullable}}
+		args = append(args, sql.NullString{String: {{$.NameLower}}.{{.Name}}, Valid: true})
+{{- else}}
+		args = append(args, {{$.NameLower}}.{{.Name}})
+{{- end}}
+	}
+{{- end}}
+
+	query += " WHERE id = ?"
+	args = append(args, {{.NameLower}}.ID)
+
+	result, err := r.db.ExecContext(ctx, query, args...)
+	if err != nil {
+		return fmt.Errorf("failed to update {{.NameLower}}: %w", err)
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		return fmt.Errorf("{{.NameLower}} %s not found", {{.NameLower}}.ID)
+	}
+
+	return nil
+}
+
+// Delete removes a {{.NameLower}} from persistence.
+func (r *{{.Name}}Repository) Delete(ctx context.Context, id string) error {
+	result, err := r.db.ExecContext(ctx, "DELETE FROM {{.NamePlural}} WHERE id = ?", id)
+	if err != nil {
+		return fmt.Errorf("failed to delete {{.NameLower}}: %w", err)
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		return fmt.Errorf("{{.NameLower}} %s not found", id)
+	}
+
+	return nil
+}
+
+// Pin pins a {{.NameLower}}.
+func (r *{{.Name}}Repository) Pin(ctx context.Context, id string) error {
+	result, err := r.db.ExecContext(ctx,
+		"UPDATE {{.NamePlural}} SET pinned = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+		id,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to pin {{.NameLower}}: %w", err)
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		return fmt.Errorf("{{.NameLower}} %s not found", id)
+	}
+
+	return nil
+}
+
+// Unpin unpins a {{.NameLower}}.
+func (r *{{.Name}}Repository) Unpin(ctx context.Context, id string) error {
+	result, err := r.db.ExecContext(ctx,
+		"UPDATE {{.NamePlural}} SET pinned = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+		id,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to unpin {{.NameLower}}: %w", err)
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		return fmt.Errorf("{{.NameLower}} %s not found", id)
+	}
+
+	return nil
+}
+
+// GetNextID returns the next available {{.NameLower}} ID.
+func (r *{{.Name}}Repository) GetNextID(ctx context.Context) (string, error) {
+	var maxID int
+	prefixLen := len("{{.IDPrefix}}-") + 1
+	err := r.db.QueryRowContext(ctx,
+		fmt.Sprintf("SELECT COALESCE(MAX(CAST(SUBSTR(id, %d) AS INTEGER)), 0) FROM {{.NamePlural}}", prefixLen),
+	).Scan(&maxID)
+	if err != nil {
+		return "", fmt.Errorf("failed to get next {{.NameLower}} ID: %w", err)
+	}
+
+	return fmt.Sprintf("{{.IDPrefix}}-%03d", maxID+1), nil
+}
+
+// MissionExists checks if a mission exists.
+func (r *{{.Name}}Repository) MissionExists(ctx context.Context, missionID string) (bool, error) {
+	var count int
+	err := r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM missions WHERE id = ?", missionID).Scan(&count)
+	if err != nil {
+		return false, fmt.Errorf("failed to check mission existence: %w", err)
+	}
+	return count > 0, nil
+}
+
+// Ensure {{.Name}}Repository implements the interface
+var _ secondary.{{.Name}}Repository = (*{{.Name}}Repository)(nil)

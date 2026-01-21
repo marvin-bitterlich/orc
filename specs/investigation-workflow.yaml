@@ -1,0 +1,325 @@
+# Investigation Workflow Finite State Machine
+# Single source of truth for investigation lifecycle in ORC
+#
+# Generated: 2026-01-20
+# Context: CON-003 FSM-First Testing Strategy (Slice 5)
+
+name: investigation-workflow
+version: "1.0"
+description: |
+  Defines the complete lifecycle of an Investigation entity in ORC.
+  Investigations are research/discovery sessions within a mission that aggregate questions.
+  Like conclaves, investigations have pause/resume semantics but focus on research rather than ideation.
+
+# =============================================================================
+# STATES
+# =============================================================================
+states:
+  initial:
+    description: No investigation exists yet (pre-creation)
+    terminal: false
+
+  active:
+    description: Investigation is in progress, research ongoing
+    terminal: false
+    invariants:
+      - status == "active"
+      - created_at is set
+      - mission_id is set and references existing mission
+
+  paused:
+    description: Investigation is temporarily suspended, research halted
+    terminal: false
+    invariants:
+      - status == "paused"
+      - child entities (questions) should not be modified while paused
+
+  complete:
+    description: Research finished, CompletedAt is set
+    terminal: true  # Soft terminal - delete still possible
+    invariants:
+      - status == "complete"
+      - completed_at is set
+      - pinned == false (cannot complete pinned investigations)
+
+  deleted:
+    description: Investigation removed from database (true terminal state)
+    terminal: true
+
+# =============================================================================
+# EVENTS
+# =============================================================================
+events:
+  create:
+    description: Create a new investigation within a mission
+    payload:
+      title: { type: string, required: true }
+      description: { type: string, required: false, default: "" }
+      mission_id: { type: string, required: true }
+
+  update:
+    description: Update investigation title and/or description
+    payload:
+      title: { type: string, required: false }
+      description: { type: string, required: false }
+
+  pause:
+    description: Temporarily suspend investigation research
+    payload: {}
+
+  resume:
+    description: Resume a paused investigation
+    payload: {}
+
+  complete:
+    description: Mark investigation as finished
+    payload: {}
+
+  pin:
+    description: Pin investigation to prevent completion
+    payload: {}
+
+  unpin:
+    description: Unpin investigation to allow completion
+    payload: {}
+
+  delete:
+    description: Hard-delete investigation from database
+    payload: {}
+
+# =============================================================================
+# TRANSITIONS
+# =============================================================================
+transitions:
+  # --- Creation ---
+  - name: create_investigation
+    from: initial
+    to: active
+    event: create
+    guards:
+      - mission_exists  # Mission must exist
+    effects:
+      - { type: WriteDB, operation: INSERT, table: investigations }
+    test_cases:
+      - "Create investigation with existing mission"
+      - "Create investigation for non-existent mission (error)"
+
+  # --- Updating (no state change) ---
+  - name: update_investigation
+    from: active
+    to: active
+    event: update
+    guards: []
+    effects:
+      - { type: WriteDB, operation: UPDATE, table: investigations, fields: [title, description, updated_at] }
+    test_cases:
+      - "Update investigation title"
+      - "Update investigation description"
+
+  # --- Pausing ---
+  - name: pause_investigation
+    from: active
+    to: paused
+    event: pause
+    guards:
+      - is_active  # Can only pause active investigations
+    effects:
+      - { type: WriteDB, operation: UPDATE, table: investigations, fields: [status, updated_at] }
+    test_cases:
+      - "Pause active investigation"
+      - "Pause paused investigation (error)"
+      - "Pause complete investigation (error)"
+
+  # --- Resuming ---
+  - name: resume_investigation
+    from: paused
+    to: active
+    event: resume
+    guards:
+      - is_paused  # Can only resume paused investigations
+    effects:
+      - { type: WriteDB, operation: UPDATE, table: investigations, fields: [status, updated_at] }
+    test_cases:
+      - "Resume paused investigation"
+      - "Resume active investigation (error)"
+      - "Resume complete investigation (error)"
+
+  # --- Completing ---
+  - name: complete_investigation
+    from: active
+    to: complete
+    event: complete
+    guards:
+      - not_pinned  # Cannot complete pinned investigations
+    effects:
+      - { type: WriteDB, operation: UPDATE, table: investigations, fields: [status, completed_at, updated_at] }
+    test_cases:
+      - "Complete unpinned investigation"
+      - "Complete pinned investigation (error)"
+
+  # --- Pin/Unpin (no state change) ---
+  - name: pin_investigation
+    from: active
+    to: active
+    event: pin
+    guards: []
+    effects:
+      - { type: WriteDB, operation: UPDATE, table: investigations, fields: [pinned, updated_at] }
+    test_cases:
+      - "Pin investigation"
+
+  - name: unpin_investigation
+    from: active
+    to: active
+    event: unpin
+    guards: []
+    effects:
+      - { type: WriteDB, operation: UPDATE, table: investigations, fields: [pinned, updated_at] }
+    test_cases:
+      - "Unpin investigation"
+
+  # --- Deletion ---
+  - name: delete_active_investigation
+    from: active
+    to: deleted
+    event: delete
+    guards: []
+    effects:
+      - { type: WriteDB, operation: DELETE, table: investigations }
+    test_cases:
+      - "Delete active investigation"
+
+  - name: delete_paused_investigation
+    from: paused
+    to: deleted
+    event: delete
+    guards: []
+    effects:
+      - { type: WriteDB, operation: DELETE, table: investigations }
+    test_cases:
+      - "Delete paused investigation"
+
+  - name: delete_complete_investigation
+    from: complete
+    to: deleted
+    event: delete
+    guards: []
+    effects:
+      - { type: WriteDB, operation: DELETE, table: investigations }
+    test_cases:
+      - "Delete complete investigation"
+
+# =============================================================================
+# GUARDS
+# =============================================================================
+guards:
+  mission_exists:
+    description: |
+      Check that the target mission exists.
+      Investigations must belong to an existing mission.
+    implementation: |
+      exists, err := repo.MissionExists(ctx, mission_id)
+      return err == nil && exists
+    error_message: "mission {mission_id} not found"
+
+  is_active:
+    description: |
+      Check that investigation status is "active".
+      Required for pause transition.
+    implementation: |
+      investigation, _ := repo.GetByID(ctx, investigation_id)
+      return investigation.Status == "active"
+    error_message: "can only pause active investigations (current status: {status})"
+
+  is_paused:
+    description: |
+      Check that investigation status is "paused".
+      Required for resume transition.
+    implementation: |
+      investigation, _ := repo.GetByID(ctx, investigation_id)
+      return investigation.Status == "paused"
+    error_message: "can only resume paused investigations (current status: {status})"
+
+  not_pinned:
+    description: |
+      Check that investigation is not pinned.
+      Pinned investigations cannot be completed until unpinned.
+    implementation: |
+      investigation, _ := repo.GetByID(ctx, investigation_id)
+      return !investigation.Pinned
+    error_message: "cannot complete pinned investigation {investigation_id}. Unpin first with: orc investigation unpin {investigation_id}"
+
+# =============================================================================
+# EFFECTS
+# =============================================================================
+effects:
+  WriteDB:
+    description: Database write operation
+    parameters:
+      operation: { type: enum, values: [INSERT, UPDATE, DELETE] }
+      table: { type: string }
+      fields: { type: array, items: string, optional: true }
+
+# =============================================================================
+# INVARIANTS
+# =============================================================================
+invariants:
+  - name: id_format
+    description: Investigation IDs follow INV-XXX format
+    check: id matches /^INV-\d{3}$/
+
+  - name: id_unique
+    description: Investigation IDs are unique
+    check: COUNT(SELECT id FROM investigations WHERE id = {id}) == 1
+
+  - name: status_valid
+    description: Status is one of valid values
+    check: status IN ('active', 'paused', 'complete')
+
+  - name: mission_reference
+    description: Investigation must reference existing mission
+    check: EXISTS(SELECT 1 FROM missions WHERE id = mission_id)
+
+  - name: title_not_empty
+    description: Investigation title must not be empty
+    check: LENGTH(title) > 0
+
+  - name: complete_requires_completed_at
+    description: Complete investigations must have completed_at set
+    check: status == 'complete' IMPLIES completed_at IS NOT NULL
+
+  - name: complete_not_pinned
+    description: Complete investigations cannot be pinned
+    check: status == 'complete' IMPLIES pinned == false
+
+# =============================================================================
+# DIFFERENCES FROM CONCLAVE
+# =============================================================================
+differences_from_conclave:
+  - |
+    Investigations aggregate Questions only.
+    Conclaves aggregate Tasks, Questions, and Plans.
+  - |
+    Investigations focus on research and discovery.
+    Conclaves focus on ideation and brainstorming.
+  - |
+    Both have identical state machines: active -> paused <-> active -> complete.
+    Both have pinned semantics to prevent accidental completion.
+  - |
+    ID format: INV-XXX (vs CON-XXX for conclaves).
+
+# =============================================================================
+# NOTES
+# =============================================================================
+notes:
+  - |
+    Investigation is a research entity - it represents a discovery/learning session.
+    Unlike Conclave (ideation), investigations focus on answering questions and gathering facts.
+  - |
+    The 'pinned' flag prevents accidental completion of important investigations.
+    Users must explicitly unpin before completing.
+  - |
+    Investigations can contain Questions - which capture what needs to be discovered
+    or learned during the research session.
+  - |
+    Investigations can be assigned to groves for focused research work.

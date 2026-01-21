@@ -82,12 +82,13 @@ func GetPaneCommand(sessionName, windowName string, paneNum int) string {
 
 // CreateOrcWindow creates the ORC orchestrator window with layout:
 // Layout:
-//   ┌─────────────────────┬──────────────┐
-//   │                     │   vim (top)  │
-//   │      claude         │──────────────│
-//   │    (full height)    │  shell (bot) │
-//   │                     │              │
-//   └─────────────────────┴──────────────┘
+//
+//	┌─────────────────────┬──────────────┐
+//	│                     │   vim (top)  │
+//	│      claude         │──────────────│
+//	│    (full height)    │  shell (bot) │
+//	│                     │              │
+//	└─────────────────────┴──────────────┘
 func (s *Session) CreateOrcWindow(workingDir string) error {
 	// First window is already created (window 1), rename it
 	target := fmt.Sprintf("%s:1", s.Name)
@@ -132,11 +133,13 @@ func (s *Session) CreateOrcWindow(workingDir string) error {
 
 // CreateGroveWindowShell creates a grove window with layout but NO app launching
 // Layout:
-//   ┌─────────────────┬─────────────────┐
-//   │                 │ (top right)     │
-//   │ (left pane)     ├─────────────────┤
-//   │                 │ (bottom right)  │
-//   └─────────────────┴─────────────────┘
+//
+//	┌─────────────────┬─────────────────┐
+//	│                 │ (top right)     │
+//	│ (left pane)     ├─────────────────┤
+//	│                 │ (bottom right)  │
+//	└─────────────────┴─────────────────┘
+//
 // Apps (vim, claude) can be launched later
 func (s *Session) CreateGroveWindowShell(index int, name, workingDir string) (*Window, error) {
 	// Create new window
@@ -177,11 +180,12 @@ func (s *Session) CreateGroveWindowShell(index int, name, workingDir string) (*W
 
 // CreateGroveWindow creates a grove window with sophisticated layout:
 // Layout:
-//   ┌─────────────────┬─────────────────┐
-//   │                 │ claude (IMP)    │
-//   │ vim             ├─────────────────┤
-//   │                 │ shell           │
-//   └─────────────────┴─────────────────┘
+//
+//	┌─────────────────┬─────────────────┐
+//	│                 │ claude (IMP)    │
+//	│ vim             ├─────────────────┤
+//	│                 │ shell           │
+//	└─────────────────┴─────────────────┘
 func (s *Session) CreateGroveWindow(index int, name, workingDir string) (*Window, error) {
 	// Create new window
 	cmd := exec.Command("tmux", "new-window", "-t", s.Name, "-n", name, "-c", workingDir)

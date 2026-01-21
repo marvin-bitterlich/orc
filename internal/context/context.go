@@ -19,13 +19,13 @@ type MissionContext struct {
 
 // GroveContext represents grove context information (IMP territory)
 type GroveContext struct {
-	GroveID      string    `json:"grove_id"`
-	MissionID    string    `json:"mission_id"`
-	Name         string    `json:"name"`
-	Repos        []string  `json:"repos"`
-	CreatedAt    time.Time `json:"created_at"`
-	GrovePath    string    `json:"grove_path"` // Full path to grove directory
-	ConfigPath   string    `json:"config_path"` // Path to .orc/config.json
+	GroveID    string    `json:"grove_id"`
+	MissionID  string    `json:"mission_id"`
+	Name       string    `json:"name"`
+	Repos      []string  `json:"repos"`
+	CreatedAt  time.Time `json:"created_at"`
+	GrovePath  string    `json:"grove_path"`  // Full path to grove directory
+	ConfigPath string    `json:"config_path"` // Path to .orc/config.json
 }
 
 // DetectGroveContext checks if we're in a grove context (IMP territory)

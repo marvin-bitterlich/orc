@@ -1,0 +1,37 @@
+package models
+
+import (
+	"database/sql"
+	"time"
+)
+
+type {{.Name}} struct {
+	ID        string
+	MissionID string
+{{- range .Fields}}
+{{- if .Nullable}}
+	{{.Name}} {{.GoNullType}}
+{{- else}}
+	{{.Name}} {{.Type}}
+{{- end}}
+{{- end}}
+{{- if .HasStatus}}
+	Status string
+{{- end}}
+	Pinned    bool
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+{{if .HasStatus}}
+// {{.Name}} status constants
+const (
+{{- range $i, $status := .StatusValues}}
+	{{$.Name}}Status{{statusConst $status}} = "{{$status}}"
+{{- end}}
+)
+{{end}}
+// Ensure sql and time imports are used
+var (
+	_ sql.NullString
+	_ time.Time
+)

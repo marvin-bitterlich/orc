@@ -1,0 +1,82 @@
+package primary
+
+import "context"
+
+// {{.Name}}Service defines the primary port for {{.NameLower}} operations.
+type {{.Name}}Service interface {
+	// Create{{.Name}} creates a new {{.NameLower}}.
+	Create{{.Name}}(ctx context.Context, req Create{{.Name}}Request) (*Create{{.Name}}Response, error)
+
+	// Get{{.Name}} retrieves a {{.NameLower}} by ID.
+	Get{{.Name}}(ctx context.Context, {{.NameLower}}ID string) (*{{.Name}}, error)
+
+	// List{{.NamePlural | title}} lists {{.NamePlural}} with optional filters.
+	List{{.NamePlural | title}}(ctx context.Context, filters {{.Name}}Filters) ([]*{{.Name}}, error)
+
+	// Update{{.Name}} updates a {{.NameLower}}.
+	Update{{.Name}}(ctx context.Context, req Update{{.Name}}Request) error
+
+	// Delete{{.Name}} deletes a {{.NameLower}}.
+	Delete{{.Name}}(ctx context.Context, {{.NameLower}}ID string) error
+
+	// Pin{{.Name}} pins a {{.NameLower}} for visibility.
+	Pin{{.Name}}(ctx context.Context, {{.NameLower}}ID string) error
+
+	// Unpin{{.Name}} unpins a {{.NameLower}}.
+	Unpin{{.Name}}(ctx context.Context, {{.NameLower}}ID string) error
+}
+
+// Create{{.Name}}Request contains parameters for creating a {{.NameLower}}.
+type Create{{.Name}}Request struct {
+	MissionID string
+{{- range .Fields}}
+{{- if not .Nullable}}
+	{{.Name}} {{.Type}}
+{{- end}}
+{{- end}}
+}
+
+// Create{{.Name}}Response contains the result of creating a {{.NameLower}}.
+type Create{{.Name}}Response struct {
+	{{.Name}}ID string
+	{{.Name}}   *{{.Name}}
+}
+
+// Update{{.Name}}Request contains parameters for updating a {{.NameLower}}.
+type Update{{.Name}}Request struct {
+	{{.Name}}ID string
+{{- range .Fields}}
+	{{.Name}} {{.Type}}
+{{- end}}
+}
+
+// {{.Name}} represents a {{.NameLower}} entity at the port boundary.
+type {{.Name}} struct {
+	ID        string
+	MissionID string
+{{- range .Fields}}
+	{{.Name}} {{if eq .Type "time.Time"}}string{{else}}{{.Type}}{{end}}
+{{- end}}
+{{- if .HasStatus}}
+	Status string
+{{- end}}
+	Pinned    bool
+	CreatedAt string
+	UpdatedAt string
+}
+
+// {{.Name}}Filters contains filter options for listing {{.NamePlural}}.
+type {{.Name}}Filters struct {
+	MissionID string
+{{- if .HasStatus}}
+	Status string
+{{- end}}
+}
+{{if .HasStatus}}
+// {{.Name}} status constants
+const (
+{{- range $i, $status := .StatusValues}}
+	{{$.Name}}Status{{statusConst $status}} = "{{$status}}"
+{{- end}}
+)
+{{end}}

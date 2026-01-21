@@ -1,13 +1,16 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"text/tabwriter"
 
-	"github.com/example/orc/internal/context"
-	"github.com/example/orc/internal/models"
 	"github.com/spf13/cobra"
+
+	orcctx "github.com/example/orc/internal/context"
+	"github.com/example/orc/internal/ports/primary"
+	"github.com/example/orc/internal/wire"
 )
 
 var planCmd = &cobra.Command{
@@ -29,20 +32,28 @@ var planCreateCmd = &cobra.Command{
 
 		// Get mission from context or require explicit flag
 		if missionID == "" {
-			missionID = context.GetContextMissionID()
+			missionID = orcctx.GetContextMissionID()
 			if missionID == "" {
 				return fmt.Errorf("no mission context detected\nHint: Use --mission flag or run from a grove/mission directory")
 			}
 		}
 
-		plan, err := models.CreatePlan(shipmentID, missionID, title, description, content)
+		ctx := context.Background()
+		resp, err := wire.PlanService().CreatePlan(ctx, primary.CreatePlanRequest{
+			MissionID:   missionID,
+			ShipmentID:  shipmentID,
+			Title:       title,
+			Description: description,
+			Content:     content,
+		})
 		if err != nil {
 			return fmt.Errorf("failed to create plan: %w", err)
 		}
 
+		plan := resp.Plan
 		fmt.Printf("✓ Created plan %s: %s\n", plan.ID, plan.Title)
-		if plan.ShipmentID.Valid {
-			fmt.Printf("  Shipment: %s\n", plan.ShipmentID.String)
+		if plan.ShipmentID != "" {
+			fmt.Printf("  Shipment: %s\n", plan.ShipmentID)
 		}
 		fmt.Printf("  Mission: %s\n", plan.MissionID)
 		fmt.Printf("  Status: %s\n", plan.Status)
@@ -64,23 +75,17 @@ var planListCmd = &cobra.Command{
 
 		// Get mission from context if not specified
 		if missionID == "" {
-			missionID = context.GetContextMissionID()
+			missionID = orcctx.GetContextMissionID()
 		}
 
-		plans, err := models.ListPlans(shipmentID, status)
+		ctx := context.Background()
+		plans, err := wire.PlanService().ListPlans(ctx, primary.PlanFilters{
+			MissionID:  missionID,
+			ShipmentID: shipmentID,
+			Status:     status,
+		})
 		if err != nil {
 			return fmt.Errorf("failed to list plans: %w", err)
-		}
-
-		// Filter by mission if specified
-		if missionID != "" {
-			var filtered []*models.Plan
-			for _, p := range plans {
-				if p.MissionID == missionID {
-					filtered = append(filtered, p)
-				}
-			}
-			plans = filtered
 		}
 
 		if len(plans) == 0 {
@@ -101,8 +106,8 @@ var planListCmd = &cobra.Command{
 				statusIcon = "✅"
 			}
 			ship := "-"
-			if p.ShipmentID.Valid {
-				ship = p.ShipmentID.String
+			if p.ShipmentID != "" {
+				ship = p.ShipmentID
 			}
 			fmt.Fprintf(w, "%s\t%s%s\t%s %s\t%s\n", p.ID, p.Title, pinnedMark, statusIcon, p.Status, ship)
 		}
@@ -118,36 +123,37 @@ var planShowCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		planID := args[0]
 
-		plan, err := models.GetPlan(planID)
+		ctx := context.Background()
+		plan, err := wire.PlanService().GetPlan(ctx, planID)
 		if err != nil {
 			return fmt.Errorf("plan not found: %w", err)
 		}
 
 		fmt.Printf("Plan: %s\n", plan.ID)
 		fmt.Printf("Title: %s\n", plan.Title)
-		if plan.Description.Valid {
-			fmt.Printf("Description: %s\n", plan.Description.String)
+		if plan.Description != "" {
+			fmt.Printf("Description: %s\n", plan.Description)
 		}
 		fmt.Printf("Status: %s\n", plan.Status)
-		if plan.Content.Valid {
-			fmt.Printf("\nContent:\n%s\n", plan.Content.String)
+		if plan.Content != "" {
+			fmt.Printf("\nContent:\n%s\n", plan.Content)
 		}
 		fmt.Printf("\nMission: %s\n", plan.MissionID)
-		if plan.ShipmentID.Valid {
-			fmt.Printf("Shipment: %s\n", plan.ShipmentID.String)
+		if plan.ShipmentID != "" {
+			fmt.Printf("Shipment: %s\n", plan.ShipmentID)
 		}
-		if plan.ConclaveID.Valid {
-			fmt.Printf("Conclave: %s\n", plan.ConclaveID.String)
+		if plan.ConclaveID != "" {
+			fmt.Printf("Conclave: %s\n", plan.ConclaveID)
 		}
 		if plan.Pinned {
 			fmt.Printf("Pinned: yes\n")
 		}
-		if plan.PromotedFromID.Valid {
-			fmt.Printf("Promoted from: %s (%s)\n", plan.PromotedFromID.String, plan.PromotedFromType.String)
+		if plan.PromotedFromID != "" {
+			fmt.Printf("Promoted from: %s (%s)\n", plan.PromotedFromID, plan.PromotedFromType)
 		}
-		fmt.Printf("Created: %s\n", plan.CreatedAt.Format("2006-01-02 15:04"))
-		if plan.ApprovedAt.Valid {
-			fmt.Printf("Approved: %s\n", plan.ApprovedAt.Time.Format("2006-01-02 15:04"))
+		fmt.Printf("Created: %s\n", plan.CreatedAt)
+		if plan.ApprovedAt != "" {
+			fmt.Printf("Approved: %s\n", plan.ApprovedAt)
 		}
 
 		return nil
@@ -161,7 +167,8 @@ var planApproveCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		planID := args[0]
 
-		err := models.ApprovePlan(planID)
+		ctx := context.Background()
+		err := wire.PlanService().ApprovePlan(ctx, planID)
 		if err != nil {
 			return fmt.Errorf("failed to approve plan: %w", err)
 		}
@@ -185,7 +192,13 @@ var planUpdateCmd = &cobra.Command{
 			return fmt.Errorf("must specify --title, --description, and/or --content")
 		}
 
-		err := models.UpdatePlan(planID, title, description, content)
+		ctx := context.Background()
+		err := wire.PlanService().UpdatePlan(ctx, primary.UpdatePlanRequest{
+			PlanID:      planID,
+			Title:       title,
+			Description: description,
+			Content:     content,
+		})
 		if err != nil {
 			return fmt.Errorf("failed to update plan: %w", err)
 		}
@@ -202,7 +215,8 @@ var planPinCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		planID := args[0]
 
-		err := models.PinPlan(planID)
+		ctx := context.Background()
+		err := wire.PlanService().PinPlan(ctx, planID)
 		if err != nil {
 			return fmt.Errorf("failed to pin plan: %w", err)
 		}
@@ -219,7 +233,8 @@ var planUnpinCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		planID := args[0]
 
-		err := models.UnpinPlan(planID)
+		ctx := context.Background()
+		err := wire.PlanService().UnpinPlan(ctx, planID)
 		if err != nil {
 			return fmt.Errorf("failed to unpin plan: %w", err)
 		}
@@ -236,7 +251,8 @@ var planDeleteCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		planID := args[0]
 
-		err := models.DeletePlan(planID)
+		ctx := context.Background()
+		err := wire.PlanService().DeletePlan(ctx, planID)
 		if err != nil {
 			return fmt.Errorf("failed to delete plan: %w", err)
 		}

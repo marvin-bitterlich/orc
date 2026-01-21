@@ -1,13 +1,16 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"text/tabwriter"
 
-	"github.com/example/orc/internal/context"
-	"github.com/example/orc/internal/models"
 	"github.com/spf13/cobra"
+
+	orcctx "github.com/example/orc/internal/context"
+	"github.com/example/orc/internal/ports/primary"
+	"github.com/example/orc/internal/wire"
 )
 
 var questionCmd = &cobra.Command{
@@ -28,20 +31,27 @@ var questionCreateCmd = &cobra.Command{
 
 		// Get mission from context or require explicit flag
 		if missionID == "" {
-			missionID = context.GetContextMissionID()
+			missionID = orcctx.GetContextMissionID()
 			if missionID == "" {
 				return fmt.Errorf("no mission context detected\nHint: Use --mission flag or run from a grove/mission directory")
 			}
 		}
 
-		question, err := models.CreateQuestion(investigationID, missionID, title, description)
+		ctx := context.Background()
+		resp, err := wire.QuestionService().CreateQuestion(ctx, primary.CreateQuestionRequest{
+			MissionID:       missionID,
+			InvestigationID: investigationID,
+			Title:           title,
+			Description:     description,
+		})
 		if err != nil {
 			return fmt.Errorf("failed to create question: %w", err)
 		}
 
+		question := resp.Question
 		fmt.Printf("✓ Created question %s: %s\n", question.ID, question.Title)
-		if question.InvestigationID.Valid {
-			fmt.Printf("  Investigation: %s\n", question.InvestigationID.String)
+		if question.InvestigationID != "" {
+			fmt.Printf("  Investigation: %s\n", question.InvestigationID)
 		}
 		fmt.Printf("  Mission: %s\n", question.MissionID)
 		fmt.Printf("  Status: %s\n", question.Status)
@@ -59,26 +69,17 @@ var questionListCmd = &cobra.Command{
 
 		// Get mission from context if not specified
 		if missionID == "" {
-			missionID = context.GetContextMissionID()
+			missionID = orcctx.GetContextMissionID()
 		}
 
-		var questions []*models.Question
-		var err error
-
-		questions, err = models.ListQuestions(investigationID, status)
+		ctx := context.Background()
+		questions, err := wire.QuestionService().ListQuestions(ctx, primary.QuestionFilters{
+			MissionID:       missionID,
+			InvestigationID: investigationID,
+			Status:          status,
+		})
 		if err != nil {
 			return fmt.Errorf("failed to list questions: %w", err)
-		}
-
-		// Filter by mission if specified
-		if missionID != "" {
-			var filtered []*models.Question
-			for _, q := range questions {
-				if q.MissionID == missionID {
-					filtered = append(filtered, q)
-				}
-			}
-			questions = filtered
 		}
 
 		if len(questions) == 0 {
@@ -99,8 +100,8 @@ var questionListCmd = &cobra.Command{
 				statusIcon = "✅"
 			}
 			inv := "-"
-			if q.InvestigationID.Valid {
-				inv = q.InvestigationID.String
+			if q.InvestigationID != "" {
+				inv = q.InvestigationID
 			}
 			fmt.Fprintf(w, "%s\t%s%s\t%s %s\t%s\n", q.ID, q.Title, pinnedMark, statusIcon, q.Status, inv)
 		}
@@ -116,36 +117,37 @@ var questionShowCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		questionID := args[0]
 
-		question, err := models.GetQuestion(questionID)
+		ctx := context.Background()
+		question, err := wire.QuestionService().GetQuestion(ctx, questionID)
 		if err != nil {
 			return fmt.Errorf("question not found: %w", err)
 		}
 
 		fmt.Printf("Question: %s\n", question.ID)
 		fmt.Printf("Title: %s\n", question.Title)
-		if question.Description.Valid {
-			fmt.Printf("Description: %s\n", question.Description.String)
+		if question.Description != "" {
+			fmt.Printf("Description: %s\n", question.Description)
 		}
 		fmt.Printf("Status: %s\n", question.Status)
-		if question.Answer.Valid {
-			fmt.Printf("Answer: %s\n", question.Answer.String)
+		if question.Answer != "" {
+			fmt.Printf("Answer: %s\n", question.Answer)
 		}
 		fmt.Printf("Mission: %s\n", question.MissionID)
-		if question.InvestigationID.Valid {
-			fmt.Printf("Investigation: %s\n", question.InvestigationID.String)
+		if question.InvestigationID != "" {
+			fmt.Printf("Investigation: %s\n", question.InvestigationID)
 		}
-		if question.ConclaveID.Valid {
-			fmt.Printf("Conclave: %s\n", question.ConclaveID.String)
+		if question.ConclaveID != "" {
+			fmt.Printf("Conclave: %s\n", question.ConclaveID)
 		}
 		if question.Pinned {
 			fmt.Printf("Pinned: yes\n")
 		}
-		if question.PromotedFromID.Valid {
-			fmt.Printf("Promoted from: %s (%s)\n", question.PromotedFromID.String, question.PromotedFromType.String)
+		if question.PromotedFromID != "" {
+			fmt.Printf("Promoted from: %s (%s)\n", question.PromotedFromID, question.PromotedFromType)
 		}
-		fmt.Printf("Created: %s\n", question.CreatedAt.Format("2006-01-02 15:04"))
-		if question.AnsweredAt.Valid {
-			fmt.Printf("Answered: %s\n", question.AnsweredAt.Time.Format("2006-01-02 15:04"))
+		fmt.Printf("Created: %s\n", question.CreatedAt)
+		if question.AnsweredAt != "" {
+			fmt.Printf("Answered: %s\n", question.AnsweredAt)
 		}
 
 		return nil
@@ -164,7 +166,8 @@ var questionAnswerCmd = &cobra.Command{
 			return fmt.Errorf("must specify --answer")
 		}
 
-		err := models.AnswerQuestion(questionID, answer)
+		ctx := context.Background()
+		err := wire.QuestionService().AnswerQuestion(ctx, questionID, answer)
 		if err != nil {
 			return fmt.Errorf("failed to answer question: %w", err)
 		}
@@ -187,7 +190,12 @@ var questionUpdateCmd = &cobra.Command{
 			return fmt.Errorf("must specify --title and/or --description")
 		}
 
-		err := models.UpdateQuestion(questionID, title, description)
+		ctx := context.Background()
+		err := wire.QuestionService().UpdateQuestion(ctx, primary.UpdateQuestionRequest{
+			QuestionID:  questionID,
+			Title:       title,
+			Description: description,
+		})
 		if err != nil {
 			return fmt.Errorf("failed to update question: %w", err)
 		}
@@ -204,7 +212,8 @@ var questionPinCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		questionID := args[0]
 
-		err := models.PinQuestion(questionID)
+		ctx := context.Background()
+		err := wire.QuestionService().PinQuestion(ctx, questionID)
 		if err != nil {
 			return fmt.Errorf("failed to pin question: %w", err)
 		}
@@ -221,7 +230,8 @@ var questionUnpinCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		questionID := args[0]
 
-		err := models.UnpinQuestion(questionID)
+		ctx := context.Background()
+		err := wire.QuestionService().UnpinQuestion(ctx, questionID)
 		if err != nil {
 			return fmt.Errorf("failed to unpin question: %w", err)
 		}
@@ -238,7 +248,8 @@ var questionDeleteCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		questionID := args[0]
 
-		err := models.DeleteQuestion(questionID)
+		ctx := context.Background()
+		err := wire.QuestionService().DeleteQuestion(ctx, questionID)
 		if err != nil {
 			return fmt.Errorf("failed to delete question: %w", err)
 		}

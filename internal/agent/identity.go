@@ -3,7 +3,6 @@ package agent
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"strings"
 
 	"github.com/example/orc/internal/config"
@@ -95,16 +94,6 @@ func ParseAgentID(agentID string) (*AgentIdentity, error) {
 	default:
 		return nil, fmt.Errorf("unknown agent type: %s (expected ORC or IMP)", agentType)
 	}
-}
-
-// getCurrentTmuxSession returns the current tmux session name, or empty string if not in tmux
-func getCurrentTmuxSession() string {
-	cmd := exec.Command("tmux", "display-message", "-p", "#S")
-	out, err := cmd.Output()
-	if err != nil {
-		return ""
-	}
-	return strings.TrimSpace(string(out))
 }
 
 // ResolveTMuxTarget converts an agent ID to a tmux target string

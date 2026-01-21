@@ -1,0 +1,48 @@
+%% Plan Workflow State Diagram
+%% Generated: 2026-01-20
+%% Context: CON-003 FSM-First Testing Strategy (Slice 7)
+%% Source: specs/plan-workflow.yaml
+
+stateDiagram-v2
+    [*] --> initial
+
+    %% Creation
+    initial --> draft : create\n[mission_exists,\nshipment_exists_if_provided,\nno_active_plan]
+
+    %% Self-transitions in draft state
+    draft --> draft : update
+    draft --> draft : pin
+    draft --> draft : unpin
+
+    %% Approval
+    draft --> approved : approve\n[is_draft, not_pinned]
+
+    %% Deletion from any non-terminal state
+    draft --> deleted : delete\n[not_pinned]
+    approved --> deleted : delete\n[not_pinned]
+
+    %% Terminal states
+    deleted --> [*]
+
+    %% State descriptions
+    note right of initial
+        Pre-creation state
+    end note
+
+    note right of draft
+        Default state
+        Awaiting approval
+        Can update, pin/unpin, approve, or delete
+        Max 1 draft plan per shipment
+    end note
+
+    note right of approved
+        Plan approved
+        ApprovedAt set
+        Soft terminal (can delete)
+    end note
+
+    note right of deleted
+        Hard-deleted
+        True terminal state
+    end note

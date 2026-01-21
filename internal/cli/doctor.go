@@ -2,12 +2,16 @@ package cli
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"github.com/spf13/cobra"
+
+	"github.com/example/orc/internal/version"
 )
 
 // DoctorCmd returns the doctor command for environment validation
@@ -32,7 +36,7 @@ Examples:
   orc doctor --quiet      # Exit code only (0=healthy, 1=issues)`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if !quiet {
-				fmt.Println("\n=== ORC Environment Health Check ===\n")
+				fmt.Print("\n=== ORC Environment Health Check ===\n\n")
 			}
 
 			issuesFound := false
@@ -204,7 +208,7 @@ func checkClaudeSettings(quiet bool) error {
 			msg += "     - ~/src/missions\n"
 		}
 		msg += "\n   FIX: Add missing directories to additionalDirectories array"
-		return fmt.Errorf(msg)
+		return errors.New(msg)
 	}
 
 	return nil
@@ -297,7 +301,96 @@ func checkBinary(quiet bool) error {
 	if !quiet {
 		fmt.Printf("   ✓ orc binary: %s\n", orcPath)
 		fmt.Println("   ✓ In PATH: yes")
+		fmt.Printf("   ✓ Version: %s\n", version.String())
+	}
+
+	// Check for stale local binary if we're in the ORC repo
+	if isInOrcRepo() {
+		if !quiet {
+			fmt.Println()
+			fmt.Println("   Checking local development binary...")
+		}
+		if err := checkLocalBinaryFreshness(quiet); err != nil {
+			if !quiet {
+				fmt.Printf("   %s\n", err)
+			}
+			// This is a warning, not an error
+		}
+	}
+
+	if !quiet {
 		fmt.Println()
+	}
+
+	return nil
+}
+
+// isInOrcRepo checks if we're in the ORC repository
+func isInOrcRepo() bool {
+	// Check for go.mod with the ORC module
+	data, err := os.ReadFile("go.mod")
+	if err != nil {
+		return false
+	}
+	return strings.Contains(string(data), "module github.com/example/orc")
+}
+
+// checkLocalBinaryFreshness warns if ./orc is stale compared to source
+func checkLocalBinaryFreshness(quiet bool) error {
+	// Check if ./orc exists
+	localBinary := "./orc"
+	info, err := os.Stat(localBinary)
+	if os.IsNotExist(err) {
+		if !quiet {
+			fmt.Println("   ⚠️  No local ./orc binary found")
+			fmt.Println("      Run 'make dev' to build for development")
+		}
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("⚠️  Error checking ./orc: %w", err)
+	}
+
+	// Get the version from the local binary
+	cmd := exec.Command(localBinary, "--version")
+	output, err := cmd.Output()
+	if err != nil {
+		if !quiet {
+			fmt.Println("   ⚠️  Local ./orc exists but failed to get version")
+			fmt.Println("      May be corrupted - run 'make dev' to rebuild")
+		}
+		return nil
+	}
+
+	localVersion := strings.TrimSpace(string(output))
+
+	// Get the current git commit
+	gitCmd := exec.Command("git", "rev-parse", "--short", "HEAD")
+	gitOutput, err := gitCmd.Output()
+	if err != nil {
+		// Can't check git, skip freshness check
+		if !quiet {
+			fmt.Printf("   ✓ Local ./orc: %s\n", localVersion)
+		}
+		return nil
+	}
+	currentCommit := strings.TrimSpace(string(gitOutput))
+
+	// Check if the local binary was built from the current commit
+	if strings.Contains(localVersion, currentCommit) {
+		if !quiet {
+			fmt.Printf("   ✓ Local ./orc is fresh (commit: %s)\n", currentCommit)
+			fmt.Printf("      Built: %s\n", info.ModTime().Format("2006-01-02 15:04:05"))
+		}
+	} else {
+		// Extract commit from version string if possible
+		if !quiet {
+			fmt.Printf("   ⚠️  Local ./orc may be STALE\n")
+			fmt.Printf("      Binary:  %s\n", localVersion)
+			fmt.Printf("      Current: commit %s\n", currentCommit)
+			fmt.Println()
+			fmt.Println("      FIX: Run 'make dev' to rebuild from current source")
+		}
 	}
 
 	return nil

@@ -1,15 +1,18 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
 
-	"github.com/example/orc/internal/config"
-	"github.com/example/orc/internal/context"
-	"github.com/example/orc/internal/models"
-	"github.com/example/orc/internal/templates"
 	"github.com/spf13/cobra"
+
+	"github.com/example/orc/internal/config"
+	ctx "github.com/example/orc/internal/context"
+	"github.com/example/orc/internal/ports/primary"
+	"github.com/example/orc/internal/templates"
+	"github.com/example/orc/internal/wire"
 )
 
 // PrimeCmd returns the prime command
@@ -61,8 +64,8 @@ func runPrime(cmd *cobra.Command, args []string) error {
 	}
 
 	// Detect contexts
-	groveCtx, _ := context.DetectGroveContext()
-	missionCtx, _ := context.DetectMissionContext()
+	groveCtx, _ := ctx.DetectGroveContext()
+	missionCtx, _ := ctx.DetectMissionContext()
 
 	// Load config to check role
 	cfg, _ := config.LoadConfig(cwd)
@@ -126,7 +129,7 @@ func truncateOutput(output, format string, maxLines int) string {
 }
 
 // buildORCPrimeOutput creates ORC orchestrator context output
-func buildORCPrimeOutput(missionCtx *context.MissionContext, cwd string, cfg *config.Config) string {
+func buildORCPrimeOutput(missionCtx *ctx.MissionContext, cwd string, cfg *config.Config) string {
 	var output strings.Builder
 
 	output.WriteString("# ORC Context (Session Prime)\n\n")
@@ -157,16 +160,16 @@ func buildORCPrimeOutput(missionCtx *context.MissionContext, cwd string, cfg *co
 		output.WriteString(fmt.Sprintf("**Workspace**: %s\n\n", missionCtx.WorkspacePath))
 
 		// Get mission details
-		mission, err := models.GetMission(missionCtx.MissionID)
+		mission, err := wire.MissionService().GetMission(context.Background(), missionCtx.MissionID)
 		if err == nil {
 			output.WriteString(fmt.Sprintf("## %s\n\n", mission.Title))
-			if mission.Description.Valid && mission.Description.String != "" {
-				descLines := strings.Split(mission.Description.String, "\n")
+			if mission.Description != "" {
+				descLines := strings.Split(mission.Description, "\n")
 				if len(descLines) > 3 {
 					output.WriteString(strings.Join(descLines[:3], "\n"))
 					output.WriteString("\n...\n\n")
 				} else {
-					output.WriteString(mission.Description.String)
+					output.WriteString(mission.Description)
 					output.WriteString("\n\n")
 				}
 			}
@@ -191,14 +194,14 @@ func buildORCPrimeOutput(missionCtx *context.MissionContext, cwd string, cfg *co
 }
 
 // buildIMPPrimeOutput creates IMP-focused context prompt when in grove territory
-func buildIMPPrimeOutput(groveCtx *context.GroveContext, cwd string) string {
+func buildIMPPrimeOutput(groveCtx *ctx.GroveContext, cwd string) string {
 	var output strings.Builder
 
 	output.WriteString("# IMP Boot Context\n\n")
 
 	// Section 1: IMP Identity
 	output.WriteString("## Identity\n\n")
-	output.WriteString(fmt.Sprintf("**Role**: Implementation Agent (IMP)\n"))
+	output.WriteString("**Role**: Implementation Agent (IMP)\n")
 	output.WriteString(fmt.Sprintf("**Grove**: %s (`%s`)\n", groveCtx.Name, groveCtx.GroveID))
 	output.WriteString(fmt.Sprintf("**Mission**: `%s`\n", groveCtx.MissionID))
 	output.WriteString(fmt.Sprintf("**Location**: `%s`\n\n", cwd))
@@ -212,27 +215,27 @@ func buildIMPPrimeOutput(groveCtx *context.GroveContext, cwd string) string {
 	hasAssignments := false
 
 	// Shipments
-	shipments, _ := models.GetShipmentsByGrove(groveCtx.GroveID)
+	shipments, _ := wire.ShipmentService().GetShipmentsByGrove(context.Background(), groveCtx.GroveID)
 	for i, shipment := range shipments {
 		hasAssignments = true
 		output.WriteString(fmt.Sprintf("### Shipment %d: %s\n\n", i+1, shipment.ID))
 		output.WriteString(fmt.Sprintf("**%s** [%s]\n\n", shipment.Title, shipment.Status))
 
-		if shipment.Description.Valid && shipment.Description.String != "" {
-			descLines := strings.Split(shipment.Description.String, "\n")
+		if shipment.Description != "" {
+			descLines := strings.Split(shipment.Description, "\n")
 			if len(descLines) > 5 {
 				output.WriteString(strings.Join(descLines[:5], "\n"))
 				output.WriteString("\n\n*(Description truncated)*\n\n")
 			} else {
-				output.WriteString(shipment.Description.String)
+				output.WriteString(shipment.Description)
 				output.WriteString("\n\n")
 			}
 		}
 
 		// Show ready tasks for this shipment
-		tasks, err := models.GetShipmentTasks(shipment.ID)
+		tasks, err := wire.ShipmentService().GetShipmentTasks(context.Background(), shipment.ID)
 		if err == nil {
-			var readyTasks []*models.Task
+			var readyTasks []*primary.Task
 			for _, t := range tasks {
 				if t.Status == "ready" {
 					readyTasks = append(readyTasks, t)
@@ -249,34 +252,34 @@ func buildIMPPrimeOutput(groveCtx *context.GroveContext, cwd string) string {
 	}
 
 	// Conclaves
-	conclaves, _ := models.GetConclavesByGrove(groveCtx.GroveID)
+	conclaves, _ := wire.ConclaveService().GetConclavesByGrove(context.Background(), groveCtx.GroveID)
 	for i, conclave := range conclaves {
 		hasAssignments = true
 		output.WriteString(fmt.Sprintf("### Conclave %d: %s\n\n", i+1, conclave.ID))
 		output.WriteString(fmt.Sprintf("**%s** [%s] (Ideation Session)\n\n", conclave.Title, conclave.Status))
 
-		if conclave.Description.Valid && conclave.Description.String != "" {
-			output.WriteString(conclave.Description.String)
+		if conclave.Description != "" {
+			output.WriteString(conclave.Description)
 			output.WriteString("\n\n")
 		}
 	}
 
 	// Investigations
-	investigations, _ := models.GetInvestigationsByGrove(groveCtx.GroveID)
+	investigations, _ := wire.InvestigationService().GetInvestigationsByGrove(context.Background(), groveCtx.GroveID)
 	for i, inv := range investigations {
 		hasAssignments = true
 		output.WriteString(fmt.Sprintf("### Investigation %d: %s\n\n", i+1, inv.ID))
 		output.WriteString(fmt.Sprintf("**%s** [%s] (Research)\n\n", inv.Title, inv.Status))
 
-		if inv.Description.Valid && inv.Description.String != "" {
-			output.WriteString(inv.Description.String)
+		if inv.Description != "" {
+			output.WriteString(inv.Description)
 			output.WriteString("\n\n")
 		}
 
 		// Show open questions
-		questions, err := models.GetInvestigationQuestions(inv.ID)
+		questions, err := wire.InvestigationService().GetInvestigationQuestions(context.Background(), inv.ID)
 		if err == nil {
-			var openQuestions []*models.Question
+			var openQuestions []*primary.InvestigationQuestion
 			for _, q := range questions {
 				if q.Status == "open" {
 					openQuestions = append(openQuestions, q)
@@ -345,7 +348,7 @@ func getCoreRules() string {
 }
 
 // buildFallbackOutput creates output when no role is configured
-func buildFallbackOutput(cwd string, groveCtx *context.GroveContext, missionCtx *context.MissionContext) string {
+func buildFallbackOutput(cwd string, groveCtx *ctx.GroveContext, missionCtx *ctx.MissionContext) string {
 	var output strings.Builder
 
 	output.WriteString("# ORC Context - Role Not Configured\n\n")

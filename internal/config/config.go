@@ -22,8 +22,8 @@ const (
 )
 
 type Config struct {
-	Version string      `json:"version"`
-	Type    ConfigType  `json:"type"`
+	Version string     `json:"version"`
+	Type    ConfigType `json:"type"`
 
 	Mission *MissionConfig `json:"mission,omitempty"`
 	Grove   *GroveConfig   `json:"grove,omitempty"`
@@ -34,9 +34,9 @@ type MissionConfig struct {
 	MissionID     string `json:"mission_id"`
 	WorkspacePath string `json:"workspace_path"`
 	IsMaster      bool   `json:"is_master,omitempty"`
-	Role         string `json:"role,omitempty"`          // "ORC", "IMP", or empty
-	CurrentFocus string `json:"current_focus,omitempty"` // Focused container ID (SHIP-*, CON-*, INV-*, TOME-*)
-	CreatedAt    string `json:"created_at"`
+	Role          string `json:"role,omitempty"`          // "ORC", "IMP", or empty
+	CurrentFocus  string `json:"current_focus,omitempty"` // Focused container ID (SHIP-*, CON-*, INV-*, TOME-*)
+	CreatedAt     string `json:"created_at"`
 }
 
 type GroveConfig struct {

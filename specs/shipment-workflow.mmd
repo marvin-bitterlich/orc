@@ -1,0 +1,59 @@
+%% Shipment Workflow State Diagram
+%% Generated: 2026-01-20
+%% Context: CON-003 FSM-First Testing Strategy (Slice 2)
+%% Source: specs/shipment-workflow.yaml
+
+stateDiagram-v2
+    [*] --> initial
+
+    %% Creation
+    initial --> active : create\n[mission_exists]
+
+    %% Self-transitions in active state
+    active --> active : update
+    active --> active : pin
+    active --> active : unpin
+    active --> active : assign_grove\n[grove_not_assigned_elsewhere]
+
+    %% Pause/Resume cycle
+    active --> paused : pause\n[is_active]
+    paused --> active : resume\n[is_paused]
+
+    %% Completion
+    active --> complete : complete\n[not_pinned]
+
+    %% Deletion from any non-terminal state
+    active --> deleted : delete
+    paused --> deleted : delete
+    complete --> deleted : delete
+
+    %% Terminal states
+    deleted --> [*]
+
+    %% State descriptions
+    note right of initial
+        Pre-creation state
+    end note
+
+    note right of active
+        Default state
+        Work in progress
+        Can pause, complete, or delete
+    end note
+
+    note right of paused
+        Temporarily suspended
+        Work halted
+        Must resume to continue
+    end note
+
+    note right of complete
+        Work finished
+        CompletedAt set
+        Soft terminal (can delete)
+    end note
+
+    note right of deleted
+        Hard-deleted
+        True terminal state
+    end note

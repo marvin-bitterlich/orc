@@ -1,12 +1,15 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
-	"github.com/example/orc/internal/agent"
-	"github.com/example/orc/internal/models"
 	"github.com/spf13/cobra"
+
+	"github.com/example/orc/internal/agent"
+	"github.com/example/orc/internal/ports/primary"
+	"github.com/example/orc/internal/wire"
 )
 
 // MailCmd returns the mail command
@@ -41,6 +44,7 @@ Examples:
   orc mail send "Task complete" --to ORC --subject "Update"`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			ctx := context.Background()
 			body := args[0]
 
 			// Get current agent identity
@@ -74,7 +78,7 @@ Examples:
 					// Need to look up grove to get mission ID
 					if recipientIdentity.MissionID == "" {
 						// Try to extract from grove
-						grove, err := models.GetGrove(recipientIdentity.ID)
+						grove, err := wire.GroveService().GetGrove(ctx, recipientIdentity.ID)
 						if err != nil {
 							return fmt.Errorf("failed to resolve IMP mission: %w", err)
 						}
@@ -92,18 +96,18 @@ Examples:
 			// Otherwise: IMP to IMP, use sender's mission ID (already set)
 
 			// Create message
-			message, err := models.CreateMessage(
-				identity.FullID,
-				recipientIdentity.FullID,
-				subject,
-				body,
-				missionID,
-			)
+			resp, err := wire.MessageService().CreateMessage(ctx, primary.CreateMessageRequest{
+				Sender:    identity.FullID,
+				Recipient: recipientIdentity.FullID,
+				Subject:   subject,
+				Body:      body,
+				MissionID: missionID,
+			})
 			if err != nil {
 				return fmt.Errorf("failed to create message: %w", err)
 			}
 
-			fmt.Printf("✓ Message sent: %s\n", message.ID)
+			fmt.Printf("✓ Message sent: %s\n", resp.MessageID)
 			fmt.Printf("  From: %s\n", identity.FullID)
 			fmt.Printf("  To: %s\n", recipientIdentity.FullID)
 			fmt.Printf("  Subject: %s\n", subject)
@@ -130,6 +134,8 @@ func mailInboxCmd() *cobra.Command {
 By default, shows only unread messages.
 Use --all to show all messages.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			ctx := context.Background()
+
 			// Get current agent identity
 			identity, err := agent.GetCurrentAgentID()
 			if err != nil {
@@ -137,7 +143,7 @@ Use --all to show all messages.`,
 			}
 
 			// Get messages
-			messages, err := models.ListMessages(identity.FullID, !all)
+			messages, err := wire.MessageService().ListMessages(ctx, identity.FullID, !all)
 			if err != nil {
 				return fmt.Errorf("failed to list messages: %w", err)
 			}
@@ -160,7 +166,7 @@ Use --all to show all messages.`,
 				if msg.Read {
 					status = "✓"
 				}
-				fmt.Printf("%s %s [%s]\n", status, msg.ID, msg.Timestamp.Format("2006-01-02 15:04"))
+				fmt.Printf("%s %s [%s]\n", status, msg.ID, msg.Timestamp)
 				fmt.Printf("  From: %s\n", msg.Sender)
 				fmt.Printf("  Subject: %s\n", msg.Subject)
 				fmt.Printf("  Body: %s\n", truncate(msg.Body, 60))
@@ -168,7 +174,7 @@ Use --all to show all messages.`,
 			}
 
 			// Display summary
-			unreadCount, _ := models.GetUnreadCount(identity.FullID)
+			unreadCount, _ := wire.MessageService().GetUnreadCount(ctx, identity.FullID)
 			fmt.Printf("Total: %d messages (%d unread)\n", len(messages), unreadCount)
 
 			return nil
@@ -190,10 +196,11 @@ Example:
   orc mail read MSG-MISSION-001-005`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			ctx := context.Background()
 			messageID := args[0]
 
 			// Get message
-			message, err := models.GetMessage(messageID)
+			message, err := wire.MessageService().GetMessage(ctx, messageID)
 			if err != nil {
 				return fmt.Errorf("failed to get message: %w", err)
 			}
@@ -203,12 +210,12 @@ Example:
 			fmt.Printf("From: %s\n", message.Sender)
 			fmt.Printf("To: %s\n", message.Recipient)
 			fmt.Printf("Subject: %s\n", message.Subject)
-			fmt.Printf("Date: %s\n", message.Timestamp.Format("2006-01-02 15:04:05"))
+			fmt.Printf("Date: %s\n", message.Timestamp)
 			fmt.Printf("\n%s\n", message.Body)
 
 			// Mark as read
 			if !message.Read {
-				if err := models.MarkRead(messageID); err != nil {
+				if err := wire.MessageService().MarkRead(ctx, messageID); err != nil {
 					return fmt.Errorf("failed to mark as read: %w", err)
 				}
 				fmt.Println("\n✓ Marked as read")
@@ -231,6 +238,7 @@ Example:
   orc mail conversation IMP-GROVE-001`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			ctx := context.Background()
 			otherAgentID := args[0]
 
 			// Validate other agent ID
@@ -246,7 +254,7 @@ Example:
 			}
 
 			// Get conversation
-			messages, err := models.GetConversation(identity.FullID, otherIdentity.FullID)
+			messages, err := wire.MessageService().GetConversation(ctx, identity.FullID, otherIdentity.FullID)
 			if err != nil {
 				return fmt.Errorf("failed to get conversation: %w", err)
 			}
@@ -261,14 +269,12 @@ Example:
 
 			// Display messages
 			for _, msg := range messages {
-				direction := "→"
+				direction := "←"
 				if msg.Sender == identity.FullID {
 					direction = "→"
-				} else {
-					direction = "←"
 				}
 
-				fmt.Printf("%s [%s] %s\n", direction, msg.Timestamp.Format("2006-01-02 15:04"), msg.Subject)
+				fmt.Printf("%s [%s] %s\n", direction, msg.Timestamp, msg.Subject)
 				fmt.Printf("  %s\n", msg.Body)
 				fmt.Println()
 			}
