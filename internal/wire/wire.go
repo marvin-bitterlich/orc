@@ -33,6 +33,8 @@ var (
 	planService                    primary.PlanService
 	tagService                     primary.TagService
 	messageService                 primary.MessageService
+	repoService                    primary.RepoService
+	prService                      primary.PRService
 	commissionOrchestrationService *app.CommissionOrchestrationService
 	tmuxService                    secondary.TMuxAdapter
 	once                           sync.Once
@@ -122,6 +124,18 @@ func MessageService() primary.MessageService {
 	return messageService
 }
 
+// RepoService returns the singleton RepoService instance.
+func RepoService() primary.RepoService {
+	once.Do(initServices)
+	return repoService
+}
+
+// PRService returns the singleton PRService instance.
+func PRService() primary.PRService {
+	once.Do(initServices)
+	return prService
+}
+
 // CommissionOrchestrationService returns the singleton CommissionOrchestrationService instance.
 func CommissionOrchestrationService() *app.CommissionOrchestrationService {
 	once.Do(initServices)
@@ -190,6 +204,12 @@ func initServices() {
 	tagService = app.NewTagService(tagRepo)
 	messageRepo := sqlite.NewMessageRepository(database)
 	messageService = app.NewMessageService(messageRepo)
+
+	// Create repo and PR services
+	repoRepo := sqlite.NewRepoRepository(database)
+	prRepo := sqlite.NewPRRepository(database)
+	repoService = app.NewRepoService(repoRepo)
+	prService = app.NewPRService(prRepo, shipmentService)
 
 	// Create orchestration services
 	commissionOrchestrationService = app.NewCommissionOrchestrationService(commissionService, groveService, agentProvider)

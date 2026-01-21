@@ -266,7 +266,7 @@ func init() {
 	// plan create flags
 	planCreateCmd.Flags().StringP("commission", "c", "", "Commission ID (defaults to context)")
 	planCreateCmd.Flags().StringP("description", "d", "", "Plan description")
-	planCreateCmd.Flags().StringP("content", "c", "", "Plan content")
+	planCreateCmd.Flags().String("content", "", "Plan content")
 	planCreateCmd.Flags().String("shipment", "", "Shipment ID to attach plan to")
 
 	// plan list flags
@@ -277,7 +277,7 @@ func init() {
 	// plan update flags
 	planUpdateCmd.Flags().String("title", "", "New title")
 	planUpdateCmd.Flags().StringP("description", "d", "", "New description")
-	planUpdateCmd.Flags().StringP("content", "c", "", "New content")
+	planUpdateCmd.Flags().String("content", "", "New content")
 
 	// Register subcommands
 	planCmd.AddCommand(planCreateCmd)

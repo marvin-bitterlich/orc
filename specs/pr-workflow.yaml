@@ -1,0 +1,321 @@
+# Pull Request Workflow Finite State Machine
+# Single source of truth for PR entity lifecycle in ORC
+#
+# Generated: 2026-01-21
+# Context: SHIP-202 Cycle 2 - REPO + PR Entities
+
+name: pr-workflow
+version: "1.0"
+description: |
+  Defines the complete lifecycle of a PR entity in ORC.
+  PRs track pull requests associated with shipments.
+  Merging a PR cascades to complete its associated shipment.
+
+# =============================================================================
+# STATES
+# =============================================================================
+states:
+  initial:
+    description: No PR exists yet (pre-creation)
+    terminal: false
+
+  draft:
+    description: PR is in draft state, not ready for review
+    terminal: false
+    invariants:
+      - status == "draft"
+      - created_at is set
+      - shipment_id is set
+
+  open:
+    description: PR is open and ready for review
+    terminal: false
+    invariants:
+      - status == "open"
+
+  approved:
+    description: PR has been approved, ready to merge
+    terminal: false
+    invariants:
+      - status == "approved"
+
+  merged:
+    description: PR has been merged (terminal)
+    terminal: true
+    invariants:
+      - status == "merged"
+      - merged_at is set
+
+  closed:
+    description: PR was closed without merging (terminal)
+    terminal: true
+    invariants:
+      - status == "closed"
+      - closed_at is set
+
+# =============================================================================
+# EVENTS
+# =============================================================================
+events:
+  create:
+    description: Create a new PR linked to a shipment
+    payload:
+      shipment_id: { type: string, required: true }
+      repo_id: { type: string, required: true }
+      title: { type: string, required: true }
+      branch: { type: string, required: true }
+      target_branch: { type: string, required: false }
+      description: { type: string, required: false }
+      draft: { type: boolean, required: false, default: false }
+
+  open:
+    description: Open a draft PR for review
+    payload: {}
+
+  approve:
+    description: Mark PR as approved
+    payload: {}
+
+  merge:
+    description: Merge the PR (cascades to complete shipment)
+    payload: {}
+
+  close:
+    description: Close PR without merging
+    payload: {}
+
+  link:
+    description: Link an existing GitHub PR to a shipment
+    payload:
+      shipment_id: { type: string, required: true }
+      url: { type: string, required: true }
+      number: { type: integer, required: false }
+
+# =============================================================================
+# TRANSITIONS
+# =============================================================================
+transitions:
+  # --- Creation ---
+  - name: create_pr_draft
+    from: initial
+    to: draft
+    event: create
+    guards:
+      - shipment_exists
+      - shipment_active
+      - shipment_has_no_pr
+      - repo_exists
+    effects:
+      - { type: WriteDB, operation: INSERT, table: prs }
+    test_cases:
+      - "Create draft PR for active shipment"
+      - "Create PR for non-existent shipment (error)"
+      - "Create PR for shipment that already has PR (error)"
+
+  - name: create_pr_open
+    from: initial
+    to: open
+    event: create
+    guards:
+      - shipment_exists
+      - shipment_active
+      - shipment_has_no_pr
+      - repo_exists
+    effects:
+      - { type: WriteDB, operation: INSERT, table: prs }
+    test_cases:
+      - "Create open PR for active shipment"
+
+  # --- Draft to Open ---
+  - name: open_pr
+    from: draft
+    to: open
+    event: open
+    guards:
+      - is_draft
+    effects:
+      - { type: WriteDB, operation: UPDATE, table: prs, fields: [status, updated_at] }
+    test_cases:
+      - "Open draft PR"
+      - "Open already open PR (error)"
+
+  # --- Approval ---
+  - name: approve_pr
+    from: open
+    to: approved
+    event: approve
+    guards:
+      - is_open
+    effects:
+      - { type: WriteDB, operation: UPDATE, table: prs, fields: [status, updated_at] }
+    test_cases:
+      - "Approve open PR"
+      - "Approve draft PR (error)"
+      - "Approve merged PR (error)"
+
+  # --- Merging (with cascade) ---
+  - name: merge_pr_from_open
+    from: open
+    to: merged
+    event: merge
+    guards:
+      - is_open_or_approved
+    effects:
+      - { type: WriteDB, operation: UPDATE, table: prs, fields: [status, merged_at, updated_at] }
+      - { type: Cascade, target: shipment, action: complete }
+    test_cases:
+      - "Merge open PR"
+
+  - name: merge_pr_from_approved
+    from: approved
+    to: merged
+    event: merge
+    guards:
+      - is_open_or_approved
+    effects:
+      - { type: WriteDB, operation: UPDATE, table: prs, fields: [status, merged_at, updated_at] }
+      - { type: Cascade, target: shipment, action: complete }
+    test_cases:
+      - "Merge approved PR"
+      - "Merge draft PR (error)"
+      - "Merge closed PR (error)"
+
+  # --- Closing ---
+  - name: close_pr_from_open
+    from: open
+    to: closed
+    event: close
+    guards:
+      - is_open_or_approved
+    effects:
+      - { type: WriteDB, operation: UPDATE, table: prs, fields: [status, closed_at, updated_at] }
+    test_cases:
+      - "Close open PR"
+
+  - name: close_pr_from_approved
+    from: approved
+    to: closed
+    event: close
+    guards:
+      - is_open_or_approved
+    effects:
+      - { type: WriteDB, operation: UPDATE, table: prs, fields: [status, closed_at, updated_at] }
+    test_cases:
+      - "Close approved PR"
+      - "Close merged PR (error)"
+      - "Close draft PR (error)"
+
+# =============================================================================
+# GUARDS
+# =============================================================================
+guards:
+  shipment_exists:
+    description: Shipment must exist
+    implementation: |
+      exists, _ := repo.ShipmentExists(ctx, shipment_id)
+      return exists
+    error_message: "shipment {shipment_id} not found"
+
+  shipment_active:
+    description: Shipment must be in active status
+    implementation: |
+      status, _ := repo.GetShipmentStatus(ctx, shipment_id)
+      return status == "active"
+    error_message: "can only create PR for active shipments (current status: {status})"
+
+  shipment_has_no_pr:
+    description: Shipment must not already have a PR
+    implementation: |
+      has, _ := repo.ShipmentHasPR(ctx, shipment_id)
+      return !has
+    error_message: "shipment {shipment_id} already has a PR"
+
+  repo_exists:
+    description: Repository must exist
+    implementation: |
+      exists, _ := repo.RepoExists(ctx, repo_id)
+      return exists
+    error_message: "repository {repo_id} not found"
+
+  is_draft:
+    description: PR must be in draft status
+    implementation: |
+      pr, _ := repo.GetByID(ctx, pr_id)
+      return pr.Status == "draft"
+    error_message: "can only open draft PRs (current status: {status})"
+
+  is_open:
+    description: PR must be in open status
+    implementation: |
+      pr, _ := repo.GetByID(ctx, pr_id)
+      return pr.Status == "open"
+    error_message: "can only approve open PRs (current status: {status})"
+
+  is_open_or_approved:
+    description: PR must be open or approved
+    implementation: |
+      pr, _ := repo.GetByID(ctx, pr_id)
+      return pr.Status == "open" || pr.Status == "approved"
+    error_message: "can only merge/close open or approved PRs (current status: {status})"
+
+# =============================================================================
+# EFFECTS
+# =============================================================================
+effects:
+  WriteDB:
+    description: Database write operation
+    parameters:
+      operation: { type: enum, values: [INSERT, UPDATE] }
+      table: { type: string }
+      fields: { type: array, items: string, optional: true }
+
+  Cascade:
+    description: Cascade action to related entity
+    parameters:
+      target: { type: enum, values: [shipment] }
+      action: { type: enum, values: [complete] }
+
+# =============================================================================
+# INVARIANTS
+# =============================================================================
+invariants:
+  - name: id_format
+    description: PR IDs follow PR-XXX format
+    check: id matches /^PR-\d{3}$/
+
+  - name: id_unique
+    description: PR IDs are unique
+    check: COUNT(SELECT id FROM prs WHERE id = {id}) == 1
+
+  - name: shipment_unique
+    description: Each shipment can have at most one PR
+    check: COUNT(SELECT id FROM prs WHERE shipment_id = {shipment_id}) <= 1
+
+  - name: status_valid
+    description: Status is one of valid values
+    check: status IN ('draft', 'open', 'approved', 'merged', 'closed')
+
+  - name: merged_requires_merged_at
+    description: Merged PRs must have merged_at set
+    check: status == 'merged' IMPLIES merged_at IS NOT NULL
+
+  - name: closed_requires_closed_at
+    description: Closed PRs must have closed_at set
+    check: status == 'closed' IMPLIES closed_at IS NOT NULL
+
+# =============================================================================
+# NOTES
+# =============================================================================
+notes:
+  - |
+    PRs have a 1:1 relationship with shipments.
+    Each shipment can have at most one PR.
+  - |
+    Merging a PR cascades to complete its associated shipment.
+    This creates an automatic workflow from PR merge to work completion.
+  - |
+    PRs reference a repository for context about where the code lives.
+    The branch and target_branch track the git workflow.
+  - |
+    The 'link' event allows associating existing GitHub PRs with shipments
+    rather than only tracking internally created PRs.

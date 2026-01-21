@@ -50,6 +50,50 @@ func setupTestDB(t *testing.T) *sql.DB {
 		t.Fatalf("failed to create shipments table: %v", err)
 	}
 
+	// Create repos table
+	_, err = db.Exec(`
+		CREATE TABLE repos (
+			id TEXT PRIMARY KEY,
+			name TEXT NOT NULL UNIQUE,
+			url TEXT,
+			local_path TEXT,
+			default_branch TEXT DEFAULT 'main',
+			status TEXT NOT NULL CHECK(status IN ('active', 'archived')) DEFAULT 'active',
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		)
+	`)
+	if err != nil {
+		t.Fatalf("failed to create repos table: %v", err)
+	}
+
+	// Create prs table
+	_, err = db.Exec(`
+		CREATE TABLE prs (
+			id TEXT PRIMARY KEY,
+			shipment_id TEXT NOT NULL UNIQUE,
+			repo_id TEXT NOT NULL,
+			commission_id TEXT NOT NULL,
+			number INTEGER,
+			title TEXT NOT NULL,
+			description TEXT,
+			branch TEXT NOT NULL,
+			target_branch TEXT,
+			url TEXT,
+			status TEXT NOT NULL CHECK(status IN ('draft', 'open', 'approved', 'merged', 'closed')) DEFAULT 'open',
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			merged_at DATETIME,
+			closed_at DATETIME,
+			FOREIGN KEY (shipment_id) REFERENCES shipments(id) ON DELETE CASCADE,
+			FOREIGN KEY (repo_id) REFERENCES repos(id),
+			FOREIGN KEY (commission_id) REFERENCES commissions(id)
+		)
+	`)
+	if err != nil {
+		t.Fatalf("failed to create prs table: %v", err)
+	}
+
 	t.Cleanup(func() {
 		db.Close()
 	})

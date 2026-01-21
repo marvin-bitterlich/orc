@@ -124,6 +124,16 @@ var migrations = []Migration{
 		Name:    "rename_missions_to_commissions",
 		Up:      migrationV22,
 	},
+	{
+		Version: 23,
+		Name:    "create_repos_table",
+		Up:      migrationV23,
+	},
+	{
+		Version: 24,
+		Name:    "create_prs_table",
+		Up:      migrationV24,
+	},
 }
 
 // RunMigrations executes all pending migrations
@@ -2605,6 +2615,84 @@ func migrationV22(db *sql.DB) error {
 	`)
 	if err != nil {
 		return fmt.Errorf("failed to insert default commission: %w", err)
+	}
+
+	return nil
+}
+
+// migrationV23 creates the repos table for repository configuration
+func migrationV23(db *sql.DB) error {
+	_, err := db.Exec(`
+		CREATE TABLE repos (
+			id TEXT PRIMARY KEY,
+			name TEXT NOT NULL UNIQUE,
+			url TEXT,
+			local_path TEXT,
+			default_branch TEXT DEFAULT 'main',
+			status TEXT NOT NULL CHECK(status IN ('active', 'archived')) DEFAULT 'active',
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		)
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to create repos table: %w", err)
+	}
+
+	_, err = db.Exec(`
+		CREATE INDEX idx_repos_name ON repos(name);
+		CREATE INDEX idx_repos_status ON repos(status);
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to create repos indexes: %w", err)
+	}
+
+	return nil
+}
+
+// migrationV24 creates the prs table for pull request tracking
+func migrationV24(db *sql.DB) error {
+	_, err := db.Exec(`
+		CREATE TABLE prs (
+			id TEXT PRIMARY KEY,
+			shipment_id TEXT NOT NULL UNIQUE,
+			repo_id TEXT NOT NULL,
+			commission_id TEXT NOT NULL,
+			number INTEGER,
+			title TEXT NOT NULL,
+			description TEXT,
+			branch TEXT NOT NULL,
+			target_branch TEXT,
+			url TEXT,
+			status TEXT NOT NULL CHECK(status IN ('draft', 'open', 'approved', 'merged', 'closed')) DEFAULT 'open',
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			merged_at DATETIME,
+			closed_at DATETIME,
+			FOREIGN KEY (shipment_id) REFERENCES shipments(id) ON DELETE CASCADE,
+			FOREIGN KEY (repo_id) REFERENCES repos(id),
+			FOREIGN KEY (commission_id) REFERENCES commissions(id)
+		)
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to create prs table: %w", err)
+	}
+
+	_, err = db.Exec(`
+		CREATE INDEX idx_prs_shipment ON prs(shipment_id);
+		CREATE INDEX idx_prs_repo ON prs(repo_id);
+		CREATE INDEX idx_prs_commission ON prs(commission_id);
+		CREATE INDEX idx_prs_status ON prs(status);
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to create prs indexes: %w", err)
+	}
+
+	// Create unique partial index for repo_id + number where number is not null
+	_, err = db.Exec(`
+		CREATE UNIQUE INDEX idx_prs_repo_number ON prs(repo_id, number) WHERE number IS NOT NULL;
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to create prs unique index: %w", err)
 	}
 
 	return nil

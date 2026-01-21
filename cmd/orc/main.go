@@ -46,6 +46,10 @@ It coordinates IMPs (Implementation Agents) working in isolated groves (worktree
 	rootCmd.AddCommand(cli.InvestigationCmd())
 	rootCmd.AddCommand(cli.ConclaveCmd())
 
+	// Repository and PR commands
+	rootCmd.AddCommand(cli.RepoCmd())
+	rootCmd.AddCommand(cli.PRCmd())
+
 	// Developer tools
 	rootCmd.AddCommand(cli.ScaffoldCmd())
 

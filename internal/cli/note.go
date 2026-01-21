@@ -345,7 +345,7 @@ var noteReopenCmd = &cobra.Command{
 func init() {
 	// note create flags
 	noteCreateCmd.Flags().StringP("commission", "c", "", "Commission ID (defaults to context)")
-	noteCreateCmd.Flags().StringP("content", "c", "", "Note content")
+	noteCreateCmd.Flags().String("content", "", "Note content")
 	noteCreateCmd.Flags().StringP("type", "t", "", "Note type (learning, concern, finding, frq, bug, investigation_report)")
 	noteCreateCmd.Flags().String("shipment", "", "Shipment ID to attach note to")
 	noteCreateCmd.Flags().String("investigation", "", "Investigation ID to attach note to")
@@ -361,7 +361,7 @@ func init() {
 
 	// note update flags
 	noteUpdateCmd.Flags().String("title", "", "New title")
-	noteUpdateCmd.Flags().StringP("content", "c", "", "New content")
+	noteUpdateCmd.Flags().String("content", "", "New content")
 
 	// Register subcommands
 	noteCmd.AddCommand(noteCreateCmd)

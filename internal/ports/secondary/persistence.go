@@ -873,3 +873,116 @@ type MessageFilters struct {
 	Recipient  string
 	UnreadOnly bool
 }
+
+// RepoRepository defines the secondary port for repository persistence.
+type RepoRepository interface {
+	// Create persists a new repository.
+	Create(ctx context.Context, repo *RepoRecord) error
+
+	// GetByID retrieves a repository by its ID.
+	GetByID(ctx context.Context, id string) (*RepoRecord, error)
+
+	// GetByName retrieves a repository by its unique name.
+	GetByName(ctx context.Context, name string) (*RepoRecord, error)
+
+	// List retrieves repositories matching the given filters.
+	List(ctx context.Context, filters RepoFilters) ([]*RepoRecord, error)
+
+	// Update updates an existing repository.
+	Update(ctx context.Context, repo *RepoRecord) error
+
+	// Delete removes a repository from persistence.
+	Delete(ctx context.Context, id string) error
+
+	// GetNextID returns the next available repository ID.
+	GetNextID(ctx context.Context) (string, error)
+
+	// UpdateStatus updates the status of a repository.
+	UpdateStatus(ctx context.Context, id, status string) error
+
+	// HasActivePRs checks if a repository has active (non-terminal) PRs.
+	HasActivePRs(ctx context.Context, repoID string) (bool, error)
+}
+
+// RepoRecord represents a repository as stored in persistence.
+type RepoRecord struct {
+	ID            string
+	Name          string
+	URL           string // Empty string means null
+	LocalPath     string // Empty string means null
+	DefaultBranch string
+	Status        string
+	CreatedAt     string
+	UpdatedAt     string
+}
+
+// RepoFilters contains filter options for querying repositories.
+type RepoFilters struct {
+	Status string
+}
+
+// PRRepository defines the secondary port for pull request persistence.
+type PRRepository interface {
+	// Create persists a new pull request.
+	Create(ctx context.Context, pr *PRRecord) error
+
+	// GetByID retrieves a pull request by its ID.
+	GetByID(ctx context.Context, id string) (*PRRecord, error)
+
+	// GetByShipment retrieves a pull request by shipment ID.
+	GetByShipment(ctx context.Context, shipmentID string) (*PRRecord, error)
+
+	// List retrieves pull requests matching the given filters.
+	List(ctx context.Context, filters PRFilters) ([]*PRRecord, error)
+
+	// Update updates an existing pull request.
+	Update(ctx context.Context, pr *PRRecord) error
+
+	// Delete removes a pull request from persistence.
+	Delete(ctx context.Context, id string) error
+
+	// GetNextID returns the next available pull request ID.
+	GetNextID(ctx context.Context) (string, error)
+
+	// UpdateStatus updates the status of a PR with optional timestamps.
+	UpdateStatus(ctx context.Context, id, status string, setMerged, setClosed bool) error
+
+	// ShipmentExists checks if a shipment exists (for validation).
+	ShipmentExists(ctx context.Context, shipmentID string) (bool, error)
+
+	// RepoExists checks if a repository exists (for validation).
+	RepoExists(ctx context.Context, repoID string) (bool, error)
+
+	// ShipmentHasPR checks if a shipment already has a PR.
+	ShipmentHasPR(ctx context.Context, shipmentID string) (bool, error)
+
+	// GetShipmentStatus retrieves the status of a shipment.
+	GetShipmentStatus(ctx context.Context, shipmentID string) (string, error)
+}
+
+// PRRecord represents a pull request as stored in persistence.
+type PRRecord struct {
+	ID           string
+	ShipmentID   string
+	RepoID       string
+	CommissionID string
+	Number       int // 0 means null (for draft PRs without GitHub PR number)
+	Title        string
+	Description  string // Empty string means null
+	Branch       string
+	TargetBranch string // Empty string means null (defaults to repo default)
+	URL          string // Empty string means null
+	Status       string
+	CreatedAt    string
+	UpdatedAt    string
+	MergedAt     string // Empty string means null
+	ClosedAt     string // Empty string means null
+}
+
+// PRFilters contains filter options for querying pull requests.
+type PRFilters struct {
+	ShipmentID   string
+	RepoID       string
+	CommissionID string
+	Status       string
+}
