@@ -122,19 +122,19 @@ func (m *mockInvestigationRepository) UpdateStatus(ctx context.Context, id, stat
 	return nil
 }
 
-func (m *mockInvestigationRepository) GetByGrove(ctx context.Context, groveID string) ([]*secondary.InvestigationRecord, error) {
+func (m *mockInvestigationRepository) GetByWorkbench(ctx context.Context, workbenchID string) ([]*secondary.InvestigationRecord, error) {
 	var result []*secondary.InvestigationRecord
 	for _, inv := range m.investigations {
-		if inv.AssignedGroveID == groveID {
+		if inv.AssignedWorkbenchID == workbenchID {
 			result = append(result, inv)
 		}
 	}
 	return result, nil
 }
 
-func (m *mockInvestigationRepository) AssignGrove(ctx context.Context, investigationID, groveID string) error {
+func (m *mockInvestigationRepository) AssignWorkbench(ctx context.Context, investigationID, workbenchID string) error {
 	if investigation, ok := m.investigations[investigationID]; ok {
-		investigation.AssignedGroveID = groveID
+		investigation.AssignedWorkbenchID = workbenchID
 	}
 	return nil
 }
@@ -581,8 +581,8 @@ func TestAssignInvestigationToGrove_Success(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
-	if investigationRepo.investigations["INV-001"].AssignedGroveID != "GROVE-001" {
-		t.Errorf("expected grove ID 'GROVE-001', got '%s'", investigationRepo.investigations["INV-001"].AssignedGroveID)
+	if investigationRepo.investigations["INV-001"].AssignedWorkbenchID != "GROVE-001" {
+		t.Errorf("expected grove ID 'GROVE-001', got '%s'", investigationRepo.investigations["INV-001"].AssignedWorkbenchID)
 	}
 }
 
@@ -595,11 +595,11 @@ func TestGetInvestigationsByGrove_Success(t *testing.T) {
 	ctx := context.Background()
 
 	investigationRepo.investigations["INV-001"] = &secondary.InvestigationRecord{
-		ID:              "INV-001",
-		CommissionID:    "MISSION-001",
-		Title:           "Assigned Investigation",
-		Status:          "active",
-		AssignedGroveID: "GROVE-001",
+		ID:                  "INV-001",
+		CommissionID:        "MISSION-001",
+		Title:               "Assigned Investigation",
+		Status:              "active",
+		AssignedWorkbenchID: "GROVE-001",
 	}
 	investigationRepo.investigations["INV-002"] = &secondary.InvestigationRecord{
 		ID:           "INV-002",

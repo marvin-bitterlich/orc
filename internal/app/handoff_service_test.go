@@ -54,10 +54,10 @@ func (m *mockHandoffRepository) GetLatest(ctx context.Context) (*secondary.Hando
 	return m.handoffs[m.latest], nil
 }
 
-func (m *mockHandoffRepository) GetLatestForGrove(ctx context.Context, groveID string) (*secondary.HandoffRecord, error) {
+func (m *mockHandoffRepository) GetLatestForWorkbench(ctx context.Context, workbenchID string) (*secondary.HandoffRecord, error) {
 	// Find latest handoff for the grove
 	for _, h := range m.handoffs {
-		if h.ActiveGroveID == groveID {
+		if h.ActiveWorkbenchID == workbenchID {
 			return h, nil
 		}
 	}
@@ -105,7 +105,7 @@ func TestCreateHandoff_Success(t *testing.T) {
 	resp, err := service.CreateHandoff(ctx, primary.CreateHandoffRequest{
 		HandoffNote:        "Session completed. Main task was fixing authentication bug.",
 		ActiveCommissionID: "MISSION-001",
-		ActiveGroveID:      "GROVE-001",
+		ActiveWorkbenchID:  "GROVE-001",
 		TodosSnapshot:      "- Fix auth bug [DONE]\n- Update docs [IN PROGRESS]",
 	})
 
@@ -225,14 +225,14 @@ func TestGetLatestHandoffForGrove_Found(t *testing.T) {
 	ctx := context.Background()
 
 	handoffRepo.handoffs["HANDOFF-001"] = &secondary.HandoffRecord{
-		ID:            "HANDOFF-001",
-		HandoffNote:   "Grove 1 handoff",
-		ActiveGroveID: "GROVE-001",
+		ID:                "HANDOFF-001",
+		HandoffNote:       "Grove 1 handoff",
+		ActiveWorkbenchID: "GROVE-001",
 	}
 	handoffRepo.handoffs["HANDOFF-002"] = &secondary.HandoffRecord{
-		ID:            "HANDOFF-002",
-		HandoffNote:   "Grove 2 handoff",
-		ActiveGroveID: "GROVE-002",
+		ID:                "HANDOFF-002",
+		HandoffNote:       "Grove 2 handoff",
+		ActiveWorkbenchID: "GROVE-002",
 	}
 
 	handoff, err := service.GetLatestHandoffForGrove(ctx, "GROVE-001")
@@ -250,9 +250,9 @@ func TestGetLatestHandoffForGrove_NotFound(t *testing.T) {
 	ctx := context.Background()
 
 	handoffRepo.handoffs["HANDOFF-001"] = &secondary.HandoffRecord{
-		ID:            "HANDOFF-001",
-		HandoffNote:   "Other grove handoff",
-		ActiveGroveID: "GROVE-002",
+		ID:                "HANDOFF-001",
+		HandoffNote:       "Other grove handoff",
+		ActiveWorkbenchID: "GROVE-002",
 	}
 
 	_, err := service.GetLatestHandoffForGrove(ctx, "GROVE-001")

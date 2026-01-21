@@ -123,8 +123,8 @@ var taskListCmd = &cobra.Command{
 			if task.ShipmentID != "" {
 				fmt.Printf("   Shipment: %s\n", task.ShipmentID)
 			}
-			if task.AssignedGroveID != "" {
-				fmt.Printf("   Grove: %s\n", task.AssignedGroveID)
+			if task.AssignedWorkbenchID != "" {
+				fmt.Printf("   Grove: %s\n", task.AssignedWorkbenchID)
 			}
 			fmt.Println()
 		}
@@ -159,8 +159,8 @@ var taskShowCmd = &cobra.Command{
 		if task.ShipmentID != "" {
 			fmt.Printf("Shipment: %s\n", task.ShipmentID)
 		}
-		if task.AssignedGroveID != "" {
-			fmt.Printf("Assigned Grove: %s\n", task.AssignedGroveID)
+		if task.AssignedWorkbenchID != "" {
+			fmt.Printf("Assigned Grove: %s\n", task.AssignedWorkbenchID)
 		}
 		if task.Priority != "" {
 			fmt.Printf("Priority: %s\n", task.Priority)
@@ -201,22 +201,22 @@ var taskClaimCmd = &cobra.Command{
 		cwd, _ := os.Getwd()
 		grove, _ := wire.GroveService().GetGroveByPath(ctx, cwd)
 
-		groveID := ""
+		workbenchID := ""
 		if grove != nil {
-			groveID = grove.ID
+			workbenchID = grove.ID
 		}
 
 		err := wire.TaskService().ClaimTask(ctx, primary.ClaimTaskRequest{
 			TaskID:  taskID,
-			GroveID: groveID,
+			GroveID: workbenchID,
 		})
 		if err != nil {
 			return fmt.Errorf("failed to claim task: %w", err)
 		}
 
 		fmt.Printf("✓ Task %s claimed\n", taskID)
-		if groveID != "" {
-			fmt.Printf("  Assigned to grove: %s\n", groveID)
+		if workbenchID != "" {
+			fmt.Printf("  Assigned to grove: %s\n", workbenchID)
 		}
 		fmt.Println()
 		fmt.Println("💡 Next steps:")

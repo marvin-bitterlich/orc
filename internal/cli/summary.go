@@ -49,9 +49,9 @@ func colorizeTag(tagName string) string {
 }
 
 // colorizeGrove wraps grove info with color (cyan for visibility)
-func colorizeGrove(groveName, groveID string) string {
+func colorizeGrove(groveName, workbenchID string) string {
 	c := color.New(color.FgCyan)
-	return c.Sprintf("[Grove: %s (%s)]", groveName, groveID)
+	return c.Sprintf("[Grove: %s (%s)]", groveName, workbenchID)
 }
 
 // getIDColor returns a deterministic color for an ID type (TASK, SHIP, MISSION)
@@ -557,7 +557,7 @@ type containerInfo struct {
 	title         string
 	status        string
 	pinned        bool
-	groveID       string
+	workbenchID   string
 	containerType string // "shipment", "conclave", "investigation", "tome"
 }
 
@@ -709,7 +709,7 @@ Examples:
 						}
 						c := containerInfo{
 							id: s.ID, title: s.Title, status: s.Status,
-							pinned: s.Pinned, groveID: s.AssignedGroveID, containerType: "shipment",
+							pinned: s.Pinned, workbenchID: s.AssignedWorkbenchID, containerType: "shipment",
 						}
 						if s.ID == focusID {
 							focusedContainer = &c
@@ -727,7 +727,7 @@ Examples:
 						}
 						cont := containerInfo{
 							id: c.ID, title: c.Title, status: c.Status,
-							pinned: c.Pinned, groveID: c.AssignedGroveID, containerType: "conclave",
+							pinned: c.Pinned, workbenchID: c.AssignedWorkbenchID, containerType: "conclave",
 						}
 						if c.ID == focusID {
 							focusedContainer = &cont
@@ -745,7 +745,7 @@ Examples:
 						}
 						c := containerInfo{
 							id: inv.ID, title: inv.Title, status: inv.Status,
-							pinned: inv.Pinned, groveID: inv.AssignedGroveID, containerType: "investigation",
+							pinned: inv.Pinned, workbenchID: inv.AssignedWorkbenchID, containerType: "investigation",
 						}
 						if inv.ID == focusID {
 							focusedContainer = &c
@@ -814,8 +814,8 @@ Examples:
 							pinnedEmoji = "📌 "
 						}
 						groveInfo := ""
-						if container.groveID != "" {
-							grove, err := wire.GroveService().GetGrove(context.Background(), container.groveID)
+						if container.workbenchID != "" {
+							grove, err := wire.GroveService().GetGrove(context.Background(), container.workbenchID)
 							if err == nil {
 								groveInfo = " " + colorizeGrove(grove.Name, grove.ID)
 							}

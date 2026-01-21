@@ -164,19 +164,19 @@ func (s *TomeServiceImpl) DeleteTome(ctx context.Context, tomeID string) error {
 }
 
 // AssignTomeToGrove assigns a tome to a grove.
-func (s *TomeServiceImpl) AssignTomeToGrove(ctx context.Context, tomeID, groveID string) error {
+func (s *TomeServiceImpl) AssignTomeToGrove(ctx context.Context, tomeID, workbenchID string) error {
 	// Verify tome exists
 	_, err := s.tomeRepo.GetByID(ctx, tomeID)
 	if err != nil {
 		return err
 	}
 
-	return s.tomeRepo.AssignGrove(ctx, tomeID, groveID)
+	return s.tomeRepo.AssignWorkbench(ctx, tomeID, workbenchID)
 }
 
 // GetTomesByGrove retrieves tomes assigned to a grove.
-func (s *TomeServiceImpl) GetTomesByGrove(ctx context.Context, groveID string) ([]*primary.Tome, error) {
-	records, err := s.tomeRepo.GetByGrove(ctx, groveID)
+func (s *TomeServiceImpl) GetTomesByGrove(ctx context.Context, workbenchID string) ([]*primary.Tome, error) {
+	records, err := s.tomeRepo.GetByWorkbench(ctx, workbenchID)
 	if err != nil {
 		return nil, err
 	}
@@ -198,16 +198,16 @@ func (s *TomeServiceImpl) GetTomeNotes(ctx context.Context, tomeID string) ([]*p
 
 func (s *TomeServiceImpl) recordToTome(r *secondary.TomeRecord) *primary.Tome {
 	return &primary.Tome{
-		ID:              r.ID,
-		CommissionID:    r.CommissionID,
-		Title:           r.Title,
-		Description:     r.Description,
-		Status:          r.Status,
-		AssignedGroveID: r.AssignedGroveID,
-		Pinned:          r.Pinned,
-		CreatedAt:       r.CreatedAt,
-		UpdatedAt:       r.UpdatedAt,
-		CompletedAt:     r.CompletedAt,
+		ID:                  r.ID,
+		CommissionID:        r.CommissionID,
+		Title:               r.Title,
+		Description:         r.Description,
+		Status:              r.Status,
+		AssignedWorkbenchID: r.AssignedWorkbenchID,
+		Pinned:              r.Pinned,
+		CreatedAt:           r.CreatedAt,
+		UpdatedAt:           r.UpdatedAt,
+		CompletedAt:         r.CompletedAt,
 	}
 }
 

@@ -32,10 +32,10 @@ type ShipmentService interface {
 	UnpinShipment(ctx context.Context, shipmentID string) error
 
 	// AssignShipmentToGrove assigns a shipment to a grove.
-	AssignShipmentToGrove(ctx context.Context, shipmentID, groveID string) error
+	AssignShipmentToGrove(ctx context.Context, shipmentID, workbenchID string) error
 
 	// GetShipmentsByGrove retrieves shipments assigned to a grove.
-	GetShipmentsByGrove(ctx context.Context, groveID string) ([]*Shipment, error)
+	GetShipmentsByGrove(ctx context.Context, workbenchID string) ([]*Shipment, error)
 
 	// GetShipmentTasks retrieves all tasks for a shipment.
 	GetShipmentTasks(ctx context.Context, shipmentID string) ([]*Task, error)
@@ -66,16 +66,16 @@ type UpdateShipmentRequest struct {
 
 // Shipment represents a shipment entity at the port boundary.
 type Shipment struct {
-	ID              string
-	CommissionID    string
-	Title           string
-	Description     string
-	Status          string
-	AssignedGroveID string
-	Pinned          bool
-	CreatedAt       string
-	UpdatedAt       string
-	CompletedAt     string
+	ID                  string
+	CommissionID        string
+	Title               string
+	Description         string
+	Status              string
+	AssignedWorkbenchID string
+	Pinned              bool
+	CreatedAt           string
+	UpdatedAt           string
+	CompletedAt         string
 }
 
 // ShipmentFilters contains filter options for listing shipments.

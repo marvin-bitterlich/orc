@@ -260,10 +260,10 @@ Examples:
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := context.Background()
-			groveID := args[0]
+			workbenchID := args[0]
 
 			// Get grove path before deleting (for worktree removal)
-			grove, err := wire.GroveAdapter().GetGrove(ctx, groveID)
+			grove, err := wire.GroveAdapter().GetGrove(ctx, workbenchID)
 			if err != nil {
 				return err
 			}
@@ -291,7 +291,7 @@ Examples:
 			}
 
 			// Delete from database via adapter
-			_, err = wire.GroveAdapter().Delete(ctx, groveID, force)
+			_, err = wire.GroveAdapter().Delete(ctx, workbenchID, force)
 			if err != nil {
 				return err
 			}
@@ -329,10 +329,10 @@ Examples:
   orc grove open GROVE-002`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			groveID := args[0]
+			workbenchID := args[0]
 
 			// Get grove from service
-			grove, err := wire.GroveService().GetGrove(context.Background(), groveID)
+			grove, err := wire.GroveService().GetGrove(context.Background(), workbenchID)
 			if err != nil {
 				return fmt.Errorf("failed to get grove: %w", err)
 			}

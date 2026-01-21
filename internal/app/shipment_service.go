@@ -160,7 +160,7 @@ func (s *ShipmentServiceImpl) UnpinShipment(ctx context.Context, shipmentID stri
 }
 
 // AssignShipmentToGrove assigns a shipment to a grove.
-func (s *ShipmentServiceImpl) AssignShipmentToGrove(ctx context.Context, shipmentID, groveID string) error {
+func (s *ShipmentServiceImpl) AssignShipmentToGrove(ctx context.Context, shipmentID, workbenchID string) error {
 	// Verify shipment exists
 	_, err := s.shipmentRepo.GetByID(ctx, shipmentID)
 	if err != nil {
@@ -168,7 +168,7 @@ func (s *ShipmentServiceImpl) AssignShipmentToGrove(ctx context.Context, shipmen
 	}
 
 	// Check if grove is already assigned to another shipment
-	otherShipmentID, err := s.shipmentRepo.GroveAssignedToOther(ctx, groveID, shipmentID)
+	otherShipmentID, err := s.shipmentRepo.WorkbenchAssignedToOther(ctx, workbenchID, shipmentID)
 	if err != nil {
 		return fmt.Errorf("failed to check grove assignment: %w", err)
 	}
@@ -177,17 +177,17 @@ func (s *ShipmentServiceImpl) AssignShipmentToGrove(ctx context.Context, shipmen
 	}
 
 	// Assign grove to shipment
-	if err := s.shipmentRepo.AssignGrove(ctx, shipmentID, groveID); err != nil {
+	if err := s.shipmentRepo.AssignWorkbench(ctx, shipmentID, workbenchID); err != nil {
 		return err
 	}
 
 	// Cascade to tasks
-	return s.taskRepo.AssignGroveByShipment(ctx, shipmentID, groveID)
+	return s.taskRepo.AssignWorkbenchByShipment(ctx, shipmentID, workbenchID)
 }
 
 // GetShipmentsByGrove retrieves shipments assigned to a grove.
-func (s *ShipmentServiceImpl) GetShipmentsByGrove(ctx context.Context, groveID string) ([]*primary.Shipment, error) {
-	records, err := s.shipmentRepo.GetByGrove(ctx, groveID)
+func (s *ShipmentServiceImpl) GetShipmentsByGrove(ctx context.Context, workbenchID string) ([]*primary.Shipment, error) {
+	records, err := s.shipmentRepo.GetByWorkbench(ctx, workbenchID)
 	if err != nil {
 		return nil, err
 	}
@@ -222,39 +222,39 @@ func (s *ShipmentServiceImpl) DeleteShipment(ctx context.Context, shipmentID str
 
 func (s *ShipmentServiceImpl) recordToShipment(r *secondary.ShipmentRecord) *primary.Shipment {
 	return &primary.Shipment{
-		ID:              r.ID,
-		CommissionID:    r.CommissionID,
-		Title:           r.Title,
-		Description:     r.Description,
-		Status:          r.Status,
-		AssignedGroveID: r.AssignedGroveID,
-		Pinned:          r.Pinned,
-		CreatedAt:       r.CreatedAt,
-		UpdatedAt:       r.UpdatedAt,
-		CompletedAt:     r.CompletedAt,
+		ID:                  r.ID,
+		CommissionID:        r.CommissionID,
+		Title:               r.Title,
+		Description:         r.Description,
+		Status:              r.Status,
+		AssignedWorkbenchID: r.AssignedWorkbenchID,
+		Pinned:              r.Pinned,
+		CreatedAt:           r.CreatedAt,
+		UpdatedAt:           r.UpdatedAt,
+		CompletedAt:         r.CompletedAt,
 	}
 }
 
 // recordToTask converts a TaskRecord to a Task (shared helper).
 func recordToTask(r *secondary.TaskRecord) *primary.Task {
 	return &primary.Task{
-		ID:               r.ID,
-		ShipmentID:       r.ShipmentID,
-		CommissionID:     r.CommissionID,
-		Title:            r.Title,
-		Description:      r.Description,
-		Type:             r.Type,
-		Status:           r.Status,
-		Priority:         r.Priority,
-		AssignedGroveID:  r.AssignedGroveID,
-		Pinned:           r.Pinned,
-		CreatedAt:        r.CreatedAt,
-		UpdatedAt:        r.UpdatedAt,
-		ClaimedAt:        r.ClaimedAt,
-		CompletedAt:      r.CompletedAt,
-		ConclaveID:       r.ConclaveID,
-		PromotedFromID:   r.PromotedFromID,
-		PromotedFromType: r.PromotedFromType,
+		ID:                  r.ID,
+		ShipmentID:          r.ShipmentID,
+		CommissionID:        r.CommissionID,
+		Title:               r.Title,
+		Description:         r.Description,
+		Type:                r.Type,
+		Status:              r.Status,
+		Priority:            r.Priority,
+		AssignedWorkbenchID: r.AssignedWorkbenchID,
+		Pinned:              r.Pinned,
+		CreatedAt:           r.CreatedAt,
+		UpdatedAt:           r.UpdatedAt,
+		ClaimedAt:           r.ClaimedAt,
+		CompletedAt:         r.CompletedAt,
+		ConclaveID:          r.ConclaveID,
+		PromotedFromID:      r.PromotedFromID,
+		PromotedFromType:    r.PromotedFromType,
 	}
 }
 

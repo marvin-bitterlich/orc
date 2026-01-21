@@ -123,8 +123,8 @@ var investigationShowCmd = &cobra.Command{
 		}
 		fmt.Printf("Status: %s\n", investigation.Status)
 		fmt.Printf("Mission: %s\n", investigation.CommissionID)
-		if investigation.AssignedGroveID != "" {
-			fmt.Printf("Assigned Grove: %s\n", investigation.AssignedGroveID)
+		if investigation.AssignedWorkbenchID != "" {
+			fmt.Printf("Assigned Grove: %s\n", investigation.AssignedWorkbenchID)
 		}
 		if investigation.Pinned {
 			fmt.Printf("Pinned: yes\n")
@@ -297,15 +297,15 @@ var investigationAssignCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		investigationID := args[0]
-		groveID := args[1]
+		workbenchID := args[1]
 
 		ctx := context.Background()
-		err := wire.InvestigationService().AssignInvestigationToGrove(ctx, investigationID, groveID)
+		err := wire.InvestigationService().AssignInvestigationToGrove(ctx, investigationID, workbenchID)
 		if err != nil {
 			return fmt.Errorf("failed to assign investigation: %w", err)
 		}
 
-		fmt.Printf("✓ Investigation %s assigned to grove %s\n", investigationID, groveID)
+		fmt.Printf("✓ Investigation %s assigned to grove %s\n", investigationID, workbenchID)
 		return nil
 	},
 }

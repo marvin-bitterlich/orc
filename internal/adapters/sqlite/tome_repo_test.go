@@ -56,7 +56,7 @@ func setupTomeTestDB(t *testing.T) *sql.DB {
 			title TEXT NOT NULL,
 			description TEXT,
 			status TEXT NOT NULL DEFAULT 'active',
-			assigned_grove_id TEXT,
+			assigned_workbench_id TEXT,
 			pinned INTEGER NOT NULL DEFAULT 0,
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -400,36 +400,36 @@ func TestTomeRepository_UpdateStatus_NotFound(t *testing.T) {
 	}
 }
 
-func TestTomeRepository_AssignGrove(t *testing.T) {
+func TestTomeRepository_AssignWorkbench(t *testing.T) {
 	db := setupTomeTestDB(t)
 	repo := sqlite.NewTomeRepository(db)
 	ctx := context.Background()
 
 	tome := createTestTome(t, repo, ctx, "MISSION-001", "Grove Test", "")
 
-	err := repo.AssignGrove(ctx, tome.ID, "GROVE-001")
+	err := repo.AssignWorkbench(ctx, tome.ID, "GROVE-001")
 	if err != nil {
-		t.Fatalf("AssignGrove failed: %v", err)
+		t.Fatalf("AssignWorkbench failed: %v", err)
 	}
 
 	retrieved, _ := repo.GetByID(ctx, tome.ID)
-	if retrieved.AssignedGroveID != "GROVE-001" {
-		t.Errorf("expected assigned grove 'GROVE-001', got '%s'", retrieved.AssignedGroveID)
+	if retrieved.AssignedWorkbenchID != "GROVE-001" {
+		t.Errorf("expected assigned grove 'GROVE-001', got '%s'", retrieved.AssignedWorkbenchID)
 	}
 }
 
-func TestTomeRepository_AssignGrove_NotFound(t *testing.T) {
+func TestTomeRepository_AssignWorkbench_NotFound(t *testing.T) {
 	db := setupTomeTestDB(t)
 	repo := sqlite.NewTomeRepository(db)
 	ctx := context.Background()
 
-	err := repo.AssignGrove(ctx, "TOME-999", "GROVE-001")
+	err := repo.AssignWorkbench(ctx, "TOME-999", "GROVE-001")
 	if err == nil {
 		t.Error("expected error for non-existent tome")
 	}
 }
 
-func TestTomeRepository_GetByGrove(t *testing.T) {
+func TestTomeRepository_GetByWorkbench(t *testing.T) {
 	db := setupTomeTestDB(t)
 	repo := sqlite.NewTomeRepository(db)
 	ctx := context.Background()
@@ -438,12 +438,12 @@ func TestTomeRepository_GetByGrove(t *testing.T) {
 	t2 := createTestTome(t, repo, ctx, "MISSION-001", "Tome 2", "")
 	createTestTome(t, repo, ctx, "MISSION-001", "Tome 3 (unassigned)", "")
 
-	_ = repo.AssignGrove(ctx, t1.ID, "GROVE-001")
-	_ = repo.AssignGrove(ctx, t2.ID, "GROVE-001")
+	_ = repo.AssignWorkbench(ctx, t1.ID, "GROVE-001")
+	_ = repo.AssignWorkbench(ctx, t2.ID, "GROVE-001")
 
-	tomes, err := repo.GetByGrove(ctx, "GROVE-001")
+	tomes, err := repo.GetByWorkbench(ctx, "GROVE-001")
 	if err != nil {
-		t.Fatalf("GetByGrove failed: %v", err)
+		t.Fatalf("GetByWorkbench failed: %v", err)
 	}
 
 	if len(tomes) != 2 {

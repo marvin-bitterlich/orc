@@ -147,11 +147,11 @@ type ShipmentRepository interface {
 	// GetNextID returns the next available shipment ID.
 	GetNextID(ctx context.Context) (string, error)
 
-	// GetByGrove retrieves shipments assigned to a grove.
-	GetByGrove(ctx context.Context, groveID string) ([]*ShipmentRecord, error)
+	// GetByWorkbench retrieves shipments assigned to a workbench.
+	GetByWorkbench(ctx context.Context, workbenchID string) ([]*ShipmentRecord, error)
 
-	// AssignGrove assigns a shipment to a grove.
-	AssignGrove(ctx context.Context, shipmentID, groveID string) error
+	// AssignWorkbench assigns a shipment to a grove.
+	AssignWorkbench(ctx context.Context, shipmentID, workbenchID string) error
 
 	// UpdateStatus updates the status and optionally completed_at timestamp.
 	UpdateStatus(ctx context.Context, id, status string, setCompleted bool) error
@@ -159,22 +159,22 @@ type ShipmentRepository interface {
 	// CommissionExists checks if a commission exists (for validation).
 	CommissionExists(ctx context.Context, commissionID string) (bool, error)
 
-	// GroveAssignedToOther checks if grove is assigned to another shipment.
-	GroveAssignedToOther(ctx context.Context, groveID, excludeShipmentID string) (string, error)
+	// WorkbenchAssignedToOther checks if workbench is assigned to another shipment.
+	WorkbenchAssignedToOther(ctx context.Context, workbenchID, excludeShipmentID string) (string, error)
 }
 
 // ShipmentRecord represents a shipment as stored in persistence.
 type ShipmentRecord struct {
-	ID              string
-	CommissionID    string
-	Title           string
-	Description     string // Empty string means null
-	Status          string
-	AssignedGroveID string // Empty string means null
-	Pinned          bool
-	CreatedAt       string
-	UpdatedAt       string
-	CompletedAt     string // Empty string means null
+	ID                  string
+	CommissionID        string
+	Title               string
+	Description         string // Empty string means null
+	Status              string
+	AssignedWorkbenchID string // Empty string means null
+	Pinned              bool
+	CreatedAt           string
+	UpdatedAt           string
+	CompletedAt         string // Empty string means null
 }
 
 // ShipmentFilters contains filter options for querying shipments.
@@ -209,8 +209,8 @@ type TaskRepository interface {
 	// GetNextID returns the next available task ID.
 	GetNextID(ctx context.Context) (string, error)
 
-	// GetByGrove retrieves tasks assigned to a grove.
-	GetByGrove(ctx context.Context, groveID string) ([]*TaskRecord, error)
+	// GetByWorkbench retrieves tasks assigned to a workbench.
+	GetByWorkbench(ctx context.Context, workbenchID string) ([]*TaskRecord, error)
 
 	// GetByShipment retrieves tasks for a shipment.
 	GetByShipment(ctx context.Context, shipmentID string) ([]*TaskRecord, error)
@@ -219,10 +219,10 @@ type TaskRepository interface {
 	UpdateStatus(ctx context.Context, id, status string, setClaimed, setCompleted bool) error
 
 	// Claim claims a task for a grove.
-	Claim(ctx context.Context, id, groveID string) error
+	Claim(ctx context.Context, id, workbenchID string) error
 
-	// AssignGroveByShipment assigns all tasks of a shipment to a grove.
-	AssignGroveByShipment(ctx context.Context, shipmentID, groveID string) error
+	// AssignWorkbenchByShipment assigns all tasks of a shipment to a grove.
+	AssignWorkbenchByShipment(ctx context.Context, shipmentID, workbenchID string) error
 
 	// CommissionExists checks if a commission exists (for validation).
 	CommissionExists(ctx context.Context, commissionID string) (bool, error)
@@ -248,23 +248,23 @@ type TaskRepository interface {
 
 // TaskRecord represents a task as stored in persistence.
 type TaskRecord struct {
-	ID               string
-	ShipmentID       string // Empty string means null
-	CommissionID     string
-	Title            string
-	Description      string // Empty string means null
-	Type             string // Empty string means null
-	Status           string
-	Priority         string // Empty string means null
-	AssignedGroveID  string // Empty string means null
-	Pinned           bool
-	CreatedAt        string
-	UpdatedAt        string
-	ClaimedAt        string // Empty string means null
-	CompletedAt      string // Empty string means null
-	ConclaveID       string // Empty string means null
-	PromotedFromID   string // Empty string means null
-	PromotedFromType string // Empty string means null
+	ID                  string
+	ShipmentID          string // Empty string means null
+	CommissionID        string
+	Title               string
+	Description         string // Empty string means null
+	Type                string // Empty string means null
+	Status              string
+	Priority            string // Empty string means null
+	AssignedWorkbenchID string // Empty string means null
+	Pinned              bool
+	CreatedAt           string
+	UpdatedAt           string
+	ClaimedAt           string // Empty string means null
+	CompletedAt         string // Empty string means null
+	ConclaveID          string // Empty string means null
+	PromotedFromID      string // Empty string means null
+	PromotedFromType    string // Empty string means null
 }
 
 // TaskFilters contains filter options for querying tasks.
@@ -381,8 +381,8 @@ type HandoffRepository interface {
 	// GetLatest retrieves the most recent handoff.
 	GetLatest(ctx context.Context) (*HandoffRecord, error)
 
-	// GetLatestForGrove retrieves the most recent handoff for a grove.
-	GetLatestForGrove(ctx context.Context, groveID string) (*HandoffRecord, error)
+	// GetLatestForWorkbench retrieves the most recent handoff for a grove.
+	GetLatestForWorkbench(ctx context.Context, workbenchID string) (*HandoffRecord, error)
 
 	// List retrieves handoffs with optional limit.
 	List(ctx context.Context, limit int) ([]*HandoffRecord, error)
@@ -397,7 +397,7 @@ type HandoffRecord struct {
 	CreatedAt          string
 	HandoffNote        string
 	ActiveCommissionID string // Empty string means null
-	ActiveGroveID      string // Empty string means null
+	ActiveWorkbenchID  string // Empty string means null
 	TodosSnapshot      string // Empty string means null
 }
 
@@ -430,11 +430,11 @@ type TomeRepository interface {
 	// UpdateStatus updates the status and optionally completed_at timestamp.
 	UpdateStatus(ctx context.Context, id, status string, setCompleted bool) error
 
-	// GetByGrove retrieves tomes assigned to a grove.
-	GetByGrove(ctx context.Context, groveID string) ([]*TomeRecord, error)
+	// GetByWorkbench retrieves tomes assigned to a workbench.
+	GetByWorkbench(ctx context.Context, workbenchID string) ([]*TomeRecord, error)
 
-	// AssignGrove assigns a tome to a grove.
-	AssignGrove(ctx context.Context, tomeID, groveID string) error
+	// AssignWorkbench assigns a tome to a grove.
+	AssignWorkbench(ctx context.Context, tomeID, workbenchID string) error
 
 	// CommissionExists checks if a commission exists (for validation).
 	CommissionExists(ctx context.Context, commissionID string) (bool, error)
@@ -442,16 +442,16 @@ type TomeRepository interface {
 
 // TomeRecord represents a tome as stored in persistence.
 type TomeRecord struct {
-	ID              string
-	CommissionID    string
-	Title           string
-	Description     string // Empty string means null
-	Status          string
-	AssignedGroveID string // Empty string means null
-	Pinned          bool
-	CreatedAt       string
-	UpdatedAt       string
-	CompletedAt     string // Empty string means null
+	ID                  string
+	CommissionID        string
+	Title               string
+	Description         string // Empty string means null
+	Status              string
+	AssignedWorkbenchID string // Empty string means null
+	Pinned              bool
+	CreatedAt           string
+	UpdatedAt           string
+	CompletedAt         string // Empty string means null
 }
 
 // TomeFilters contains filter options for querying tomes.
@@ -489,8 +489,8 @@ type ConclaveRepository interface {
 	// UpdateStatus updates the status and optionally completed_at timestamp.
 	UpdateStatus(ctx context.Context, id, status string, setCompleted bool) error
 
-	// GetByGrove retrieves conclaves assigned to a grove.
-	GetByGrove(ctx context.Context, groveID string) ([]*ConclaveRecord, error)
+	// GetByWorkbench retrieves conclaves assigned to a workbench.
+	GetByWorkbench(ctx context.Context, workbenchID string) ([]*ConclaveRecord, error)
 
 	// CommissionExists checks if a commission exists (for validation).
 	CommissionExists(ctx context.Context, commissionID string) (bool, error)
@@ -507,16 +507,16 @@ type ConclaveRepository interface {
 
 // ConclaveRecord represents a conclave as stored in persistence.
 type ConclaveRecord struct {
-	ID              string
-	CommissionID    string
-	Title           string
-	Description     string // Empty string means null
-	Status          string
-	AssignedGroveID string // Empty string means null
-	Pinned          bool
-	CreatedAt       string
-	UpdatedAt       string
-	CompletedAt     string // Empty string means null
+	ID                  string
+	CommissionID        string
+	Title               string
+	Description         string // Empty string means null
+	Status              string
+	AssignedWorkbenchID string // Empty string means null
+	Pinned              bool
+	CreatedAt           string
+	UpdatedAt           string
+	CompletedAt         string // Empty string means null
 }
 
 // ConclaveFilters contains filter options for querying conclaves.
@@ -527,23 +527,23 @@ type ConclaveFilters struct {
 
 // ConclaveTaskRecord represents a task as returned from conclave cross-entity query.
 type ConclaveTaskRecord struct {
-	ID               string
-	ShipmentID       string
-	CommissionID     string
-	Title            string
-	Description      string
-	Type             string
-	Status           string
-	Priority         string
-	AssignedGroveID  string
-	Pinned           bool
-	CreatedAt        string
-	UpdatedAt        string
-	ClaimedAt        string
-	CompletedAt      string
-	ConclaveID       string
-	PromotedFromID   string
-	PromotedFromType string
+	ID                  string
+	ShipmentID          string
+	CommissionID        string
+	Title               string
+	Description         string
+	Type                string
+	Status              string
+	Priority            string
+	AssignedWorkbenchID string
+	Pinned              bool
+	CreatedAt           string
+	UpdatedAt           string
+	ClaimedAt           string
+	CompletedAt         string
+	ConclaveID          string
+	PromotedFromID      string
+	PromotedFromType    string
 }
 
 // ConclaveQuestionRecord represents a question as returned from conclave cross-entity query.
@@ -651,11 +651,11 @@ type InvestigationRepository interface {
 	// UpdateStatus updates the status and optionally completed_at timestamp.
 	UpdateStatus(ctx context.Context, id, status string, setCompleted bool) error
 
-	// GetByGrove retrieves investigations assigned to a grove.
-	GetByGrove(ctx context.Context, groveID string) ([]*InvestigationRecord, error)
+	// GetByWorkbench retrieves investigations assigned to a workbench.
+	GetByWorkbench(ctx context.Context, workbenchID string) ([]*InvestigationRecord, error)
 
-	// AssignGrove assigns an investigation to a grove.
-	AssignGrove(ctx context.Context, investigationID, groveID string) error
+	// AssignWorkbench assigns an investigation to a grove.
+	AssignWorkbench(ctx context.Context, investigationID, workbenchID string) error
 
 	// CommissionExists checks if a commission exists (for validation).
 	CommissionExists(ctx context.Context, commissionID string) (bool, error)
@@ -666,16 +666,16 @@ type InvestigationRepository interface {
 
 // InvestigationRecord represents an investigation as stored in persistence.
 type InvestigationRecord struct {
-	ID              string
-	CommissionID    string
-	Title           string
-	Description     string // Empty string means null
-	Status          string
-	AssignedGroveID string // Empty string means null
-	Pinned          bool
-	CreatedAt       string
-	UpdatedAt       string
-	CompletedAt     string // Empty string means null
+	ID                  string
+	CommissionID        string
+	Title               string
+	Description         string // Empty string means null
+	Status              string
+	AssignedWorkbenchID string // Empty string means null
+	Pinned              bool
+	CreatedAt           string
+	UpdatedAt           string
+	CompletedAt         string // Empty string means null
 }
 
 // InvestigationFilters contains filter options for querying investigations.

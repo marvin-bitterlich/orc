@@ -116,8 +116,8 @@ var shipmentShowCmd = &cobra.Command{
 		}
 		fmt.Printf("Status: %s\n", shipment.Status)
 		fmt.Printf("Mission: %s\n", shipment.CommissionID)
-		if shipment.AssignedGroveID != "" {
-			fmt.Printf("Assigned Grove: %s\n", shipment.AssignedGroveID)
+		if shipment.AssignedWorkbenchID != "" {
+			fmt.Printf("Assigned Grove: %s\n", shipment.AssignedWorkbenchID)
 		}
 		if shipment.Pinned {
 			fmt.Printf("Pinned: yes\n")
@@ -270,14 +270,14 @@ var shipmentAssignCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
 		shipmentID := args[0]
-		groveID := args[1]
+		workbenchID := args[1]
 
-		err := wire.ShipmentService().AssignShipmentToGrove(ctx, shipmentID, groveID)
+		err := wire.ShipmentService().AssignShipmentToGrove(ctx, shipmentID, workbenchID)
 		if err != nil {
 			return fmt.Errorf("failed to assign shipment: %w", err)
 		}
 
-		fmt.Printf("Shipment %s assigned to grove %s\n", shipmentID, groveID)
+		fmt.Printf("Shipment %s assigned to grove %s\n", shipmentID, workbenchID)
 		return nil
 	},
 }

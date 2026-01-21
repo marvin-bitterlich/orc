@@ -153,8 +153,8 @@ func (s *GroveServiceImpl) OpenGrove(ctx context.Context, req primary.OpenGroveR
 }
 
 // GetGrove retrieves a grove by ID.
-func (s *GroveServiceImpl) GetGrove(ctx context.Context, groveID string) (*primary.Grove, error) {
-	record, err := s.groveRepo.GetByID(ctx, groveID)
+func (s *GroveServiceImpl) GetGrove(ctx context.Context, workbenchID string) (*primary.Grove, error) {
+	record, err := s.groveRepo.GetByID(ctx, workbenchID)
 	if err != nil {
 		return nil, fmt.Errorf("grove not found: %w", err)
 	}
@@ -171,14 +171,14 @@ func (s *GroveServiceImpl) GetGroveByPath(ctx context.Context, path string) (*pr
 }
 
 // UpdateGrovePath updates the filesystem path of a grove.
-func (s *GroveServiceImpl) UpdateGrovePath(ctx context.Context, groveID, newPath string) error {
+func (s *GroveServiceImpl) UpdateGrovePath(ctx context.Context, workbenchID, newPath string) error {
 	// Verify grove exists
-	_, err := s.groveRepo.GetByID(ctx, groveID)
+	_, err := s.groveRepo.GetByID(ctx, workbenchID)
 	if err != nil {
 		return fmt.Errorf("grove not found: %w", err)
 	}
 
-	return s.groveRepo.UpdatePath(ctx, groveID, newPath)
+	return s.groveRepo.UpdatePath(ctx, workbenchID, newPath)
 }
 
 // ListGroves lists groves with optional filters.

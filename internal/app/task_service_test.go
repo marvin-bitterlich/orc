@@ -118,10 +118,10 @@ func (m *mockTaskRepository) GetNextID(ctx context.Context) (string, error) {
 	return "TASK-001", nil
 }
 
-func (m *mockTaskRepository) GetByGrove(ctx context.Context, groveID string) ([]*secondary.TaskRecord, error) {
+func (m *mockTaskRepository) GetByWorkbench(ctx context.Context, workbenchID string) ([]*secondary.TaskRecord, error) {
 	var result []*secondary.TaskRecord
 	for _, t := range m.tasks {
-		if t.AssignedGroveID == groveID {
+		if t.AssignedWorkbenchID == workbenchID {
 			result = append(result, t)
 		}
 	}
@@ -154,19 +154,19 @@ func (m *mockTaskRepository) UpdateStatus(ctx context.Context, id, status string
 	return nil
 }
 
-func (m *mockTaskRepository) Claim(ctx context.Context, id, groveID string) error {
+func (m *mockTaskRepository) Claim(ctx context.Context, id, workbenchID string) error {
 	if m.claimErr != nil {
 		return m.claimErr
 	}
 	if task, ok := m.tasks[id]; ok {
-		task.AssignedGroveID = groveID
+		task.AssignedWorkbenchID = workbenchID
 		task.Status = "in_progress"
 		task.ClaimedAt = "2026-01-20T10:00:00Z"
 	}
 	return nil
 }
 
-func (m *mockTaskRepository) AssignGroveByShipment(ctx context.Context, shipmentID, groveID string) error {
+func (m *mockTaskRepository) AssignWorkbenchByShipment(ctx context.Context, shipmentID, workbenchID string) error {
 	return nil
 }
 
@@ -509,8 +509,8 @@ func TestClaimTask_Success(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
-	if taskRepo.tasks["TASK-001"].AssignedGroveID != "GROVE-001" {
-		t.Errorf("expected grove ID 'GROVE-001', got '%s'", taskRepo.tasks["TASK-001"].AssignedGroveID)
+	if taskRepo.tasks["TASK-001"].AssignedWorkbenchID != "GROVE-001" {
+		t.Errorf("expected grove ID 'GROVE-001', got '%s'", taskRepo.tasks["TASK-001"].AssignedWorkbenchID)
 	}
 }
 
@@ -857,11 +857,11 @@ func TestGetTasksByGrove_Success(t *testing.T) {
 	ctx := context.Background()
 
 	taskRepo.tasks["TASK-001"] = &secondary.TaskRecord{
-		ID:              "TASK-001",
-		CommissionID:    "MISSION-001",
-		Title:           "Assigned Task",
-		Status:          "in_progress",
-		AssignedGroveID: "GROVE-001",
+		ID:                  "TASK-001",
+		CommissionID:        "MISSION-001",
+		Title:               "Assigned Task",
+		Status:              "in_progress",
+		AssignedWorkbenchID: "GROVE-001",
 	}
 	taskRepo.tasks["TASK-002"] = &secondary.TaskRecord{
 		ID:           "TASK-002",
@@ -889,18 +889,18 @@ func TestDiscoverTasks_FindsReadyTasks(t *testing.T) {
 	ctx := context.Background()
 
 	taskRepo.tasks["TASK-001"] = &secondary.TaskRecord{
-		ID:              "TASK-001",
-		CommissionID:    "MISSION-001",
-		Title:           "Ready Task",
-		Status:          "ready",
-		AssignedGroveID: "GROVE-001",
+		ID:                  "TASK-001",
+		CommissionID:        "MISSION-001",
+		Title:               "Ready Task",
+		Status:              "ready",
+		AssignedWorkbenchID: "GROVE-001",
 	}
 	taskRepo.tasks["TASK-002"] = &secondary.TaskRecord{
-		ID:              "TASK-002",
-		CommissionID:    "MISSION-001",
-		Title:           "In Progress Task",
-		Status:          "in_progress",
-		AssignedGroveID: "GROVE-001",
+		ID:                  "TASK-002",
+		CommissionID:        "MISSION-001",
+		Title:               "In Progress Task",
+		Status:              "in_progress",
+		AssignedWorkbenchID: "GROVE-001",
 	}
 
 	tasks, err := service.DiscoverTasks(ctx, "GROVE-001")

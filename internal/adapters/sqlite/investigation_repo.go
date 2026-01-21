@@ -41,19 +41,19 @@ func (r *InvestigationRepository) Create(ctx context.Context, investigation *sec
 // GetByID retrieves an investigation by its ID.
 func (r *InvestigationRepository) GetByID(ctx context.Context, id string) (*secondary.InvestigationRecord, error) {
 	var (
-		desc            sql.NullString
-		assignedGroveID sql.NullString
-		pinned          bool
-		createdAt       time.Time
-		updatedAt       time.Time
-		completedAt     sql.NullTime
+		desc                sql.NullString
+		assignedWorkbenchID sql.NullString
+		pinned              bool
+		createdAt           time.Time
+		updatedAt           time.Time
+		completedAt         sql.NullTime
 	)
 
 	record := &secondary.InvestigationRecord{}
 	err := r.db.QueryRowContext(ctx,
-		"SELECT id, commission_id, title, description, status, assigned_grove_id, pinned, created_at, updated_at, completed_at FROM investigations WHERE id = ?",
+		"SELECT id, commission_id, title, description, status, assigned_workbench_id, pinned, created_at, updated_at, completed_at FROM investigations WHERE id = ?",
 		id,
-	).Scan(&record.ID, &record.CommissionID, &record.Title, &desc, &record.Status, &assignedGroveID, &pinned, &createdAt, &updatedAt, &completedAt)
+	).Scan(&record.ID, &record.CommissionID, &record.Title, &desc, &record.Status, &assignedWorkbenchID, &pinned, &createdAt, &updatedAt, &completedAt)
 
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("investigation %s not found", id)
@@ -63,7 +63,7 @@ func (r *InvestigationRepository) GetByID(ctx context.Context, id string) (*seco
 	}
 
 	record.Description = desc.String
-	record.AssignedGroveID = assignedGroveID.String
+	record.AssignedWorkbenchID = assignedWorkbenchID.String
 	record.Pinned = pinned
 	record.CreatedAt = createdAt.Format(time.RFC3339)
 	record.UpdatedAt = updatedAt.Format(time.RFC3339)
@@ -76,7 +76,7 @@ func (r *InvestigationRepository) GetByID(ctx context.Context, id string) (*seco
 
 // List retrieves investigations matching the given filters.
 func (r *InvestigationRepository) List(ctx context.Context, filters secondary.InvestigationFilters) ([]*secondary.InvestigationRecord, error) {
-	query := "SELECT id, commission_id, title, description, status, assigned_grove_id, pinned, created_at, updated_at, completed_at FROM investigations WHERE 1=1"
+	query := "SELECT id, commission_id, title, description, status, assigned_workbench_id, pinned, created_at, updated_at, completed_at FROM investigations WHERE 1=1"
 	args := []any{}
 
 	if filters.CommissionID != "" {
@@ -100,22 +100,22 @@ func (r *InvestigationRepository) List(ctx context.Context, filters secondary.In
 	var investigations []*secondary.InvestigationRecord
 	for rows.Next() {
 		var (
-			desc            sql.NullString
-			assignedGroveID sql.NullString
-			pinned          bool
-			createdAt       time.Time
-			updatedAt       time.Time
-			completedAt     sql.NullTime
+			desc                sql.NullString
+			assignedWorkbenchID sql.NullString
+			pinned              bool
+			createdAt           time.Time
+			updatedAt           time.Time
+			completedAt         sql.NullTime
 		)
 
 		record := &secondary.InvestigationRecord{}
-		err := rows.Scan(&record.ID, &record.CommissionID, &record.Title, &desc, &record.Status, &assignedGroveID, &pinned, &createdAt, &updatedAt, &completedAt)
+		err := rows.Scan(&record.ID, &record.CommissionID, &record.Title, &desc, &record.Status, &assignedWorkbenchID, &pinned, &createdAt, &updatedAt, &completedAt)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan investigation: %w", err)
 		}
 
 		record.Description = desc.String
-		record.AssignedGroveID = assignedGroveID.String
+		record.AssignedWorkbenchID = assignedWorkbenchID.String
 		record.Pinned = pinned
 		record.CreatedAt = createdAt.Format(time.RFC3339)
 		record.UpdatedAt = updatedAt.Format(time.RFC3339)
@@ -250,10 +250,10 @@ func (r *InvestigationRepository) UpdateStatus(ctx context.Context, id, status s
 	return nil
 }
 
-// GetByGrove retrieves investigations assigned to a grove.
-func (r *InvestigationRepository) GetByGrove(ctx context.Context, groveID string) ([]*secondary.InvestigationRecord, error) {
-	query := "SELECT id, commission_id, title, description, status, assigned_grove_id, pinned, created_at, updated_at, completed_at FROM investigations WHERE assigned_grove_id = ?"
-	rows, err := r.db.QueryContext(ctx, query, groveID)
+// GetByWorkbench retrieves investigations assigned to a grove.
+func (r *InvestigationRepository) GetByWorkbench(ctx context.Context, workbenchID string) ([]*secondary.InvestigationRecord, error) {
+	query := "SELECT id, commission_id, title, description, status, assigned_workbench_id, pinned, created_at, updated_at, completed_at FROM investigations WHERE assigned_workbench_id = ?"
+	rows, err := r.db.QueryContext(ctx, query, workbenchID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get investigations by grove: %w", err)
 	}
@@ -262,22 +262,22 @@ func (r *InvestigationRepository) GetByGrove(ctx context.Context, groveID string
 	var investigations []*secondary.InvestigationRecord
 	for rows.Next() {
 		var (
-			desc            sql.NullString
-			assignedGroveID sql.NullString
-			pinned          bool
-			createdAt       time.Time
-			updatedAt       time.Time
-			completedAt     sql.NullTime
+			desc                sql.NullString
+			assignedWorkbenchID sql.NullString
+			pinned              bool
+			createdAt           time.Time
+			updatedAt           time.Time
+			completedAt         sql.NullTime
 		)
 
 		record := &secondary.InvestigationRecord{}
-		err := rows.Scan(&record.ID, &record.CommissionID, &record.Title, &desc, &record.Status, &assignedGroveID, &pinned, &createdAt, &updatedAt, &completedAt)
+		err := rows.Scan(&record.ID, &record.CommissionID, &record.Title, &desc, &record.Status, &assignedWorkbenchID, &pinned, &createdAt, &updatedAt, &completedAt)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan investigation: %w", err)
 		}
 
 		record.Description = desc.String
-		record.AssignedGroveID = assignedGroveID.String
+		record.AssignedWorkbenchID = assignedWorkbenchID.String
 		record.Pinned = pinned
 		record.CreatedAt = createdAt.Format(time.RFC3339)
 		record.UpdatedAt = updatedAt.Format(time.RFC3339)
@@ -291,11 +291,11 @@ func (r *InvestigationRepository) GetByGrove(ctx context.Context, groveID string
 	return investigations, nil
 }
 
-// AssignGrove assigns an investigation to a grove.
-func (r *InvestigationRepository) AssignGrove(ctx context.Context, investigationID, groveID string) error {
+// AssignWorkbench assigns an investigation to a grove.
+func (r *InvestigationRepository) AssignWorkbench(ctx context.Context, investigationID, workbenchID string) error {
 	result, err := r.db.ExecContext(ctx,
-		"UPDATE investigations SET assigned_grove_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-		groveID, investigationID,
+		"UPDATE investigations SET assigned_workbench_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+		workbenchID, investigationID,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to assign investigation to grove: %w", err)

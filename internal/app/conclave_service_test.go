@@ -122,10 +122,10 @@ func (m *mockConclaveRepository) UpdateStatus(ctx context.Context, id, status st
 	return nil
 }
 
-func (m *mockConclaveRepository) GetByGrove(ctx context.Context, groveID string) ([]*secondary.ConclaveRecord, error) {
+func (m *mockConclaveRepository) GetByWorkbench(ctx context.Context, workbenchID string) ([]*secondary.ConclaveRecord, error) {
 	var result []*secondary.ConclaveRecord
 	for _, c := range m.conclaves {
-		if c.AssignedGroveID == groveID {
+		if c.AssignedWorkbenchID == workbenchID {
 			result = append(result, c)
 		}
 	}
@@ -571,11 +571,11 @@ func TestGetConclavesByGrove_Success(t *testing.T) {
 	ctx := context.Background()
 
 	conclaveRepo.conclaves["CON-001"] = &secondary.ConclaveRecord{
-		ID:              "CON-001",
-		CommissionID:    "MISSION-001",
-		Title:           "Assigned Conclave",
-		Status:          "active",
-		AssignedGroveID: "GROVE-001",
+		ID:                  "CON-001",
+		CommissionID:        "MISSION-001",
+		Title:               "Assigned Conclave",
+		Status:              "active",
+		AssignedWorkbenchID: "GROVE-001",
 	}
 	conclaveRepo.conclaves["CON-002"] = &secondary.ConclaveRecord{
 		ID:           "CON-002",

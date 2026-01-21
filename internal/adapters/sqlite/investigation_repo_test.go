@@ -56,7 +56,7 @@ func setupInvestigationTestDB(t *testing.T) *sql.DB {
 			title TEXT NOT NULL,
 			description TEXT,
 			status TEXT NOT NULL DEFAULT 'active',
-			assigned_grove_id TEXT,
+			assigned_workbench_id TEXT,
 			pinned INTEGER NOT NULL DEFAULT 0,
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -423,36 +423,36 @@ func TestInvestigationRepository_UpdateStatus_NotFound(t *testing.T) {
 	}
 }
 
-func TestInvestigationRepository_AssignGrove(t *testing.T) {
+func TestInvestigationRepository_AssignWorkbench(t *testing.T) {
 	db := setupInvestigationTestDB(t)
 	repo := sqlite.NewInvestigationRepository(db)
 	ctx := context.Background()
 
 	inv := createTestInvestigation(t, repo, ctx, "MISSION-001", "Grove Test", "")
 
-	err := repo.AssignGrove(ctx, inv.ID, "GROVE-001")
+	err := repo.AssignWorkbench(ctx, inv.ID, "GROVE-001")
 	if err != nil {
-		t.Fatalf("AssignGrove failed: %v", err)
+		t.Fatalf("AssignWorkbench failed: %v", err)
 	}
 
 	retrieved, _ := repo.GetByID(ctx, inv.ID)
-	if retrieved.AssignedGroveID != "GROVE-001" {
-		t.Errorf("expected assigned grove 'GROVE-001', got '%s'", retrieved.AssignedGroveID)
+	if retrieved.AssignedWorkbenchID != "GROVE-001" {
+		t.Errorf("expected assigned grove 'GROVE-001', got '%s'", retrieved.AssignedWorkbenchID)
 	}
 }
 
-func TestInvestigationRepository_AssignGrove_NotFound(t *testing.T) {
+func TestInvestigationRepository_AssignWorkbench_NotFound(t *testing.T) {
 	db := setupInvestigationTestDB(t)
 	repo := sqlite.NewInvestigationRepository(db)
 	ctx := context.Background()
 
-	err := repo.AssignGrove(ctx, "INV-999", "GROVE-001")
+	err := repo.AssignWorkbench(ctx, "INV-999", "GROVE-001")
 	if err == nil {
 		t.Error("expected error for non-existent investigation")
 	}
 }
 
-func TestInvestigationRepository_GetByGrove(t *testing.T) {
+func TestInvestigationRepository_GetByWorkbench(t *testing.T) {
 	db := setupInvestigationTestDB(t)
 	repo := sqlite.NewInvestigationRepository(db)
 	ctx := context.Background()
@@ -461,12 +461,12 @@ func TestInvestigationRepository_GetByGrove(t *testing.T) {
 	inv2 := createTestInvestigation(t, repo, ctx, "MISSION-001", "Investigation 2", "")
 	createTestInvestigation(t, repo, ctx, "MISSION-001", "Investigation 3 (unassigned)", "")
 
-	_ = repo.AssignGrove(ctx, inv1.ID, "GROVE-001")
-	_ = repo.AssignGrove(ctx, inv2.ID, "GROVE-001")
+	_ = repo.AssignWorkbench(ctx, inv1.ID, "GROVE-001")
+	_ = repo.AssignWorkbench(ctx, inv2.ID, "GROVE-001")
 
-	investigations, err := repo.GetByGrove(ctx, "GROVE-001")
+	investigations, err := repo.GetByWorkbench(ctx, "GROVE-001")
 	if err != nil {
-		t.Fatalf("GetByGrove failed: %v", err)
+		t.Fatalf("GetByWorkbench failed: %v", err)
 	}
 
 	if len(investigations) != 2 {

@@ -119,8 +119,8 @@ var conclaveShowCmd = &cobra.Command{
 		}
 		fmt.Printf("Status: %s\n", conclave.Status)
 		fmt.Printf("Mission: %s\n", conclave.CommissionID)
-		if conclave.AssignedGroveID != "" {
-			fmt.Printf("Assigned Grove: %s\n", conclave.AssignedGroveID)
+		if conclave.AssignedWorkbenchID != "" {
+			fmt.Printf("Assigned Grove: %s\n", conclave.AssignedWorkbenchID)
 		}
 		if conclave.Pinned {
 			fmt.Printf("Pinned: yes\n")

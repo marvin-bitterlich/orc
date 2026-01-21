@@ -35,7 +35,7 @@ type TaskService interface {
 	UnpinTask(ctx context.Context, taskID string) error
 
 	// GetTasksByGrove retrieves tasks assigned to a grove.
-	GetTasksByGrove(ctx context.Context, groveID string) ([]*Task, error)
+	GetTasksByGrove(ctx context.Context, workbenchID string) ([]*Task, error)
 
 	// DeleteTask deletes a task.
 	DeleteTask(ctx context.Context, taskID string) error
@@ -50,7 +50,7 @@ type TaskService interface {
 	ListTasksByTag(ctx context.Context, tagName string) ([]*Task, error)
 
 	// DiscoverTasks finds ready tasks in the current grove context.
-	DiscoverTasks(ctx context.Context, groveID string) ([]*Task, error)
+	DiscoverTasks(ctx context.Context, workbenchID string) ([]*Task, error)
 }
 
 // CreateTaskRequest contains parameters for creating a task.
@@ -83,24 +83,24 @@ type UpdateTaskRequest struct {
 
 // Task represents a task entity at the port boundary.
 type Task struct {
-	ID               string
-	ShipmentID       string
-	CommissionID     string
-	Title            string
-	Description      string
-	Type             string
-	Status           string
-	Priority         string
-	AssignedGroveID  string
-	Pinned           bool
-	CreatedAt        string
-	UpdatedAt        string
-	ClaimedAt        string
-	CompletedAt      string
-	ConclaveID       string
-	PromotedFromID   string
-	PromotedFromType string
-	Tag              *TaskTag // Populated when retrieving task details
+	ID                  string
+	ShipmentID          string
+	CommissionID        string
+	Title               string
+	Description         string
+	Type                string
+	Status              string
+	Priority            string
+	AssignedWorkbenchID string
+	Pinned              bool
+	CreatedAt           string
+	UpdatedAt           string
+	ClaimedAt           string
+	CompletedAt         string
+	ConclaveID          string
+	PromotedFromID      string
+	PromotedFromType    string
+	Tag                 *TaskTag // Populated when retrieving task details
 }
 
 // TaskTag represents a tag associated with a task.

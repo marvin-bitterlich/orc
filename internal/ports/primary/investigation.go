@@ -35,10 +35,10 @@ type InvestigationService interface {
 	DeleteInvestigation(ctx context.Context, investigationID string) error
 
 	// AssignInvestigationToGrove assigns an investigation to a grove.
-	AssignInvestigationToGrove(ctx context.Context, investigationID, groveID string) error
+	AssignInvestigationToGrove(ctx context.Context, investigationID, workbenchID string) error
 
 	// GetInvestigationsByGrove retrieves investigations assigned to a grove.
-	GetInvestigationsByGrove(ctx context.Context, groveID string) ([]*Investigation, error)
+	GetInvestigationsByGrove(ctx context.Context, workbenchID string) ([]*Investigation, error)
 
 	// GetInvestigationQuestions retrieves all questions in an investigation.
 	GetInvestigationQuestions(ctx context.Context, investigationID string) ([]*InvestigationQuestion, error)
@@ -66,16 +66,16 @@ type UpdateInvestigationRequest struct {
 
 // Investigation represents an investigation entity at the port boundary.
 type Investigation struct {
-	ID              string
-	CommissionID    string
-	Title           string
-	Description     string
-	Status          string
-	AssignedGroveID string
-	Pinned          bool
-	CreatedAt       string
-	UpdatedAt       string
-	CompletedAt     string
+	ID                  string
+	CommissionID        string
+	Title               string
+	Description         string
+	Status              string
+	AssignedWorkbenchID string
+	Pinned              bool
+	CreatedAt           string
+	UpdatedAt           string
+	CompletedAt         string
 }
 
 // InvestigationFilters contains filter options for listing investigations.

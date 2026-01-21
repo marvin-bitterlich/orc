@@ -35,7 +35,7 @@ type ConclaveService interface {
 	DeleteConclave(ctx context.Context, conclaveID string) error
 
 	// GetConclavesByGrove retrieves conclaves assigned to a grove.
-	GetConclavesByGrove(ctx context.Context, groveID string) ([]*Conclave, error)
+	GetConclavesByGrove(ctx context.Context, workbenchID string) ([]*Conclave, error)
 
 	// GetConclaveTasks retrieves all tasks in a conclave.
 	GetConclaveTasks(ctx context.Context, conclaveID string) ([]*ConclaveTask, error)
@@ -69,16 +69,16 @@ type UpdateConclaveRequest struct {
 
 // Conclave represents a conclave entity at the port boundary.
 type Conclave struct {
-	ID              string
-	CommissionID    string
-	Title           string
-	Description     string
-	Status          string
-	AssignedGroveID string
-	Pinned          bool
-	CreatedAt       string
-	UpdatedAt       string
-	CompletedAt     string
+	ID                  string
+	CommissionID        string
+	Title               string
+	Description         string
+	Status              string
+	AssignedWorkbenchID string
+	Pinned              bool
+	CreatedAt           string
+	UpdatedAt           string
+	CompletedAt         string
 }
 
 // ConclaveFilters contains filter options for listing conclaves.
@@ -89,23 +89,23 @@ type ConclaveFilters struct {
 
 // ConclaveTask represents a task associated with a conclave.
 type ConclaveTask struct {
-	ID               string
-	ShipmentID       string
-	CommissionID     string
-	Title            string
-	Description      string
-	Type             string
-	Status           string
-	Priority         string
-	AssignedGroveID  string
-	Pinned           bool
-	CreatedAt        string
-	UpdatedAt        string
-	ClaimedAt        string
-	CompletedAt      string
-	ConclaveID       string
-	PromotedFromID   string
-	PromotedFromType string
+	ID                  string
+	ShipmentID          string
+	CommissionID        string
+	Title               string
+	Description         string
+	Type                string
+	Status              string
+	Priority            string
+	AssignedWorkbenchID string
+	Pinned              bool
+	CreatedAt           string
+	UpdatedAt           string
+	ClaimedAt           string
+	CompletedAt         string
+	ConclaveID          string
+	PromotedFromID      string
+	PromotedFromType    string
 }
 
 // ConclaveQuestion represents a question associated with a conclave.

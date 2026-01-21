@@ -123,22 +123,22 @@ func (m *mockTomeRepository) UpdateStatus(ctx context.Context, id, status string
 	return nil
 }
 
-func (m *mockTomeRepository) GetByGrove(ctx context.Context, groveID string) ([]*secondary.TomeRecord, error) {
+func (m *mockTomeRepository) GetByWorkbench(ctx context.Context, workbenchID string) ([]*secondary.TomeRecord, error) {
 	var result []*secondary.TomeRecord
 	for _, t := range m.tomes {
-		if t.AssignedGroveID == groveID {
+		if t.AssignedWorkbenchID == workbenchID {
 			result = append(result, t)
 		}
 	}
 	return result, nil
 }
 
-func (m *mockTomeRepository) AssignGrove(ctx context.Context, tomeID, groveID string) error {
+func (m *mockTomeRepository) AssignWorkbench(ctx context.Context, tomeID, workbenchID string) error {
 	if m.assignGroveErr != nil {
 		return m.assignGroveErr
 	}
 	if tome, ok := m.tomes[tomeID]; ok {
-		tome.AssignedGroveID = groveID
+		tome.AssignedWorkbenchID = workbenchID
 	}
 	return nil
 }
@@ -618,8 +618,8 @@ func TestAssignTomeToGrove_Success(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
-	if tomeRepo.tomes["TOME-001"].AssignedGroveID != "GROVE-001" {
-		t.Errorf("expected grove ID 'GROVE-001', got '%s'", tomeRepo.tomes["TOME-001"].AssignedGroveID)
+	if tomeRepo.tomes["TOME-001"].AssignedWorkbenchID != "GROVE-001" {
+		t.Errorf("expected grove ID 'GROVE-001', got '%s'", tomeRepo.tomes["TOME-001"].AssignedWorkbenchID)
 	}
 }
 
@@ -643,11 +643,11 @@ func TestGetTomesByGrove_Success(t *testing.T) {
 	ctx := context.Background()
 
 	tomeRepo.tomes["TOME-001"] = &secondary.TomeRecord{
-		ID:              "TOME-001",
-		CommissionID:    "MISSION-001",
-		Title:           "Assigned Tome",
-		Status:          "active",
-		AssignedGroveID: "GROVE-001",
+		ID:                  "TOME-001",
+		CommissionID:        "MISSION-001",
+		Title:               "Assigned Tome",
+		Status:              "active",
+		AssignedWorkbenchID: "GROVE-001",
 	}
 	tomeRepo.tomes["TOME-002"] = &secondary.TomeRecord{
 		ID:           "TOME-002",

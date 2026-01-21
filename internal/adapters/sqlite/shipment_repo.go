@@ -41,19 +41,19 @@ func (r *ShipmentRepository) Create(ctx context.Context, shipment *secondary.Shi
 // GetByID retrieves a shipment by its ID.
 func (r *ShipmentRepository) GetByID(ctx context.Context, id string) (*secondary.ShipmentRecord, error) {
 	var (
-		desc            sql.NullString
-		assignedGroveID sql.NullString
-		pinned          bool
-		createdAt       time.Time
-		updatedAt       time.Time
-		completedAt     sql.NullTime
+		desc                sql.NullString
+		assignedWorkbenchID sql.NullString
+		pinned              bool
+		createdAt           time.Time
+		updatedAt           time.Time
+		completedAt         sql.NullTime
 	)
 
 	record := &secondary.ShipmentRecord{}
 	err := r.db.QueryRowContext(ctx,
-		"SELECT id, commission_id, title, description, status, assigned_grove_id, pinned, created_at, updated_at, completed_at FROM shipments WHERE id = ?",
+		"SELECT id, commission_id, title, description, status, assigned_workbench_id, pinned, created_at, updated_at, completed_at FROM shipments WHERE id = ?",
 		id,
-	).Scan(&record.ID, &record.CommissionID, &record.Title, &desc, &record.Status, &assignedGroveID, &pinned, &createdAt, &updatedAt, &completedAt)
+	).Scan(&record.ID, &record.CommissionID, &record.Title, &desc, &record.Status, &assignedWorkbenchID, &pinned, &createdAt, &updatedAt, &completedAt)
 
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("shipment %s not found", id)
@@ -63,7 +63,7 @@ func (r *ShipmentRepository) GetByID(ctx context.Context, id string) (*secondary
 	}
 
 	record.Description = desc.String
-	record.AssignedGroveID = assignedGroveID.String
+	record.AssignedWorkbenchID = assignedWorkbenchID.String
 	record.Pinned = pinned
 	record.CreatedAt = createdAt.Format(time.RFC3339)
 	record.UpdatedAt = updatedAt.Format(time.RFC3339)
@@ -76,7 +76,7 @@ func (r *ShipmentRepository) GetByID(ctx context.Context, id string) (*secondary
 
 // List retrieves shipments matching the given filters.
 func (r *ShipmentRepository) List(ctx context.Context, filters secondary.ShipmentFilters) ([]*secondary.ShipmentRecord, error) {
-	query := "SELECT id, commission_id, title, description, status, assigned_grove_id, pinned, created_at, updated_at, completed_at FROM shipments WHERE 1=1"
+	query := "SELECT id, commission_id, title, description, status, assigned_workbench_id, pinned, created_at, updated_at, completed_at FROM shipments WHERE 1=1"
 	args := []any{}
 
 	if filters.CommissionID != "" {
@@ -100,22 +100,22 @@ func (r *ShipmentRepository) List(ctx context.Context, filters secondary.Shipmen
 	var shipments []*secondary.ShipmentRecord
 	for rows.Next() {
 		var (
-			desc            sql.NullString
-			assignedGroveID sql.NullString
-			pinned          bool
-			createdAt       time.Time
-			updatedAt       time.Time
-			completedAt     sql.NullTime
+			desc                sql.NullString
+			assignedWorkbenchID sql.NullString
+			pinned              bool
+			createdAt           time.Time
+			updatedAt           time.Time
+			completedAt         sql.NullTime
 		)
 
 		record := &secondary.ShipmentRecord{}
-		err := rows.Scan(&record.ID, &record.CommissionID, &record.Title, &desc, &record.Status, &assignedGroveID, &pinned, &createdAt, &updatedAt, &completedAt)
+		err := rows.Scan(&record.ID, &record.CommissionID, &record.Title, &desc, &record.Status, &assignedWorkbenchID, &pinned, &createdAt, &updatedAt, &completedAt)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan shipment: %w", err)
 		}
 
 		record.Description = desc.String
-		record.AssignedGroveID = assignedGroveID.String
+		record.AssignedWorkbenchID = assignedWorkbenchID.String
 		record.Pinned = pinned
 		record.CreatedAt = createdAt.Format(time.RFC3339)
 		record.UpdatedAt = updatedAt.Format(time.RFC3339)
@@ -224,34 +224,34 @@ func (r *ShipmentRepository) GetNextID(ctx context.Context) (string, error) {
 	return fmt.Sprintf("SHIP-%03d", maxID+1), nil
 }
 
-// GetByGrove retrieves shipments assigned to a grove.
-func (r *ShipmentRepository) GetByGrove(ctx context.Context, groveID string) ([]*secondary.ShipmentRecord, error) {
-	query := "SELECT id, commission_id, title, description, status, assigned_grove_id, pinned, created_at, updated_at, completed_at FROM shipments WHERE assigned_grove_id = ?"
-	rows, err := r.db.QueryContext(ctx, query, groveID)
+// GetByWorkbench retrieves shipments assigned to a workbench.
+func (r *ShipmentRepository) GetByWorkbench(ctx context.Context, workbenchID string) ([]*secondary.ShipmentRecord, error) {
+	query := "SELECT id, commission_id, title, description, status, assigned_workbench_id, pinned, created_at, updated_at, completed_at FROM shipments WHERE assigned_workbench_id = ?"
+	rows, err := r.db.QueryContext(ctx, query, workbenchID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get shipments by grove: %w", err)
+		return nil, fmt.Errorf("failed to get shipments by workbench: %w", err)
 	}
 	defer rows.Close()
 
 	var shipments []*secondary.ShipmentRecord
 	for rows.Next() {
 		var (
-			desc            sql.NullString
-			assignedGroveID sql.NullString
-			pinned          bool
-			createdAt       time.Time
-			updatedAt       time.Time
-			completedAt     sql.NullTime
+			desc                sql.NullString
+			assignedWorkbenchID sql.NullString
+			pinned              bool
+			createdAt           time.Time
+			updatedAt           time.Time
+			completedAt         sql.NullTime
 		)
 
 		record := &secondary.ShipmentRecord{}
-		err := rows.Scan(&record.ID, &record.CommissionID, &record.Title, &desc, &record.Status, &assignedGroveID, &pinned, &createdAt, &updatedAt, &completedAt)
+		err := rows.Scan(&record.ID, &record.CommissionID, &record.Title, &desc, &record.Status, &assignedWorkbenchID, &pinned, &createdAt, &updatedAt, &completedAt)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan shipment: %w", err)
 		}
 
 		record.Description = desc.String
-		record.AssignedGroveID = assignedGroveID.String
+		record.AssignedWorkbenchID = assignedWorkbenchID.String
 		record.Pinned = pinned
 		record.CreatedAt = createdAt.Format(time.RFC3339)
 		record.UpdatedAt = updatedAt.Format(time.RFC3339)
@@ -265,14 +265,14 @@ func (r *ShipmentRepository) GetByGrove(ctx context.Context, groveID string) ([]
 	return shipments, nil
 }
 
-// AssignGrove assigns a shipment to a grove.
-func (r *ShipmentRepository) AssignGrove(ctx context.Context, shipmentID, groveID string) error {
+// AssignWorkbench assigns a shipment to a workbench.
+func (r *ShipmentRepository) AssignWorkbench(ctx context.Context, shipmentID, workbenchID string) error {
 	result, err := r.db.ExecContext(ctx,
-		"UPDATE shipments SET assigned_grove_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-		groveID, shipmentID,
+		"UPDATE shipments SET assigned_workbench_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+		workbenchID, shipmentID,
 	)
 	if err != nil {
-		return fmt.Errorf("failed to assign grove to shipment: %w", err)
+		return fmt.Errorf("failed to assign workbench to shipment: %w", err)
 	}
 
 	rowsAffected, _ := result.RowsAffected()
@@ -319,20 +319,20 @@ func (r *ShipmentRepository) CommissionExists(ctx context.Context, missionID str
 	return count > 0, nil
 }
 
-// GroveAssignedToOther checks if grove is assigned to another shipment.
+// WorkbenchAssignedToOther checks if workbench is assigned to another shipment.
 // Returns the shipment ID if assigned to another, empty string if not.
-func (r *ShipmentRepository) GroveAssignedToOther(ctx context.Context, groveID, excludeShipmentID string) (string, error) {
+func (r *ShipmentRepository) WorkbenchAssignedToOther(ctx context.Context, workbenchID, excludeShipmentID string) (string, error) {
 	var shipmentID string
 	err := r.db.QueryRowContext(ctx,
-		"SELECT id FROM shipments WHERE assigned_grove_id = ? AND id != ? LIMIT 1",
-		groveID, excludeShipmentID,
+		"SELECT id FROM shipments WHERE assigned_workbench_id = ? AND id != ? LIMIT 1",
+		workbenchID, excludeShipmentID,
 	).Scan(&shipmentID)
 
 	if err == sql.ErrNoRows {
 		return "", nil
 	}
 	if err != nil {
-		return "", fmt.Errorf("failed to check grove assignment: %w", err)
+		return "", fmt.Errorf("failed to check workbench assignment: %w", err)
 	}
 
 	return shipmentID, nil

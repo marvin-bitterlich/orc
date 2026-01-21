@@ -161,13 +161,13 @@ func (s *InvestigationServiceImpl) DeleteInvestigation(ctx context.Context, inve
 }
 
 // AssignInvestigationToGrove assigns an investigation to a grove.
-func (s *InvestigationServiceImpl) AssignInvestigationToGrove(ctx context.Context, investigationID, groveID string) error {
-	return s.investigationRepo.AssignGrove(ctx, investigationID, groveID)
+func (s *InvestigationServiceImpl) AssignInvestigationToGrove(ctx context.Context, investigationID, workbenchID string) error {
+	return s.investigationRepo.AssignWorkbench(ctx, investigationID, workbenchID)
 }
 
 // GetInvestigationsByGrove retrieves investigations assigned to a grove.
-func (s *InvestigationServiceImpl) GetInvestigationsByGrove(ctx context.Context, groveID string) ([]*primary.Investigation, error) {
-	records, err := s.investigationRepo.GetByGrove(ctx, groveID)
+func (s *InvestigationServiceImpl) GetInvestigationsByGrove(ctx context.Context, workbenchID string) ([]*primary.Investigation, error) {
+	records, err := s.investigationRepo.GetByWorkbench(ctx, workbenchID)
 	if err != nil {
 		return nil, err
 	}
@@ -197,16 +197,16 @@ func (s *InvestigationServiceImpl) GetInvestigationQuestions(ctx context.Context
 
 func (s *InvestigationServiceImpl) recordToInvestigation(r *secondary.InvestigationRecord) *primary.Investigation {
 	return &primary.Investigation{
-		ID:              r.ID,
-		CommissionID:    r.CommissionID,
-		Title:           r.Title,
-		Description:     r.Description,
-		Status:          r.Status,
-		AssignedGroveID: r.AssignedGroveID,
-		Pinned:          r.Pinned,
-		CreatedAt:       r.CreatedAt,
-		UpdatedAt:       r.UpdatedAt,
-		CompletedAt:     r.CompletedAt,
+		ID:                  r.ID,
+		CommissionID:        r.CommissionID,
+		Title:               r.Title,
+		Description:         r.Description,
+		Status:              r.Status,
+		AssignedWorkbenchID: r.AssignedWorkbenchID,
+		Pinned:              r.Pinned,
+		CreatedAt:           r.CreatedAt,
+		UpdatedAt:           r.UpdatedAt,
+		CompletedAt:         r.CompletedAt,
 	}
 }
 

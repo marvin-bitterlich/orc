@@ -11,7 +11,7 @@ type GroveService interface {
 	OpenGrove(ctx context.Context, req OpenGroveRequest) (*OpenGroveResponse, error)
 
 	// GetGrove retrieves a grove by ID.
-	GetGrove(ctx context.Context, groveID string) (*Grove, error)
+	GetGrove(ctx context.Context, workbenchID string) (*Grove, error)
 
 	// GetGroveByPath retrieves a grove by its filesystem path.
 	GetGroveByPath(ctx context.Context, path string) (*Grove, error)
@@ -23,7 +23,7 @@ type GroveService interface {
 	RenameGrove(ctx context.Context, req RenameGroveRequest) error
 
 	// UpdateGrovePath updates the filesystem path of a grove.
-	UpdateGrovePath(ctx context.Context, groveID, newPath string) error
+	UpdateGrovePath(ctx context.Context, workbenchID, newPath string) error
 
 	// DeleteGrove deletes a grove.
 	DeleteGrove(ctx context.Context, req DeleteGroveRequest) error

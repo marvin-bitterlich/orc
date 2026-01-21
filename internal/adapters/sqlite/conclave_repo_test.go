@@ -56,7 +56,7 @@ func setupConclaveTestDB(t *testing.T) *sql.DB {
 			title TEXT NOT NULL,
 			description TEXT,
 			status TEXT NOT NULL DEFAULT 'active',
-			assigned_grove_id TEXT,
+			assigned_workbench_id TEXT,
 			pinned INTEGER NOT NULL DEFAULT 0,
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -78,7 +78,7 @@ func setupConclaveTestDB(t *testing.T) *sql.DB {
 			type TEXT,
 			status TEXT NOT NULL DEFAULT 'ready',
 			priority TEXT,
-			assigned_grove_id TEXT,
+			assigned_workbench_id TEXT,
 			pinned INTEGER NOT NULL DEFAULT 0,
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -472,23 +472,23 @@ func TestConclaveRepository_UpdateStatus_NotFound(t *testing.T) {
 	}
 }
 
-func TestConclaveRepository_GetByGrove(t *testing.T) {
+func TestConclaveRepository_GetByWorkbench(t *testing.T) {
 	db := setupConclaveTestDB(t)
 	repo := sqlite.NewConclaveRepository(db)
 	ctx := context.Background()
 
-	// Note: Conclaves don't have AssignGrove, so we need to insert directly
+	// Note: Conclaves don't have AssignWorkbench, so we need to insert directly
 	c1 := createTestConclave(t, repo, ctx, "MISSION-001", "Conclave 1", "")
 	c2 := createTestConclave(t, repo, ctx, "MISSION-001", "Conclave 2", "")
 	createTestConclave(t, repo, ctx, "MISSION-001", "Conclave 3 (unassigned)", "")
 
 	// Assign groves directly via SQL
-	_, _ = db.Exec("UPDATE conclaves SET assigned_grove_id = 'GROVE-001' WHERE id = ?", c1.ID)
-	_, _ = db.Exec("UPDATE conclaves SET assigned_grove_id = 'GROVE-001' WHERE id = ?", c2.ID)
+	_, _ = db.Exec("UPDATE conclaves SET assigned_workbench_id = 'GROVE-001' WHERE id = ?", c1.ID)
+	_, _ = db.Exec("UPDATE conclaves SET assigned_workbench_id = 'GROVE-001' WHERE id = ?", c2.ID)
 
-	conclaves, err := repo.GetByGrove(ctx, "GROVE-001")
+	conclaves, err := repo.GetByWorkbench(ctx, "GROVE-001")
 	if err != nil {
-		t.Fatalf("GetByGrove failed: %v", err)
+		t.Fatalf("GetByWorkbench failed: %v", err)
 	}
 
 	if len(conclaves) != 2 {

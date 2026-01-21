@@ -41,19 +41,19 @@ func (r *TomeRepository) Create(ctx context.Context, tome *secondary.TomeRecord)
 // GetByID retrieves a tome by its ID.
 func (r *TomeRepository) GetByID(ctx context.Context, id string) (*secondary.TomeRecord, error) {
 	var (
-		desc            sql.NullString
-		assignedGroveID sql.NullString
-		pinned          bool
-		createdAt       time.Time
-		updatedAt       time.Time
-		completedAt     sql.NullTime
+		desc                sql.NullString
+		assignedWorkbenchID sql.NullString
+		pinned              bool
+		createdAt           time.Time
+		updatedAt           time.Time
+		completedAt         sql.NullTime
 	)
 
 	record := &secondary.TomeRecord{}
 	err := r.db.QueryRowContext(ctx,
-		"SELECT id, commission_id, title, description, status, assigned_grove_id, pinned, created_at, updated_at, completed_at FROM tomes WHERE id = ?",
+		"SELECT id, commission_id, title, description, status, assigned_workbench_id, pinned, created_at, updated_at, completed_at FROM tomes WHERE id = ?",
 		id,
-	).Scan(&record.ID, &record.CommissionID, &record.Title, &desc, &record.Status, &assignedGroveID, &pinned, &createdAt, &updatedAt, &completedAt)
+	).Scan(&record.ID, &record.CommissionID, &record.Title, &desc, &record.Status, &assignedWorkbenchID, &pinned, &createdAt, &updatedAt, &completedAt)
 
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("tome %s not found", id)
@@ -63,7 +63,7 @@ func (r *TomeRepository) GetByID(ctx context.Context, id string) (*secondary.Tom
 	}
 
 	record.Description = desc.String
-	record.AssignedGroveID = assignedGroveID.String
+	record.AssignedWorkbenchID = assignedWorkbenchID.String
 	record.Pinned = pinned
 	record.CreatedAt = createdAt.Format(time.RFC3339)
 	record.UpdatedAt = updatedAt.Format(time.RFC3339)
@@ -76,7 +76,7 @@ func (r *TomeRepository) GetByID(ctx context.Context, id string) (*secondary.Tom
 
 // List retrieves tomes matching the given filters.
 func (r *TomeRepository) List(ctx context.Context, filters secondary.TomeFilters) ([]*secondary.TomeRecord, error) {
-	query := "SELECT id, commission_id, title, description, status, assigned_grove_id, pinned, created_at, updated_at, completed_at FROM tomes WHERE 1=1"
+	query := "SELECT id, commission_id, title, description, status, assigned_workbench_id, pinned, created_at, updated_at, completed_at FROM tomes WHERE 1=1"
 	args := []any{}
 
 	if filters.CommissionID != "" {
@@ -100,22 +100,22 @@ func (r *TomeRepository) List(ctx context.Context, filters secondary.TomeFilters
 	var tomes []*secondary.TomeRecord
 	for rows.Next() {
 		var (
-			desc            sql.NullString
-			assignedGroveID sql.NullString
-			pinned          bool
-			createdAt       time.Time
-			updatedAt       time.Time
-			completedAt     sql.NullTime
+			desc                sql.NullString
+			assignedWorkbenchID sql.NullString
+			pinned              bool
+			createdAt           time.Time
+			updatedAt           time.Time
+			completedAt         sql.NullTime
 		)
 
 		record := &secondary.TomeRecord{}
-		err := rows.Scan(&record.ID, &record.CommissionID, &record.Title, &desc, &record.Status, &assignedGroveID, &pinned, &createdAt, &updatedAt, &completedAt)
+		err := rows.Scan(&record.ID, &record.CommissionID, &record.Title, &desc, &record.Status, &assignedWorkbenchID, &pinned, &createdAt, &updatedAt, &completedAt)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan tome: %w", err)
 		}
 
 		record.Description = desc.String
-		record.AssignedGroveID = assignedGroveID.String
+		record.AssignedWorkbenchID = assignedWorkbenchID.String
 		record.Pinned = pinned
 		record.CreatedAt = createdAt.Format(time.RFC3339)
 		record.UpdatedAt = updatedAt.Format(time.RFC3339)
@@ -250,10 +250,10 @@ func (r *TomeRepository) UpdateStatus(ctx context.Context, id, status string, se
 	return nil
 }
 
-// GetByGrove retrieves tomes assigned to a grove.
-func (r *TomeRepository) GetByGrove(ctx context.Context, groveID string) ([]*secondary.TomeRecord, error) {
-	query := "SELECT id, commission_id, title, description, status, assigned_grove_id, pinned, created_at, updated_at, completed_at FROM tomes WHERE assigned_grove_id = ?"
-	rows, err := r.db.QueryContext(ctx, query, groveID)
+// GetByWorkbench retrieves tomes assigned to a grove.
+func (r *TomeRepository) GetByWorkbench(ctx context.Context, workbenchID string) ([]*secondary.TomeRecord, error) {
+	query := "SELECT id, commission_id, title, description, status, assigned_workbench_id, pinned, created_at, updated_at, completed_at FROM tomes WHERE assigned_workbench_id = ?"
+	rows, err := r.db.QueryContext(ctx, query, workbenchID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get tomes by grove: %w", err)
 	}
@@ -262,22 +262,22 @@ func (r *TomeRepository) GetByGrove(ctx context.Context, groveID string) ([]*sec
 	var tomes []*secondary.TomeRecord
 	for rows.Next() {
 		var (
-			desc            sql.NullString
-			assignedGroveID sql.NullString
-			pinned          bool
-			createdAt       time.Time
-			updatedAt       time.Time
-			completedAt     sql.NullTime
+			desc                sql.NullString
+			assignedWorkbenchID sql.NullString
+			pinned              bool
+			createdAt           time.Time
+			updatedAt           time.Time
+			completedAt         sql.NullTime
 		)
 
 		record := &secondary.TomeRecord{}
-		err := rows.Scan(&record.ID, &record.CommissionID, &record.Title, &desc, &record.Status, &assignedGroveID, &pinned, &createdAt, &updatedAt, &completedAt)
+		err := rows.Scan(&record.ID, &record.CommissionID, &record.Title, &desc, &record.Status, &assignedWorkbenchID, &pinned, &createdAt, &updatedAt, &completedAt)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan tome: %w", err)
 		}
 
 		record.Description = desc.String
-		record.AssignedGroveID = assignedGroveID.String
+		record.AssignedWorkbenchID = assignedWorkbenchID.String
 		record.Pinned = pinned
 		record.CreatedAt = createdAt.Format(time.RFC3339)
 		record.UpdatedAt = updatedAt.Format(time.RFC3339)
@@ -291,11 +291,11 @@ func (r *TomeRepository) GetByGrove(ctx context.Context, groveID string) ([]*sec
 	return tomes, nil
 }
 
-// AssignGrove assigns a tome to a grove.
-func (r *TomeRepository) AssignGrove(ctx context.Context, tomeID, groveID string) error {
+// AssignWorkbench assigns a tome to a grove.
+func (r *TomeRepository) AssignWorkbench(ctx context.Context, tomeID, workbenchID string) error {
 	result, err := r.db.ExecContext(ctx,
-		"UPDATE tomes SET assigned_grove_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-		groveID, tomeID,
+		"UPDATE tomes SET assigned_workbench_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+		workbenchID, tomeID,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to assign grove to tome: %w", err)

@@ -161,8 +161,8 @@ func (s *ConclaveServiceImpl) DeleteConclave(ctx context.Context, conclaveID str
 }
 
 // GetConclavesByGrove retrieves conclaves assigned to a grove.
-func (s *ConclaveServiceImpl) GetConclavesByGrove(ctx context.Context, groveID string) ([]*primary.Conclave, error) {
-	records, err := s.conclaveRepo.GetByGrove(ctx, groveID)
+func (s *ConclaveServiceImpl) GetConclavesByGrove(ctx context.Context, workbenchID string) ([]*primary.Conclave, error) {
+	records, err := s.conclaveRepo.GetByWorkbench(ctx, workbenchID)
 	if err != nil {
 		return nil, err
 	}
@@ -220,38 +220,38 @@ func (s *ConclaveServiceImpl) GetConclavePlans(ctx context.Context, conclaveID s
 
 func (s *ConclaveServiceImpl) recordToConclave(r *secondary.ConclaveRecord) *primary.Conclave {
 	return &primary.Conclave{
-		ID:              r.ID,
-		CommissionID:    r.CommissionID,
-		Title:           r.Title,
-		Description:     r.Description,
-		Status:          r.Status,
-		AssignedGroveID: r.AssignedGroveID,
-		Pinned:          r.Pinned,
-		CreatedAt:       r.CreatedAt,
-		UpdatedAt:       r.UpdatedAt,
-		CompletedAt:     r.CompletedAt,
+		ID:                  r.ID,
+		CommissionID:        r.CommissionID,
+		Title:               r.Title,
+		Description:         r.Description,
+		Status:              r.Status,
+		AssignedWorkbenchID: r.AssignedWorkbenchID,
+		Pinned:              r.Pinned,
+		CreatedAt:           r.CreatedAt,
+		UpdatedAt:           r.UpdatedAt,
+		CompletedAt:         r.CompletedAt,
 	}
 }
 
 func (s *ConclaveServiceImpl) taskRecordToConclaveTask(r *secondary.ConclaveTaskRecord) *primary.ConclaveTask {
 	return &primary.ConclaveTask{
-		ID:               r.ID,
-		ShipmentID:       r.ShipmentID,
-		CommissionID:     r.CommissionID,
-		Title:            r.Title,
-		Description:      r.Description,
-		Type:             r.Type,
-		Status:           r.Status,
-		Priority:         r.Priority,
-		AssignedGroveID:  r.AssignedGroveID,
-		Pinned:           r.Pinned,
-		CreatedAt:        r.CreatedAt,
-		UpdatedAt:        r.UpdatedAt,
-		ClaimedAt:        r.ClaimedAt,
-		CompletedAt:      r.CompletedAt,
-		ConclaveID:       r.ConclaveID,
-		PromotedFromID:   r.PromotedFromID,
-		PromotedFromType: r.PromotedFromType,
+		ID:                  r.ID,
+		ShipmentID:          r.ShipmentID,
+		CommissionID:        r.CommissionID,
+		Title:               r.Title,
+		Description:         r.Description,
+		Type:                r.Type,
+		Status:              r.Status,
+		Priority:            r.Priority,
+		AssignedWorkbenchID: r.AssignedWorkbenchID,
+		Pinned:              r.Pinned,
+		CreatedAt:           r.CreatedAt,
+		UpdatedAt:           r.UpdatedAt,
+		ClaimedAt:           r.ClaimedAt,
+		CompletedAt:         r.CompletedAt,
+		ConclaveID:          r.ConclaveID,
+		PromotedFromID:      r.PromotedFromID,
+		PromotedFromType:    r.PromotedFromType,
 	}
 }
 

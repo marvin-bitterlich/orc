@@ -74,7 +74,7 @@ func setupTaskTestDB(t *testing.T) *sql.DB {
 			type TEXT,
 			status TEXT NOT NULL DEFAULT 'ready',
 			priority TEXT,
-			assigned_grove_id TEXT,
+			assigned_workbench_id TEXT,
 			pinned INTEGER NOT NULL DEFAULT 0,
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -508,8 +508,8 @@ func TestTaskRepository_Claim(t *testing.T) {
 	if retrieved.Status != "in_progress" {
 		t.Errorf("expected status 'in_progress', got '%s'", retrieved.Status)
 	}
-	if retrieved.AssignedGroveID != "GROVE-001" {
-		t.Errorf("expected assigned grove 'GROVE-001', got '%s'", retrieved.AssignedGroveID)
+	if retrieved.AssignedWorkbenchID != "GROVE-001" {
+		t.Errorf("expected assigned grove 'GROVE-001', got '%s'", retrieved.AssignedWorkbenchID)
 	}
 	if retrieved.ClaimedAt == "" {
 		t.Error("expected ClaimedAt to be set")
@@ -527,7 +527,7 @@ func TestTaskRepository_Claim_NotFound(t *testing.T) {
 	}
 }
 
-func TestTaskRepository_GetByGrove(t *testing.T) {
+func TestTaskRepository_GetByWorkbench(t *testing.T) {
 	db := setupTaskTestDB(t)
 	repo := sqlite.NewTaskRepository(db)
 	ctx := context.Background()
@@ -539,9 +539,9 @@ func TestTaskRepository_GetByGrove(t *testing.T) {
 	_ = repo.Claim(ctx, task1.ID, "GROVE-001")
 	_ = repo.Claim(ctx, task2.ID, "GROVE-001")
 
-	tasks, err := repo.GetByGrove(ctx, "GROVE-001")
+	tasks, err := repo.GetByWorkbench(ctx, "GROVE-001")
 	if err != nil {
-		t.Fatalf("GetByGrove failed: %v", err)
+		t.Fatalf("GetByWorkbench failed: %v", err)
 	}
 
 	if len(tasks) != 2 {
@@ -568,7 +568,7 @@ func TestTaskRepository_GetByShipment(t *testing.T) {
 	}
 }
 
-func TestTaskRepository_AssignGroveByShipment(t *testing.T) {
+func TestTaskRepository_AssignWorkbenchByShipment(t *testing.T) {
 	db := setupTaskTestDB(t)
 	repo := sqlite.NewTaskRepository(db)
 	ctx := context.Background()
@@ -577,25 +577,25 @@ func TestTaskRepository_AssignGroveByShipment(t *testing.T) {
 	task2 := createTestTask(t, repo, ctx, "MISSION-001", "SHIP-001", "Task 2")
 	task3 := createTestTask(t, repo, ctx, "MISSION-001", "", "Task 3 (no shipment)")
 
-	err := repo.AssignGroveByShipment(ctx, "SHIP-001", "GROVE-001")
+	err := repo.AssignWorkbenchByShipment(ctx, "SHIP-001", "GROVE-001")
 	if err != nil {
-		t.Fatalf("AssignGroveByShipment failed: %v", err)
+		t.Fatalf("AssignWorkbenchByShipment failed: %v", err)
 	}
 
 	// Tasks in shipment should have grove assigned
 	retrieved1, _ := repo.GetByID(ctx, task1.ID)
-	if retrieved1.AssignedGroveID != "GROVE-001" {
+	if retrieved1.AssignedWorkbenchID != "GROVE-001" {
 		t.Errorf("expected task1 to have grove assigned")
 	}
 
 	retrieved2, _ := repo.GetByID(ctx, task2.ID)
-	if retrieved2.AssignedGroveID != "GROVE-001" {
+	if retrieved2.AssignedWorkbenchID != "GROVE-001" {
 		t.Errorf("expected task2 to have grove assigned")
 	}
 
 	// Task without shipment should not be affected
 	retrieved3, _ := repo.GetByID(ctx, task3.ID)
-	if retrieved3.AssignedGroveID != "" {
+	if retrieved3.AssignedWorkbenchID != "" {
 		t.Errorf("expected task3 to not have grove assigned")
 	}
 }

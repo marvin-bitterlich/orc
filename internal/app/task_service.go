@@ -199,8 +199,8 @@ func (s *TaskServiceImpl) UnpinTask(ctx context.Context, taskID string) error {
 }
 
 // GetTasksByGrove retrieves tasks assigned to a grove.
-func (s *TaskServiceImpl) GetTasksByGrove(ctx context.Context, groveID string) ([]*primary.Task, error) {
-	records, err := s.taskRepo.GetByGrove(ctx, groveID)
+func (s *TaskServiceImpl) GetTasksByGrove(ctx context.Context, workbenchID string) ([]*primary.Task, error) {
+	records, err := s.taskRepo.GetByWorkbench(ctx, workbenchID)
 	if err != nil {
 		return nil, err
 	}
@@ -284,8 +284,8 @@ func (s *TaskServiceImpl) ListTasksByTag(ctx context.Context, tagName string) ([
 }
 
 // DiscoverTasks finds ready tasks in the current grove context.
-func (s *TaskServiceImpl) DiscoverTasks(ctx context.Context, groveID string) ([]*primary.Task, error) {
-	records, err := s.taskRepo.GetByGrove(ctx, groveID)
+func (s *TaskServiceImpl) DiscoverTasks(ctx context.Context, workbenchID string) ([]*primary.Task, error) {
+	records, err := s.taskRepo.GetByWorkbench(ctx, workbenchID)
 	if err != nil {
 		return nil, err
 	}

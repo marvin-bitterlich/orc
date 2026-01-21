@@ -35,10 +35,10 @@ type TomeService interface {
 	DeleteTome(ctx context.Context, tomeID string) error
 
 	// AssignTomeToGrove assigns a tome to a grove.
-	AssignTomeToGrove(ctx context.Context, tomeID, groveID string) error
+	AssignTomeToGrove(ctx context.Context, tomeID, workbenchID string) error
 
 	// GetTomesByGrove retrieves tomes assigned to a grove.
-	GetTomesByGrove(ctx context.Context, groveID string) ([]*Tome, error)
+	GetTomesByGrove(ctx context.Context, workbenchID string) ([]*Tome, error)
 
 	// GetTomeNotes retrieves all notes in a tome.
 	GetTomeNotes(ctx context.Context, tomeID string) ([]*Note, error)
@@ -66,16 +66,16 @@ type UpdateTomeRequest struct {
 
 // Tome represents a tome entity at the port boundary.
 type Tome struct {
-	ID              string
-	CommissionID    string
-	Title           string
-	Description     string
-	Status          string
-	AssignedGroveID string
-	Pinned          bool
-	CreatedAt       string
-	UpdatedAt       string
-	CompletedAt     string
+	ID                  string
+	CommissionID        string
+	Title               string
+	Description         string
+	Status              string
+	AssignedWorkbenchID string
+	Pinned              bool
+	CreatedAt           string
+	UpdatedAt           string
+	CompletedAt         string
 }
 
 // TomeFilters contains filter options for listing tomes.

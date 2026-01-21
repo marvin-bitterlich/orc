@@ -89,7 +89,7 @@ func (m *mockGroveService) OpenGrove(ctx context.Context, req primary.OpenGroveR
 	return nil, nil
 }
 
-func (m *mockGroveService) GetGrove(ctx context.Context, groveID string) (*primary.Grove, error) {
+func (m *mockGroveService) GetGrove(ctx context.Context, workbenchID string) (*primary.Grove, error) {
 	return nil, nil
 }
 
@@ -109,7 +109,7 @@ func (m *mockGroveService) RenameGrove(ctx context.Context, req primary.RenameGr
 	return nil
 }
 
-func (m *mockGroveService) UpdateGrovePath(ctx context.Context, groveID, newPath string) error {
+func (m *mockGroveService) UpdateGrovePath(ctx context.Context, workbenchID, newPath string) error {
 	return nil
 }
 

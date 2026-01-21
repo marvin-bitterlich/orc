@@ -73,7 +73,7 @@ Examples:
 
 		// Get active context from flags
 		missionID, _ := cmd.Flags().GetString("commission")
-		groveID, _ := cmd.Flags().GetString("grove")
+		workbenchID, _ := cmd.Flags().GetString("grove")
 		todosFile, _ := cmd.Flags().GetString("todos")
 
 		// Read todos JSON if provided
@@ -95,7 +95,7 @@ Examples:
 		resp, err := wire.HandoffService().CreateHandoff(ctx, primary.CreateHandoffRequest{
 			HandoffNote:        note,
 			ActiveCommissionID: missionID,
-			ActiveGroveID:      groveID,
+			ActiveWorkbenchID:  workbenchID,
 			TodosSnapshot:      todosJSON,
 		})
 		if err != nil {
@@ -108,8 +108,8 @@ Examples:
 		if handoff.ActiveCommissionID != "" {
 			fmt.Printf("  Mission: %s\n", handoff.ActiveCommissionID)
 		}
-		if handoff.ActiveGroveID != "" {
-			fmt.Printf("  Grove: %s\n", handoff.ActiveGroveID)
+		if handoff.ActiveWorkbenchID != "" {
+			fmt.Printf("  Grove: %s\n", handoff.ActiveWorkbenchID)
 		}
 
 		// Update global state config
@@ -141,8 +141,8 @@ var handoffShowCmd = &cobra.Command{
 		if handoff.ActiveCommissionID != "" {
 			fmt.Printf("Mission: %s\n", handoff.ActiveCommissionID)
 		}
-		if handoff.ActiveGroveID != "" {
-			fmt.Printf("Grove: %s\n", handoff.ActiveGroveID)
+		if handoff.ActiveWorkbenchID != "" {
+			fmt.Printf("Grove: %s\n", handoff.ActiveWorkbenchID)
 		}
 
 		fmt.Printf("\n--- HANDOFF NOTE ---\n\n%s\n\n", handoff.HandoffNote)
@@ -180,8 +180,8 @@ var handoffListCmd = &cobra.Command{
 				mission = h.ActiveCommissionID
 			}
 			grove := "-"
-			if h.ActiveGroveID != "" {
-				grove = h.ActiveGroveID
+			if h.ActiveWorkbenchID != "" {
+				grove = h.ActiveWorkbenchID
 			}
 			fmt.Printf("%-10s %-20s %-15s %-15s\n",
 				h.ID,

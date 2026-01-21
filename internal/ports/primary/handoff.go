@@ -15,7 +15,7 @@ type HandoffService interface {
 	GetLatestHandoff(ctx context.Context) (*Handoff, error)
 
 	// GetLatestHandoffForGrove retrieves the most recent handoff for a grove.
-	GetLatestHandoffForGrove(ctx context.Context, groveID string) (*Handoff, error)
+	GetLatestHandoffForGrove(ctx context.Context, workbenchID string) (*Handoff, error)
 
 	// ListHandoffs lists handoffs with optional limit.
 	ListHandoffs(ctx context.Context, limit int) ([]*Handoff, error)
@@ -25,7 +25,7 @@ type HandoffService interface {
 type CreateHandoffRequest struct {
 	HandoffNote        string
 	ActiveCommissionID string
-	ActiveGroveID      string
+	ActiveWorkbenchID  string
 	TodosSnapshot      string // JSON snapshot of todos state
 }
 
@@ -41,6 +41,6 @@ type Handoff struct {
 	CreatedAt          string
 	HandoffNote        string
 	ActiveCommissionID string
-	ActiveGroveID      string
+	ActiveWorkbenchID  string
 	TodosSnapshot      string
 }

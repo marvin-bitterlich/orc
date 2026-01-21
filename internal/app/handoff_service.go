@@ -34,7 +34,7 @@ func (s *HandoffServiceImpl) CreateHandoff(ctx context.Context, req primary.Crea
 		ID:                 nextID,
 		HandoffNote:        req.HandoffNote,
 		ActiveCommissionID: req.ActiveCommissionID,
-		ActiveGroveID:      req.ActiveGroveID,
+		ActiveWorkbenchID:  req.ActiveWorkbenchID,
 		TodosSnapshot:      req.TodosSnapshot,
 	}
 
@@ -73,8 +73,8 @@ func (s *HandoffServiceImpl) GetLatestHandoff(ctx context.Context) (*primary.Han
 }
 
 // GetLatestHandoffForGrove retrieves the most recent handoff for a grove.
-func (s *HandoffServiceImpl) GetLatestHandoffForGrove(ctx context.Context, groveID string) (*primary.Handoff, error) {
-	record, err := s.handoffRepo.GetLatestForGrove(ctx, groveID)
+func (s *HandoffServiceImpl) GetLatestHandoffForGrove(ctx context.Context, workbenchID string) (*primary.Handoff, error) {
+	record, err := s.handoffRepo.GetLatestForWorkbench(ctx, workbenchID)
 	if err != nil {
 		return nil, err
 	}
@@ -103,7 +103,7 @@ func (s *HandoffServiceImpl) recordToHandoff(r *secondary.HandoffRecord) *primar
 		CreatedAt:          r.CreatedAt,
 		HandoffNote:        r.HandoffNote,
 		ActiveCommissionID: r.ActiveCommissionID,
-		ActiveGroveID:      r.ActiveGroveID,
+		ActiveWorkbenchID:  r.ActiveWorkbenchID,
 		TodosSnapshot:      r.TodosSnapshot,
 	}
 }

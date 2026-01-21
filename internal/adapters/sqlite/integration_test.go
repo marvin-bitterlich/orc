@@ -220,23 +220,23 @@ func TestIntegration_GroveAssignmentPropagation(t *testing.T) {
 	_ = taskRepo.Create(ctx, task2)
 
 	// Assign grove to shipment
-	if err := shipmentRepo.AssignGrove(ctx, "SHIP-001", "GROVE-001"); err != nil {
-		t.Fatalf("AssignGrove to shipment failed: %v", err)
+	if err := shipmentRepo.AssignWorkbench(ctx, "SHIP-001", "GROVE-001"); err != nil {
+		t.Fatalf("AssignWorkbench to shipment failed: %v", err)
 	}
 
 	// Assign grove to tasks via shipment
-	if err := taskRepo.AssignGroveByShipment(ctx, "SHIP-001", "GROVE-001"); err != nil {
-		t.Fatalf("AssignGroveByShipment failed: %v", err)
+	if err := taskRepo.AssignWorkbenchByShipment(ctx, "SHIP-001", "GROVE-001"); err != nil {
+		t.Fatalf("AssignWorkbenchByShipment failed: %v", err)
 	}
 
 	// Verify all tasks have grove assigned
-	tasks, _ := taskRepo.GetByGrove(ctx, "GROVE-001")
+	tasks, _ := taskRepo.GetByWorkbench(ctx, "GROVE-001")
 	if len(tasks) != 2 {
 		t.Errorf("expected 2 tasks assigned to grove, got %d", len(tasks))
 	}
 
 	// Verify shipment has grove assigned
-	shipments, _ := shipmentRepo.GetByGrove(ctx, "GROVE-001")
+	shipments, _ := shipmentRepo.GetByWorkbench(ctx, "GROVE-001")
 	if len(shipments) != 1 {
 		t.Errorf("expected 1 shipment assigned to grove, got %d", len(shipments))
 	}
@@ -256,30 +256,30 @@ func TestIntegration_MultipleEntitiesAssignedToGrove(t *testing.T) {
 	// Create and assign shipment
 	shipment := &secondary.ShipmentRecord{ID: "SHIP-001", CommissionID: "MISSION-001", Title: "Shipment"}
 	_ = shipmentRepo.Create(ctx, shipment)
-	_ = shipmentRepo.AssignGrove(ctx, "SHIP-001", "GROVE-001")
+	_ = shipmentRepo.AssignWorkbench(ctx, "SHIP-001", "GROVE-001")
 
 	// Create and assign investigation
 	inv := &secondary.InvestigationRecord{ID: "INV-001", CommissionID: "MISSION-001", Title: "Investigation"}
 	_ = investigationRepo.Create(ctx, inv)
-	_ = investigationRepo.AssignGrove(ctx, "INV-001", "GROVE-001")
+	_ = investigationRepo.AssignWorkbench(ctx, "INV-001", "GROVE-001")
 
 	// Create and assign tome
 	tome := &secondary.TomeRecord{ID: "TOME-001", CommissionID: "MISSION-001", Title: "Tome"}
 	_ = tomeRepo.Create(ctx, tome)
-	_ = tomeRepo.AssignGrove(ctx, "TOME-001", "GROVE-001")
+	_ = tomeRepo.AssignWorkbench(ctx, "TOME-001", "GROVE-001")
 
 	// Verify all entities are assigned to grove
-	shipments, _ := shipmentRepo.GetByGrove(ctx, "GROVE-001")
+	shipments, _ := shipmentRepo.GetByWorkbench(ctx, "GROVE-001")
 	if len(shipments) != 1 {
 		t.Errorf("expected 1 shipment in grove, got %d", len(shipments))
 	}
 
-	investigations, _ := investigationRepo.GetByGrove(ctx, "GROVE-001")
+	investigations, _ := investigationRepo.GetByWorkbench(ctx, "GROVE-001")
 	if len(investigations) != 1 {
 		t.Errorf("expected 1 investigation in grove, got %d", len(investigations))
 	}
 
-	tomes, _ := tomeRepo.GetByGrove(ctx, "GROVE-001")
+	tomes, _ := tomeRepo.GetByWorkbench(ctx, "GROVE-001")
 	if len(tomes) != 1 {
 		t.Errorf("expected 1 tome in grove, got %d", len(tomes))
 	}
@@ -475,14 +475,14 @@ func TestIntegration_HandoffWithContext(t *testing.T) {
 	if latest.ActiveCommissionID != "MISSION-001" {
 		t.Errorf("expected mission MISSION-001, got %s", latest.ActiveCommissionID)
 	}
-	if latest.ActiveGroveID != "GROVE-001" {
-		t.Errorf("expected grove GROVE-001, got %s", latest.ActiveGroveID)
+	if latest.ActiveWorkbenchID != "GROVE-001" {
+		t.Errorf("expected grove GROVE-001, got %s", latest.ActiveWorkbenchID)
 	}
 
 	// Get latest for grove
-	latestForGrove, err := handoffRepo.GetLatestForGrove(ctx, "GROVE-001")
+	latestForGrove, err := handoffRepo.GetLatestForWorkbench(ctx, "GROVE-001")
 	if err != nil {
-		t.Fatalf("GetLatestForGrove failed: %v", err)
+		t.Fatalf("GetLatestForWorkbench failed: %v", err)
 	}
 	if latestForGrove.ID != "HO-002" {
 		t.Errorf("expected HO-002 for grove, got %s", latestForGrove.ID)

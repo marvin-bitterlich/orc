@@ -60,7 +60,7 @@ func setupShipmentTestDB(t *testing.T) *sql.DB {
 			title TEXT NOT NULL,
 			description TEXT,
 			status TEXT NOT NULL DEFAULT 'active',
-			assigned_grove_id TEXT,
+			assigned_workbench_id TEXT,
 			pinned INTEGER NOT NULL DEFAULT 0,
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -431,7 +431,7 @@ func TestShipmentRepository_UpdateStatus_NotFound(t *testing.T) {
 	}
 }
 
-func TestShipmentRepository_AssignGrove(t *testing.T) {
+func TestShipmentRepository_AssignWorkbench(t *testing.T) {
 	db := setupShipmentTestDB(t)
 	repo := sqlite.NewShipmentRepository(db)
 	ctx := context.Background()
@@ -443,30 +443,30 @@ func TestShipmentRepository_AssignGrove(t *testing.T) {
 	shipment := createTestShipment(t, repo, ctx, "MISSION-001", "Grove Test", "")
 
 	// Assign grove
-	err := repo.AssignGrove(ctx, shipment.ID, "GROVE-001")
+	err := repo.AssignWorkbench(ctx, shipment.ID, "GROVE-001")
 	if err != nil {
-		t.Fatalf("AssignGrove failed: %v", err)
+		t.Fatalf("AssignWorkbench failed: %v", err)
 	}
 
 	// Verify assignment
 	retrieved, _ := repo.GetByID(ctx, shipment.ID)
-	if retrieved.AssignedGroveID != "GROVE-001" {
-		t.Errorf("expected assigned grove 'GROVE-001', got '%s'", retrieved.AssignedGroveID)
+	if retrieved.AssignedWorkbenchID != "GROVE-001" {
+		t.Errorf("expected assigned grove 'GROVE-001', got '%s'", retrieved.AssignedWorkbenchID)
 	}
 }
 
-func TestShipmentRepository_AssignGrove_NotFound(t *testing.T) {
+func TestShipmentRepository_AssignWorkbench_NotFound(t *testing.T) {
 	db := setupShipmentTestDB(t)
 	repo := sqlite.NewShipmentRepository(db)
 	ctx := context.Background()
 
-	err := repo.AssignGrove(ctx, "SHIP-999", "GROVE-001")
+	err := repo.AssignWorkbench(ctx, "SHIP-999", "GROVE-001")
 	if err == nil {
 		t.Error("expected error for non-existent shipment")
 	}
 }
 
-func TestShipmentRepository_GetByGrove(t *testing.T) {
+func TestShipmentRepository_GetByWorkbench(t *testing.T) {
 	db := setupShipmentTestDB(t)
 	repo := sqlite.NewShipmentRepository(db)
 	ctx := context.Background()
@@ -479,13 +479,13 @@ func TestShipmentRepository_GetByGrove(t *testing.T) {
 	s2 := createTestShipment(t, repo, ctx, "MISSION-001", "Ship 2", "")
 	createTestShipment(t, repo, ctx, "MISSION-001", "Ship 3 (unassigned)", "")
 
-	_ = repo.AssignGrove(ctx, s1.ID, "GROVE-001")
-	_ = repo.AssignGrove(ctx, s2.ID, "GROVE-001")
+	_ = repo.AssignWorkbench(ctx, s1.ID, "GROVE-001")
+	_ = repo.AssignWorkbench(ctx, s2.ID, "GROVE-001")
 
 	// Get by grove
-	shipments, err := repo.GetByGrove(ctx, "GROVE-001")
+	shipments, err := repo.GetByWorkbench(ctx, "GROVE-001")
 	if err != nil {
-		t.Fatalf("GetByGrove failed: %v", err)
+		t.Fatalf("GetByWorkbench failed: %v", err)
 	}
 
 	if len(shipments) != 2 {
@@ -517,7 +517,7 @@ func TestShipmentRepository_CommissionExists(t *testing.T) {
 	}
 }
 
-func TestShipmentRepository_GroveAssignedToOther(t *testing.T) {
+func TestShipmentRepository_WorkbenchAssignedToOther(t *testing.T) {
 	db := setupShipmentTestDB(t)
 	repo := sqlite.NewShipmentRepository(db)
 	ctx := context.Background()
@@ -530,21 +530,21 @@ func TestShipmentRepository_GroveAssignedToOther(t *testing.T) {
 	s2 := createTestShipment(t, repo, ctx, "MISSION-001", "Ship 2", "")
 
 	// Assign grove to s1
-	_ = repo.AssignGrove(ctx, s1.ID, "GROVE-001")
+	_ = repo.AssignWorkbench(ctx, s1.ID, "GROVE-001")
 
 	// Check if grove is assigned to another shipment (excluding s1)
-	otherID, err := repo.GroveAssignedToOther(ctx, "GROVE-001", s1.ID)
+	otherID, err := repo.WorkbenchAssignedToOther(ctx, "GROVE-001", s1.ID)
 	if err != nil {
-		t.Fatalf("GroveAssignedToOther failed: %v", err)
+		t.Fatalf("WorkbenchAssignedToOther failed: %v", err)
 	}
 	if otherID != "" {
 		t.Error("expected no other shipment to have the grove")
 	}
 
 	// Check from s2's perspective
-	otherID, err = repo.GroveAssignedToOther(ctx, "GROVE-001", s2.ID)
+	otherID, err = repo.WorkbenchAssignedToOther(ctx, "GROVE-001", s2.ID)
 	if err != nil {
-		t.Fatalf("GroveAssignedToOther failed: %v", err)
+		t.Fatalf("WorkbenchAssignedToOther failed: %v", err)
 	}
 	if otherID != s1.ID {
 		t.Errorf("expected s1 to have the grove, got '%s'", otherID)

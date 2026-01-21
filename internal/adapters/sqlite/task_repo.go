@@ -25,25 +25,25 @@ func scanTask(scanner interface {
 	Scan(dest ...any) error
 }) (*secondary.TaskRecord, error) {
 	var (
-		shipmentID       sql.NullString
-		desc             sql.NullString
-		taskType         sql.NullString
-		priority         sql.NullString
-		assignedGroveID  sql.NullString
-		pinned           bool
-		createdAt        time.Time
-		updatedAt        time.Time
-		claimedAt        sql.NullTime
-		completedAt      sql.NullTime
-		conclaveID       sql.NullString
-		promotedFromID   sql.NullString
-		promotedFromType sql.NullString
+		shipmentID          sql.NullString
+		desc                sql.NullString
+		taskType            sql.NullString
+		priority            sql.NullString
+		assignedWorkbenchID sql.NullString
+		pinned              bool
+		createdAt           time.Time
+		updatedAt           time.Time
+		claimedAt           sql.NullTime
+		completedAt         sql.NullTime
+		conclaveID          sql.NullString
+		promotedFromID      sql.NullString
+		promotedFromType    sql.NullString
 	)
 
 	record := &secondary.TaskRecord{}
 	err := scanner.Scan(
 		&record.ID, &shipmentID, &record.CommissionID, &record.Title, &desc,
-		&taskType, &record.Status, &priority, &assignedGroveID,
+		&taskType, &record.Status, &priority, &assignedWorkbenchID,
 		&pinned, &createdAt, &updatedAt, &claimedAt, &completedAt,
 		&conclaveID, &promotedFromID, &promotedFromType,
 	)
@@ -55,7 +55,7 @@ func scanTask(scanner interface {
 	record.Description = desc.String
 	record.Type = taskType.String
 	record.Priority = priority.String
-	record.AssignedGroveID = assignedGroveID.String
+	record.AssignedWorkbenchID = assignedWorkbenchID.String
 	record.Pinned = pinned
 	record.CreatedAt = createdAt.Format(time.RFC3339)
 	record.UpdatedAt = updatedAt.Format(time.RFC3339)
@@ -73,7 +73,7 @@ func scanTask(scanner interface {
 	return record, nil
 }
 
-const taskSelectCols = "id, shipment_id, commission_id, title, description, type, status, priority, assigned_grove_id, pinned, created_at, updated_at, claimed_at, completed_at, conclave_id, promoted_from_id, promoted_from_type"
+const taskSelectCols = "id, shipment_id, commission_id, title, description, type, status, priority, assigned_workbench_id, pinned, created_at, updated_at, claimed_at, completed_at, conclave_id, promoted_from_id, promoted_from_type"
 
 // Create persists a new task.
 func (r *TaskRepository) Create(ctx context.Context, task *secondary.TaskRecord) error {
@@ -253,12 +253,12 @@ func (r *TaskRepository) GetNextID(ctx context.Context) (string, error) {
 	return fmt.Sprintf("TASK-%03d", maxID+1), nil
 }
 
-// GetByGrove retrieves tasks assigned to a grove.
-func (r *TaskRepository) GetByGrove(ctx context.Context, groveID string) ([]*secondary.TaskRecord, error) {
-	query := "SELECT " + taskSelectCols + " FROM tasks WHERE assigned_grove_id = ?"
-	rows, err := r.db.QueryContext(ctx, query, groveID)
+// GetByWorkbench retrieves tasks assigned to a workbench.
+func (r *TaskRepository) GetByWorkbench(ctx context.Context, workbenchID string) ([]*secondary.TaskRecord, error) {
+	query := "SELECT " + taskSelectCols + " FROM tasks WHERE assigned_workbench_id = ?"
+	rows, err := r.db.QueryContext(ctx, query, workbenchID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get tasks by grove: %w", err)
+		return nil, fmt.Errorf("failed to get tasks by workbench: %w", err)
 	}
 	defer rows.Close()
 
@@ -323,16 +323,16 @@ func (r *TaskRepository) UpdateStatus(ctx context.Context, id, status string, se
 	return nil
 }
 
-// Claim claims a task for a grove.
-func (r *TaskRepository) Claim(ctx context.Context, id, groveID string) error {
-	var groveIDNullable sql.NullString
-	if groveID != "" {
-		groveIDNullable = sql.NullString{String: groveID, Valid: true}
+// Claim claims a task for a workbench.
+func (r *TaskRepository) Claim(ctx context.Context, id, workbenchID string) error {
+	var workbenchIDNullable sql.NullString
+	if workbenchID != "" {
+		workbenchIDNullable = sql.NullString{String: workbenchID, Valid: true}
 	}
 
 	result, err := r.db.ExecContext(ctx,
-		"UPDATE tasks SET status = 'in_progress', assigned_grove_id = ?, claimed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-		groveIDNullable, id,
+		"UPDATE tasks SET status = 'in_progress', assigned_workbench_id = ?, claimed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+		workbenchIDNullable, id,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to claim task: %w", err)
@@ -346,14 +346,14 @@ func (r *TaskRepository) Claim(ctx context.Context, id, groveID string) error {
 	return nil
 }
 
-// AssignGroveByShipment assigns all tasks of a shipment to a grove.
-func (r *TaskRepository) AssignGroveByShipment(ctx context.Context, shipmentID, groveID string) error {
+// AssignWorkbenchByShipment assigns all tasks of a shipment to a workbench.
+func (r *TaskRepository) AssignWorkbenchByShipment(ctx context.Context, shipmentID, workbenchID string) error {
 	_, err := r.db.ExecContext(ctx,
-		"UPDATE tasks SET assigned_grove_id = ?, updated_at = CURRENT_TIMESTAMP WHERE shipment_id = ?",
-		groveID, shipmentID,
+		"UPDATE tasks SET assigned_workbench_id = ?, updated_at = CURRENT_TIMESTAMP WHERE shipment_id = ?",
+		workbenchID, shipmentID,
 	)
 	if err != nil {
-		return fmt.Errorf("failed to assign grove to shipment tasks: %w", err)
+		return fmt.Errorf("failed to assign workbench to shipment tasks: %w", err)
 	}
 
 	return nil
@@ -433,7 +433,7 @@ func (r *TaskRepository) RemoveTag(ctx context.Context, taskID string) error {
 func (r *TaskRepository) ListByTag(ctx context.Context, tagID string) ([]*secondary.TaskRecord, error) {
 	query := `
 		SELECT t.id, t.shipment_id, t.commission_id, t.title, t.description,
-		       t.type, t.status, t.priority, t.assigned_grove_id,
+		       t.type, t.status, t.priority, t.assigned_workbench_id,
 		       t.pinned, t.created_at, t.updated_at, t.claimed_at, t.completed_at,
 		       t.conclave_id, t.promoted_from_id, t.promoted_from_type
 		FROM tasks t
