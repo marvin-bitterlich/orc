@@ -93,14 +93,25 @@ lint: schema-check
 	@echo "✓ All linters passed"
 
 # Validate test schemas use the authoritative schema.go
+# This prevents schema drift where tests pass but production queries fail
+# Protection layers:
+#   1. schema-check: Blocks hardcoded CREATE TABLE in tests
+#   2. Tests use db.GetSchemaSQL(): SQLite fails if queries reference missing columns
+#   3. CI runs both lint (includes schema-check) and test
 schema-check:
 	@echo "Checking for hardcoded test schemas..."
-	@if grep -r "CREATE TABLE" internal/adapters/sqlite/*_test.go 2>/dev/null | grep -v "^Binary"; then \
+	@if grep -r "CREATE TABLE IF NOT EXISTS" internal/adapters/sqlite/*_test.go 2>/dev/null | grep -v "^Binary"; then \
 		echo "ERROR: Found hardcoded CREATE TABLE in test files"; \
 		echo "Tests should use db.GetSchemaSQL() instead"; \
 		exit 1; \
 	fi
 	@echo "✓ No hardcoded test schemas found"
+	@echo "Checking testutil uses authoritative schema..."
+	@if ! grep -q 'db.GetSchemaSQL()' internal/adapters/sqlite/testutil_test.go; then \
+		echo "ERROR: testutil_test.go must use db.GetSchemaSQL()"; \
+		exit 1; \
+	fi
+	@echo "✓ Test setup uses authoritative schema"
 
 # Run golangci-lint with auto-fix
 lint-fix:

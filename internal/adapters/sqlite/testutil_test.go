@@ -1,3 +1,13 @@
+// Package sqlite_test contains integration tests for SQLite repositories.
+//
+// # Schema Protection
+//
+// This file is the SINGLE POINT where the database schema is loaded for tests.
+// All test setup functions use db.GetSchemaSQL() to ensure tests run against
+// the authoritative schema, preventing drift between test and production.
+//
+// DO NOT hardcode CREATE TABLE statements in test files. `make schema-check`
+// will fail if you do. Instead, use setupTestDB() or setupIntegrationDB().
 package sqlite_test
 
 import (

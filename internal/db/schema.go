@@ -2,12 +2,29 @@ package db
 
 // SchemaSQL is the complete modern schema for fresh ORC installs.
 // This schema reflects the current state after all migrations.
+//
+// # Schema Drift Protection
+//
+// This is the SINGLE SOURCE OF TRUTH for the database schema. All tests use
+// this schema via GetSchemaSQL(), which provides two layers of protection:
+//
+//  1. No hardcoded schemas: `make schema-check` fails if any test file contains
+//     CREATE TABLE statements. Tests must use db.GetSchemaSQL() instead.
+//
+//  2. Immediate failure on drift: If repository code references a column that
+//     doesn't exist in this schema, tests fail immediately with "no such column".
+//     This catches drift at development time, not production.
+//
+// # Keeping Schema in Sync
+//
 // IMPORTANT: Keep this in sync with migrations. Use Atlas to verify:
 //
 //	atlas schema diff --from "sqlite:///$HOME/.orc/orc.db" --to "sqlite:///tmp/fresh.db" --dev-url "sqlite://dev?mode=memory"
 //
-// This constant is exported so tests can use the authoritative schema
-// instead of maintaining duplicate schemas that can drift.
+// When adding new columns or tables:
+//  1. Add migration in internal/db/migrations/
+//  2. Update SchemaSQL here
+//  3. Run `make test` to verify alignment
 const SchemaSQL = `
 -- Tags (generic tagging system)
 CREATE TABLE IF NOT EXISTS tags (
