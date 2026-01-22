@@ -160,6 +160,16 @@ func buildGoblinPrimeOutput(cwd string, cfg *config.Config) string {
 	// Cross-workshop summary
 	output.WriteString(getCrossWorkshopSummary())
 
+	// Spec-Kit workflow (when shipment focused)
+	if cfg != nil && strings.HasPrefix(cfg.CurrentFocus, "SHIP-") {
+		output.WriteString(getSpecKitWorkflow())
+	}
+
+	// Refinement mode (when CWO is draft)
+	if cfg != nil && strings.HasPrefix(cfg.CurrentFocus, "SHIP-") {
+		output.WriteString(getRefinementModeContext(cfg.CurrentFocus))
+	}
+
 	// Core rules (shared)
 	output.WriteString(getCoreRules())
 
@@ -338,5 +348,45 @@ func getCrossWorkshopSummary() string {
 	}
 
 	output.WriteString("\n")
+	return output.String()
+}
+
+// getSpecKitWorkflow returns the Spec-Kit ceremony workflow guide
+func getSpecKitWorkflow() string {
+	return `## Spec-Kit Workflow
+
+When working on a shipment, follow this ceremony:
+
+` + "```" + `
+/orc-cycle  → Scope WHAT (create CWO)
+/orc-plan   → Plan HOW (design implementation)
+/orc-deliver → Close cycle (create CREC)
+` + "```" + `
+
+**Current cycle status:** Run ` + "`./orc cycle list --shipment-id SHIP-XXX`" + ` to see.
+
+`
+}
+
+// getRefinementModeContext checks for draft CWOs and returns context about refinement mode
+func getRefinementModeContext(shipmentID string) string {
+	cwos, err := wire.CycleWorkOrderService().ListCycleWorkOrders(
+		context.Background(),
+		primary.CycleWorkOrderFilters{
+			ShipmentID: shipmentID,
+			Status:     "draft",
+		},
+	)
+	if err != nil || len(cwos) == 0 {
+		return ""
+	}
+
+	var output strings.Builder
+	output.WriteString("## Refinement Mode\n\n")
+	for _, cwo := range cwos {
+		output.WriteString(fmt.Sprintf("**%s** is in DRAFT status.\n", cwo.ID))
+		output.WriteString("- Review/refine the scope before approving\n")
+		output.WriteString(fmt.Sprintf("- Run `./orc cwo approve %s` when ready\n\n", cwo.ID))
+	}
 	return output.String()
 }

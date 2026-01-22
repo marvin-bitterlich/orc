@@ -124,24 +124,6 @@ var cycleShowCmd = &cobra.Command{
 	},
 }
 
-var cycleStartCmd = &cobra.Command{
-	Use:   "start [cycle-id]",
-	Short: "Start a queued cycle",
-	Args:  cobra.ExactArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
-		cycleID := args[0]
-
-		err := wire.CycleService().StartCycle(ctx, cycleID)
-		if err != nil {
-			return fmt.Errorf("failed to start cycle: %w", err)
-		}
-
-		fmt.Printf("✓ Cycle %s started\n", cycleID)
-		return nil
-	},
-}
-
 var cycleCompleteCmd = &cobra.Command{
 	Use:   "complete [cycle-id]",
 	Short: "Complete an active cycle",
@@ -191,7 +173,6 @@ func init() {
 	cycleCmd.AddCommand(cycleCreateCmd)
 	cycleCmd.AddCommand(cycleListCmd)
 	cycleCmd.AddCommand(cycleShowCmd)
-	cycleCmd.AddCommand(cycleStartCmd)
 	cycleCmd.AddCommand(cycleCompleteCmd)
 	cycleCmd.AddCommand(cycleDeleteCmd)
 }
