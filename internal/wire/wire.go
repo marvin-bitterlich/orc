@@ -20,7 +20,6 @@ import (
 
 var (
 	commissionService              primary.CommissionService
-	groveService                   primary.GroveService
 	shipmentService                primary.ShipmentService
 	taskService                    primary.TaskService
 	noteService                    primary.NoteService
@@ -47,12 +46,6 @@ var (
 func CommissionService() primary.CommissionService {
 	once.Do(initServices)
 	return commissionService
-}
-
-// GroveService returns the singleton GroveService instance.
-func GroveService() primary.GroveService {
-	once.Do(initServices)
-	return groveService
 }
 
 // ShipmentService returns the singleton ShipmentService instance.
@@ -180,17 +173,15 @@ func initServices() {
 
 	// Create repository adapters (secondary ports) - sqlite adapters with injected DB
 	commissionRepo := sqlite.NewCommissionRepository(database)
-	groveRepo := sqlite.NewGroveRepository(database)
 	agentProvider := persistence.NewAgentIdentityProvider()
 	tmuxAdapter := tmuxadapter.NewAdapter()
 	tmuxService = tmuxAdapter // Store for getter
 
 	// Create effect executor with injected repositories and adapters
-	executor := app.NewEffectExecutor(groveRepo, commissionRepo, tmuxAdapter)
+	executor := app.NewEffectExecutor(commissionRepo, tmuxAdapter)
 
 	// Create services (primary ports implementation)
-	commissionService = app.NewCommissionService(commissionRepo, groveRepo, agentProvider, executor)
-	groveService = app.NewGroveService(groveRepo, commissionRepo, agentProvider, executor)
+	commissionService = app.NewCommissionService(commissionRepo, agentProvider, executor)
 
 	// Create shipment and task services
 	shipmentRepo := sqlite.NewShipmentRepository(database)
@@ -241,7 +232,7 @@ func initServices() {
 	workbenchService = app.NewWorkbenchService(workbenchRepo, workshopRepo, agentProvider, executor)
 
 	// Create orchestration services
-	commissionOrchestrationService = app.NewCommissionOrchestrationService(commissionService, groveService, agentProvider)
+	commissionOrchestrationService = app.NewCommissionOrchestrationService(commissionService, agentProvider)
 }
 
 // CommissionAdapter returns a new CommissionAdapter writing to stdout.
@@ -255,17 +246,4 @@ func CommissionAdapter() *cliadapter.CommissionAdapter {
 func CommissionAdapterWithOutput(out io.Writer) *cliadapter.CommissionAdapter {
 	once.Do(initServices)
 	return cliadapter.NewCommissionAdapter(commissionService, out)
-}
-
-// GroveAdapter returns a new GroveAdapter writing to stdout.
-// Each call creates a new adapter (adapters are stateless translators).
-func GroveAdapter() *cliadapter.GroveAdapter {
-	return GroveAdapterWithOutput(os.Stdout)
-}
-
-// GroveAdapterWithOutput returns a new GroveAdapter writing to the given output.
-// This variant allows testing or alternate output destinations.
-func GroveAdapterWithOutput(out io.Writer) *cliadapter.GroveAdapter {
-	once.Do(initServices)
-	return cliadapter.NewGroveAdapter(groveService, out)
 }

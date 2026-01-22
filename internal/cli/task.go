@@ -197,13 +197,13 @@ var taskClaimCmd = &cobra.Command{
 		ctx := context.Background()
 		taskID := args[0]
 
-		// Try to get grove from current directory
+		// Try to get workbench from current directory
 		cwd, _ := os.Getwd()
-		grove, _ := wire.GroveService().GetGroveByPath(ctx, cwd)
+		workbench, _ := wire.WorkbenchService().GetWorkbenchByPath(ctx, cwd)
 
 		workbenchID := ""
-		if grove != nil {
-			workbenchID = grove.ID
+		if workbench != nil {
+			workbenchID = workbench.ID
 		}
 
 		err := wire.TaskService().ClaimTask(ctx, primary.ClaimTaskRequest{
@@ -356,15 +356,15 @@ var taskDiscoverCmd = &cobra.Command{
 		ctx := context.Background()
 		autoClaim, _ := cmd.Flags().GetBool("auto-claim")
 
-		// Get current grove
+		// Get current workbench
 		cwd, _ := os.Getwd()
-		grove, err := wire.GroveService().GetGroveByPath(ctx, cwd)
+		workbench, err := wire.WorkbenchService().GetWorkbenchByPath(ctx, cwd)
 		if err != nil {
-			return fmt.Errorf("not in a grove directory: %w", err)
+			return fmt.Errorf("not in a workbench directory: %w", err)
 		}
 
-		// Get tasks assigned to this grove with ready status
-		readyTasks, err := wire.TaskService().DiscoverTasks(ctx, grove.ID)
+		// Get tasks assigned to this workbench with ready status
+		readyTasks, err := wire.TaskService().DiscoverTasks(ctx, workbench.ID)
 		if err != nil {
 			return fmt.Errorf("failed to get tasks: %w", err)
 		}
@@ -390,7 +390,7 @@ var taskDiscoverCmd = &cobra.Command{
 			task := readyTasks[0]
 			err := wire.TaskService().ClaimTask(ctx, primary.ClaimTaskRequest{
 				TaskID:  task.ID,
-				GroveID: grove.ID,
+				GroveID: workbench.ID,
 			})
 			if err != nil {
 				return fmt.Errorf("failed to claim task: %w", err)

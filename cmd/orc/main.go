@@ -15,8 +15,8 @@ func main() {
 		Use:     "orc",
 		Short:   "ORC - Orchestrator for Forest Factory commissions",
 		Version: version.String(),
-		Long: `ORC is a CLI tool for managing commissions, groves, shipments, and tasks.
-It coordinates IMPs (Implementation Agents) working in isolated groves (worktrees).`,
+		Long: `ORC is a CLI tool for managing commissions, shipments, and tasks.
+It coordinates IMPs (Implementation Agents) working in isolated workbenches (worktrees).`,
 	}
 
 	// Add subcommands
@@ -26,7 +26,6 @@ It coordinates IMPs (Implementation Agents) working in isolated groves (worktree
 	rootCmd.AddCommand(cli.ShipmentCmd())
 	rootCmd.AddCommand(cli.TaskCmd())
 	rootCmd.AddCommand(cli.TagCmd())
-	rootCmd.AddCommand(cli.GroveCmd())
 	rootCmd.AddCommand(cli.HandoffCmd())
 	rootCmd.AddCommand(cli.SummaryCmd())
 	rootCmd.AddCommand(cli.StatusCmd())

@@ -83,49 +83,7 @@ Examples:
 			totalCleaned += commissionsCleaned
 			fmt.Println()
 
-			// 2. Clean up test groves
-			fmt.Println("🌳 Cleaning up test groves...")
-			groves, err := wire.GroveService().ListGroves(ctx, primary.GroveFilters{})
-			if err != nil {
-				return fmt.Errorf("failed to list groves: %w", err)
-			}
-
-			var grovesCleaned int
-			for _, grove := range groves {
-				// Match groves associated with test commissions
-				if strings.HasPrefix(grove.CommissionID, "COMM-TEST-") {
-					if dryRun {
-						fmt.Printf("  [DRY RUN] Would delete: %s (%s) at %s\n", grove.ID, grove.Name, grove.Path)
-					} else {
-						// Try to remove worktree
-						if _, err := os.Stat(grove.Path); err == nil {
-							// Try git worktree remove first
-							if err := exec.Command("git", "worktree", "remove", grove.Path, "--force").Run(); err != nil {
-								// Fall back to direct removal
-								os.RemoveAll(grove.Path)
-							}
-						}
-
-						// Delete from database
-						if err := wire.GroveService().DeleteGrove(ctx, primary.DeleteGroveRequest{GroveID: grove.ID, Force: true}); err != nil {
-							fmt.Printf("  ⚠️  Failed to delete %s: %v\n", grove.ID, err)
-						} else {
-							fmt.Printf("  ✓ Deleted: %s (%s)\n", grove.ID, grove.Name)
-							grovesCleaned++
-						}
-					}
-				}
-			}
-
-			if grovesCleaned == 0 && !dryRun {
-				fmt.Println("  ℹ️  No test groves found")
-			} else if dryRun {
-				fmt.Printf("  Found %d test groves\n", grovesCleaned)
-			}
-			totalCleaned += grovesCleaned
-			fmt.Println()
-
-			// 3. Clean up orphaned worktrees (not in database)
+			// 2. Clean up orphaned worktrees (not in database)
 			fmt.Println("📁 Scanning for orphaned test worktrees...")
 			home, err := os.UserHomeDir()
 			if err != nil {

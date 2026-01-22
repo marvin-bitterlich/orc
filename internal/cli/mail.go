@@ -75,16 +75,11 @@ Examples:
 			if identity.Type == agent.AgentTypeORC {
 				// ORC sending: use recipient's mission ID (must be IMP)
 				if recipientIdentity.Type == agent.AgentTypeIMP {
-					// Need to look up grove to get mission ID
-					if recipientIdentity.CommissionID == "" {
-						// Try to extract from grove
-						grove, err := wire.GroveService().GetGrove(ctx, recipientIdentity.ID)
-						if err != nil {
-							return fmt.Errorf("failed to resolve IMP mission: %w", err)
-						}
-						missionID = grove.CommissionID
-					} else {
+					// Use recipient's commission ID
+					if recipientIdentity.CommissionID != "" {
 						missionID = recipientIdentity.CommissionID
+					} else {
+						return fmt.Errorf("cannot determine mission ID for IMP agent")
 					}
 				} else {
 					return fmt.Errorf("ORC can only send to IMP agents")

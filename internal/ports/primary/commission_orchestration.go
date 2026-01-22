@@ -1,12 +1,26 @@
 package primary
 
-// CommissionState represents the loaded state of a commission and its groves.
+// CommissionState represents the loaded state of a commission.
+// Groves are deprecated - this now returns empty groves list.
 type CommissionState struct {
 	Commission *Commission
-	Groves     []*Grove
+	Groves     []*Grove // Deprecated - always empty
+}
+
+// Grove is a deprecated type kept for backward compatibility.
+// Use Workbench instead.
+type Grove struct {
+	ID           string
+	Name         string
+	CommissionID string
+	Path         string
+	Repos        []string
+	Status       string
+	CreatedAt    string
 }
 
 // InfrastructurePlan describes the changes needed to set up commission infrastructure.
+// Groves are deprecated - grove-related fields are kept for backward compatibility.
 type InfrastructurePlan struct {
 	WorkspacePath string
 	GrovesDir     string
@@ -20,6 +34,7 @@ type InfrastructurePlan struct {
 }
 
 // GroveAction represents an action to take on a grove.
+// Deprecated - kept for backward compatibility.
 type GroveAction struct {
 	GroveID      string
 	GroveName    string
@@ -56,6 +71,7 @@ type InfrastructureApplyResult struct {
 }
 
 // GroveNeedingWork describes a grove that needs additional work.
+// Deprecated - kept for backward compatibility.
 type GroveNeedingWork struct {
 	GroveID     string
 	GroveName   string

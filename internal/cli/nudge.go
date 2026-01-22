@@ -34,23 +34,20 @@ Examples:
 				return fmt.Errorf("invalid agent ID: %w", err)
 			}
 
-			// For IMP agents, we need to look up grove info
+			// For IMP agents, we need to look up workbench info
 			var target string
 			if identity.Type == agent.AgentTypeIMP {
-				// Extract grove ID from IMP-GROVE-001
-				grove, err := wire.GroveService().GetGrove(context.Background(), identity.ID)
+				// Extract workbench ID
+				workbench, err := wire.WorkbenchService().GetWorkbench(context.Background(), identity.ID)
 				if err != nil {
-					return fmt.Errorf("failed to get grove info: %w", err)
+					return fmt.Errorf("failed to get workbench info: %w", err)
 				}
 
 				// Resolve tmux target
-				target, err = agent.ResolveTMuxTarget(agentID, grove.Name)
+				target, err = agent.ResolveTMuxTarget(agentID, workbench.Name)
 				if err != nil {
 					return fmt.Errorf("failed to resolve target: %w", err)
 				}
-
-				// Update identity with mission ID for session check
-				identity.CommissionID = grove.CommissionID
 			} else {
 				// ORC
 				target, err = agent.ResolveTMuxTarget(agentID, "")

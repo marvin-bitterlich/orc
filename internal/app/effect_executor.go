@@ -18,17 +18,15 @@ type EffectExecutor interface {
 
 // DefaultEffectExecutor implements EffectExecutor with real I/O.
 type DefaultEffectExecutor struct {
-	groveRepo         secondary.GroveRepository
-	comcommissionRepo secondary.CommissionRepository
-	tmuxAdapter       secondary.TMuxAdapter
+	commissionRepo secondary.CommissionRepository
+	tmuxAdapter    secondary.TMuxAdapter
 }
 
 // NewEffectExecutor creates a new DefaultEffectExecutor with injected dependencies.
-func NewEffectExecutor(groveRepo secondary.GroveRepository, comcommissionRepo secondary.CommissionRepository, tmuxAdapter secondary.TMuxAdapter) *DefaultEffectExecutor {
+func NewEffectExecutor(commissionRepo secondary.CommissionRepository, tmuxAdapter secondary.TMuxAdapter) *DefaultEffectExecutor {
 	return &DefaultEffectExecutor{
-		groveRepo:         groveRepo,
-		comcommissionRepo: comcommissionRepo,
-		tmuxAdapter:       tmuxAdapter,
+		commissionRepo: commissionRepo,
+		tmuxAdapter:    tmuxAdapter,
 	}
 }
 
@@ -81,28 +79,10 @@ func (e *DefaultEffectExecutor) executeFile(ctx context.Context, eff effects.Fil
 
 func (e *DefaultEffectExecutor) executePersist(ctx context.Context, eff effects.PersistEffect) error {
 	switch eff.Entity {
-	case "grove":
-		return e.executeGroveOp(ctx, eff)
 	case "commission":
 		return e.executeCommissionOp(ctx, eff)
 	default:
 		return fmt.Errorf("unknown entity: %s", eff.Entity)
-	}
-}
-
-func (e *DefaultEffectExecutor) executeGroveOp(ctx context.Context, eff effects.PersistEffect) error {
-	switch eff.Operation {
-	case "update":
-		data, ok := eff.Data.(map[string]string)
-		if !ok {
-			return fmt.Errorf("invalid grove update data type: %T", eff.Data)
-		}
-		if path, exists := data["path"]; exists {
-			return e.groveRepo.UpdatePath(ctx, data["id"], path)
-		}
-		return nil
-	default:
-		return fmt.Errorf("unknown grove operation: %s", eff.Operation)
 	}
 }
 
@@ -111,14 +91,14 @@ func (e *DefaultEffectExecutor) executeCommissionOp(ctx context.Context, eff eff
 	case "update_status":
 		data, ok := eff.Data.(map[string]string)
 		if !ok {
-			return fmt.Errorf("invalid comcommission update data type: %T", eff.Data)
+			return fmt.Errorf("invalid commission update data type: %T", eff.Data)
 		}
-		return e.comcommissionRepo.Update(ctx, &secondary.CommissionRecord{
+		return e.commissionRepo.Update(ctx, &secondary.CommissionRecord{
 			ID:     data["id"],
 			Status: data["status"],
 		})
 	default:
-		return fmt.Errorf("unknown comcommission operation: %s", eff.Operation)
+		return fmt.Errorf("unknown commission operation: %s", eff.Operation)
 	}
 }
 

@@ -53,49 +53,6 @@ type CommissionFilters struct {
 	Limit  int
 }
 
-// GroveRepository defines the secondary port for grove persistence.
-type GroveRepository interface {
-	// Create persists a new grove.
-	Create(ctx context.Context, grove *GroveRecord) error
-
-	// GetByID retrieves a grove by its ID.
-	GetByID(ctx context.Context, id string) (*GroveRecord, error)
-
-	// GetByPath retrieves a grove by its file path.
-	GetByPath(ctx context.Context, path string) (*GroveRecord, error)
-
-	// GetByCommission retrieves all groves for a commission.
-	GetByCommission(ctx context.Context, commissionID string) ([]*GroveRecord, error)
-
-	// List retrieves all groves, optionally filtered by commission.
-	List(ctx context.Context, commissionID string) ([]*GroveRecord, error)
-
-	// Update updates an existing grove.
-	Update(ctx context.Context, grove *GroveRecord) error
-
-	// Delete removes a grove from persistence.
-	Delete(ctx context.Context, id string) error
-
-	// Rename updates the name of a grove.
-	Rename(ctx context.Context, id, newName string) error
-
-	// UpdatePath updates the path of a grove.
-	UpdatePath(ctx context.Context, id, newPath string) error
-
-	// GetNextID returns the next available grove ID.
-	GetNextID(ctx context.Context) (string, error)
-}
-
-// GroveRecord represents a grove as stored in persistence.
-type GroveRecord struct {
-	ID           string
-	Name         string
-	CommissionID string
-	WorktreePath string
-	Status       string
-	CreatedAt    string
-}
-
 // AgentIdentityProvider defines the secondary port for agent identity resolution.
 // This abstracts the detection of current agent context (ORC vs IMP).
 type AgentIdentityProvider interface {

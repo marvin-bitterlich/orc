@@ -102,88 +102,6 @@ func (m *mockCommissionRepository) Unpin(ctx context.Context, id string) error {
 	return nil
 }
 
-// mockGroveRepository implements secondary.GroveRepository for testing.
-type mockGroveRepository struct {
-	groves map[string][]*secondary.GroveRecord
-}
-
-func newMockGroveRepository() *mockGroveRepository {
-	return &mockGroveRepository{
-		groves: make(map[string][]*secondary.GroveRecord),
-	}
-}
-
-func (m *mockGroveRepository) Create(ctx context.Context, grove *secondary.GroveRecord) error {
-	grove.ID = "GROVE-001"
-	m.groves[grove.CommissionID] = append(m.groves[grove.CommissionID], grove)
-	return nil
-}
-
-func (m *mockGroveRepository) GetByID(ctx context.Context, id string) (*secondary.GroveRecord, error) {
-	for _, groves := range m.groves {
-		for _, g := range groves {
-			if g.ID == id {
-				return g, nil
-			}
-		}
-	}
-	return nil, errors.New("grove not found")
-}
-
-func (m *mockGroveRepository) GetByCommission(ctx context.Context, commissionID string) ([]*secondary.GroveRecord, error) {
-	return m.groves[commissionID], nil
-}
-
-func (m *mockGroveRepository) Update(ctx context.Context, grove *secondary.GroveRecord) error {
-	return nil
-}
-
-func (m *mockGroveRepository) Delete(ctx context.Context, id string) error {
-	for commissionID, groves := range m.groves {
-		for i, g := range groves {
-			if g.ID == id {
-				m.groves[commissionID] = append(groves[:i], groves[i+1:]...)
-				return nil
-			}
-		}
-	}
-	return nil
-}
-
-func (m *mockGroveRepository) GetNextID(ctx context.Context) (string, error) {
-	return "GROVE-001", nil
-}
-
-func (m *mockGroveRepository) GetByPath(ctx context.Context, path string) (*secondary.GroveRecord, error) {
-	for _, groves := range m.groves {
-		for _, g := range groves {
-			if g.WorktreePath == path {
-				return g, nil
-			}
-		}
-	}
-	return nil, errors.New("grove not found")
-}
-
-func (m *mockGroveRepository) List(ctx context.Context, commissionID string) ([]*secondary.GroveRecord, error) {
-	if commissionID == "" {
-		var all []*secondary.GroveRecord
-		for _, groves := range m.groves {
-			all = append(all, groves...)
-		}
-		return all, nil
-	}
-	return m.groves[commissionID], nil
-}
-
-func (m *mockGroveRepository) Rename(ctx context.Context, id, newName string) error {
-	return nil
-}
-
-func (m *mockGroveRepository) UpdatePath(ctx context.Context, id, newPath string) error {
-	return nil
-}
-
 // mockAgentProvider implements secondary.AgentIdentityProvider for testing.
 type mockAgentProvider struct {
 	identity *secondary.AgentIdentity
@@ -232,14 +150,13 @@ func (m *mockEffectExecutor) Execute(ctx context.Context, effs []effects.Effect)
 // Test Helper
 // ============================================================================
 
-func newTestService(agentType secondary.AgentType) (*CommissionServiceImpl, *mockCommissionRepository, *mockGroveRepository, *mockEffectExecutor) {
+func newTestService(agentType secondary.AgentType) (*CommissionServiceImpl, *mockCommissionRepository, *mockEffectExecutor) {
 	commissionRepo := newMockCommissionRepository()
-	groveRepo := newMockGroveRepository()
 	agentProvider := newMockAgentProvider(agentType)
 	executor := newMockEffectExecutor()
 
-	service := NewCommissionService(commissionRepo, groveRepo, agentProvider, executor)
-	return service, commissionRepo, groveRepo, executor
+	service := NewCommissionService(commissionRepo, agentProvider, executor)
+	return service, commissionRepo, executor
 }
 
 // ============================================================================
@@ -247,7 +164,7 @@ func newTestService(agentType secondary.AgentType) (*CommissionServiceImpl, *moc
 // ============================================================================
 
 func TestCreateCommission_ORCCanCreate(t *testing.T) {
-	service, _, _, _ := newTestService(secondary.AgentTypeORC)
+	service, _, _ := newTestService(secondary.AgentTypeORC)
 	ctx := context.Background()
 
 	resp, err := service.CreateCommission(ctx, primary.CreateCommissionRequest{
@@ -267,7 +184,7 @@ func TestCreateCommission_ORCCanCreate(t *testing.T) {
 }
 
 func TestCreateCommission_IMPCannotCreate(t *testing.T) {
-	service, _, _, _ := newTestService(secondary.AgentTypeIMP)
+	service, _, _ := newTestService(secondary.AgentTypeIMP)
 	ctx := context.Background()
 
 	_, err := service.CreateCommission(ctx, primary.CreateCommissionRequest{
@@ -288,7 +205,7 @@ func TestCreateCommission_IMPCannotCreate(t *testing.T) {
 // ============================================================================
 
 func TestCompleteCommission_UnpinnedAllowed(t *testing.T) {
-	service, commissionRepo, _, _ := newTestService(secondary.AgentTypeORC)
+	service, commissionRepo, _ := newTestService(secondary.AgentTypeORC)
 	ctx := context.Background()
 
 	// Setup: create an unpinned commission
@@ -310,7 +227,7 @@ func TestCompleteCommission_UnpinnedAllowed(t *testing.T) {
 }
 
 func TestCompleteCommission_PinnedBlocked(t *testing.T) {
-	service, commissionRepo, _, _ := newTestService(secondary.AgentTypeORC)
+	service, commissionRepo, _ := newTestService(secondary.AgentTypeORC)
 	ctx := context.Background()
 
 	// Setup: create a pinned commission
@@ -329,7 +246,7 @@ func TestCompleteCommission_PinnedBlocked(t *testing.T) {
 }
 
 func TestCompleteCommission_NotFound(t *testing.T) {
-	service, _, _, _ := newTestService(secondary.AgentTypeORC)
+	service, _, _ := newTestService(secondary.AgentTypeORC)
 	ctx := context.Background()
 
 	err := service.CompleteCommission(ctx, "COMM-NONEXISTENT")
@@ -344,7 +261,7 @@ func TestCompleteCommission_NotFound(t *testing.T) {
 // ============================================================================
 
 func TestArchiveCommission_UnpinnedAllowed(t *testing.T) {
-	service, commissionRepo, _, _ := newTestService(secondary.AgentTypeORC)
+	service, commissionRepo, _ := newTestService(secondary.AgentTypeORC)
 	ctx := context.Background()
 
 	// Setup: create an unpinned commission
@@ -366,7 +283,7 @@ func TestArchiveCommission_UnpinnedAllowed(t *testing.T) {
 }
 
 func TestArchiveCommission_PinnedBlocked(t *testing.T) {
-	service, commissionRepo, _, _ := newTestService(secondary.AgentTypeORC)
+	service, commissionRepo, _ := newTestService(secondary.AgentTypeORC)
 	ctx := context.Background()
 
 	// Setup: create a pinned commission
@@ -389,7 +306,7 @@ func TestArchiveCommission_PinnedBlocked(t *testing.T) {
 // ============================================================================
 
 func TestDeleteCommission_NoDependents(t *testing.T) {
-	service, commissionRepo, _, _ := newTestService(secondary.AgentTypeORC)
+	service, commissionRepo, _ := newTestService(secondary.AgentTypeORC)
 	ctx := context.Background()
 
 	// Setup: create a commission with no dependents
@@ -413,8 +330,8 @@ func TestDeleteCommission_NoDependents(t *testing.T) {
 	}
 }
 
-func TestDeleteCommission_HasDependentsNoForce(t *testing.T) {
-	service, commissionRepo, groveRepo, _ := newTestService(secondary.AgentTypeORC)
+func TestDeleteCommission_HasShipmentsNoForce(t *testing.T) {
+	service, commissionRepo, _ := newTestService(secondary.AgentTypeORC)
 	ctx := context.Background()
 
 	// Setup: create a commission with shipments
@@ -424,9 +341,6 @@ func TestDeleteCommission_HasDependentsNoForce(t *testing.T) {
 		Status: "active",
 	}
 	commissionRepo.shipmentCount["COMM-001"] = 3
-	groveRepo.groves["COMM-001"] = []*secondary.GroveRecord{
-		{ID: "GROVE-001", CommissionID: "COMM-001", Name: "main-grove"},
-	}
 
 	err := service.DeleteCommission(ctx, primary.DeleteCommissionRequest{
 		CommissionID: "COMM-001",
@@ -441,8 +355,8 @@ func TestDeleteCommission_HasDependentsNoForce(t *testing.T) {
 	}
 }
 
-func TestDeleteCommission_HasDependentsWithForce(t *testing.T) {
-	service, commissionRepo, groveRepo, _ := newTestService(secondary.AgentTypeORC)
+func TestDeleteCommission_HasShipmentsWithForce(t *testing.T) {
+	service, commissionRepo, _ := newTestService(secondary.AgentTypeORC)
 	ctx := context.Background()
 
 	// Setup: create a commission with shipments
@@ -452,9 +366,6 @@ func TestDeleteCommission_HasDependentsWithForce(t *testing.T) {
 		Status: "active",
 	}
 	commissionRepo.shipmentCount["COMM-001"] = 3
-	groveRepo.groves["COMM-001"] = []*secondary.GroveRecord{
-		{ID: "GROVE-001", CommissionID: "COMM-001", Name: "main-grove"},
-	}
 
 	err := service.DeleteCommission(ctx, primary.DeleteCommissionRequest{
 		CommissionID: "COMM-001",
@@ -474,17 +385,14 @@ func TestDeleteCommission_HasDependentsWithForce(t *testing.T) {
 // ============================================================================
 
 func TestStartCommission_ORCCanStart(t *testing.T) {
-	service, commissionRepo, groveRepo, executor := newTestService(secondary.AgentTypeORC)
+	service, commissionRepo, _ := newTestService(secondary.AgentTypeORC)
 	ctx := context.Background()
 
-	// Setup: create a commission with groves
+	// Setup: create a commission
 	commissionRepo.commissions["COMM-001"] = &secondary.CommissionRecord{
 		ID:     "COMM-001",
 		Title:  "Test Commission",
 		Status: "active",
-	}
-	groveRepo.groves["COMM-001"] = []*secondary.GroveRecord{
-		{ID: "GROVE-001", CommissionID: "COMM-001", Name: "main-grove", WorktreePath: "/tmp/worktree"},
 	}
 
 	resp, err := service.StartCommission(ctx, primary.StartCommissionRequest{
@@ -497,14 +405,10 @@ func TestStartCommission_ORCCanStart(t *testing.T) {
 	if resp.Commission.ID != "COMM-001" {
 		t.Errorf("expected commission ID 'COMM-001', got '%s'", resp.Commission.ID)
 	}
-	// Verify effects were generated
-	if len(executor.executedEffects) == 0 {
-		t.Error("expected effects to be executed")
-	}
 }
 
 func TestStartCommission_IMPCannotStart(t *testing.T) {
-	service, commissionRepo, _, _ := newTestService(secondary.AgentTypeIMP)
+	service, commissionRepo, _ := newTestService(secondary.AgentTypeIMP)
 	ctx := context.Background()
 
 	// Setup: create a commission
@@ -523,47 +427,12 @@ func TestStartCommission_IMPCannotStart(t *testing.T) {
 	}
 }
 
-func TestStartCommission_GeneratesTMuxEffects(t *testing.T) {
-	service, commissionRepo, groveRepo, executor := newTestService(secondary.AgentTypeORC)
-	ctx := context.Background()
-
-	// Setup
-	commissionRepo.commissions["COMM-001"] = &secondary.CommissionRecord{
-		ID:     "COMM-001",
-		Title:  "Test Commission",
-		Status: "active",
-	}
-	groveRepo.groves["COMM-001"] = []*secondary.GroveRecord{
-		{ID: "GROVE-001", CommissionID: "COMM-001", Name: "grove1", WorktreePath: "/path/to/worktree"},
-	}
-
-	_, err := service.StartCommission(ctx, primary.StartCommissionRequest{
-		CommissionID: "COMM-001",
-	})
-
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
-	}
-
-	// Check that TMux effects were generated
-	hasTMuxEffect := false
-	for _, eff := range executor.executedEffects {
-		if _, ok := eff.(effects.TMuxEffect); ok {
-			hasTMuxEffect = true
-			break
-		}
-	}
-	if !hasTMuxEffect {
-		t.Error("expected TMux effects to be generated for start commission")
-	}
-}
-
 // ============================================================================
 // LaunchCommission Tests
 // ============================================================================
 
 func TestLaunchCommission_ORCCanLaunch(t *testing.T) {
-	service, _, _, _ := newTestService(secondary.AgentTypeORC)
+	service, _, _ := newTestService(secondary.AgentTypeORC)
 	ctx := context.Background()
 
 	resp, err := service.LaunchCommission(ctx, primary.LaunchCommissionRequest{
@@ -580,7 +449,7 @@ func TestLaunchCommission_ORCCanLaunch(t *testing.T) {
 }
 
 func TestLaunchCommission_IMPCannotLaunch(t *testing.T) {
-	service, _, _, _ := newTestService(secondary.AgentTypeIMP)
+	service, _, _ := newTestService(secondary.AgentTypeIMP)
 	ctx := context.Background()
 
 	_, err := service.LaunchCommission(ctx, primary.LaunchCommissionRequest{
@@ -598,7 +467,7 @@ func TestLaunchCommission_IMPCannotLaunch(t *testing.T) {
 // ============================================================================
 
 func TestGetCommission_Found(t *testing.T) {
-	service, commissionRepo, _, _ := newTestService(secondary.AgentTypeORC)
+	service, commissionRepo, _ := newTestService(secondary.AgentTypeORC)
 	ctx := context.Background()
 
 	commissionRepo.commissions["COMM-001"] = &secondary.CommissionRecord{
@@ -618,7 +487,7 @@ func TestGetCommission_Found(t *testing.T) {
 }
 
 func TestGetCommission_NotFound(t *testing.T) {
-	service, _, _, _ := newTestService(secondary.AgentTypeORC)
+	service, _, _ := newTestService(secondary.AgentTypeORC)
 	ctx := context.Background()
 
 	_, err := service.GetCommission(ctx, "COMM-NONEXISTENT")
@@ -629,7 +498,7 @@ func TestGetCommission_NotFound(t *testing.T) {
 }
 
 func TestListCommissions_FilterByStatus(t *testing.T) {
-	service, commissionRepo, _, _ := newTestService(secondary.AgentTypeORC)
+	service, commissionRepo, _ := newTestService(secondary.AgentTypeORC)
 	ctx := context.Background()
 
 	commissionRepo.commissions["COMM-001"] = &secondary.CommissionRecord{
@@ -658,7 +527,7 @@ func TestListCommissions_FilterByStatus(t *testing.T) {
 // ============================================================================
 
 func TestPinCommission(t *testing.T) {
-	service, commissionRepo, _, _ := newTestService(secondary.AgentTypeORC)
+	service, commissionRepo, _ := newTestService(secondary.AgentTypeORC)
 	ctx := context.Background()
 
 	commissionRepo.commissions["COMM-001"] = &secondary.CommissionRecord{
@@ -679,7 +548,7 @@ func TestPinCommission(t *testing.T) {
 }
 
 func TestUnpinCommission(t *testing.T) {
-	service, commissionRepo, _, _ := newTestService(secondary.AgentTypeORC)
+	service, commissionRepo, _ := newTestService(secondary.AgentTypeORC)
 	ctx := context.Background()
 
 	commissionRepo.commissions["COMM-001"] = &secondary.CommissionRecord{
@@ -704,7 +573,7 @@ func TestUnpinCommission(t *testing.T) {
 // ============================================================================
 
 func TestUpdateCommission_Title(t *testing.T) {
-	service, commissionRepo, _, _ := newTestService(secondary.AgentTypeORC)
+	service, commissionRepo, _ := newTestService(secondary.AgentTypeORC)
 	ctx := context.Background()
 
 	commissionRepo.commissions["COMM-001"] = &secondary.CommissionRecord{
@@ -728,7 +597,7 @@ func TestUpdateCommission_Title(t *testing.T) {
 }
 
 func TestUpdateCommission_Description(t *testing.T) {
-	service, commissionRepo, _, _ := newTestService(secondary.AgentTypeORC)
+	service, commissionRepo, _ := newTestService(secondary.AgentTypeORC)
 	ctx := context.Background()
 
 	commissionRepo.commissions["COMM-001"] = &secondary.CommissionRecord{

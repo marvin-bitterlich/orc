@@ -3,8 +3,6 @@ package app
 import (
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
 	"time"
 
 	corecommission "github.com/example/orc/internal/core/commission"
@@ -15,7 +13,6 @@ import (
 // CommissionServiceImpl implements the CommissionService interface.
 type CommissionServiceImpl struct {
 	commissionRepo secondary.CommissionRepository
-	groveRepo      secondary.GroveRepository
 	agentProvider  secondary.AgentIdentityProvider
 	executor       EffectExecutor
 }
@@ -23,13 +20,11 @@ type CommissionServiceImpl struct {
 // NewCommissionService creates a new CommissionService with injected dependencies.
 func NewCommissionService(
 	commissionRepo secondary.CommissionRepository,
-	groveRepo secondary.GroveRepository,
 	agentProvider secondary.AgentIdentityProvider,
 	executor EffectExecutor,
 ) *CommissionServiceImpl {
 	return &CommissionServiceImpl{
 		commissionRepo: commissionRepo,
-		groveRepo:      groveRepo,
 		agentProvider:  agentProvider,
 		executor:       executor,
 	}
@@ -78,7 +73,7 @@ func (s *CommissionServiceImpl) CreateCommission(ctx context.Context, req primar
 	}, nil
 }
 
-// StartCommission starts a commission with TMux session.
+// StartCommission starts a commission.
 func (s *CommissionServiceImpl) StartCommission(ctx context.Context, req primary.StartCommissionRequest) (*primary.StartCommissionResponse, error) {
 	// 1. Guard check
 	identity, err := s.agentProvider.GetCurrentIdentity(ctx)
@@ -99,38 +94,6 @@ func (s *CommissionServiceImpl) StartCommission(ctx context.Context, req primary
 	commission, err := s.commissionRepo.GetByID(ctx, req.CommissionID)
 	if err != nil {
 		return nil, fmt.Errorf("commission not found: %w", err)
-	}
-
-	// 3. Fetch groves for commission
-	groveRecords, err := s.groveRepo.GetByCommission(ctx, req.CommissionID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get groves: %w", err)
-	}
-
-	// 4. Build planner input
-	workspacePath := s.defaultWorkspacePath(req.CommissionID)
-	groves := make([]corecommission.GrovePlanInput, len(groveRecords))
-	for i, g := range groveRecords {
-		groves[i] = corecommission.GrovePlanInput{
-			ID:          g.ID,
-			Name:        g.Name,
-			CurrentPath: g.WorktreePath,
-			PathExists:  s.pathExists(g.WorktreePath),
-		}
-	}
-
-	planInput := corecommission.StartPlanInput{
-		CommissionID:  req.CommissionID,
-		WorkspacePath: workspacePath,
-		Groves:        groves,
-	}
-
-	// 5. Generate plan (pure function)
-	plan := corecommission.GenerateStartPlan(planInput)
-
-	// 6. Execute effects
-	if err := s.executor.Execute(ctx, plan.Effects()); err != nil {
-		return nil, fmt.Errorf("failed to execute start plan: %w", err)
 	}
 
 	return &primary.StartCommissionResponse{
@@ -277,16 +240,11 @@ func (s *CommissionServiceImpl) DeleteCommission(ctx context.Context, req primar
 		return fmt.Errorf("failed to count shipments: %w", err)
 	}
 
-	groves, err := s.groveRepo.GetByCommission(ctx, req.CommissionID)
-	if err != nil {
-		return fmt.Errorf("failed to get groves: %w", err)
-	}
-
 	// 2. Guard check
 	deleteCtx := corecommission.DeleteContext{
 		CommissionID:  req.CommissionID,
 		ShipmentCount: shipmentCount,
-		GroveCount:    len(groves),
+		GroveCount:    0, // Groves deprecated - always 0
 		ForceDelete:   req.Force,
 	}
 	if result := corecommission.CanDeleteCommission(deleteCtx); !result.Allowed {
@@ -349,16 +307,6 @@ func (s *CommissionServiceImpl) recordToCommission(r *secondary.CommissionRecord
 		StartedAt:   r.StartedAt,
 		CompletedAt: r.CompletedAt,
 	}
-}
-
-func (s *CommissionServiceImpl) defaultWorkspacePath(commissionID string) string {
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, "src", "commissions", commissionID)
-}
-
-func (s *CommissionServiceImpl) pathExists(path string) bool {
-	_, err := os.Stat(path)
-	return err == nil
 }
 
 // Ensure CommissionServiceImpl implements the interface

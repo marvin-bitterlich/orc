@@ -813,11 +813,11 @@ Examples:
 						if container.pinned {
 							pinnedEmoji = "📌 "
 						}
-						groveInfo := ""
+						workbenchInfo := ""
 						if container.workbenchID != "" {
-							grove, err := wire.GroveService().GetGrove(context.Background(), container.workbenchID)
+							workbench, err := wire.WorkbenchService().GetWorkbench(context.Background(), container.workbenchID)
 							if err == nil {
-								groveInfo = " " + colorizeGrove(grove.Name, grove.ID)
+								workbenchInfo = " " + colorizeGrove(workbench.Name, workbench.ID)
 							}
 						}
 
@@ -835,9 +835,9 @@ Examples:
 
 						statusInfo := colorizeStatus(container.status)
 						if statusInfo != "" {
-							fmt.Printf("%s%s%s%s - %s - %s%s\n", prefix, focusMarker, pinnedEmoji, colorizeID(container.id), statusInfo, container.title, groveInfo)
+							fmt.Printf("%s%s%s%s - %s - %s%s\n", prefix, focusMarker, pinnedEmoji, colorizeID(container.id), statusInfo, container.title, workbenchInfo)
 						} else {
-							fmt.Printf("%s%s%s%s - %s%s\n", prefix, focusMarker, pinnedEmoji, colorizeID(container.id), container.title, groveInfo)
+							fmt.Printf("%s%s%s%s - %s%s\n", prefix, focusMarker, pinnedEmoji, colorizeID(container.id), container.title, workbenchInfo)
 						}
 
 						// Display children based on container type

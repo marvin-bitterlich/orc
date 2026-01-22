@@ -79,16 +79,6 @@ var commissionShowCmd = &cobra.Command{
 			fmt.Println()
 		}
 
-		// List groves for this commission via service
-		groves, err := wire.GroveService().ListGroves(context.Background(), primary.GroveFilters{CommissionID: id})
-		if err == nil && len(groves) > 0 {
-			fmt.Println("Groves:")
-			for _, g := range groves {
-				fmt.Printf("  - %s: %s [%s]\n", g.ID, g.Name, g.Status)
-			}
-			fmt.Println()
-		}
-
 		return nil
 	},
 }
@@ -159,12 +149,6 @@ Examples:
 		fmt.Printf("  Commission: %s - %s\n", commission.ID, commission.Title)
 		fmt.Println()
 
-		// Get active groves for this commission via service
-		groves, err := wire.GroveService().ListGroves(context.Background(), primary.GroveFilters{CommissionID: commissionID})
-		if err != nil {
-			return fmt.Errorf("failed to get groves: %w", err)
-		}
-
 		// Create TMux session
 		sessionName := fmt.Sprintf("orc-%s", commissionID)
 		tmuxAdapter := wire.TMuxAdapter()
@@ -186,36 +170,6 @@ Examples:
 			return fmt.Errorf("failed to create ORC window: %w", err)
 		}
 		fmt.Printf("  ✓ Window 1: orc (claude | vim | shell)\n")
-
-		// Create window for each grove with sophisticated layout
-		for i, grove := range groves {
-			windowIndex := i + 2 // Windows start at 1, ORC is 1, groves start at 2
-
-			// Check if grove path exists
-			pathExists := false
-			if _, err := os.Stat(grove.Path); err == nil {
-				pathExists = true
-			}
-
-			if !pathExists {
-				fmt.Printf("  ℹ️  Grove %s worktree not found at %s\n", grove.ID, grove.Path)
-				fmt.Printf("      Skipping window creation. Run 'orc grove create %s --repos <repo-names>' to materialize\n", grove.Name)
-				continue
-			}
-
-			// Create grove window with vim, claude IMP, and shell
-			if err := tmuxAdapter.CreateGroveWindow(ctx, sessionName, windowIndex, grove.Name, grove.Path); err != nil {
-				fmt.Printf("  ⚠️  Warning: Could not create window for grove %s: %v\n", grove.ID, err)
-				continue
-			}
-
-			fmt.Printf("  ✓ Window %d: %s (vim | claude IMP | shell) [%s]\n", windowIndex, grove.Name, grove.ID)
-		}
-
-		if len(groves) == 0 {
-			fmt.Println("  ℹ️  No groves found for this commission")
-			fmt.Printf("     Create groves with: orc grove create <name> --commission %s --repos <repo-names>\n", commissionID)
-		}
 
 		// Select the ORC window (window 1) as default
 		tmuxAdapter.SelectWindow(ctx, sessionName, 1)
