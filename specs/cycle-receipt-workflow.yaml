@@ -1,0 +1,289 @@
+# Cycle Receipt Workflow Finite State Machine
+# Single source of truth for CREC lifecycle in ORC
+#
+# Generated: 2026-01-22
+# Context: SHIP-204 Cycle 3 - Receipt Entities
+
+name: cycle-receipt-workflow
+version: "1.0"
+description: |
+  Defines the complete lifecycle of a Cycle Receipt (CREC) entity in ORC.
+  CRECs capture what was actually delivered for a cycle (vs. CWO which specifies
+  what should be delivered). CRECs are 1:1 with CWOs.
+
+# =============================================================================
+# STATES
+# =============================================================================
+states:
+  initial:
+    description: No CREC exists yet (pre-creation)
+    terminal: false
+
+  draft:
+    description: CREC is being prepared, can be edited
+    terminal: false
+    invariants:
+      - status == "draft"
+      - created_at is set
+      - cwo_id is set and references existing CWO
+      - shipment_id is set and references existing shipment
+      - delivered_outcome is not empty
+
+  submitted:
+    description: CREC submitted for verification, awaiting review
+    terminal: false
+    invariants:
+      - status == "submitted"
+      - parent CWO must be complete
+
+  verified:
+    description: CREC verified as correct receipt of delivery
+    terminal: true  # Soft terminal - delete still possible
+    invariants:
+      - status == "verified"
+
+  deleted:
+    description: CREC removed from database (true terminal state)
+    terminal: true
+
+# =============================================================================
+# EVENTS
+# =============================================================================
+events:
+  create:
+    description: Create a new CREC for a CWO
+    payload:
+      cwo_id: { type: string, required: true }
+      delivered_outcome: { type: string, required: true }
+      evidence: { type: string, required: false }
+      verification_notes: { type: string, required: false }
+
+  update:
+    description: Update CREC fields
+    payload:
+      delivered_outcome: { type: string, required: false }
+      evidence: { type: string, required: false }
+      verification_notes: { type: string, required: false }
+
+  submit:
+    description: Submit CREC for verification
+    payload: {}
+
+  verify:
+    description: Mark CREC as verified
+    payload: {}
+
+  delete:
+    description: Hard-delete CREC from database
+    payload: {}
+
+# =============================================================================
+# TRANSITIONS
+# =============================================================================
+transitions:
+  # --- Creation ---
+  - name: create_crec
+    from: initial
+    to: draft
+    event: create
+    guards:
+      - cwo_exists              # CWO must exist
+      - cwo_has_no_crec         # 1:1 constraint - CWO can only have one CREC
+      - delivered_outcome_not_empty  # Delivered outcome is required
+    effects:
+      - { type: WriteDB, operation: INSERT, table: cycle_receipts }
+    test_cases:
+      - "Create CREC with existing CWO"
+      - "Create CREC for non-existent CWO (error)"
+      - "Create CREC for CWO that already has CREC (error)"
+      - "Create CREC with empty delivered_outcome (error)"
+
+  # --- Updating (no state change) ---
+  - name: update_crec
+    from: draft
+    to: draft
+    event: update
+    guards: []
+    effects:
+      - { type: WriteDB, operation: UPDATE, table: cycle_receipts, fields: [delivered_outcome, evidence, verification_notes, updated_at] }
+    test_cases:
+      - "Update CREC delivered_outcome"
+      - "Update CREC evidence"
+      - "Cannot update submitted CREC (error)"
+
+  # --- Submitting ---
+  - name: submit_crec
+    from: draft
+    to: submitted
+    event: submit
+    guards:
+      - is_draft           # Must be in draft status
+      - cwo_is_complete    # CWO must be complete before submitting receipt
+    effects:
+      - { type: WriteDB, operation: UPDATE, table: cycle_receipts, fields: [status, updated_at] }
+    test_cases:
+      - "Submit draft CREC when CWO is complete"
+      - "Submit CREC when CWO is not complete (error)"
+      - "Submit already submitted CREC (error)"
+
+  # --- Verifying ---
+  - name: verify_crec
+    from: submitted
+    to: verified
+    event: verify
+    guards:
+      - is_submitted       # Must be in submitted status
+    effects:
+      - { type: WriteDB, operation: UPDATE, table: cycle_receipts, fields: [status, updated_at] }
+    test_cases:
+      - "Verify submitted CREC"
+      - "Verify draft CREC (error)"
+      - "Verify already verified CREC (error)"
+
+  # --- Deletion ---
+  - name: delete_draft_crec
+    from: draft
+    to: deleted
+    event: delete
+    guards: []
+    effects:
+      - { type: WriteDB, operation: DELETE, table: cycle_receipts }
+    test_cases:
+      - "Delete draft CREC"
+
+  - name: delete_submitted_crec
+    from: submitted
+    to: deleted
+    event: delete
+    guards: []
+    effects:
+      - { type: WriteDB, operation: DELETE, table: cycle_receipts }
+    test_cases:
+      - "Delete submitted CREC"
+
+  - name: delete_verified_crec
+    from: verified
+    to: deleted
+    event: delete
+    guards: []
+    effects:
+      - { type: WriteDB, operation: DELETE, table: cycle_receipts }
+    test_cases:
+      - "Delete verified CREC"
+
+# =============================================================================
+# GUARDS
+# =============================================================================
+guards:
+  cwo_exists:
+    description: |
+      Check that the target CWO exists.
+      CRECs must belong to an existing CWO.
+    implementation: |
+      exists, err := repo.CWOExists(ctx, cwo_id)
+      return err == nil && exists
+    error_message: "CWO {cwo_id} not found"
+
+  cwo_has_no_crec:
+    description: |
+      Check that the CWO does not already have a CREC.
+      Enforces 1:1 relationship between CWO and CREC.
+    implementation: |
+      hasCREC, err := repo.CWOHasCREC(ctx, cwo_id)
+      return err == nil && !hasCREC
+    error_message: "CWO {cwo_id} already has a CREC"
+
+  delivered_outcome_not_empty:
+    description: |
+      Check that delivered_outcome is not empty.
+      CRECs must describe what was delivered.
+    implementation: |
+      return len(strings.TrimSpace(delivered_outcome)) > 0
+    error_message: "delivered_outcome cannot be empty"
+
+  is_draft:
+    description: |
+      Check that CREC status is "draft".
+      Required for submit transition.
+    implementation: |
+      crec, _ := repo.GetByID(ctx, crec_id)
+      return crec.Status == "draft"
+    error_message: "can only submit draft CRECs (current status: {status})"
+
+  is_submitted:
+    description: |
+      Check that CREC status is "submitted".
+      Required for verify transition.
+    implementation: |
+      crec, _ := repo.GetByID(ctx, crec_id)
+      return crec.Status == "submitted"
+    error_message: "can only verify submitted CRECs (current status: {status})"
+
+  cwo_is_complete:
+    description: |
+      Check that the parent CWO is complete.
+      CREC can only be submitted when CWO work is done.
+    implementation: |
+      status, err := repo.GetCWOStatus(ctx, cwo_id)
+      return err == nil && status == "complete"
+    error_message: "cannot submit CREC: parent CWO is not complete (status: {cwo_status})"
+
+# =============================================================================
+# EFFECTS
+# =============================================================================
+effects:
+  WriteDB:
+    description: Database write operation
+    parameters:
+      operation: { type: enum, values: [INSERT, UPDATE, DELETE] }
+      table: { type: string }
+      fields: { type: array, items: string, optional: true }
+
+# =============================================================================
+# INVARIANTS
+# =============================================================================
+invariants:
+  - name: id_format
+    description: CREC IDs follow CREC-XXX format
+    check: id matches /^CREC-\d{3}$/
+
+  - name: id_unique
+    description: CREC IDs are unique
+    check: COUNT(SELECT id FROM cycle_receipts WHERE id = {id}) == 1
+
+  - name: status_valid
+    description: Status is one of valid values
+    check: status IN ('draft', 'submitted', 'verified')
+
+  - name: cwo_reference
+    description: CREC must reference existing CWO
+    check: EXISTS(SELECT 1 FROM cycle_work_orders WHERE id = cwo_id)
+
+  - name: shipment_reference
+    description: CREC must reference existing shipment
+    check: EXISTS(SELECT 1 FROM shipments WHERE id = shipment_id)
+
+  - name: cwo_unique
+    description: Each CWO can have at most one CREC (1:1)
+    check: COUNT(SELECT id FROM cycle_receipts WHERE cwo_id = {cwo_id}) <= 1
+
+  - name: delivered_outcome_not_empty
+    description: CREC delivered_outcome must not be empty
+    check: LENGTH(delivered_outcome) > 0
+
+# =============================================================================
+# NOTES
+# =============================================================================
+notes:
+  - |
+    CREC is a "receipt" entity - it captures what was actually delivered for a cycle.
+    This is the descriptive counterpart to CWO (which is prescriptive).
+  - |
+    The 1:1 relationship with CWO is enforced via UNIQUE constraint on cwo_id.
+    This prevents multiple receipts being created for the same CWO.
+  - |
+    CREC can only be submitted when its parent CWO is complete.
+    This ensures we're receipting against completed work.
+  - |
+    The status FSM is: draft -> submitted -> verified
+    This allows for review/verification workflow.

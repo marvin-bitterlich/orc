@@ -39,6 +39,8 @@ var (
 	workOrderService               primary.WorkOrderService
 	cycleService                   primary.CycleService
 	cycleWorkOrderService          primary.CycleWorkOrderService
+	cycleReceiptService            primary.CycleReceiptService
+	receiptService                 primary.ReceiptService
 	commissionOrchestrationService *app.CommissionOrchestrationService
 	tmuxService                    secondary.TMuxAdapter
 	once                           sync.Once
@@ -164,6 +166,18 @@ func CycleWorkOrderService() primary.CycleWorkOrderService {
 	return cycleWorkOrderService
 }
 
+// CycleReceiptService returns the singleton CycleReceiptService instance.
+func CycleReceiptService() primary.CycleReceiptService {
+	once.Do(initServices)
+	return cycleReceiptService
+}
+
+// ReceiptService returns the singleton ReceiptService instance.
+func ReceiptService() primary.ReceiptService {
+	once.Do(initServices)
+	return receiptService
+}
+
 // CommissionOrchestrationService returns the singleton CommissionOrchestrationService instance.
 func CommissionOrchestrationService() *app.CommissionOrchestrationService {
 	once.Do(initServices)
@@ -250,6 +264,12 @@ func initServices() {
 	workOrderService = app.NewWorkOrderService(workOrderRepo)
 	cycleService = app.NewCycleService(cycleRepo)
 	cycleWorkOrderService = app.NewCycleWorkOrderService(cycleWorkOrderRepo)
+
+	// Create receipt services
+	cycleReceiptRepo := sqlite.NewCycleReceiptRepository(database)
+	receiptRepo := sqlite.NewReceiptRepository(database)
+	cycleReceiptService = app.NewCycleReceiptService(cycleReceiptRepo)
+	receiptService = app.NewReceiptService(receiptRepo)
 
 	// Create orchestration services
 	commissionOrchestrationService = app.NewCommissionOrchestrationService(commissionService, agentProvider)

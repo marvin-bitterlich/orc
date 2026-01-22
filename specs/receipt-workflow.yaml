@@ -1,0 +1,300 @@
+# Receipt Workflow Finite State Machine
+# Single source of truth for REC lifecycle in ORC
+#
+# Generated: 2026-01-22
+# Context: SHIP-204 Cycle 3 - Receipt Entities
+
+name: receipt-workflow
+version: "1.0"
+description: |
+  Defines the complete lifecycle of a Receipt (REC) entity in ORC.
+  RECs are 1:1 with Shipments - they capture what was actually delivered for entire shipment.
+  They are the "descriptive" counterpart to the "prescriptive" Work Order (WO).
+
+# =============================================================================
+# STATES
+# =============================================================================
+states:
+  initial:
+    description: No REC exists yet (pre-creation)
+    terminal: false
+
+  draft:
+    description: REC is being prepared, can be edited
+    terminal: false
+    invariants:
+      - status == "draft"
+      - created_at is set
+      - shipment_id is set and references existing shipment
+      - delivered_outcome is not empty
+
+  submitted:
+    description: REC submitted for verification
+    terminal: false
+    invariants:
+      - status == "submitted"
+      - parent WO must be complete
+      - all CRECs must be verified
+
+  verified:
+    description: REC verified as correct receipt
+    terminal: true  # Soft terminal - delete still possible
+    invariants:
+      - status == "verified"
+
+  deleted:
+    description: REC removed from database (true terminal state)
+    terminal: true
+
+# =============================================================================
+# EVENTS
+# =============================================================================
+events:
+  create:
+    description: Create a new REC for a Shipment
+    payload:
+      shipment_id: { type: string, required: true }
+      delivered_outcome: { type: string, required: true }
+      evidence: { type: string, required: false }
+      verification_notes: { type: string, required: false }
+
+  update:
+    description: Update REC outcome, evidence, or notes
+    payload:
+      delivered_outcome: { type: string, required: false }
+      evidence: { type: string, required: false }
+      verification_notes: { type: string, required: false }
+
+  submit:
+    description: Submit REC for verification
+    payload: {}
+
+  verify:
+    description: Mark REC as verified
+    payload: {}
+
+  delete:
+    description: Hard-delete REC from database
+    payload: {}
+
+# =============================================================================
+# TRANSITIONS
+# =============================================================================
+transitions:
+  # --- Creation ---
+  - name: create_rec
+    from: initial
+    to: draft
+    event: create
+    guards:
+      - shipment_exists              # Shipment must exist
+      - shipment_has_no_rec          # 1:1 constraint - Shipment can only have one REC
+      - delivered_outcome_not_empty  # Delivered outcome is required
+    effects:
+      - { type: WriteDB, operation: INSERT, table: receipts }
+    test_cases:
+      - "Create REC with existing Shipment"
+      - "Create REC for non-existent Shipment (error)"
+      - "Create REC for Shipment that already has REC (error)"
+      - "Create REC with empty delivered_outcome (error)"
+
+  # --- Updating (no state change) ---
+  - name: update_rec
+    from: draft
+    to: draft
+    event: update
+    guards: []
+    effects:
+      - { type: WriteDB, operation: UPDATE, table: receipts, fields: [delivered_outcome, evidence, verification_notes, updated_at] }
+    test_cases:
+      - "Update REC delivered_outcome"
+      - "Update REC evidence"
+      - "Update REC verification_notes"
+      - "Cannot update submitted REC (error)"
+
+  # --- Submitting ---
+  - name: submit_rec
+    from: draft
+    to: submitted
+    event: submit
+    guards:
+      - is_draft               # Must be in draft status
+      - wo_is_complete         # WO must be complete before submitting receipt
+      - all_crecs_verified     # All cycle receipts must be verified
+    effects:
+      - { type: WriteDB, operation: UPDATE, table: receipts, fields: [status, updated_at] }
+    test_cases:
+      - "Submit draft REC when WO is complete and all CRECs verified"
+      - "Submit REC when WO is not complete (error)"
+      - "Submit REC when some CRECs not verified (error)"
+      - "Submit submitted REC (error)"
+      - "Submit verified REC (error)"
+
+  # --- Verifying ---
+  - name: verify_rec
+    from: submitted
+    to: verified
+    event: verify
+    guards:
+      - is_submitted           # Must be in submitted status
+    effects:
+      - { type: WriteDB, operation: UPDATE, table: receipts, fields: [status, updated_at] }
+    test_cases:
+      - "Verify submitted REC"
+      - "Verify draft REC (error)"
+      - "Verify already verified REC (error)"
+
+  # --- Deletion ---
+  - name: delete_draft_rec
+    from: draft
+    to: deleted
+    event: delete
+    guards: []
+    effects:
+      - { type: WriteDB, operation: DELETE, table: receipts }
+    test_cases:
+      - "Delete draft REC"
+
+  - name: delete_submitted_rec
+    from: submitted
+    to: deleted
+    event: delete
+    guards: []
+    effects:
+      - { type: WriteDB, operation: DELETE, table: receipts }
+    test_cases:
+      - "Delete submitted REC"
+
+  - name: delete_verified_rec
+    from: verified
+    to: deleted
+    event: delete
+    guards: []
+    effects:
+      - { type: WriteDB, operation: DELETE, table: receipts }
+    test_cases:
+      - "Delete verified REC"
+
+# =============================================================================
+# GUARDS
+# =============================================================================
+guards:
+  shipment_exists:
+    description: |
+      Check that the target Shipment exists.
+      RECs must belong to an existing Shipment.
+    implementation: |
+      exists, err := repo.ShipmentExists(ctx, shipment_id)
+      return err == nil && exists
+    error_message: "shipment {shipment_id} not found"
+
+  shipment_has_no_rec:
+    description: |
+      Check that the Shipment does not already have a REC.
+      Enforces 1:1 relationship between Shipment and REC.
+    implementation: |
+      hasREC, err := repo.ShipmentHasREC(ctx, shipment_id)
+      return err == nil && !hasREC
+    error_message: "shipment {shipment_id} already has a REC"
+
+  delivered_outcome_not_empty:
+    description: |
+      Check that delivered_outcome is not empty.
+      RECs must describe what was actually delivered.
+    implementation: |
+      return len(strings.TrimSpace(delivered_outcome)) > 0
+    error_message: "delivered outcome cannot be empty"
+
+  is_draft:
+    description: |
+      Check that REC status is "draft".
+      Required for submit transition.
+    implementation: |
+      rec, _ := repo.GetByID(ctx, rec_id)
+      return rec.Status == "draft"
+    error_message: "can only submit draft RECs (current status: {status})"
+
+  is_submitted:
+    description: |
+      Check that REC status is "submitted".
+      Required for verify transition.
+    implementation: |
+      rec, _ := repo.GetByID(ctx, rec_id)
+      return rec.Status == "submitted"
+    error_message: "can only verify submitted RECs (current status: {status})"
+
+  wo_is_complete:
+    description: |
+      Check that the shipment's Work Order is complete.
+      REC can only be submitted when the work order is done.
+    implementation: |
+      status, err := repo.GetWOStatus(ctx, shipment_id)
+      return err == nil && status == "complete"
+    error_message: "cannot submit REC: Work Order is not complete (status: {wo_status})"
+
+  all_crecs_verified:
+    description: |
+      Check that all CRECs for the shipment are verified.
+      REC can only be submitted when all cycle receipts are verified.
+    implementation: |
+      allVerified, err := repo.AllCRECsVerified(ctx, shipment_id)
+      return err == nil && allVerified
+    error_message: "cannot submit REC: not all CRECs are verified"
+
+# =============================================================================
+# EFFECTS
+# =============================================================================
+effects:
+  WriteDB:
+    description: Database write operation
+    parameters:
+      operation: { type: enum, values: [INSERT, UPDATE, DELETE] }
+      table: { type: string }
+      fields: { type: array, items: string, optional: true }
+
+# =============================================================================
+# INVARIANTS
+# =============================================================================
+invariants:
+  - name: id_format
+    description: REC IDs follow REC-XXX format
+    check: id matches /^REC-\d{3}$/
+
+  - name: id_unique
+    description: REC IDs are unique
+    check: COUNT(SELECT id FROM receipts WHERE id = {id}) == 1
+
+  - name: status_valid
+    description: Status is one of valid values
+    check: status IN ('draft', 'submitted', 'verified')
+
+  - name: shipment_reference
+    description: REC must reference existing shipment
+    check: EXISTS(SELECT 1 FROM shipments WHERE id = shipment_id)
+
+  - name: shipment_unique
+    description: Each Shipment can have at most one REC (1:1)
+    check: COUNT(SELECT id FROM receipts WHERE shipment_id = {shipment_id}) <= 1
+
+  - name: delivered_outcome_not_empty
+    description: REC delivered_outcome must not be empty
+    check: LENGTH(delivered_outcome) > 0
+
+# =============================================================================
+# NOTES
+# =============================================================================
+notes:
+  - |
+    REC is a "receipt" entity - it captures what was actually delivered for the shipment.
+    It's the descriptive counterpart to the prescriptive Work Order (what was planned).
+  - |
+    The 1:1 relationship with Shipment is enforced via UNIQUE constraint on shipment_id.
+    This prevents multiple RECs being created for the same Shipment.
+  - |
+    REC can only be submitted when:
+    1. The Work Order is complete
+    2. All CRECs (cycle receipts) are verified
+    This ensures the aggregate receipt is only created after all cycles are accounted for.
+  - |
+    Once verified, a REC serves as the official record of what was delivered
+    for the entire shipment.

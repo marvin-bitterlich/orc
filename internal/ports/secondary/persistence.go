@@ -1164,3 +1164,123 @@ type CycleWorkOrderFilters struct {
 	ShipmentID string
 	Status     string
 }
+
+// CycleReceiptRepository defines the secondary port for cycle receipt persistence.
+type CycleReceiptRepository interface {
+	// Create persists a new cycle receipt.
+	Create(ctx context.Context, crec *CycleReceiptRecord) error
+
+	// GetByID retrieves a cycle receipt by its ID.
+	GetByID(ctx context.Context, id string) (*CycleReceiptRecord, error)
+
+	// GetByCWO retrieves a cycle receipt by its CWO ID.
+	GetByCWO(ctx context.Context, cwoID string) (*CycleReceiptRecord, error)
+
+	// List retrieves cycle receipts matching the given filters.
+	List(ctx context.Context, filters CycleReceiptFilters) ([]*CycleReceiptRecord, error)
+
+	// Update updates an existing cycle receipt.
+	Update(ctx context.Context, crec *CycleReceiptRecord) error
+
+	// Delete removes a cycle receipt from persistence.
+	Delete(ctx context.Context, id string) error
+
+	// GetNextID returns the next available cycle receipt ID.
+	GetNextID(ctx context.Context) (string, error)
+
+	// UpdateStatus updates the status of a cycle receipt.
+	UpdateStatus(ctx context.Context, id, status string) error
+
+	// Validation helpers (for guards to query)
+
+	// CWOExists checks if a CWO exists.
+	CWOExists(ctx context.Context, cwoID string) (bool, error)
+
+	// CWOHasCREC checks if a CWO already has a CREC (for 1:1 constraint).
+	CWOHasCREC(ctx context.Context, cwoID string) (bool, error)
+
+	// GetCWOStatus retrieves the status of a CWO.
+	GetCWOStatus(ctx context.Context, cwoID string) (string, error)
+
+	// GetCWOShipmentID retrieves the shipment ID for a CWO.
+	GetCWOShipmentID(ctx context.Context, cwoID string) (string, error)
+}
+
+// CycleReceiptRecord represents a cycle receipt as stored in persistence.
+type CycleReceiptRecord struct {
+	ID                string
+	CWOID             string
+	ShipmentID        string
+	DeliveredOutcome  string
+	Evidence          string // Empty string means null
+	VerificationNotes string // Empty string means null
+	Status            string
+	CreatedAt         string
+	UpdatedAt         string
+}
+
+// CycleReceiptFilters contains filter options for querying cycle receipts.
+type CycleReceiptFilters struct {
+	CWOID      string
+	ShipmentID string
+	Status     string
+}
+
+// ReceiptRepository defines the secondary port for receipt persistence.
+type ReceiptRepository interface {
+	// Create persists a new receipt.
+	Create(ctx context.Context, rec *ReceiptRecord) error
+
+	// GetByID retrieves a receipt by its ID.
+	GetByID(ctx context.Context, id string) (*ReceiptRecord, error)
+
+	// GetByShipment retrieves a receipt by its shipment ID.
+	GetByShipment(ctx context.Context, shipmentID string) (*ReceiptRecord, error)
+
+	// List retrieves receipts matching the given filters.
+	List(ctx context.Context, filters ReceiptFilters) ([]*ReceiptRecord, error)
+
+	// Update updates an existing receipt.
+	Update(ctx context.Context, rec *ReceiptRecord) error
+
+	// Delete removes a receipt from persistence.
+	Delete(ctx context.Context, id string) error
+
+	// GetNextID returns the next available receipt ID.
+	GetNextID(ctx context.Context) (string, error)
+
+	// UpdateStatus updates the status of a receipt.
+	UpdateStatus(ctx context.Context, id, status string) error
+
+	// Validation helpers (for guards to query)
+
+	// ShipmentExists checks if a shipment exists.
+	ShipmentExists(ctx context.Context, shipmentID string) (bool, error)
+
+	// ShipmentHasREC checks if a shipment already has a REC (for 1:1 constraint).
+	ShipmentHasREC(ctx context.Context, shipmentID string) (bool, error)
+
+	// GetWOStatus retrieves the status of a shipment's Work Order.
+	GetWOStatus(ctx context.Context, shipmentID string) (string, error)
+
+	// AllCRECsVerified checks if all CRECs for a shipment are verified.
+	AllCRECsVerified(ctx context.Context, shipmentID string) (bool, error)
+}
+
+// ReceiptRecord represents a receipt as stored in persistence.
+type ReceiptRecord struct {
+	ID                string
+	ShipmentID        string
+	DeliveredOutcome  string
+	Evidence          string // Empty string means null
+	VerificationNotes string // Empty string means null
+	Status            string
+	CreatedAt         string
+	UpdatedAt         string
+}
+
+// ReceiptFilters contains filter options for querying receipts.
+type ReceiptFilters struct {
+	ShipmentID string
+	Status     string
+}

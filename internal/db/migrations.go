@@ -189,6 +189,16 @@ var migrations = []Migration{
 		Name:    "add_cycle_work_orders_table_and_plans_cycle_id",
 		Up:      migrationV35,
 	},
+	{
+		Version: 36,
+		Name:    "add_cycle_receipts_table",
+		Up:      migrationV36,
+	},
+	{
+		Version: 37,
+		Name:    "add_receipts_table",
+		Up:      migrationV37,
+	},
 }
 
 // RunMigrations executes all pending migrations
@@ -3785,6 +3795,71 @@ func migrationV35(db *sql.DB) error {
 	_, err = db.Exec(`CREATE INDEX IF NOT EXISTS idx_plans_cycle ON plans(cycle_id)`)
 	if err != nil {
 		return fmt.Errorf("failed to create plans cycle_id index: %w", err)
+	}
+
+	return nil
+}
+
+func migrationV36(db *sql.DB) error {
+	// Create cycle_receipts table (1:1 with CWO)
+	_, err := db.Exec(`
+		CREATE TABLE IF NOT EXISTS cycle_receipts (
+			id TEXT PRIMARY KEY,
+			cwo_id TEXT NOT NULL UNIQUE,
+			shipment_id TEXT NOT NULL,
+			delivered_outcome TEXT NOT NULL,
+			evidence TEXT,
+			verification_notes TEXT,
+			status TEXT NOT NULL CHECK(status IN ('draft', 'submitted', 'verified')) DEFAULT 'draft',
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			FOREIGN KEY (cwo_id) REFERENCES cycle_work_orders(id) ON DELETE CASCADE,
+			FOREIGN KEY (shipment_id) REFERENCES shipments(id) ON DELETE CASCADE
+		)
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to create cycle_receipts table: %w", err)
+	}
+
+	// Create indexes for cycle_receipts
+	_, err = db.Exec(`
+		CREATE INDEX IF NOT EXISTS idx_cycle_receipts_cwo ON cycle_receipts(cwo_id);
+		CREATE INDEX IF NOT EXISTS idx_cycle_receipts_shipment ON cycle_receipts(shipment_id);
+		CREATE INDEX IF NOT EXISTS idx_cycle_receipts_status ON cycle_receipts(status)
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to create cycle_receipts indexes: %w", err)
+	}
+
+	return nil
+}
+
+func migrationV37(db *sql.DB) error {
+	// Create receipts table (1:1 with Shipment)
+	_, err := db.Exec(`
+		CREATE TABLE IF NOT EXISTS receipts (
+			id TEXT PRIMARY KEY,
+			shipment_id TEXT NOT NULL UNIQUE,
+			delivered_outcome TEXT NOT NULL,
+			evidence TEXT,
+			verification_notes TEXT,
+			status TEXT NOT NULL CHECK(status IN ('draft', 'submitted', 'verified')) DEFAULT 'draft',
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			FOREIGN KEY (shipment_id) REFERENCES shipments(id) ON DELETE CASCADE
+		)
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to create receipts table: %w", err)
+	}
+
+	// Create indexes for receipts
+	_, err = db.Exec(`
+		CREATE INDEX IF NOT EXISTS idx_receipts_shipment ON receipts(shipment_id);
+		CREATE INDEX IF NOT EXISTS idx_receipts_status ON receipts(status)
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to create receipts indexes: %w", err)
 	}
 
 	return nil

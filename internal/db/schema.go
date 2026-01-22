@@ -398,6 +398,41 @@ CREATE TABLE IF NOT EXISTS cycle_work_orders (
 CREATE INDEX IF NOT EXISTS idx_cycle_work_orders_cycle ON cycle_work_orders(cycle_id);
 CREATE INDEX IF NOT EXISTS idx_cycle_work_orders_shipment ON cycle_work_orders(shipment_id);
 CREATE INDEX IF NOT EXISTS idx_cycle_work_orders_status ON cycle_work_orders(status);
+
+-- Cycle Receipts (1:1 with CWO)
+CREATE TABLE IF NOT EXISTS cycle_receipts (
+	id TEXT PRIMARY KEY,
+	cwo_id TEXT NOT NULL UNIQUE,
+	shipment_id TEXT NOT NULL,
+	delivered_outcome TEXT NOT NULL,
+	evidence TEXT,
+	verification_notes TEXT,
+	status TEXT NOT NULL CHECK(status IN ('draft', 'submitted', 'verified')) DEFAULT 'draft',
+	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+	FOREIGN KEY (cwo_id) REFERENCES cycle_work_orders(id) ON DELETE CASCADE,
+	FOREIGN KEY (shipment_id) REFERENCES shipments(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_cycle_receipts_cwo ON cycle_receipts(cwo_id);
+CREATE INDEX IF NOT EXISTS idx_cycle_receipts_shipment ON cycle_receipts(shipment_id);
+CREATE INDEX IF NOT EXISTS idx_cycle_receipts_status ON cycle_receipts(status);
+
+-- Receipts (1:1 with Shipment)
+CREATE TABLE IF NOT EXISTS receipts (
+	id TEXT PRIMARY KEY,
+	shipment_id TEXT NOT NULL UNIQUE,
+	delivered_outcome TEXT NOT NULL,
+	evidence TEXT,
+	verification_notes TEXT,
+	status TEXT NOT NULL CHECK(status IN ('draft', 'submitted', 'verified')) DEFAULT 'draft',
+	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+	FOREIGN KEY (shipment_id) REFERENCES shipments(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_receipts_shipment ON receipts(shipment_id);
+CREATE INDEX IF NOT EXISTS idx_receipts_status ON receipts(status);
 `
 
 // InitSchema creates the database schema
@@ -443,7 +478,7 @@ func InitSchema() error {
 				return err
 			}
 			// Insert all migration versions as applied
-			for i := 1; i <= 35; i++ {
+			for i := 1; i <= 37; i++ {
 				_, err = db.Exec("INSERT INTO schema_version (version) VALUES (?)", i)
 				if err != nil {
 					return err

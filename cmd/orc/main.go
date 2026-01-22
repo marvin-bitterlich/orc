@@ -49,6 +49,10 @@ It coordinates IMPs (Implementation Agents) working in isolated workbenches (wor
 	rootCmd.AddCommand(cli.CycleCmd())
 	rootCmd.AddCommand(cli.CycleWorkOrderCmd())
 
+	// Spec-Kit receipts (Cycle Receipts and Receipts)
+	rootCmd.AddCommand(cli.CycleReceiptCmd())
+	rootCmd.AddCommand(cli.ReceiptCmd())
+
 	// Repository and PR commands
 	rootCmd.AddCommand(cli.RepoCmd())
 	rootCmd.AddCommand(cli.PRCmd())
