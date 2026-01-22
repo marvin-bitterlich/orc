@@ -235,6 +235,27 @@ When adding a new state or transition to an entity’s state machine:
 - [ ] Manual smoke: `make dev && ./orc <command> --help`
 - [ ] Run: `make test && make lint`
 
+### Add New Entity (with Repository)
+
+When adding a new entity that requires persistence (e.g., CycleWorkOrder, Receipt):
+
+- [ ] FSM spec in `specs/<entity>-workflow.yaml`
+- [ ] Guards in `internal/core/<entity>/guards.go`
+- [ ] Guard tests in `internal/core/<entity>/guards_test.go`
+- [ ] Schema in `internal/db/schema.go`
+- [ ] Migration in `internal/db/migrations/`
+- [ ] Secondary port interface in `internal/ports/secondary/persistence.go`
+- [ ] Primary port interface in `internal/ports/primary/<entity>.go`
+- [ ] **Repository implementation + tests** (REQUIRED):
+  - [ ] `internal/adapters/sqlite/<entity>_repo.go`
+  - [ ] `internal/adapters/sqlite/<entity>_repo_test.go`
+- [ ] Service implementation in `internal/app/<entity>_service.go`
+- [ ] CLI commands in `internal/cli/<entity>.go`
+- [ ] Wire registration in `internal/wire/`
+- [ ] Run: `make test && make lint`
+
+**Hard rule:** Repository tests are NOT optional. Every `*_repo.go` MUST have a corresponding `*_repo_test.go`.
+
 ---
 
 ## Database Migrations (Atlas)
