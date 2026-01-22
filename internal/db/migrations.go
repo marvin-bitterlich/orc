@@ -199,6 +199,11 @@ var migrations = []Migration{
 		Name:    "add_receipts_table",
 		Up:      migrationV37,
 	},
+	{
+		Version: 38,
+		Name:    "add_investigation_id_to_tasks",
+		Up:      migrationV38,
+	},
 }
 
 // RunMigrations executes all pending migrations
@@ -3862,5 +3867,14 @@ func migrationV37(db *sql.DB) error {
 		return fmt.Errorf("failed to create receipts indexes: %w", err)
 	}
 
+	return nil
+}
+
+func migrationV38(db *sql.DB) error {
+	// Add investigation_id column to tasks table
+	_, err := db.Exec(`ALTER TABLE tasks ADD COLUMN investigation_id TEXT REFERENCES investigations(id) ON DELETE SET NULL`)
+	if err != nil {
+		return fmt.Errorf("failed to add investigation_id column to tasks: %w", err)
+	}
 	return nil
 }
