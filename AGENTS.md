@@ -237,6 +237,69 @@ When adding a new state or transition to an entity’s state machine:
 
 ---
 
+## Database Migrations (Atlas)
+
+ORC uses [Atlas](https://atlasgo.io/) for declarative schema migrations. Atlas prevents FK reference corruption by validating the entire schema graph before applying changes.
+
+### Why Atlas?
+
+Hand-rolled SQLite migrations repeatedly caused FK reference corruption during table renames. Atlas catches these at validation time - you can't even *define* a schema with dangling FK references.
+
+### Installation
+
+```bash
+brew install ariga/tap/atlas
+```
+
+### Core Workflow
+
+**1. Inspect current schema:**
+```bash
+atlas schema inspect -u "sqlite:///$HOME/.orc/orc.db"
+```
+
+**2. Edit desired schema** in `schema.hcl` (declarative - say what you want, not how to get there)
+
+**3. Preview migration:**
+```bash
+atlas schema diff \
+  --from "sqlite:///$HOME/.orc/orc.db" \
+  --to "file://schema.hcl" \
+  --dev-url "sqlite://dev?mode=memory"
+```
+
+**4. Apply migration:**
+```bash
+atlas schema apply \
+  --url "sqlite:///$HOME/.orc/orc.db" \
+  --to "file://schema.hcl" \
+  --dev-url "sqlite://dev?mode=memory"
+```
+
+### Key Behaviors
+
+- **FK validation**: Atlas refuses to process schemas with dangling FK references
+- **Auto-generates SQL**: Handles SQLite's rename-recreate dance automatically
+- **Dependency ordering**: Knows which tables reference which, applies changes in safe order
+- **Data preservation**: Copies data during table recreates
+
+### Example: Renaming a Table
+
+If you rename `users` → `accounts`, Atlas will:
+1. `PRAGMA foreign_keys = off`
+2. Recreate any tables with FKs pointing to `users` (updating refs to `accounts`)
+3. Copy data
+4. Create `accounts`
+5. `PRAGMA foreign_keys = on`
+
+You just declare the end state. Atlas figures out the migration path.
+
+### Golden Rule
+
+**Never write migration SQL by hand.** Declare the desired schema, let Atlas diff and apply.
+
+---
+
 ## Common Mistakes to Avoid
 
 ❌ Writing business logic in adapters  
