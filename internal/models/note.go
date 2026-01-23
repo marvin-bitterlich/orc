@@ -7,7 +7,7 @@ import (
 
 type Note struct {
 	ID               string
-	ComcommissionID  string
+	CommissionID     string
 	Title            string
 	Content          sql.NullString
 	Type             sql.NullString // learning, concern, finding, frq, bug, investigation_report

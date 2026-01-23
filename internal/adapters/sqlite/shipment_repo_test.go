@@ -369,22 +369,22 @@ func TestShipmentRepository_AssignWorkbench(t *testing.T) {
 	repo := sqlite.NewShipmentRepository(db)
 	ctx := context.Background()
 
-	// Insert a test grove
-	_, _ = db.Exec("INSERT INTO groves (id, commission_id, name, status) VALUES ('GROVE-001', 'COMM-001', 'test-grove', 'active')")
+	// Insert a test workbench
+	_, _ = db.Exec("INSERT INTO groves (id, commission_id, name, status) VALUES ('BENCH-001', 'COMM-001', 'test-workbench', 'active')")
 
 	// Create a shipment
-	shipment := createTestShipment(t, repo, ctx, "COMM-001", "Grove Test", "")
+	shipment := createTestShipment(t, repo, ctx, "COMM-001", "Workbench Test", "")
 
-	// Assign grove
-	err := repo.AssignWorkbench(ctx, shipment.ID, "GROVE-001")
+	// Assign workbench
+	err := repo.AssignWorkbench(ctx, shipment.ID, "BENCH-001")
 	if err != nil {
 		t.Fatalf("AssignWorkbench failed: %v", err)
 	}
 
 	// Verify assignment
 	retrieved, _ := repo.GetByID(ctx, shipment.ID)
-	if retrieved.AssignedWorkbenchID != "GROVE-001" {
-		t.Errorf("expected assigned grove 'GROVE-001', got '%s'", retrieved.AssignedWorkbenchID)
+	if retrieved.AssignedWorkbenchID != "BENCH-001" {
+		t.Errorf("expected assigned workbench 'BENCH-001', got '%s'", retrieved.AssignedWorkbenchID)
 	}
 }
 
@@ -393,7 +393,7 @@ func TestShipmentRepository_AssignWorkbench_NotFound(t *testing.T) {
 	repo := sqlite.NewShipmentRepository(db)
 	ctx := context.Background()
 
-	err := repo.AssignWorkbench(ctx, "SHIP-999", "GROVE-001")
+	err := repo.AssignWorkbench(ctx, "SHIP-999", "BENCH-001")
 	if err == nil {
 		t.Error("expected error for non-existent shipment")
 	}
@@ -404,25 +404,25 @@ func TestShipmentRepository_GetByWorkbench(t *testing.T) {
 	repo := sqlite.NewShipmentRepository(db)
 	ctx := context.Background()
 
-	// Insert a test grove
-	_, _ = db.Exec("INSERT INTO groves (id, commission_id, name, status) VALUES ('GROVE-001', 'COMM-001', 'test-grove', 'active')")
+	// Insert a test workbench
+	_, _ = db.Exec("INSERT INTO groves (id, commission_id, name, status) VALUES ('BENCH-001', 'COMM-001', 'test-workbench', 'active')")
 
-	// Create shipments and assign to grove
+	// Create shipments and assign to workbench
 	s1 := createTestShipment(t, repo, ctx, "COMM-001", "Ship 1", "")
 	s2 := createTestShipment(t, repo, ctx, "COMM-001", "Ship 2", "")
 	createTestShipment(t, repo, ctx, "COMM-001", "Ship 3 (unassigned)", "")
 
-	_ = repo.AssignWorkbench(ctx, s1.ID, "GROVE-001")
-	_ = repo.AssignWorkbench(ctx, s2.ID, "GROVE-001")
+	_ = repo.AssignWorkbench(ctx, s1.ID, "BENCH-001")
+	_ = repo.AssignWorkbench(ctx, s2.ID, "BENCH-001")
 
-	// Get by grove
-	shipments, err := repo.GetByWorkbench(ctx, "GROVE-001")
+	// Get by workbench
+	shipments, err := repo.GetByWorkbench(ctx, "BENCH-001")
 	if err != nil {
 		t.Fatalf("GetByWorkbench failed: %v", err)
 	}
 
 	if len(shipments) != 2 {
-		t.Errorf("expected 2 shipments for grove, got %d", len(shipments))
+		t.Errorf("expected 2 shipments for workbench, got %d", len(shipments))
 	}
 }
 
@@ -455,31 +455,31 @@ func TestShipmentRepository_WorkbenchAssignedToOther(t *testing.T) {
 	repo := sqlite.NewShipmentRepository(db)
 	ctx := context.Background()
 
-	// Insert a test grove
-	_, _ = db.Exec("INSERT INTO groves (id, commission_id, name, status) VALUES ('GROVE-001', 'COMM-001', 'test-grove', 'active')")
+	// Insert a test workbench
+	_, _ = db.Exec("INSERT INTO groves (id, commission_id, name, status) VALUES ('BENCH-001', 'COMM-001', 'test-workbench', 'active')")
 
 	// Create two shipments
 	s1 := createTestShipment(t, repo, ctx, "COMM-001", "Ship 1", "")
 	s2 := createTestShipment(t, repo, ctx, "COMM-001", "Ship 2", "")
 
-	// Assign grove to s1
-	_ = repo.AssignWorkbench(ctx, s1.ID, "GROVE-001")
+	// Assign workbench to s1
+	_ = repo.AssignWorkbench(ctx, s1.ID, "BENCH-001")
 
-	// Check if grove is assigned to another shipment (excluding s1)
-	otherID, err := repo.WorkbenchAssignedToOther(ctx, "GROVE-001", s1.ID)
+	// Check if workbench is assigned to another shipment (excluding s1)
+	otherID, err := repo.WorkbenchAssignedToOther(ctx, "BENCH-001", s1.ID)
 	if err != nil {
 		t.Fatalf("WorkbenchAssignedToOther failed: %v", err)
 	}
 	if otherID != "" {
-		t.Error("expected no other shipment to have the grove")
+		t.Error("expected no other shipment to have the workbench")
 	}
 
 	// Check from s2's perspective
-	otherID, err = repo.WorkbenchAssignedToOther(ctx, "GROVE-001", s2.ID)
+	otherID, err = repo.WorkbenchAssignedToOther(ctx, "BENCH-001", s2.ID)
 	if err != nil {
 		t.Fatalf("WorkbenchAssignedToOther failed: %v", err)
 	}
 	if otherID != s1.ID {
-		t.Errorf("expected s1 to have the grove, got '%s'", otherID)
+		t.Errorf("expected s1 to have the workbench, got '%s'", otherID)
 	}
 }

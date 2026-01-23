@@ -512,15 +512,15 @@ func TestClaimTask_Success(t *testing.T) {
 	}
 
 	err := service.ClaimTask(ctx, primary.ClaimTaskRequest{
-		TaskID:  "TASK-001",
-		GroveID: "GROVE-001",
+		TaskID:      "TASK-001",
+		WorkbenchID: "BENCH-001",
 	})
 
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
-	if taskRepo.tasks["TASK-001"].AssignedWorkbenchID != "GROVE-001" {
-		t.Errorf("expected grove ID 'GROVE-001', got '%s'", taskRepo.tasks["TASK-001"].AssignedWorkbenchID)
+	if taskRepo.tasks["TASK-001"].AssignedWorkbenchID != "BENCH-001" {
+		t.Errorf("expected workbench ID 'BENCH-001', got '%s'", taskRepo.tasks["TASK-001"].AssignedWorkbenchID)
 	}
 }
 
@@ -529,8 +529,8 @@ func TestClaimTask_TaskNotFound(t *testing.T) {
 	ctx := context.Background()
 
 	err := service.ClaimTask(ctx, primary.ClaimTaskRequest{
-		TaskID:  "TASK-NONEXISTENT",
-		GroveID: "GROVE-001",
+		TaskID:      "TASK-NONEXISTENT",
+		WorkbenchID: "BENCH-001",
 	})
 
 	if err == nil {
@@ -871,7 +871,7 @@ func TestGetTasksByGrove_Success(t *testing.T) {
 		CommissionID:        "COMM-001",
 		Title:               "Assigned Task",
 		Status:              "in_progress",
-		AssignedWorkbenchID: "GROVE-001",
+		AssignedWorkbenchID: "BENCH-001",
 	}
 	taskRepo.tasks["TASK-002"] = &secondary.TaskRecord{
 		ID:           "TASK-002",
@@ -880,7 +880,7 @@ func TestGetTasksByGrove_Success(t *testing.T) {
 		Status:       "ready",
 	}
 
-	tasks, err := service.GetTasksByGrove(ctx, "GROVE-001")
+	tasks, err := service.GetTasksByWorkbench(ctx, "BENCH-001")
 
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -903,17 +903,17 @@ func TestDiscoverTasks_FindsReadyTasks(t *testing.T) {
 		CommissionID:        "COMM-001",
 		Title:               "Ready Task",
 		Status:              "ready",
-		AssignedWorkbenchID: "GROVE-001",
+		AssignedWorkbenchID: "BENCH-001",
 	}
 	taskRepo.tasks["TASK-002"] = &secondary.TaskRecord{
 		ID:                  "TASK-002",
 		CommissionID:        "COMM-001",
 		Title:               "In Progress Task",
 		Status:              "in_progress",
-		AssignedWorkbenchID: "GROVE-001",
+		AssignedWorkbenchID: "BENCH-001",
 	}
 
-	tasks, err := service.DiscoverTasks(ctx, "GROVE-001")
+	tasks, err := service.DiscoverTasks(ctx, "BENCH-001")
 
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)

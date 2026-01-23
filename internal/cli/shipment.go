@@ -285,7 +285,7 @@ var shipmentAssignCmd = &cobra.Command{
 		shipmentID := args[0]
 		workbenchID := args[1]
 
-		err := wire.ShipmentService().AssignShipmentToGrove(ctx, shipmentID, workbenchID)
+		err := wire.ShipmentService().AssignShipmentToWorkbench(ctx, shipmentID, workbenchID)
 		if err != nil {
 			return fmt.Errorf("failed to assign shipment: %w", err)
 		}

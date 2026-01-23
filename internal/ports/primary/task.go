@@ -34,8 +34,8 @@ type TaskService interface {
 	// UnpinTask unpins a task.
 	UnpinTask(ctx context.Context, taskID string) error
 
-	// GetTasksByGrove retrieves tasks assigned to a workbench.
-	GetTasksByGrove(ctx context.Context, workbenchID string) ([]*Task, error)
+	// GetTasksByWorkbench retrieves tasks assigned to a workbench.
+	GetTasksByWorkbench(ctx context.Context, workbenchID string) ([]*Task, error)
 
 	// DeleteTask deletes a task.
 	DeleteTask(ctx context.Context, taskID string) error
@@ -71,8 +71,8 @@ type CreateTaskResponse struct {
 
 // ClaimTaskRequest contains parameters for claiming a task.
 type ClaimTaskRequest struct {
-	TaskID  string
-	GroveID string // Optional, can be derived from context
+	TaskID      string
+	WorkbenchID string // Optional, can be derived from context
 }
 
 // UpdateTaskRequest contains parameters for updating a task.

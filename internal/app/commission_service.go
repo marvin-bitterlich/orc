@@ -242,10 +242,10 @@ func (s *CommissionServiceImpl) DeleteCommission(ctx context.Context, req primar
 
 	// 2. Guard check
 	deleteCtx := corecommission.DeleteContext{
-		CommissionID:  req.CommissionID,
-		ShipmentCount: shipmentCount,
-		GroveCount:    0, // Groves deprecated - always 0
-		ForceDelete:   req.Force,
+		CommissionID:   req.CommissionID,
+		ShipmentCount:  shipmentCount,
+		WorkbenchCount: 0, // Workbenches tracked separately
+		ForceDelete:    req.Force,
 	}
 	if result := corecommission.CanDeleteCommission(deleteCtx); !result.Allowed {
 		return result.Error()

@@ -43,17 +43,17 @@ func (a *Adapter) CreateOrcWindow(ctx context.Context, sessionName, workingDir s
 	return session.CreateOrcWindow(workingDir)
 }
 
-// CreateGroveWindow creates a grove window with IMP workspace layout.
-func (a *Adapter) CreateGroveWindow(ctx context.Context, sessionName string, windowIndex int, windowName, workingDir string) error {
+// CreateWorkbenchWindow creates a workbench window with IMP workspace layout.
+func (a *Adapter) CreateWorkbenchWindow(ctx context.Context, sessionName string, windowIndex int, windowName, workingDir string) error {
 	session := &tmuxpkg.Session{Name: sessionName}
-	_, err := session.CreateGroveWindow(windowIndex, windowName, workingDir)
+	_, err := session.CreateWorkbenchWindow(windowIndex, windowName, workingDir)
 	return err
 }
 
-// CreateGroveWindowShell creates a grove window with shell layout (no apps launched).
-func (a *Adapter) CreateGroveWindowShell(ctx context.Context, sessionName string, windowIndex int, windowName, workingDir string) error {
+// CreateWorkbenchWindowShell creates a workbench window with shell layout (no apps launched).
+func (a *Adapter) CreateWorkbenchWindowShell(ctx context.Context, sessionName string, windowIndex int, windowName, workingDir string) error {
 	session := &tmuxpkg.Session{Name: sessionName}
-	_, err := session.CreateGroveWindowShell(windowIndex, windowName, workingDir)
+	_, err := session.CreateWorkbenchWindowShell(windowIndex, windowName, workingDir)
 	return err
 }
 

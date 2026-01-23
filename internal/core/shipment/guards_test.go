@@ -176,51 +176,51 @@ func TestCanResumeShipment(t *testing.T) {
 	}
 }
 
-func TestCanAssignGrove(t *testing.T) {
+func TestCanAssignWorkbench(t *testing.T) {
 	tests := []struct {
 		name        string
-		ctx         AssignGroveContext
+		ctx         AssignWorkbenchContext
 		wantAllowed bool
 		wantReason  string
 	}{
 		{
-			name: "can assign unassigned grove",
-			ctx: AssignGroveContext{
-				ShipmentID:        "SHIP-001",
-				GroveID:           "GROVE-001",
-				ShipmentExists:    true,
-				GroveAssignedToID: "",
+			name: "can assign unassigned workbench",
+			ctx: AssignWorkbenchContext{
+				ShipmentID:            "SHIP-001",
+				WorkbenchID:           "BENCH-001",
+				ShipmentExists:        true,
+				WorkbenchAssignedToID: "",
 			},
 			wantAllowed: true,
 		},
 		{
-			name: "can assign grove already assigned to same shipment (idempotent)",
-			ctx: AssignGroveContext{
-				ShipmentID:        "SHIP-001",
-				GroveID:           "GROVE-001",
-				ShipmentExists:    true,
-				GroveAssignedToID: "SHIP-001",
+			name: "can assign workbench already assigned to same shipment (idempotent)",
+			ctx: AssignWorkbenchContext{
+				ShipmentID:            "SHIP-001",
+				WorkbenchID:           "BENCH-001",
+				ShipmentExists:        true,
+				WorkbenchAssignedToID: "SHIP-001",
 			},
 			wantAllowed: true,
 		},
 		{
-			name: "cannot assign grove assigned to another shipment",
-			ctx: AssignGroveContext{
-				ShipmentID:        "SHIP-001",
-				GroveID:           "GROVE-001",
-				ShipmentExists:    true,
-				GroveAssignedToID: "SHIP-002",
+			name: "cannot assign workbench assigned to another shipment",
+			ctx: AssignWorkbenchContext{
+				ShipmentID:            "SHIP-001",
+				WorkbenchID:           "BENCH-001",
+				ShipmentExists:        true,
+				WorkbenchAssignedToID: "SHIP-002",
 			},
 			wantAllowed: false,
-			wantReason:  "grove already assigned to shipment SHIP-002",
+			wantReason:  "workbench already assigned to shipment SHIP-002",
 		},
 		{
-			name: "cannot assign grove to non-existent shipment",
-			ctx: AssignGroveContext{
-				ShipmentID:        "SHIP-999",
-				GroveID:           "GROVE-001",
-				ShipmentExists:    false,
-				GroveAssignedToID: "",
+			name: "cannot assign workbench to non-existent shipment",
+			ctx: AssignWorkbenchContext{
+				ShipmentID:            "SHIP-999",
+				WorkbenchID:           "BENCH-001",
+				ShipmentExists:        false,
+				WorkbenchAssignedToID: "",
 			},
 			wantAllowed: false,
 			wantReason:  "shipment SHIP-999 not found",
@@ -229,7 +229,7 @@ func TestCanAssignGrove(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := CanAssignGrove(tt.ctx)
+			result := CanAssignWorkbench(tt.ctx)
 			if result.Allowed != tt.wantAllowed {
 				t.Errorf("Allowed = %v, want %v", result.Allowed, tt.wantAllowed)
 			}

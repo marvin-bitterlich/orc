@@ -86,7 +86,7 @@ This provides a focused view of "where am I right now?"`,
 			// If IMP, show workbench-specific info
 			if role == config.RoleIMP && cfg.WorkbenchID != "" {
 				// Show shipments assigned to this workbench
-				shipments, err := wire.ShipmentService().GetShipmentsByGrove(context.Background(), cfg.WorkbenchID)
+				shipments, err := wire.ShipmentService().GetShipmentsByWorkbench(context.Background(), cfg.WorkbenchID)
 				if err == nil && len(shipments) > 0 {
 					fmt.Println("Assigned Shipments:")
 					for _, s := range shipments {

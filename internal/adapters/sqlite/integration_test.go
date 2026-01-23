@@ -94,14 +94,14 @@ func TestIntegration_ShipmentWithPlanAndTasks(t *testing.T) {
 }
 
 // ============================================================================
-// Grove Assignment Tests
+// Workbench Assignment Tests
 // ============================================================================
 
-func TestIntegration_GroveAssignmentPropagation(t *testing.T) {
+func TestIntegration_WorkbenchAssignmentPropagation(t *testing.T) {
 	t.Skip("Skipped: uses deprecated AssignWorkbench/GetByWorkbench methods - needs update for schema changes")
 }
 
-func TestIntegration_MultipleEntitiesAssignedToGrove(t *testing.T) {
+func TestIntegration_MultipleEntitiesAssignedToWorkbench(t *testing.T) {
 	t.Skip("Skipped: uses deprecated AssignWorkbench/GetByWorkbench methods - needs update for schema changes")
 }
 

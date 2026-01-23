@@ -244,7 +244,7 @@ func (s *WorkshopServiceImpl) ApplyOpenWorkshop(ctx context.Context, plan *prima
 
 		// Create tmux windows for each workbench
 		for i, wb := range workbenches {
-			_ = s.tmuxAdapter.CreateGroveWindow(ctx, plan.SessionName, i+2, wb.Name, wb.WorktreePath)
+			_ = s.tmuxAdapter.CreateWorkbenchWindow(ctx, plan.SessionName, i+2, wb.Name, wb.WorktreePath)
 		}
 	}
 

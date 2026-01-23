@@ -22,7 +22,7 @@ type mockTomeRepository struct {
 	deleteErr           error
 	listErr             error
 	updateStatusErr     error
-	assignGroveErr      error
+	assignWorkbenchErr  error
 	missionExistsResult bool
 	missionExistsErr    error
 }
@@ -147,8 +147,8 @@ func (m *mockTomeRepository) GetByConclave(ctx context.Context, conclaveID strin
 }
 
 func (m *mockTomeRepository) AssignWorkbench(ctx context.Context, tomeID, workbenchID string) error {
-	if m.assignGroveErr != nil {
-		return m.assignGroveErr
+	if m.assignWorkbenchErr != nil {
+		return m.assignWorkbenchErr
 	}
 	if tome, ok := m.tomes[tomeID]; ok {
 		tome.AssignedWorkbenchID = workbenchID
@@ -526,10 +526,10 @@ func TestDeleteTome_Success(t *testing.T) {
 }
 
 // ============================================================================
-// AssignTomeToGrove Tests
+// AssignTomeToWorkbench Tests
 // ============================================================================
 
-func TestAssignTomeToGrove_Success(t *testing.T) {
+func TestAssignTomeToWorkbench_Success(t *testing.T) {
 	service, tomeRepo, _ := newTestTomeService()
 	ctx := context.Background()
 
@@ -540,21 +540,21 @@ func TestAssignTomeToGrove_Success(t *testing.T) {
 		Status:       "open",
 	}
 
-	err := service.AssignTomeToGrove(ctx, "TOME-001", "GROVE-001")
+	err := service.AssignTomeToWorkbench(ctx, "TOME-001", "BENCH-001")
 
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
-	if tomeRepo.tomes["TOME-001"].AssignedWorkbenchID != "GROVE-001" {
-		t.Errorf("expected grove ID 'GROVE-001', got '%s'", tomeRepo.tomes["TOME-001"].AssignedWorkbenchID)
+	if tomeRepo.tomes["TOME-001"].AssignedWorkbenchID != "BENCH-001" {
+		t.Errorf("expected workbench ID 'BENCH-001', got '%s'", tomeRepo.tomes["TOME-001"].AssignedWorkbenchID)
 	}
 }
 
-func TestAssignTomeToGrove_TomeNotFound(t *testing.T) {
+func TestAssignTomeToWorkbench_TomeNotFound(t *testing.T) {
 	service, _, _ := newTestTomeService()
 	ctx := context.Background()
 
-	err := service.AssignTomeToGrove(ctx, "TOME-NONEXISTENT", "GROVE-001")
+	err := service.AssignTomeToWorkbench(ctx, "TOME-NONEXISTENT", "BENCH-001")
 
 	if err == nil {
 		t.Fatal("expected error for non-existent tome, got nil")
@@ -562,10 +562,10 @@ func TestAssignTomeToGrove_TomeNotFound(t *testing.T) {
 }
 
 // ============================================================================
-// GetTomesByGrove Tests
+// GetTomesByWorkbench Tests
 // ============================================================================
 
-func TestGetTomesByGrove_Success(t *testing.T) {
+func TestGetTomesByWorkbench_Success(t *testing.T) {
 	service, tomeRepo, _ := newTestTomeService()
 	ctx := context.Background()
 
@@ -574,7 +574,7 @@ func TestGetTomesByGrove_Success(t *testing.T) {
 		CommissionID:        "COMM-001",
 		Title:               "Assigned Tome",
 		Status:              "active",
-		AssignedWorkbenchID: "GROVE-001",
+		AssignedWorkbenchID: "BENCH-001",
 	}
 	tomeRepo.tomes["TOME-002"] = &secondary.TomeRecord{
 		ID:           "TOME-002",
@@ -583,7 +583,7 @@ func TestGetTomesByGrove_Success(t *testing.T) {
 		Status:       "open",
 	}
 
-	tomes, err := service.GetTomesByGrove(ctx, "GROVE-001")
+	tomes, err := service.GetTomesByWorkbench(ctx, "BENCH-001")
 
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)

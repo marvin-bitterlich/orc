@@ -317,8 +317,7 @@ Examples:
 		// Phase 6: Apply TMux if requested
 		if createTmux {
 			sessionName := fmt.Sprintf("orc-%s", commissionID)
-			grovesDir := filepath.Join(workspacePath, "groves")
-			applyTmuxSession(sessionName, state.Groves, grovesDir, workspacePath)
+			applyTmuxSession(sessionName, workspacePath)
 		}
 
 		// Next steps
@@ -360,16 +359,6 @@ func displayCommissionState(state *primary.CommissionState, workspacePath string
 	fmt.Printf("    Workspace: %s\n", workspacePath)
 	fmt.Printf("    Created: %s\n", state.Commission.CreatedAt)
 	fmt.Println()
-	fmt.Printf("  Workbenches in DB: %d\n", len(state.Groves))
-	for _, grove := range state.Groves {
-		fmt.Printf("    %s - %s\n", colorDim(grove.ID), grove.Name)
-		fmt.Printf("      Path: %s\n", grove.Path)
-		if len(grove.Repos) > 0 {
-			fmt.Printf("      Repos: %v\n", grove.Repos)
-		}
-		fmt.Printf("      Status: %s\n", grove.Status)
-	}
-	fmt.Println()
 }
 
 // displayInfrastructurePlan shows the infrastructure plan section
@@ -382,24 +371,10 @@ func displayInfrastructurePlan(plan *primary.InfrastructurePlan) {
 		fmt.Printf("  %s commission workspace: %s\n", colorExists("EXISTS"), plan.WorkspacePath)
 	}
 
-	if plan.CreateGrovesDir {
-		fmt.Printf("  %s workbenches directory: %s\n", colorCreate("CREATE"), plan.GrovesDir)
+	if plan.CreateWorkbenchesDir {
+		fmt.Printf("  %s workbenches directory: %s\n", colorCreate("CREATE"), plan.WorkbenchesDir)
 	} else {
-		fmt.Printf("  %s workbenches directory: %s\n", colorExists("EXISTS"), plan.GrovesDir)
-	}
-
-	for _, action := range plan.GroveActions {
-		switch action.Action {
-		case "exists":
-			fmt.Printf("  %s workbench %s: %s\n", colorExists("EXISTS"), action.GroveID, action.DesiredPath)
-		case "move":
-			fmt.Printf("  MOVE workbench %s: %s → %s\n", action.GroveID, action.CurrentPath, action.DesiredPath)
-		case "missing":
-			fmt.Printf("  MISSING workbench %s: %s (needs materialization)\n", action.GroveID, action.DesiredPath)
-		}
-		if action.UpdateDBPath && action.Action != "move" {
-			fmt.Printf("  UPDATE DB path for %s: %s → %s\n", action.GroveID, action.CurrentPath, action.DesiredPath)
-		}
+		fmt.Printf("  %s workbenches directory: %s\n", colorExists("EXISTS"), plan.WorkbenchesDir)
 	}
 
 	for _, configWrite := range plan.ConfigWrites {
@@ -424,11 +399,11 @@ func displayTmuxPlan(plan *primary.TmuxSessionPlan) {
 	for _, wp := range plan.WindowPlans {
 		switch wp.Action {
 		case "exists":
-			fmt.Printf("  %s window %d (%s): 3 panes, IMP running - Workbench %s\n", colorExists("EXISTS"), wp.Index, wp.Name, wp.GroveID)
+			fmt.Printf("  %s window %d (%s): 3 panes, IMP running - Workbench %s\n", colorExists("EXISTS"), wp.Index, wp.Name, wp.WorkbenchID)
 		case "create":
-			fmt.Printf("  %s window %d (%s): 3 panes in %s - Workbench %s IMP\n", colorCreate("CREATE"), wp.Index, wp.Name, wp.GrovePath, wp.GroveID)
+			fmt.Printf("  %s window %d (%s): 3 panes in %s - Workbench %s IMP\n", colorCreate("CREATE"), wp.Index, wp.Name, wp.WorkbenchPath, wp.WorkbenchID)
 		case "update":
-			fmt.Printf("  %s window %d (%s): needs update - Workbench %s\n", colorUpdate("UPDATE"), wp.Index, wp.Name, wp.GroveID)
+			fmt.Printf("  %s window %d (%s): needs update - Workbench %s\n", colorUpdate("UPDATE"), wp.Index, wp.Name, wp.WorkbenchID)
 		case "skip":
 			fmt.Printf("  SKIP window %d (%s): workbench path missing\n", wp.Index, wp.Name)
 		}
@@ -444,14 +419,14 @@ func displayInfrastructureResult(result *primary.InfrastructureApplyResult, comm
 		fmt.Println("✓ Commission workspace ready")
 	}
 
-	if result.GrovesDirCreated {
+	if result.WorkbenchesDirCreated {
 		fmt.Println("✓ Workbenches directory created")
 	} else {
 		fmt.Println("✓ Workbenches directory ready")
 	}
 
-	if result.GrovesProcessed > 0 {
-		fmt.Printf("✓ Processed %d workbenches\n", result.GrovesProcessed)
+	if result.WorkbenchesProcessed > 0 {
+		fmt.Printf("✓ Processed %d workbenches\n", result.WorkbenchesProcessed)
 	}
 
 	if result.ConfigsWritten > 0 {
@@ -460,11 +435,6 @@ func displayInfrastructureResult(result *primary.InfrastructureApplyResult, comm
 
 	if result.CleanupsDone > 0 {
 		fmt.Printf("✓ Cleaned up %d old files\n", result.CleanupsDone)
-	}
-
-	for _, grove := range result.GrovesNeedingWork {
-		fmt.Printf("  ℹ️  Workbench %s worktree missing: %s\n", grove.GroveID, grove.DesiredPath)
-		fmt.Printf("      Materialize with: orc workbench create %s --repos <repo> --commission %s\n", grove.GroveName, commissionID)
 	}
 
 	for _, err := range result.Errors {
@@ -476,7 +446,7 @@ func displayInfrastructureResult(result *primary.InfrastructureApplyResult, comm
 }
 
 // applyTmuxSession creates or updates the TMux session for a commission
-func applyTmuxSession(sessionName string, groves []*primary.Grove, grovesDir, workspacePath string) {
+func applyTmuxSession(sessionName, workspacePath string) {
 	ctx := context.Background()
 	tmuxAdapter := wire.TMuxAdapter()
 
@@ -484,89 +454,19 @@ func applyTmuxSession(sessionName string, groves []*primary.Grove, grovesDir, wo
 	fmt.Println("🖥️  Creating TMux session...")
 
 	if tmuxAdapter.SessionExists(ctx, sessionName) {
-		fmt.Printf("  ℹ️  Session %s already exists - checking windows\n", sessionName)
-
-		for i, grove := range groves {
-			windowIndex := i + 1
-			grovePath := filepath.Join(grovesDir, grove.Name)
-
-			if _, err := os.Stat(grovePath); err == nil {
-				if tmuxAdapter.WindowExists(ctx, sessionName, grove.Name) {
-					paneCount := tmuxAdapter.GetPaneCount(ctx, sessionName, grove.Name)
-					pane2Cmd := tmuxAdapter.GetPaneCommand(ctx, sessionName, grove.Name, 2)
-
-					if paneCount == 3 && pane2Cmd == "orc" {
-						fmt.Printf("  ✓ Window %d (%s): IMP already running [%s]\n", windowIndex, grove.Name, grove.ID)
-					} else if paneCount == 3 {
-						target := fmt.Sprintf("%s:%s.2", sessionName, grove.Name)
-						if err := tmuxAdapter.RespawnPane(ctx, target, "orc", "connect"); err != nil {
-							fmt.Printf("  ⚠️  Could not respawn pane in window %s: %v\n", grove.Name, err)
-						} else {
-							fmt.Printf("  ✓ Window %d (%s): IMP rebooted [%s]\n", windowIndex, grove.Name, grove.ID)
-						}
-					} else {
-						fmt.Printf("  ⚠️  Window %d (%s): has %d panes (expected 3) - manual fix needed\n", windowIndex, grove.Name, paneCount)
-					}
-				} else {
-					fmt.Printf("  ⚠️  Window %d (%s): missing - attach to session and create manually\n", windowIndex, grove.Name)
-				}
-			}
-		}
-
-		fmt.Println()
-		fmt.Printf("✓ Session updated: %s\n", sessionName)
+		fmt.Printf("  ℹ️  Session %s already exists\n", sessionName)
 		fmt.Printf("  Attach with: tmux attach -t %s\n", sessionName)
-	} else {
-		startDir := workspacePath
-		if len(groves) > 0 {
-			firstGrovePath := filepath.Join(grovesDir, groves[0].Name)
-			if _, err := os.Stat(firstGrovePath); err == nil {
-				startDir = firstGrovePath
-			}
-		}
-
-		if err := tmuxAdapter.CreateSession(ctx, sessionName, startDir); err != nil {
-			fmt.Printf("  ⚠️  Failed to create TMux session: %v\n", err)
-			return
-		}
-
-		for i, grove := range groves {
-			windowIndex := i + 1
-			grovePath := filepath.Join(grovesDir, grove.Name)
-
-			if _, err := os.Stat(grovePath); err == nil {
-				if i == 0 {
-					target := fmt.Sprintf("%s:1", sessionName)
-					tmuxAdapter.RenameWindow(ctx, target, grove.Name)
-					target = fmt.Sprintf("%s:%s", sessionName, grove.Name)
-					tmuxAdapter.SplitVertical(ctx, target, grovePath)
-					rightPane := fmt.Sprintf("%s.2", target)
-					tmuxAdapter.SplitHorizontal(ctx, rightPane, grovePath)
-					topRightPane := fmt.Sprintf("%s.2", target)
-					tmuxAdapter.RespawnPane(ctx, topRightPane, "orc", "connect")
-					fmt.Printf("✓ Window %d: %s (IMP auto-booting) [%s]\n", windowIndex, grove.Name, grove.ID)
-				} else {
-					if err := tmuxAdapter.CreateGroveWindowShell(ctx, sessionName, windowIndex, grove.Name, grovePath); err != nil {
-						fmt.Printf("  ⚠️  Could not create window for workbench %s: %v\n", grove.ID, err)
-						continue
-					}
-					fmt.Printf("✓ Window %d: %s (IMP auto-booting) [%s]\n", windowIndex, grove.Name, grove.ID)
-				}
-			} else {
-				fmt.Printf("  ℹ️  Workbench %s worktree missing, skipping window\n", grove.ID)
-			}
-		}
-
-		if len(groves) > 0 {
-			tmuxAdapter.SelectWindow(ctx, sessionName, 1)
-		}
-
-		fmt.Println()
-		fmt.Printf("✓ TMux session created: %s\n", sessionName)
-		fmt.Printf("  Attach with: tmux attach -t %s\n", sessionName)
-		fmt.Println()
-		fmt.Println("Window Layout: Left: (vim) | Right Top: (claude) | Right Bottom: (shell)")
+		return
 	}
+
+	if err := tmuxAdapter.CreateSession(ctx, sessionName, workspacePath); err != nil {
+		fmt.Printf("  ⚠️  Failed to create TMux session: %v\n", err)
+		return
+	}
+
+	fmt.Println()
+	fmt.Printf("✓ TMux session created: %s\n", sessionName)
+	fmt.Printf("  Attach with: tmux attach -t %s\n", sessionName)
 }
 
 var commissionPinCmd = &cobra.Command{

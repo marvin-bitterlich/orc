@@ -9,7 +9,7 @@ import (
 // All database operations are handled by ConclaveRepository in the adapters layer.
 type Conclave struct {
 	ID                  string
-	ComcommissionID     string
+	CommissionID        string
 	Title               string
 	Description         sql.NullString
 	Status              string

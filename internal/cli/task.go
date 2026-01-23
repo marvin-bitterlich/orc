@@ -217,8 +217,8 @@ var taskClaimCmd = &cobra.Command{
 		}
 
 		err := wire.TaskService().ClaimTask(ctx, primary.ClaimTaskRequest{
-			TaskID:  taskID,
-			GroveID: workbenchID,
+			TaskID:      taskID,
+			WorkbenchID: workbenchID,
 		})
 		if err != nil {
 			return fmt.Errorf("failed to claim task: %w", err)
@@ -399,8 +399,8 @@ var taskDiscoverCmd = &cobra.Command{
 			// Claim first ready task
 			task := readyTasks[0]
 			err := wire.TaskService().ClaimTask(ctx, primary.ClaimTaskRequest{
-				TaskID:  task.ID,
-				GroveID: workbench.ID,
+				TaskID:      task.ID,
+				WorkbenchID: workbench.ID,
 			})
 			if err != nil {
 				return fmt.Errorf("failed to claim task: %w", err)

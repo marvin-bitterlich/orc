@@ -13,7 +13,7 @@ type ShipmentAssignment struct {
 	ShipmentID          string       `json:"shipment_id"`
 	ShipmentTitle       string       `json:"shipment_title"`
 	ShipmentDescription string       `json:"shipment_description"`
-	ComcommissionID     string       `json:"mission_id"`
+	CommissionID        string       `json:"mission_id"`
 	AssignedBy          string       `json:"assigned_by"`
 	AssignedAt          string       `json:"assigned_at"`
 	Status              string       `json:"status"` // assigned, in_progress, complete
@@ -123,7 +123,7 @@ func WriteShipmentAssignment(workbenchDir string, shipment *Shipment, tasks []*T
 		ShipmentID:          shipment.ID,
 		ShipmentTitle:       shipment.Title,
 		ShipmentDescription: description,
-		ComcommissionID:     shipment.ComcommissionID,
+		CommissionID:        shipment.CommissionID,
 		AssignedBy:          assignedBy,
 		AssignedAt:          time.Now().Format(time.RFC3339),
 		Status:              "assigned",

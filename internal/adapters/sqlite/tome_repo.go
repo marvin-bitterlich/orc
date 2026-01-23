@@ -264,12 +264,12 @@ func (r *TomeRepository) UpdateStatus(ctx context.Context, id, status string, se
 	return nil
 }
 
-// GetByWorkbench retrieves tomes assigned to a grove.
+// GetByWorkbench retrieves tomes assigned to a workbench.
 func (r *TomeRepository) GetByWorkbench(ctx context.Context, workbenchID string) ([]*secondary.TomeRecord, error) {
 	query := "SELECT id, commission_id, conclave_id, title, description, status, assigned_workbench_id, pinned, created_at, updated_at, closed_at FROM tomes WHERE assigned_workbench_id = ?"
 	rows, err := r.db.QueryContext(ctx, query, workbenchID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get tomes by grove: %w", err)
+		return nil, fmt.Errorf("failed to get tomes by workbench: %w", err)
 	}
 	defer rows.Close()
 
@@ -350,14 +350,14 @@ func (r *TomeRepository) GetByConclave(ctx context.Context, conclaveID string) (
 	return tomes, nil
 }
 
-// AssignWorkbench assigns a tome to a grove.
+// AssignWorkbench assigns a tome to a workbench.
 func (r *TomeRepository) AssignWorkbench(ctx context.Context, tomeID, workbenchID string) error {
 	result, err := r.db.ExecContext(ctx,
 		"UPDATE tomes SET assigned_workbench_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
 		workbenchID, tomeID,
 	)
 	if err != nil {
-		return fmt.Errorf("failed to assign grove to tome: %w", err)
+		return fmt.Errorf("failed to assign workbench to tome: %w", err)
 	}
 
 	rowsAffected, _ := result.RowsAffected()

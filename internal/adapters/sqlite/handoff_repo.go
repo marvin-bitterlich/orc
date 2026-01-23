@@ -108,12 +108,12 @@ func (r *HandoffRepository) GetLatest(ctx context.Context) (*secondary.HandoffRe
 	return record, nil
 }
 
-// GetLatestForWorkbench retrieves the most recent handoff for a grove.
+// GetLatestForWorkbench retrieves the most recent handoff for a workbench.
 func (r *HandoffRepository) GetLatestForWorkbench(ctx context.Context, workbenchID string) (*secondary.HandoffRecord, error) {
 	var (
 		createdAt time.Time
 		missionID sql.NullString
-		grove     sql.NullString
+		wbID      sql.NullString
 		todos     sql.NullString
 	)
 
@@ -122,7 +122,7 @@ func (r *HandoffRepository) GetLatestForWorkbench(ctx context.Context, workbench
 		`SELECT id, created_at, handoff_note, active_commission_id, active_workbench_id, todos_snapshot
 		 FROM handoffs WHERE active_workbench_id = ? ORDER BY created_at DESC LIMIT 1`,
 		workbenchID,
-	).Scan(&record.ID, &createdAt, &record.HandoffNote, &missionID, &grove, &todos)
+	).Scan(&record.ID, &createdAt, &record.HandoffNote, &missionID, &wbID, &todos)
 
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("no handoffs found for workbench %s", workbenchID)
@@ -133,7 +133,7 @@ func (r *HandoffRepository) GetLatestForWorkbench(ctx context.Context, workbench
 
 	record.CreatedAt = createdAt.Format(time.RFC3339)
 	record.ActiveCommissionID = missionID.String
-	record.ActiveWorkbenchID = grove.String
+	record.ActiveWorkbenchID = wbID.String
 	record.TodosSnapshot = todos.String
 
 	return record, nil

@@ -31,11 +31,11 @@ type ShipmentService interface {
 	// UnpinShipment unpins a shipment.
 	UnpinShipment(ctx context.Context, shipmentID string) error
 
-	// AssignShipmentToGrove assigns a shipment to a workbench.
-	AssignShipmentToGrove(ctx context.Context, shipmentID, workbenchID string) error
+	// AssignShipmentToWorkbench assigns a shipment to a workbench.
+	AssignShipmentToWorkbench(ctx context.Context, shipmentID, workbenchID string) error
 
-	// GetShipmentsByGrove retrieves shipments assigned to a workbench.
-	GetShipmentsByGrove(ctx context.Context, workbenchID string) ([]*Shipment, error)
+	// GetShipmentsByWorkbench retrieves shipments assigned to a workbench.
+	GetShipmentsByWorkbench(ctx context.Context, workbenchID string) ([]*Shipment, error)
 
 	// GetShipmentTasks retrieves all tasks for a shipment.
 	GetShipmentTasks(ctx context.Context, shipmentID string) ([]*Task, error)

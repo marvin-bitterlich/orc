@@ -45,7 +45,6 @@ func (s *CommissionOrchestrationService) CheckLaunchPermission(ctx context.Conte
 }
 
 // LoadCommissionState loads the commission from the database.
-// Groves are deprecated - returns empty groves list.
 func (s *CommissionOrchestrationService) LoadCommissionState(ctx context.Context, commissionID string) (*primary.CommissionState, error) {
 	commission, err := s.commissionSvc.GetCommission(ctx, commissionID)
 	if err != nil {
@@ -54,27 +53,23 @@ func (s *CommissionOrchestrationService) LoadCommissionState(ctx context.Context
 
 	return &primary.CommissionState{
 		Commission: commission,
-		Groves:     []*primary.Grove{}, // Groves deprecated
 	}, nil
 }
 
 // AnalyzeInfrastructure generates a plan for setting up commission infrastructure.
-// Groves are deprecated - returns minimal plan.
 func (s *CommissionOrchestrationService) AnalyzeInfrastructure(state *primary.CommissionState, workspacePath string) *primary.InfrastructurePlan {
 	return &primary.InfrastructurePlan{
-		WorkspacePath: workspacePath,
-		GrovesDir:     "",
+		WorkspacePath:  workspacePath,
+		WorkbenchesDir: "",
 	}
 }
 
 // ApplyInfrastructure applies the infrastructure plan.
-// Groves are deprecated - no-op.
 func (s *CommissionOrchestrationService) ApplyInfrastructure(ctx context.Context, plan *primary.InfrastructurePlan) *primary.InfrastructureApplyResult {
 	return &primary.InfrastructureApplyResult{}
 }
 
 // PlanTmuxSession generates a plan for the TMux session.
-// Groves are deprecated - returns minimal plan.
 func (s *CommissionOrchestrationService) PlanTmuxSession(state *primary.CommissionState, workspacePath, sessionName string, sessionExists bool, windowChecker primary.TmuxWindowChecker) *primary.TmuxSessionPlan {
 	return &primary.TmuxSessionPlan{
 		SessionName:   sessionName,

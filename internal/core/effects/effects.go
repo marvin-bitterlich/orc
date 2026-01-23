@@ -21,7 +21,7 @@ func (e LogEffect) EffectType() string { return "log" }
 
 // PersistEffect represents a database persistence operation.
 type PersistEffect struct {
-	Entity     string // e.g., "mission", "grove", "work_order"
+	Entity     string // e.g., "commission", "workbench", "shipment"
 	Operation  string // e.g., "create", "update", "delete"
 	Data       any    // The entity data
 	Conditions any    // Optional conditions/filters

@@ -206,7 +206,7 @@ func buildIMPPrimeOutput(workbenchCtx *ctx.WorkbenchContext, cwd string) string 
 	hasAssignments := false
 
 	// Shipments
-	shipments, _ := wire.ShipmentService().GetShipmentsByGrove(context.Background(), workbenchCtx.WorkbenchID)
+	shipments, _ := wire.ShipmentService().GetShipmentsByWorkbench(context.Background(), workbenchCtx.WorkbenchID)
 	for i, shipment := range shipments {
 		hasAssignments = true
 		output.WriteString(fmt.Sprintf("### Shipment %d: %s\n\n", i+1, shipment.ID))
@@ -243,7 +243,7 @@ func buildIMPPrimeOutput(workbenchCtx *ctx.WorkbenchContext, cwd string) string 
 	}
 
 	// Investigations
-	investigations, _ := wire.InvestigationService().GetInvestigationsByGrove(context.Background(), workbenchCtx.WorkbenchID)
+	investigations, _ := wire.InvestigationService().GetInvestigationsByWorkbench(context.Background(), workbenchCtx.WorkbenchID)
 	for i, inv := range investigations {
 		hasAssignments = true
 		output.WriteString(fmt.Sprintf("### Investigation %d: %s\n\n", i+1, inv.ID))

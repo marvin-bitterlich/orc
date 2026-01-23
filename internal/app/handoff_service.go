@@ -72,8 +72,8 @@ func (s *HandoffServiceImpl) GetLatestHandoff(ctx context.Context) (*primary.Han
 	return s.recordToHandoff(record), nil
 }
 
-// GetLatestHandoffForGrove retrieves the most recent handoff for a grove.
-func (s *HandoffServiceImpl) GetLatestHandoffForGrove(ctx context.Context, workbenchID string) (*primary.Handoff, error) {
+// GetLatestHandoffForWorkbench retrieves the most recent handoff for a workbench.
+func (s *HandoffServiceImpl) GetLatestHandoffForWorkbench(ctx context.Context, workbenchID string) (*primary.Handoff, error) {
 	record, err := s.handoffRepo.GetLatestForWorkbench(ctx, workbenchID)
 	if err != nil {
 		return nil, err

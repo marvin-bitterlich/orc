@@ -28,11 +28,11 @@ type TomeService interface {
 	// DeleteTome deletes a tome.
 	DeleteTome(ctx context.Context, tomeID string) error
 
-	// AssignTomeToGrove assigns a tome to a workbench.
-	AssignTomeToGrove(ctx context.Context, tomeID, workbenchID string) error
+	// AssignTomeToWorkbench assigns a tome to a workbench.
+	AssignTomeToWorkbench(ctx context.Context, tomeID, workbenchID string) error
 
-	// GetTomesByGrove retrieves tomes assigned to a workbench.
-	GetTomesByGrove(ctx context.Context, workbenchID string) ([]*Tome, error)
+	// GetTomesByWorkbench retrieves tomes assigned to a workbench.
+	GetTomesByWorkbench(ctx context.Context, workbenchID string) ([]*Tome, error)
 
 	// GetTomeNotes retrieves all notes in a tome.
 	GetTomeNotes(ctx context.Context, tomeID string) ([]*Note, error)

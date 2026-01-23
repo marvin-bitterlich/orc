@@ -10,8 +10,8 @@ import (
 	"github.com/example/orc/internal/core/effects"
 )
 
-// GrovePlanInput represents a grove for planning purposes.
-type GrovePlanInput struct {
+// WorkbenchPlanInput represents a workbench for planning purposes.
+type WorkbenchPlanInput struct {
 	ID          string
 	Name        string
 	CurrentPath string   // Current path in DB (may differ from desired)
@@ -26,7 +26,7 @@ type LaunchPlanInput struct {
 	CommissionTitle string
 	WorkspacePath   string
 	CreateTMux      bool
-	Groves          []GrovePlanInput
+	Workbenches     []WorkbenchPlanInput
 }
 
 // LaunchPlan represents the planned effects for launching a commission.
@@ -61,7 +61,7 @@ func GenerateLaunchPlan(input LaunchPlanInput) LaunchPlan {
 		WorkspacePath: input.WorkspacePath,
 	}
 
-	grovesDir := filepath.Join(input.WorkspacePath, "groves")
+	workbenchesDir := filepath.Join(input.WorkspacePath, "groves")
 
 	// 1. Create workspace directory
 	plan.FilesystemOps = append(plan.FilesystemOps, effects.FileEffect{
@@ -70,26 +70,26 @@ func GenerateLaunchPlan(input LaunchPlanInput) LaunchPlan {
 		Mode:      0755,
 	})
 
-	// 2. Create groves directory
+	// 2. Create workbenches directory
 	plan.FilesystemOps = append(plan.FilesystemOps, effects.FileEffect{
 		Operation: "mkdir",
-		Path:      grovesDir,
+		Path:      workbenchesDir,
 		Mode:      0755,
 	})
 
-	// 3. Process each grove
-	for _, grove := range input.Groves {
-		desiredPath := filepath.Join(grovesDir, grove.Name)
+	// 3. Process each workbench
+	for _, wb := range input.Workbenches {
+		desiredPath := filepath.Join(workbenchesDir, wb.Name)
 
-		// Create .orc directory for grove config
+		// Create .orc directory for workbench config
 		plan.FilesystemOps = append(plan.FilesystemOps, effects.FileEffect{
 			Operation: "mkdir",
 			Path:      filepath.Join(desiredPath, ".orc"),
 			Mode:      0755,
 		})
 
-		// Generate and write grove config
-		configContent := generateGroveConfig(grove.ID, input.CommissionID, grove.Name, grove.Repos)
+		// Generate and write workbench config
+		configContent := generateWorkbenchConfig(wb.ID, input.CommissionID, wb.Name, wb.Repos)
 		plan.FilesystemOps = append(plan.FilesystemOps, effects.FileEffect{
 			Operation: "write",
 			Path:      filepath.Join(desiredPath, ".orc", "config.json"),
@@ -98,12 +98,12 @@ func GenerateLaunchPlan(input LaunchPlanInput) LaunchPlan {
 		})
 
 		// Update DB path if different from desired
-		if grove.CurrentPath != desiredPath {
+		if wb.CurrentPath != desiredPath {
 			plan.DatabaseOps = append(plan.DatabaseOps, effects.PersistEffect{
 				Entity:    "grove",
 				Operation: "update",
 				Data: map[string]string{
-					"id":   grove.ID,
+					"id":   wb.ID,
 					"path": desiredPath,
 				},
 			})
@@ -119,14 +119,14 @@ func GenerateLaunchPlan(input LaunchPlanInput) LaunchPlan {
 			SessionName: sessionName,
 		})
 
-		for _, grove := range input.Groves {
-			if grove.PathExists {
-				grovePath := filepath.Join(grovesDir, grove.Name)
+		for _, wb := range input.Workbenches {
+			if wb.PathExists {
+				workbenchPath := filepath.Join(workbenchesDir, wb.Name)
 				plan.TMuxOps = append(plan.TMuxOps, effects.TMuxEffect{
 					Operation:   "new_window",
 					SessionName: sessionName,
-					WindowName:  grove.Name,
-					Command:     grovePath, // Path as working directory
+					WindowName:  wb.Name,
+					Command:     workbenchPath, // Path as working directory
 				})
 			}
 		}
@@ -139,7 +139,7 @@ func GenerateLaunchPlan(input LaunchPlanInput) LaunchPlan {
 type StartPlanInput struct {
 	CommissionID  string
 	WorkspacePath string
-	Groves        []GrovePlanInput
+	Workbenches   []WorkbenchPlanInput
 }
 
 // StartPlan represents the planned effects for starting a commission.
@@ -165,7 +165,7 @@ func GenerateStartPlan(input StartPlanInput) StartPlan {
 	}
 
 	sessionName := "orc-" + input.CommissionID
-	grovesDir := filepath.Join(input.WorkspacePath, "groves")
+	workbenchesDir := filepath.Join(input.WorkspacePath, "groves")
 
 	// Create new session
 	plan.TMuxOps = append(plan.TMuxOps, effects.TMuxEffect{
@@ -173,15 +173,15 @@ func GenerateStartPlan(input StartPlanInput) StartPlan {
 		SessionName: sessionName,
 	})
 
-	// Create window for each grove
-	for _, grove := range input.Groves {
-		if grove.PathExists {
-			grovePath := filepath.Join(grovesDir, grove.Name)
+	// Create window for each workbench
+	for _, wb := range input.Workbenches {
+		if wb.PathExists {
+			workbenchPath := filepath.Join(workbenchesDir, wb.Name)
 			plan.TMuxOps = append(plan.TMuxOps, effects.TMuxEffect{
 				Operation:   "new_window",
 				SessionName: sessionName,
-				WindowName:  grove.Name,
-				Command:     grovePath,
+				WindowName:  wb.Name,
+				Command:     workbenchPath,
 			})
 		}
 	}
@@ -189,14 +189,14 @@ func GenerateStartPlan(input StartPlanInput) StartPlan {
 	return plan
 }
 
-// groveConfig represents the structure of a grove config file.
-type groveConfig struct {
-	Version string           `json:"version"`
-	Type    string           `json:"type"`
-	Grove   groveConfigInner `json:"grove"`
+// workbenchConfig represents the structure of a workbench config file.
+type workbenchConfig struct {
+	Version string               `json:"version"`
+	Type    string               `json:"type"`
+	Grove   workbenchConfigInner `json:"grove"`
 }
 
-type groveConfigInner struct {
+type workbenchConfigInner struct {
 	GroveID      string   `json:"grove_id"`
 	CommissionID string   `json:"commission_id"`
 	Name         string   `json:"name"`
@@ -204,13 +204,13 @@ type groveConfigInner struct {
 	CreatedAt    string   `json:"created_at"`
 }
 
-// generateGroveConfig creates the JSON config content for a grove.
-func generateGroveConfig(groveID, commissionID, name string, repos []string) []byte {
-	config := groveConfig{
+// generateWorkbenchConfig creates the JSON config content for a workbench.
+func generateWorkbenchConfig(workbenchID, commissionID, name string, repos []string) []byte {
+	config := workbenchConfig{
 		Version: "1.0",
 		Type:    "grove",
-		Grove: groveConfigInner{
-			GroveID:      groveID,
+		Grove: workbenchConfigInner{
+			GroveID:      workbenchID,
 			CommissionID: commissionID,
 			Name:         name,
 			Repos:        repos,

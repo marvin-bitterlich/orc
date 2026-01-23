@@ -13,8 +13,8 @@ type TMuxAdapter interface {
 
 	// Window management
 	CreateOrcWindow(ctx context.Context, sessionName string, workingDir string) error
-	CreateGroveWindow(ctx context.Context, sessionName string, windowIndex int, windowName string, workingDir string) error
-	CreateGroveWindowShell(ctx context.Context, sessionName string, windowIndex int, windowName string, workingDir string) error
+	CreateWorkbenchWindow(ctx context.Context, sessionName string, windowIndex int, windowName string, workingDir string) error
+	CreateWorkbenchWindowShell(ctx context.Context, sessionName string, windowIndex int, windowName string, workingDir string) error
 	WindowExists(ctx context.Context, sessionName string, windowName string) bool
 
 	// Pane operations

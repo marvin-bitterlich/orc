@@ -186,11 +186,11 @@ func (m *mockShipmentServiceForPR) CompleteShipment(ctx context.Context, shipmen
 	return nil
 }
 
-func (m *mockShipmentServiceForPR) AssignShipmentToGrove(ctx context.Context, shipmentID, workbenchID string) error {
+func (m *mockShipmentServiceForPR) AssignShipmentToWorkbench(ctx context.Context, shipmentID, workbenchID string) error {
 	return nil
 }
 
-func (m *mockShipmentServiceForPR) GetShipmentsByGrove(ctx context.Context, workbenchID string) ([]*primary.Shipment, error) {
+func (m *mockShipmentServiceForPR) GetShipmentsByWorkbench(ctx context.Context, workbenchID string) ([]*primary.Shipment, error) {
 	return nil, nil
 }
 

@@ -12,12 +12,12 @@ func TestGenerateLaunchPlan_BasicCommission(t *testing.T) {
 		CommissionTitle: "Test Commission",
 		WorkspacePath:   "/home/user/commissions/COMM-001",
 		CreateTMux:      false,
-		Groves:          []GrovePlanInput{},
+		Workbenches:     []WorkbenchPlanInput{},
 	}
 
 	plan := GenerateLaunchPlan(input)
 
-	// Should have 2 filesystem ops: workspace dir + groves dir
+	// Should have 2 filesystem ops: workspace dir + workbenches dir
 	if len(plan.FilesystemOps) != 2 {
 		t.Errorf("FilesystemOps count = %d, want 2", len(plan.FilesystemOps))
 	}
@@ -30,9 +30,9 @@ func TestGenerateLaunchPlan_BasicCommission(t *testing.T) {
 		t.Errorf("First op path = %q, want workspace path", plan.FilesystemOps[0].Path)
 	}
 
-	// Second op should be groves mkdir
+	// Second op should be workbenches mkdir
 	if plan.FilesystemOps[1].Path != "/home/user/commissions/COMM-001/groves" {
-		t.Errorf("Second op path = %q, want groves path", plan.FilesystemOps[1].Path)
+		t.Errorf("Second op path = %q, want workbenches path", plan.FilesystemOps[1].Path)
 	}
 
 	// No TMux ops
@@ -46,17 +46,17 @@ func TestGenerateLaunchPlan_BasicCommission(t *testing.T) {
 	}
 }
 
-func TestGenerateLaunchPlan_WithGrove(t *testing.T) {
+func TestGenerateLaunchPlan_WithWorkbench(t *testing.T) {
 	input := LaunchPlanInput{
 		CommissionID:    "COMM-002",
 		CommissionTitle: "Test Commission",
 		WorkspacePath:   "/home/user/commissions/COMM-002",
 		CreateTMux:      false,
-		Groves: []GrovePlanInput{
+		Workbenches: []WorkbenchPlanInput{
 			{
-				ID:          "GROVE-001",
-				Name:        "api-grove",
-				CurrentPath: "/old/path/api-grove",
+				ID:          "BENCH-001",
+				Name:        "api-workbench",
+				CurrentPath: "/old/path/api-workbench",
 				Repos:       []string{"https://github.com/example/api"},
 				PathExists:  true,
 			},
@@ -65,7 +65,7 @@ func TestGenerateLaunchPlan_WithGrove(t *testing.T) {
 
 	plan := GenerateLaunchPlan(input)
 
-	// Should have 4 filesystem ops: workspace + groves + .orc dir + config.json
+	// Should have 4 filesystem ops: workspace + workbenches + .orc dir + config.json
 	if len(plan.FilesystemOps) != 4 {
 		t.Errorf("FilesystemOps count = %d, want 4", len(plan.FilesystemOps))
 	}
@@ -82,17 +82,17 @@ func TestGenerateLaunchPlan_WithGrove(t *testing.T) {
 	}
 }
 
-func TestGenerateLaunchPlan_GrovePathUnchanged(t *testing.T) {
+func TestGenerateLaunchPlan_WorkbenchPathUnchanged(t *testing.T) {
 	input := LaunchPlanInput{
 		CommissionID:    "COMM-003",
 		CommissionTitle: "Test Commission",
 		WorkspacePath:   "/home/user/commissions/COMM-003",
 		CreateTMux:      false,
-		Groves: []GrovePlanInput{
+		Workbenches: []WorkbenchPlanInput{
 			{
-				ID:          "GROVE-001",
-				Name:        "web-grove",
-				CurrentPath: "/home/user/commissions/COMM-003/groves/web-grove", // Already correct
+				ID:          "BENCH-001",
+				Name:        "web-workbench",
+				CurrentPath: "/home/user/commissions/COMM-003/groves/web-workbench", // Already correct
 				Repos:       []string{},
 				PathExists:  true,
 			},
@@ -113,15 +113,15 @@ func TestGenerateLaunchPlan_WithTMux(t *testing.T) {
 		CommissionTitle: "Test Commission",
 		WorkspacePath:   "/home/user/commissions/COMM-004",
 		CreateTMux:      true,
-		Groves: []GrovePlanInput{
+		Workbenches: []WorkbenchPlanInput{
 			{
-				ID:          "GROVE-001",
+				ID:          "BENCH-001",
 				Name:        "backend",
 				CurrentPath: "/home/user/commissions/COMM-004/groves/backend",
 				PathExists:  true,
 			},
 			{
-				ID:          "GROVE-002",
+				ID:          "BENCH-002",
 				Name:        "frontend",
 				CurrentPath: "/home/user/commissions/COMM-004/groves/frontend",
 				PathExists:  true,
@@ -156,15 +156,15 @@ func TestGenerateLaunchPlan_TMuxSkipsNonExistentPaths(t *testing.T) {
 		CommissionTitle: "Test Commission",
 		WorkspacePath:   "/home/user/commissions/COMM-005",
 		CreateTMux:      true,
-		Groves: []GrovePlanInput{
+		Workbenches: []WorkbenchPlanInput{
 			{
-				ID:          "GROVE-001",
+				ID:          "BENCH-001",
 				Name:        "existing",
 				CurrentPath: "/some/path",
 				PathExists:  true,
 			},
 			{
-				ID:          "GROVE-002",
+				ID:          "BENCH-002",
 				Name:        "not-existing",
 				CurrentPath: "/some/other/path",
 				PathExists:  false, // Does not exist
@@ -176,7 +176,7 @@ func TestGenerateLaunchPlan_TMuxSkipsNonExistentPaths(t *testing.T) {
 
 	// Should only have 2 TMux ops: 1 session + 1 window (skips non-existent)
 	if len(plan.TMuxOps) != 2 {
-		t.Errorf("TMuxOps count = %d, want 2 (should skip non-existent grove)", len(plan.TMuxOps))
+		t.Errorf("TMuxOps count = %d, want 2 (should skip non-existent workbench)", len(plan.TMuxOps))
 	}
 }
 
@@ -186,8 +186,8 @@ func TestLaunchPlan_Effects(t *testing.T) {
 		CommissionTitle: "Test",
 		WorkspacePath:   "/test",
 		CreateTMux:      true,
-		Groves: []GrovePlanInput{
-			{ID: "GROVE-001", Name: "test", CurrentPath: "/old", PathExists: true},
+		Workbenches: []WorkbenchPlanInput{
+			{ID: "BENCH-001", Name: "test", CurrentPath: "/old", PathExists: true},
 		},
 	}
 
@@ -215,9 +215,9 @@ func TestGenerateStartPlan_Basic(t *testing.T) {
 	input := StartPlanInput{
 		CommissionID:  "COMM-007",
 		WorkspacePath: "/home/user/commissions/COMM-007",
-		Groves: []GrovePlanInput{
+		Workbenches: []WorkbenchPlanInput{
 			{
-				ID:          "GROVE-001",
+				ID:          "BENCH-001",
 				Name:        "main",
 				CurrentPath: "/home/user/commissions/COMM-007/groves/main",
 				PathExists:  true,
@@ -245,9 +245,9 @@ func TestGenerateStartPlan_SkipsNonExistent(t *testing.T) {
 	input := StartPlanInput{
 		CommissionID:  "COMM-008",
 		WorkspacePath: "/home/user/commissions/COMM-008",
-		Groves: []GrovePlanInput{
-			{ID: "GROVE-001", Name: "exists", PathExists: true},
-			{ID: "GROVE-002", Name: "missing", PathExists: false},
+		Workbenches: []WorkbenchPlanInput{
+			{ID: "BENCH-001", Name: "exists", PathExists: true},
+			{ID: "BENCH-002", Name: "missing", PathExists: false},
 		},
 	}
 
@@ -263,8 +263,8 @@ func TestStartPlan_Effects(t *testing.T) {
 	input := StartPlanInput{
 		CommissionID:  "COMM-009",
 		WorkspacePath: "/test",
-		Groves: []GrovePlanInput{
-			{ID: "GROVE-001", Name: "test", PathExists: true},
+		Workbenches: []WorkbenchPlanInput{
+			{ID: "BENCH-001", Name: "test", PathExists: true},
 		},
 	}
 
@@ -282,11 +282,11 @@ func TestStartPlan_Effects(t *testing.T) {
 	}
 }
 
-func TestGenerateGroveConfig(t *testing.T) {
-	content := generateGroveConfig("GROVE-001", "COMM-001", "api-grove", []string{"https://github.com/example/api"})
+func TestGenerateWorkbenchConfig(t *testing.T) {
+	content := generateWorkbenchConfig("BENCH-001", "COMM-001", "api-workbench", []string{"https://github.com/example/api"})
 
 	if len(content) == 0 {
-		t.Error("generateGroveConfig returned empty content")
+		t.Error("generateWorkbenchConfig returned empty content")
 	}
 
 	// Verify it's valid JSON by checking it contains expected fields
@@ -294,9 +294,9 @@ func TestGenerateGroveConfig(t *testing.T) {
 	expectedFields := []string{
 		`"version": "1.0"`,
 		`"type": "grove"`,
-		`"grove_id": "GROVE-001"`,
+		`"grove_id": "BENCH-001"`,
 		`"commission_id": "COMM-001"`,
-		`"name": "api-grove"`,
+		`"name": "api-workbench"`,
 	}
 
 	for _, field := range expectedFields {

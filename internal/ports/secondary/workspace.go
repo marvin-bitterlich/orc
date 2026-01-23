@@ -18,5 +18,5 @@ type WorkspaceAdapter interface {
 	// Path resolution
 	GetWorktreesBasePath() string
 	GetRepoPath(repoName string) string
-	ResolveGrovePath(groveName string) string
+	ResolveWorkbenchPath(workbenchName string) string
 }

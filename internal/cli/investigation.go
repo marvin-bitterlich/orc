@@ -290,7 +290,7 @@ var investigationAssignCmd = &cobra.Command{
 		workbenchID := args[1]
 
 		ctx := context.Background()
-		err := wire.InvestigationService().AssignInvestigationToGrove(ctx, investigationID, workbenchID)
+		err := wire.InvestigationService().AssignInvestigationToWorkbench(ctx, investigationID, workbenchID)
 		if err != nil {
 			return fmt.Errorf("failed to assign investigation: %w", err)
 		}

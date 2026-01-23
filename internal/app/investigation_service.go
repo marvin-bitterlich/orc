@@ -162,13 +162,13 @@ func (s *InvestigationServiceImpl) DeleteInvestigation(ctx context.Context, inve
 	return s.investigationRepo.Delete(ctx, investigationID)
 }
 
-// AssignInvestigationToGrove assigns an investigation to a grove.
-func (s *InvestigationServiceImpl) AssignInvestigationToGrove(ctx context.Context, investigationID, workbenchID string) error {
+// AssignInvestigationToWorkbench assigns an investigation to a workbench.
+func (s *InvestigationServiceImpl) AssignInvestigationToWorkbench(ctx context.Context, investigationID, workbenchID string) error {
 	return s.investigationRepo.AssignWorkbench(ctx, investigationID, workbenchID)
 }
 
-// GetInvestigationsByGrove retrieves investigations assigned to a grove.
-func (s *InvestigationServiceImpl) GetInvestigationsByGrove(ctx context.Context, workbenchID string) ([]*primary.Investigation, error) {
+// GetInvestigationsByWorkbench retrieves investigations assigned to a workbench.
+func (s *InvestigationServiceImpl) GetInvestigationsByWorkbench(ctx context.Context, workbenchID string) ([]*primary.Investigation, error) {
 	records, err := s.investigationRepo.GetByWorkbench(ctx, workbenchID)
 	if err != nil {
 		return nil, err

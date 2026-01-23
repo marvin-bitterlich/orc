@@ -14,8 +14,8 @@ type HandoffService interface {
 	// GetLatestHandoff retrieves the most recent handoff.
 	GetLatestHandoff(ctx context.Context) (*Handoff, error)
 
-	// GetLatestHandoffForGrove retrieves the most recent handoff for a workbench.
-	GetLatestHandoffForGrove(ctx context.Context, workbenchID string) (*Handoff, error)
+	// GetLatestHandoffForWorkbench retrieves the most recent handoff for a workbench.
+	GetLatestHandoffForWorkbench(ctx context.Context, workbenchID string) (*Handoff, error)
 
 	// ListHandoffs lists handoffs with optional limit.
 	ListHandoffs(ctx context.Context, limit int) ([]*Handoff, error)

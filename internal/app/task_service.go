@@ -124,7 +124,7 @@ func (s *TaskServiceImpl) ListTasks(ctx context.Context, filters primary.TaskFil
 	return tasks, nil
 }
 
-// ClaimTask claims a task for a grove.
+// ClaimTask claims a task for a workbench.
 func (s *TaskServiceImpl) ClaimTask(ctx context.Context, req primary.ClaimTaskRequest) error {
 	// Verify task exists
 	_, err := s.taskRepo.GetByID(ctx, req.TaskID)
@@ -132,7 +132,7 @@ func (s *TaskServiceImpl) ClaimTask(ctx context.Context, req primary.ClaimTaskRe
 		return err
 	}
 
-	return s.taskRepo.Claim(ctx, req.TaskID, req.GroveID)
+	return s.taskRepo.Claim(ctx, req.TaskID, req.WorkbenchID)
 }
 
 // CompleteTask marks a task as complete.
@@ -200,8 +200,8 @@ func (s *TaskServiceImpl) UnpinTask(ctx context.Context, taskID string) error {
 	return s.taskRepo.Unpin(ctx, taskID)
 }
 
-// GetTasksByGrove retrieves tasks assigned to a grove.
-func (s *TaskServiceImpl) GetTasksByGrove(ctx context.Context, workbenchID string) ([]*primary.Task, error) {
+// GetTasksByWorkbench retrieves tasks assigned to a workbench.
+func (s *TaskServiceImpl) GetTasksByWorkbench(ctx context.Context, workbenchID string) ([]*primary.Task, error) {
 	records, err := s.taskRepo.GetByWorkbench(ctx, workbenchID)
 	if err != nil {
 		return nil, err
@@ -285,7 +285,7 @@ func (s *TaskServiceImpl) ListTasksByTag(ctx context.Context, tagName string) ([
 	return tasks, nil
 }
 
-// DiscoverTasks finds ready tasks in the current grove context.
+// DiscoverTasks finds ready tasks in the current workbench context.
 func (s *TaskServiceImpl) DiscoverTasks(ctx context.Context, workbenchID string) ([]*primary.Task, error) {
 	records, err := s.taskRepo.GetByWorkbench(ctx, workbenchID)
 	if err != nil {

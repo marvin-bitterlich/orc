@@ -80,11 +80,11 @@ func TestWorkspaceAdapter_PathResolution(t *testing.T) {
 		t.Errorf("expected %s, got %s", expected, repoPath)
 	}
 
-	// Test ResolveGrovePath
-	grovePath := adapter.ResolveGrovePath("auth-backend")
+	// Test ResolveWorkbenchPath
+	workbenchPath := adapter.ResolveWorkbenchPath("auth-backend")
 	expected = filepath.Join(worktreesBase, "auth-backend")
-	if grovePath != expected {
-		t.Errorf("expected %s, got %s", expected, grovePath)
+	if workbenchPath != expected {
+		t.Errorf("expected %s, got %s", expected, workbenchPath)
 	}
 }
 

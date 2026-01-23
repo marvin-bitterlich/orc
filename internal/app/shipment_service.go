@@ -172,24 +172,24 @@ func (s *ShipmentServiceImpl) UnpinShipment(ctx context.Context, shipmentID stri
 	return s.shipmentRepo.Unpin(ctx, shipmentID)
 }
 
-// AssignShipmentToGrove assigns a shipment to a grove.
-func (s *ShipmentServiceImpl) AssignShipmentToGrove(ctx context.Context, shipmentID, workbenchID string) error {
+// AssignShipmentToWorkbench assigns a shipment to a workbench.
+func (s *ShipmentServiceImpl) AssignShipmentToWorkbench(ctx context.Context, shipmentID, workbenchID string) error {
 	// Verify shipment exists
 	_, err := s.shipmentRepo.GetByID(ctx, shipmentID)
 	if err != nil {
 		return err
 	}
 
-	// Check if grove is already assigned to another shipment
+	// Check if workbench is already assigned to another shipment
 	otherShipmentID, err := s.shipmentRepo.WorkbenchAssignedToOther(ctx, workbenchID, shipmentID)
 	if err != nil {
-		return fmt.Errorf("failed to check grove assignment: %w", err)
+		return fmt.Errorf("failed to check workbench assignment: %w", err)
 	}
 	if otherShipmentID != "" {
-		return fmt.Errorf("grove already assigned to shipment %s", otherShipmentID)
+		return fmt.Errorf("workbench already assigned to shipment %s", otherShipmentID)
 	}
 
-	// Assign grove to shipment
+	// Assign workbench to shipment
 	if err := s.shipmentRepo.AssignWorkbench(ctx, shipmentID, workbenchID); err != nil {
 		return err
 	}
@@ -198,8 +198,8 @@ func (s *ShipmentServiceImpl) AssignShipmentToGrove(ctx context.Context, shipmen
 	return s.taskRepo.AssignWorkbenchByShipment(ctx, shipmentID, workbenchID)
 }
 
-// GetShipmentsByGrove retrieves shipments assigned to a grove.
-func (s *ShipmentServiceImpl) GetShipmentsByGrove(ctx context.Context, workbenchID string) ([]*primary.Shipment, error) {
+// GetShipmentsByWorkbench retrieves shipments assigned to a workbench.
+func (s *ShipmentServiceImpl) GetShipmentsByWorkbench(ctx context.Context, workbenchID string) ([]*primary.Shipment, error) {
 	records, err := s.shipmentRepo.GetByWorkbench(ctx, workbenchID)
 	if err != nil {
 		return nil, err

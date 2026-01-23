@@ -135,8 +135,8 @@ func (s *TomeServiceImpl) DeleteTome(ctx context.Context, tomeID string) error {
 	return s.tomeRepo.Delete(ctx, tomeID)
 }
 
-// AssignTomeToGrove assigns a tome to a grove.
-func (s *TomeServiceImpl) AssignTomeToGrove(ctx context.Context, tomeID, workbenchID string) error {
+// AssignTomeToWorkbench assigns a tome to a workbench.
+func (s *TomeServiceImpl) AssignTomeToWorkbench(ctx context.Context, tomeID, workbenchID string) error {
 	// Verify tome exists
 	_, err := s.tomeRepo.GetByID(ctx, tomeID)
 	if err != nil {
@@ -146,8 +146,8 @@ func (s *TomeServiceImpl) AssignTomeToGrove(ctx context.Context, tomeID, workben
 	return s.tomeRepo.AssignWorkbench(ctx, tomeID, workbenchID)
 }
 
-// GetTomesByGrove retrieves tomes assigned to a grove.
-func (s *TomeServiceImpl) GetTomesByGrove(ctx context.Context, workbenchID string) ([]*primary.Tome, error) {
+// GetTomesByWorkbench retrieves tomes assigned to a workbench.
+func (s *TomeServiceImpl) GetTomesByWorkbench(ctx context.Context, workbenchID string) ([]*primary.Tome, error) {
 	records, err := s.tomeRepo.GetByWorkbench(ctx, workbenchID)
 	if err != nil {
 		return nil, err

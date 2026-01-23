@@ -9,7 +9,7 @@ import (
 // Status can be: active, paused, complete
 type Investigation struct {
 	ID                  string
-	ComcommissionID     string
+	CommissionID        string
 	Title               string
 	Description         sql.NullString
 	Status              string

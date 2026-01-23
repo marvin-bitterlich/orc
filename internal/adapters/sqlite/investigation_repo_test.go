@@ -344,16 +344,16 @@ func TestInvestigationRepository_AssignWorkbench(t *testing.T) {
 	repo := sqlite.NewInvestigationRepository(db)
 	ctx := context.Background()
 
-	inv := createTestInvestigation(t, repo, ctx, "COMM-001", "Grove Test", "")
+	inv := createTestInvestigation(t, repo, ctx, "COMM-001", "Workbench Test", "")
 
-	err := repo.AssignWorkbench(ctx, inv.ID, "GROVE-001")
+	err := repo.AssignWorkbench(ctx, inv.ID, "BENCH-001")
 	if err != nil {
 		t.Fatalf("AssignWorkbench failed: %v", err)
 	}
 
 	retrieved, _ := repo.GetByID(ctx, inv.ID)
-	if retrieved.AssignedWorkbenchID != "GROVE-001" {
-		t.Errorf("expected assigned grove 'GROVE-001', got '%s'", retrieved.AssignedWorkbenchID)
+	if retrieved.AssignedWorkbenchID != "BENCH-001" {
+		t.Errorf("expected assigned workbench 'BENCH-001', got '%s'", retrieved.AssignedWorkbenchID)
 	}
 }
 
@@ -362,7 +362,7 @@ func TestInvestigationRepository_AssignWorkbench_NotFound(t *testing.T) {
 	repo := sqlite.NewInvestigationRepository(db)
 	ctx := context.Background()
 
-	err := repo.AssignWorkbench(ctx, "INV-999", "GROVE-001")
+	err := repo.AssignWorkbench(ctx, "INV-999", "BENCH-001")
 	if err == nil {
 		t.Error("expected error for non-existent investigation")
 	}
@@ -377,16 +377,16 @@ func TestInvestigationRepository_GetByWorkbench(t *testing.T) {
 	inv2 := createTestInvestigation(t, repo, ctx, "COMM-001", "Investigation 2", "")
 	createTestInvestigation(t, repo, ctx, "COMM-001", "Investigation 3 (unassigned)", "")
 
-	_ = repo.AssignWorkbench(ctx, inv1.ID, "GROVE-001")
-	_ = repo.AssignWorkbench(ctx, inv2.ID, "GROVE-001")
+	_ = repo.AssignWorkbench(ctx, inv1.ID, "BENCH-001")
+	_ = repo.AssignWorkbench(ctx, inv2.ID, "BENCH-001")
 
-	investigations, err := repo.GetByWorkbench(ctx, "GROVE-001")
+	investigations, err := repo.GetByWorkbench(ctx, "BENCH-001")
 	if err != nil {
 		t.Fatalf("GetByWorkbench failed: %v", err)
 	}
 
 	if len(investigations) != 2 {
-		t.Errorf("expected 2 investigations for grove, got %d", len(investigations))
+		t.Errorf("expected 2 investigations for workbench, got %d", len(investigations))
 	}
 }
 

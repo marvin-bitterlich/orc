@@ -55,13 +55,13 @@ func (m *mockHandoffRepository) GetLatest(ctx context.Context) (*secondary.Hando
 }
 
 func (m *mockHandoffRepository) GetLatestForWorkbench(ctx context.Context, workbenchID string) (*secondary.HandoffRecord, error) {
-	// Find latest handoff for the grove
+	// Find latest handoff for the workbench
 	for _, h := range m.handoffs {
 		if h.ActiveWorkbenchID == workbenchID {
 			return h, nil
 		}
 	}
-	return nil, errors.New("no handoffs found for grove")
+	return nil, errors.New("no handoffs found for workbench")
 }
 
 func (m *mockHandoffRepository) List(ctx context.Context, limit int) ([]*secondary.HandoffRecord, error) {
@@ -105,7 +105,7 @@ func TestCreateHandoff_Success(t *testing.T) {
 	resp, err := service.CreateHandoff(ctx, primary.CreateHandoffRequest{
 		HandoffNote:        "Session completed. Main task was fixing authentication bug.",
 		ActiveCommissionID: "COMM-001",
-		ActiveWorkbenchID:  "GROVE-001",
+		ActiveWorkbenchID:  "BENCH-001",
 		TodosSnapshot:      "- Fix auth bug [DONE]\n- Update docs [IN PROGRESS]",
 	})
 
@@ -217,48 +217,48 @@ func TestGetLatestHandoff_NoHandoffs(t *testing.T) {
 }
 
 // ============================================================================
-// GetLatestHandoffForGrove Tests
+// GetLatestHandoffForWorkbench Tests
 // ============================================================================
 
-func TestGetLatestHandoffForGrove_Found(t *testing.T) {
+func TestGetLatestHandoffForWorkbench_Found(t *testing.T) {
 	service, handoffRepo := newTestHandoffService()
 	ctx := context.Background()
 
 	handoffRepo.handoffs["HANDOFF-001"] = &secondary.HandoffRecord{
 		ID:                "HANDOFF-001",
-		HandoffNote:       "Grove 1 handoff",
-		ActiveWorkbenchID: "GROVE-001",
+		HandoffNote:       "Workbench 1 handoff",
+		ActiveWorkbenchID: "BENCH-001",
 	}
 	handoffRepo.handoffs["HANDOFF-002"] = &secondary.HandoffRecord{
 		ID:                "HANDOFF-002",
-		HandoffNote:       "Grove 2 handoff",
-		ActiveWorkbenchID: "GROVE-002",
+		HandoffNote:       "Workbench 2 handoff",
+		ActiveWorkbenchID: "BENCH-002",
 	}
 
-	handoff, err := service.GetLatestHandoffForGrove(ctx, "GROVE-001")
+	handoff, err := service.GetLatestHandoffForWorkbench(ctx, "BENCH-001")
 
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
-	if handoff.HandoffNote != "Grove 1 handoff" {
-		t.Errorf("expected handoff note 'Grove 1 handoff', got '%s'", handoff.HandoffNote)
+	if handoff.HandoffNote != "Workbench 1 handoff" {
+		t.Errorf("expected handoff note 'Workbench 1 handoff', got '%s'", handoff.HandoffNote)
 	}
 }
 
-func TestGetLatestHandoffForGrove_NotFound(t *testing.T) {
+func TestGetLatestHandoffForWorkbench_NotFound(t *testing.T) {
 	service, handoffRepo := newTestHandoffService()
 	ctx := context.Background()
 
 	handoffRepo.handoffs["HANDOFF-001"] = &secondary.HandoffRecord{
 		ID:                "HANDOFF-001",
-		HandoffNote:       "Other grove handoff",
-		ActiveWorkbenchID: "GROVE-002",
+		HandoffNote:       "Other workbench handoff",
+		ActiveWorkbenchID: "BENCH-002",
 	}
 
-	_, err := service.GetLatestHandoffForGrove(ctx, "GROVE-001")
+	_, err := service.GetLatestHandoffForWorkbench(ctx, "BENCH-001")
 
 	if err == nil {
-		t.Fatal("expected error for grove with no handoffs, got nil")
+		t.Fatal("expected error for workbench with no handoffs, got nil")
 	}
 }
 

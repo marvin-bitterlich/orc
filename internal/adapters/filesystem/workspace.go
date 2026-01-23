@@ -123,9 +123,9 @@ func (a *WorkspaceAdapter) GetRepoPath(repoName string) string {
 	return filepath.Join(a.reposBasePath, repoName)
 }
 
-// ResolveGrovePath returns the full path for a grove (e.g., ~/src/worktrees/auth-backend).
-func (a *WorkspaceAdapter) ResolveGrovePath(groveName string) string {
-	return filepath.Join(a.worktreesBasePath, groveName)
+// ResolveWorkbenchPath returns the full path for a workbench (e.g., ~/src/worktrees/auth-backend).
+func (a *WorkspaceAdapter) ResolveWorkbenchPath(workbenchName string) string {
+	return filepath.Join(a.worktreesBasePath, workbenchName)
 }
 
 // Ensure WorkspaceAdapter implements the interface

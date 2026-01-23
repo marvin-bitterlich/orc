@@ -15,24 +15,24 @@ import (
 
 // mockShipmentRepository implements secondary.ShipmentRepository for testing.
 type mockShipmentRepository struct {
-	shipments           map[string]*secondary.ShipmentRecord
-	groveAssignments    map[string]string // workbenchID -> shipmentID
-	createErr           error
-	getErr              error
-	updateErr           error
-	deleteErr           error
-	listErr             error
-	updateStatusErr     error
-	assignGroveErr      error
-	missionExistsResult bool
-	missionExistsErr    error
+	shipments            map[string]*secondary.ShipmentRecord
+	workbenchAssignments map[string]string // workbenchID -> shipmentID
+	createErr            error
+	getErr               error
+	updateErr            error
+	deleteErr            error
+	listErr              error
+	updateStatusErr      error
+	assignWorkbenchErr   error
+	missionExistsResult  bool
+	missionExistsErr     error
 }
 
 func newMockShipmentRepository() *mockShipmentRepository {
 	return &mockShipmentRepository{
-		shipments:           make(map[string]*secondary.ShipmentRecord),
-		groveAssignments:    make(map[string]string),
-		missionExistsResult: true,
+		shipments:            make(map[string]*secondary.ShipmentRecord),
+		workbenchAssignments: make(map[string]string),
+		missionExistsResult:  true,
 	}
 }
 
@@ -123,12 +123,12 @@ func (m *mockShipmentRepository) GetByWorkbench(ctx context.Context, workbenchID
 }
 
 func (m *mockShipmentRepository) AssignWorkbench(ctx context.Context, shipmentID, workbenchID string) error {
-	if m.assignGroveErr != nil {
-		return m.assignGroveErr
+	if m.assignWorkbenchErr != nil {
+		return m.assignWorkbenchErr
 	}
 	if shipment, ok := m.shipments[shipmentID]; ok {
 		shipment.AssignedWorkbenchID = workbenchID
-		m.groveAssignments[workbenchID] = shipmentID
+		m.workbenchAssignments[workbenchID] = shipmentID
 	}
 	return nil
 }
@@ -154,7 +154,7 @@ func (m *mockShipmentRepository) CommissionExists(ctx context.Context, missionID
 }
 
 func (m *mockShipmentRepository) WorkbenchAssignedToOther(ctx context.Context, workbenchID, excludeShipmentID string) (string, error) {
-	if otherID, ok := m.groveAssignments[workbenchID]; ok && otherID != excludeShipmentID {
+	if otherID, ok := m.workbenchAssignments[workbenchID]; ok && otherID != excludeShipmentID {
 		return otherID, nil
 	}
 	return "", nil
@@ -629,10 +629,10 @@ func TestUnpinShipment(t *testing.T) {
 }
 
 // ============================================================================
-// AssignShipmentToGrove Tests
+// AssignShipmentToWorkbench Tests
 // ============================================================================
 
-func TestAssignShipmentToGrove_Success(t *testing.T) {
+func TestAssignShipmentToWorkbench_Success(t *testing.T) {
 	service, shipmentRepo, _ := newTestShipmentService()
 	ctx := context.Background()
 
@@ -643,28 +643,28 @@ func TestAssignShipmentToGrove_Success(t *testing.T) {
 		Status:       "active",
 	}
 
-	err := service.AssignShipmentToGrove(ctx, "SHIPMENT-001", "GROVE-001")
+	err := service.AssignShipmentToWorkbench(ctx, "SHIPMENT-001", "BENCH-001")
 
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
-	if shipmentRepo.shipments["SHIPMENT-001"].AssignedWorkbenchID != "GROVE-001" {
-		t.Errorf("expected grove ID 'GROVE-001', got '%s'", shipmentRepo.shipments["SHIPMENT-001"].AssignedWorkbenchID)
+	if shipmentRepo.shipments["SHIPMENT-001"].AssignedWorkbenchID != "BENCH-001" {
+		t.Errorf("expected workbench ID 'BENCH-001', got '%s'", shipmentRepo.shipments["SHIPMENT-001"].AssignedWorkbenchID)
 	}
 }
 
-func TestAssignShipmentToGrove_ShipmentNotFound(t *testing.T) {
+func TestAssignShipmentToWorkbench_ShipmentNotFound(t *testing.T) {
 	service, _, _ := newTestShipmentService()
 	ctx := context.Background()
 
-	err := service.AssignShipmentToGrove(ctx, "SHIPMENT-NONEXISTENT", "GROVE-001")
+	err := service.AssignShipmentToWorkbench(ctx, "SHIPMENT-NONEXISTENT", "BENCH-001")
 
 	if err == nil {
 		t.Fatal("expected error for non-existent shipment, got nil")
 	}
 }
 
-func TestAssignShipmentToGrove_GroveAlreadyAssigned(t *testing.T) {
+func TestAssignShipmentToWorkbench_WorkbenchAlreadyAssigned(t *testing.T) {
 	service, shipmentRepo, _ := newTestShipmentService()
 	ctx := context.Background()
 
@@ -679,22 +679,22 @@ func TestAssignShipmentToGrove_GroveAlreadyAssigned(t *testing.T) {
 		CommissionID:        "COMM-001",
 		Title:               "Shipment 2",
 		Status:              "active",
-		AssignedWorkbenchID: "GROVE-001",
+		AssignedWorkbenchID: "BENCH-001",
 	}
-	shipmentRepo.groveAssignments["GROVE-001"] = "SHIPMENT-002"
+	shipmentRepo.workbenchAssignments["BENCH-001"] = "SHIPMENT-002"
 
-	err := service.AssignShipmentToGrove(ctx, "SHIPMENT-001", "GROVE-001")
+	err := service.AssignShipmentToWorkbench(ctx, "SHIPMENT-001", "BENCH-001")
 
 	if err == nil {
-		t.Fatal("expected error for grove already assigned, got nil")
+		t.Fatal("expected error for workbench already assigned, got nil")
 	}
 }
 
 // ============================================================================
-// GetShipmentsByGrove Tests
+// GetShipmentsByWorkbench Tests
 // ============================================================================
 
-func TestGetShipmentsByGrove_Success(t *testing.T) {
+func TestGetShipmentsByWorkbench_Success(t *testing.T) {
 	service, shipmentRepo, _ := newTestShipmentService()
 	ctx := context.Background()
 
@@ -703,7 +703,7 @@ func TestGetShipmentsByGrove_Success(t *testing.T) {
 		CommissionID:        "COMM-001",
 		Title:               "Assigned Shipment",
 		Status:              "active",
-		AssignedWorkbenchID: "GROVE-001",
+		AssignedWorkbenchID: "BENCH-001",
 	}
 	shipmentRepo.shipments["SHIPMENT-002"] = &secondary.ShipmentRecord{
 		ID:           "SHIPMENT-002",
@@ -712,7 +712,7 @@ func TestGetShipmentsByGrove_Success(t *testing.T) {
 		Status:       "active",
 	}
 
-	shipments, err := service.GetShipmentsByGrove(ctx, "GROVE-001")
+	shipments, err := service.GetShipmentsByWorkbench(ctx, "BENCH-001")
 
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)

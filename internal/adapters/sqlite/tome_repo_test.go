@@ -339,16 +339,16 @@ func TestTomeRepository_AssignWorkbench(t *testing.T) {
 	repo := sqlite.NewTomeRepository(db)
 	ctx := context.Background()
 
-	tome := createTestTome(t, repo, ctx, "COMM-001", "Grove Test", "")
+	tome := createTestTome(t, repo, ctx, "COMM-001", "Workbench Test", "")
 
-	err := repo.AssignWorkbench(ctx, tome.ID, "GROVE-001")
+	err := repo.AssignWorkbench(ctx, tome.ID, "BENCH-001")
 	if err != nil {
 		t.Fatalf("AssignWorkbench failed: %v", err)
 	}
 
 	retrieved, _ := repo.GetByID(ctx, tome.ID)
-	if retrieved.AssignedWorkbenchID != "GROVE-001" {
-		t.Errorf("expected assigned grove 'GROVE-001', got '%s'", retrieved.AssignedWorkbenchID)
+	if retrieved.AssignedWorkbenchID != "BENCH-001" {
+		t.Errorf("expected assigned workbench 'BENCH-001', got '%s'", retrieved.AssignedWorkbenchID)
 	}
 }
 
@@ -357,7 +357,7 @@ func TestTomeRepository_AssignWorkbench_NotFound(t *testing.T) {
 	repo := sqlite.NewTomeRepository(db)
 	ctx := context.Background()
 
-	err := repo.AssignWorkbench(ctx, "TOME-999", "GROVE-001")
+	err := repo.AssignWorkbench(ctx, "TOME-999", "BENCH-001")
 	if err == nil {
 		t.Error("expected error for non-existent tome")
 	}
@@ -372,16 +372,16 @@ func TestTomeRepository_GetByWorkbench(t *testing.T) {
 	t2 := createTestTome(t, repo, ctx, "COMM-001", "Tome 2", "")
 	createTestTome(t, repo, ctx, "COMM-001", "Tome 3 (unassigned)", "")
 
-	_ = repo.AssignWorkbench(ctx, t1.ID, "GROVE-001")
-	_ = repo.AssignWorkbench(ctx, t2.ID, "GROVE-001")
+	_ = repo.AssignWorkbench(ctx, t1.ID, "BENCH-001")
+	_ = repo.AssignWorkbench(ctx, t2.ID, "BENCH-001")
 
-	tomes, err := repo.GetByWorkbench(ctx, "GROVE-001")
+	tomes, err := repo.GetByWorkbench(ctx, "BENCH-001")
 	if err != nil {
 		t.Fatalf("GetByWorkbench failed: %v", err)
 	}
 
 	if len(tomes) != 2 {
-		t.Errorf("expected 2 tomes for grove, got %d", len(tomes))
+		t.Errorf("expected 2 tomes for workbench, got %d", len(tomes))
 	}
 }
 

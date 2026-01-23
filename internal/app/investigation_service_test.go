@@ -562,10 +562,10 @@ func TestDeleteInvestigation_Success(t *testing.T) {
 }
 
 // ============================================================================
-// AssignInvestigationToGrove Tests
+// AssignInvestigationToWorkbench Tests
 // ============================================================================
 
-func TestAssignInvestigationToGrove_Success(t *testing.T) {
+func TestAssignInvestigationToWorkbench_Success(t *testing.T) {
 	service, investigationRepo := newTestInvestigationService()
 	ctx := context.Background()
 
@@ -576,21 +576,21 @@ func TestAssignInvestigationToGrove_Success(t *testing.T) {
 		Status:       "active",
 	}
 
-	err := service.AssignInvestigationToGrove(ctx, "INV-001", "GROVE-001")
+	err := service.AssignInvestigationToWorkbench(ctx, "INV-001", "BENCH-001")
 
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
-	if investigationRepo.investigations["INV-001"].AssignedWorkbenchID != "GROVE-001" {
-		t.Errorf("expected grove ID 'GROVE-001', got '%s'", investigationRepo.investigations["INV-001"].AssignedWorkbenchID)
+	if investigationRepo.investigations["INV-001"].AssignedWorkbenchID != "BENCH-001" {
+		t.Errorf("expected workbench ID 'BENCH-001', got '%s'", investigationRepo.investigations["INV-001"].AssignedWorkbenchID)
 	}
 }
 
 // ============================================================================
-// GetInvestigationsByGrove Tests
+// GetInvestigationsByWorkbench Tests
 // ============================================================================
 
-func TestGetInvestigationsByGrove_Success(t *testing.T) {
+func TestGetInvestigationsByWorkbench_Success(t *testing.T) {
 	service, investigationRepo := newTestInvestigationService()
 	ctx := context.Background()
 
@@ -599,7 +599,7 @@ func TestGetInvestigationsByGrove_Success(t *testing.T) {
 		CommissionID:        "COMM-001",
 		Title:               "Assigned Investigation",
 		Status:              "active",
-		AssignedWorkbenchID: "GROVE-001",
+		AssignedWorkbenchID: "BENCH-001",
 	}
 	investigationRepo.investigations["INV-002"] = &secondary.InvestigationRecord{
 		ID:           "INV-002",
@@ -608,7 +608,7 @@ func TestGetInvestigationsByGrove_Success(t *testing.T) {
 		Status:       "active",
 	}
 
-	investigations, err := service.GetInvestigationsByGrove(ctx, "GROVE-001")
+	investigations, err := service.GetInvestigationsByWorkbench(ctx, "BENCH-001")
 
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)

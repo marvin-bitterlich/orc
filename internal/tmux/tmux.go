@@ -132,7 +132,7 @@ func (s *Session) CreateOrcWindow(workingDir string) error {
 	return nil
 }
 
-// CreateGroveWindowShell creates a grove window with layout but NO app launching
+// CreateWorkbenchWindowShell creates a workbench window with layout but NO app launching
 // Layout:
 //
 //	┌─────────────────┬─────────────────┐
@@ -142,11 +142,11 @@ func (s *Session) CreateOrcWindow(workingDir string) error {
 //	└─────────────────┴─────────────────┘
 //
 // Apps (vim, claude) can be launched later
-func (s *Session) CreateGroveWindowShell(index int, name, workingDir string) (*Window, error) {
+func (s *Session) CreateWorkbenchWindowShell(index int, name, workingDir string) (*Window, error) {
 	// Create new window
 	cmd := exec.Command("tmux", "new-window", "-t", s.Name, "-n", name, "-c", workingDir)
 	if err := cmd.Run(); err != nil {
-		return nil, fmt.Errorf("failed to create grove window: %w", err)
+		return nil, fmt.Errorf("failed to create workbench window: %w", err)
 	}
 
 	target := fmt.Sprintf("%s:%s", s.Name, name)
@@ -179,7 +179,7 @@ func (s *Session) CreateGroveWindowShell(index int, name, workingDir string) (*W
 	return &Window{Session: s, Index: index, Name: name}, nil
 }
 
-// CreateGroveWindow creates a grove window with sophisticated layout:
+// CreateWorkbenchWindow creates a workbench window with sophisticated layout:
 // Layout:
 //
 //	┌─────────────────┬─────────────────┐
@@ -187,11 +187,11 @@ func (s *Session) CreateGroveWindowShell(index int, name, workingDir string) (*W
 //	│ vim             ├─────────────────┤
 //	│                 │ shell           │
 //	└─────────────────┴─────────────────┘
-func (s *Session) CreateGroveWindow(index int, name, workingDir string) (*Window, error) {
+func (s *Session) CreateWorkbenchWindow(index int, name, workingDir string) (*Window, error) {
 	// Create new window
 	cmd := exec.Command("tmux", "new-window", "-t", s.Name, "-n", name, "-c", workingDir)
 	if err := cmd.Run(); err != nil {
-		return nil, fmt.Errorf("failed to create grove window: %w", err)
+		return nil, fmt.Errorf("failed to create workbench window: %w", err)
 	}
 
 	target := fmt.Sprintf("%s:%s", s.Name, name)
@@ -296,7 +296,7 @@ func AttachInstructions(sessionName string) string {
 	b.WriteString("\n")
 	b.WriteString("Window Layout:\n")
 	b.WriteString("  Window 1 (orc): ORC orchestrator (claude | vim | shell)\n")
-	b.WriteString("  Windows 2+: Grove workspaces (vim | claude IMP | shell)\n")
+	b.WriteString("  Windows 2+: Workbench workspaces (vim | claude IMP | shell)\n")
 	b.WriteString("\n")
 	b.WriteString("TMux Commands:\n")
 	b.WriteString("  Switch windows: Ctrl+b then window number (1, 2, 3...)\n")

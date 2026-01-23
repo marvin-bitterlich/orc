@@ -3,7 +3,7 @@ package primary
 import "context"
 
 // WorkbenchService defines the primary port for workbench operations.
-// A Workbench is a git worktree - replaces the Grove concept.
+// A Workbench is a git worktree.
 type WorkbenchService interface {
 	// CreateWorkbench creates a new workbench in a workshop.
 	CreateWorkbench(ctx context.Context, req CreateWorkbenchRequest) (*CreateWorkbenchResponse, error)
@@ -79,7 +79,7 @@ type DeleteWorkbenchRequest struct {
 }
 
 // Workbench represents a workbench entity at the port boundary.
-// A Workbench is a git worktree - replaces Grove.
+// A Workbench is a git worktree.
 type Workbench struct {
 	ID            string
 	Name          string

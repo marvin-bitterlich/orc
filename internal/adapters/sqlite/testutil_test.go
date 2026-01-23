@@ -82,7 +82,7 @@ func seedShipment(t *testing.T, db *sql.DB, id, commissionID, title string) stri
 func seedWorkbench(t *testing.T, db *sql.DB, id, commissionID, name string) string {
 	t.Helper()
 	if id == "" {
-		id = "GROVE-001"
+		id = "BENCH-001"
 	}
 	if commissionID == "" {
 		commissionID = "COMM-001"

@@ -34,11 +34,11 @@ type InvestigationService interface {
 	// DeleteInvestigation deletes an investigation.
 	DeleteInvestigation(ctx context.Context, investigationID string) error
 
-	// AssignInvestigationToGrove assigns an investigation to a workbench.
-	AssignInvestigationToGrove(ctx context.Context, investigationID, workbenchID string) error
+	// AssignInvestigationToWorkbench assigns an investigation to a workbench.
+	AssignInvestigationToWorkbench(ctx context.Context, investigationID, workbenchID string) error
 
-	// GetInvestigationsByGrove retrieves investigations assigned to a workbench.
-	GetInvestigationsByGrove(ctx context.Context, workbenchID string) ([]*Investigation, error)
+	// GetInvestigationsByWorkbench retrieves investigations assigned to a workbench.
+	GetInvestigationsByWorkbench(ctx context.Context, workbenchID string) ([]*Investigation, error)
 }
 
 // CreateInvestigationRequest contains parameters for creating an investigation.

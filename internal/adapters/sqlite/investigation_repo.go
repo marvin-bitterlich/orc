@@ -262,12 +262,12 @@ func (r *InvestigationRepository) UpdateStatus(ctx context.Context, id, status s
 	return nil
 }
 
-// GetByWorkbench retrieves investigations assigned to a grove.
+// GetByWorkbench retrieves investigations assigned to a workbench.
 func (r *InvestigationRepository) GetByWorkbench(ctx context.Context, workbenchID string) ([]*secondary.InvestigationRecord, error) {
 	query := "SELECT id, commission_id, conclave_id, title, description, status, assigned_workbench_id, pinned, created_at, updated_at, completed_at FROM investigations WHERE assigned_workbench_id = ?"
 	rows, err := r.db.QueryContext(ctx, query, workbenchID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get investigations by grove: %w", err)
+		return nil, fmt.Errorf("failed to get investigations by workbench: %w", err)
 	}
 	defer rows.Close()
 
@@ -348,14 +348,14 @@ func (r *InvestigationRepository) GetByConclave(ctx context.Context, conclaveID 
 	return investigations, nil
 }
 
-// AssignWorkbench assigns an investigation to a grove.
+// AssignWorkbench assigns an investigation to a workbench.
 func (r *InvestigationRepository) AssignWorkbench(ctx context.Context, investigationID, workbenchID string) error {
 	result, err := r.db.ExecContext(ctx,
 		"UPDATE investigations SET assigned_workbench_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
 		workbenchID, investigationID,
 	)
 	if err != nil {
-		return fmt.Errorf("failed to assign investigation to grove: %w", err)
+		return fmt.Errorf("failed to assign investigation to workbench: %w", err)
 	}
 
 	rowsAffected, _ := result.RowsAffected()

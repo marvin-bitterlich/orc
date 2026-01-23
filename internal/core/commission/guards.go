@@ -11,7 +11,7 @@ type AgentType string
 const (
 	// AgentTypeORC represents the orchestrator agent.
 	AgentTypeORC AgentType = "ORC"
-	// AgentTypeIMP represents an implementation agent in a grove.
+	// AgentTypeIMP represents an implementation agent in a workbench.
 	AgentTypeIMP AgentType = "IMP"
 )
 
@@ -19,7 +19,7 @@ const (
 // This is the input to agent permission guards.
 type GuardContext struct {
 	AgentType    AgentType
-	AgentID      string // Full agent ID (e.g., "ORC" or "IMP-GROVE-001")
+	AgentID      string // Full agent ID (e.g., "ORC" or "IMP-BENCH-001")
 	CommissionID string // Current commission context (may be empty)
 }
 
@@ -33,10 +33,10 @@ type CommissionStateContext struct {
 // DeleteContext provides context for commission deletion guards.
 // Populated by the caller with pre-fetched dependency counts.
 type DeleteContext struct {
-	CommissionID  string
-	ShipmentCount int
-	GroveCount    int
-	ForceDelete   bool
+	CommissionID   string
+	ShipmentCount  int
+	WorkbenchCount int
+	ForceDelete    bool
 }
 
 // GuardResult represents the outcome of a guard evaluation.
@@ -116,11 +116,11 @@ func CanArchiveCommission(ctx CommissionStateContext) GuardResult {
 // CanDeleteCommission evaluates whether a commission can be deleted.
 // Rule: Commissions with dependents require --force flag.
 func CanDeleteCommission(ctx DeleteContext) GuardResult {
-	hasDependents := ctx.ShipmentCount > 0 || ctx.GroveCount > 0
+	hasDependents := ctx.ShipmentCount > 0 || ctx.WorkbenchCount > 0
 	if hasDependents && !ctx.ForceDelete {
 		return GuardResult{
 			Allowed: false,
-			Reason:  fmt.Sprintf("Commission %s has %d shipments and %d groves. Use --force to delete anyway", ctx.CommissionID, ctx.ShipmentCount, ctx.GroveCount),
+			Reason:  fmt.Sprintf("Commission %s has %d shipments and %d workbenches. Use --force to delete anyway", ctx.CommissionID, ctx.ShipmentCount, ctx.WorkbenchCount),
 		}
 	}
 	return GuardResult{Allowed: true}

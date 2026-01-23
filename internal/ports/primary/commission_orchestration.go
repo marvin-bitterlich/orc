@@ -1,55 +1,26 @@
 package primary
 
 // CommissionState represents the loaded state of a commission.
-// Groves are deprecated - this now returns empty groves list.
 type CommissionState struct {
 	Commission *Commission
-	Groves     []*Grove // Deprecated - always empty
-}
-
-// Grove is a deprecated type kept for backward compatibility.
-// Use Workbench instead.
-type Grove struct {
-	ID           string
-	Name         string
-	CommissionID string
-	Path         string
-	Repos        []string
-	Status       string
-	CreatedAt    string
 }
 
 // InfrastructurePlan describes the changes needed to set up commission infrastructure.
-// Groves are deprecated - grove-related fields are kept for backward compatibility.
 type InfrastructurePlan struct {
-	WorkspacePath string
-	GrovesDir     string
+	WorkspacePath  string
+	WorkbenchesDir string
 
 	// Actions to perform
-	CreateWorkspace bool
-	CreateGrovesDir bool
-	GroveActions    []GroveAction
-	ConfigWrites    []ConfigWrite
-	Cleanups        []CleanupAction
-}
-
-// GroveAction represents an action to take on a grove.
-// Deprecated - kept for backward compatibility.
-type GroveAction struct {
-	GroveID      string
-	GroveName    string
-	CurrentPath  string
-	DesiredPath  string
-	Action       string // "exists", "create", "move", "missing"
-	PathExists   bool
-	UpdateDBPath bool
+	CreateWorkspace      bool
+	CreateWorkbenchesDir bool
+	ConfigWrites         []ConfigWrite
+	Cleanups             []CleanupAction
 }
 
 // ConfigWrite represents a config file to write.
 type ConfigWrite struct {
 	Path    string
-	Type    string // "grove", "claude-settings"
-	Grove   *Grove
+	Type    string // "workbench", "claude-settings"
 	Content string // For preview only
 }
 
@@ -61,22 +32,12 @@ type CleanupAction struct {
 
 // InfrastructureApplyResult captures the result of applying infrastructure changes.
 type InfrastructureApplyResult struct {
-	WorkspaceCreated  bool
-	GrovesDirCreated  bool
-	GrovesProcessed   int
-	ConfigsWritten    int
-	CleanupsDone      int
-	Errors            []string
-	GrovesNeedingWork []GroveNeedingWork
-}
-
-// GroveNeedingWork describes a grove that needs additional work.
-// Deprecated - kept for backward compatibility.
-type GroveNeedingWork struct {
-	GroveID     string
-	GroveName   string
-	DesiredPath string
-	Message     string
+	WorkspaceCreated      bool
+	WorkbenchesDirCreated bool
+	WorkbenchesProcessed  int
+	ConfigsWritten        int
+	CleanupsDone          int
+	Errors                []string
 }
 
 // TmuxSessionPlan describes the TMux session to create or update.
@@ -89,13 +50,13 @@ type TmuxSessionPlan struct {
 
 // WindowPlan describes a TMux window to create or update.
 type WindowPlan struct {
-	Index       int
-	Name        string
-	GroveID     string
-	GrovePath   string
-	Action      string // "create", "exists", "update", "skip"
-	PaneCount   int
-	NeedsUpdate bool
+	Index         int
+	Name          string
+	WorkbenchID   string
+	WorkbenchPath string
+	Action        string // "create", "exists", "update", "skip"
+	PaneCount     int
+	NeedsUpdate   bool
 }
 
 // TmuxSessionResult captures the result of applying TMux session changes.

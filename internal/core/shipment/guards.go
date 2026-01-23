@@ -36,12 +36,12 @@ type StatusTransitionContext struct {
 	Status     string // "active", "paused", "complete"
 }
 
-// AssignGroveContext provides context for grove assignment guards.
-type AssignGroveContext struct {
-	ShipmentID        string
-	GroveID           string
-	ShipmentExists    bool
-	GroveAssignedToID string // ID of shipment grove is assigned to, empty if unassigned
+// AssignWorkbenchContext provides context for workbench assignment guards.
+type AssignWorkbenchContext struct {
+	ShipmentID            string
+	WorkbenchID           string
+	ShipmentExists        bool
+	WorkbenchAssignedToID string // ID of shipment workbench is assigned to, empty if unassigned
 }
 
 // CanCreateShipment evaluates whether a shipment can be created.
@@ -100,11 +100,11 @@ func CanResumeShipment(ctx StatusTransitionContext) GuardResult {
 	return GuardResult{Allowed: true}
 }
 
-// CanAssignGrove evaluates whether a grove can be assigned to a shipment.
+// CanAssignWorkbench evaluates whether a workbench can be assigned to a shipment.
 // Rules:
 // - Shipment must exist
-// - Grove must not be assigned to another shipment
-func CanAssignGrove(ctx AssignGroveContext) GuardResult {
+// - Workbench must not be assigned to another shipment
+func CanAssignWorkbench(ctx AssignWorkbenchContext) GuardResult {
 	// Rule 1: Shipment must exist
 	if !ctx.ShipmentExists {
 		return GuardResult{
@@ -113,12 +113,12 @@ func CanAssignGrove(ctx AssignGroveContext) GuardResult {
 		}
 	}
 
-	// Rule 2: Grove must not be assigned to another shipment
-	// If the grove is assigned to this same shipment, that's OK (idempotent)
-	if ctx.GroveAssignedToID != "" && ctx.GroveAssignedToID != ctx.ShipmentID {
+	// Rule 2: Workbench must not be assigned to another shipment
+	// If the workbench is assigned to this same shipment, that's OK (idempotent)
+	if ctx.WorkbenchAssignedToID != "" && ctx.WorkbenchAssignedToID != ctx.ShipmentID {
 		return GuardResult{
 			Allowed: false,
-			Reason:  fmt.Sprintf("grove already assigned to shipment %s", ctx.GroveAssignedToID),
+			Reason:  fmt.Sprintf("workbench already assigned to shipment %s", ctx.WorkbenchAssignedToID),
 		}
 	}
 

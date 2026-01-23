@@ -12,7 +12,7 @@ import (
 // For persistence, use the repository interfaces in ports/secondary.
 type Shipment struct {
 	ID                  string
-	ComcommissionID     string
+	CommissionID        string
 	Title               string
 	Description         sql.NullString
 	Status              string

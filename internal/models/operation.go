@@ -8,14 +8,14 @@ import (
 // Operation represents a unit of work within a mission.
 // All database operations are handled by OperationRepository in the adapters layer.
 type Operation struct {
-	ID              string
-	ComcommissionID string
-	Title           string
-	Description     sql.NullString
-	Status          string
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
-	CompletedAt     sql.NullTime
+	ID           string
+	CommissionID string
+	Title        string
+	Description  sql.NullString
+	Status       string
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+	CompletedAt  sql.NullTime
 }
 
 // Operation status constants

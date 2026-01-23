@@ -130,7 +130,7 @@ func TestCreateMessage_Success(t *testing.T) {
 	resp, err := service.CreateMessage(ctx, primary.CreateMessageRequest{
 		CommissionID: "COMM-001",
 		Sender:       "ORC",
-		Recipient:    "IMP-GROVE-001",
+		Recipient:    "IMP-BENCH-001",
 		Subject:      "Task Assignment",
 		Body:         "Please work on TASK-001",
 	})
@@ -158,7 +158,7 @@ func TestCreateMessage_MissionNotFound(t *testing.T) {
 	_, err := service.CreateMessage(ctx, primary.CreateMessageRequest{
 		CommissionID: "COMM-NONEXISTENT",
 		Sender:       "ORC",
-		Recipient:    "IMP-GROVE-001",
+		Recipient:    "IMP-BENCH-001",
 		Subject:      "Test",
 		Body:         "Test message",
 	})
@@ -180,7 +180,7 @@ func TestGetMessage_Found(t *testing.T) {
 		ID:           "MSG-001",
 		CommissionID: "COMM-001",
 		Sender:       "ORC",
-		Recipient:    "IMP-GROVE-001",
+		Recipient:    "IMP-BENCH-001",
 		Subject:      "Test Message",
 		Body:         "Hello",
 	}
@@ -218,18 +218,18 @@ func TestListMessages_FilterByRecipient(t *testing.T) {
 		ID:           "MSG-001",
 		CommissionID: "COMM-001",
 		Sender:       "ORC",
-		Recipient:    "IMP-GROVE-001",
+		Recipient:    "IMP-BENCH-001",
 		Subject:      "Message 1",
 	}
 	messageRepo.messages["MSG-002"] = &secondary.MessageRecord{
 		ID:           "MSG-002",
 		CommissionID: "COMM-001",
 		Sender:       "ORC",
-		Recipient:    "IMP-GROVE-002",
+		Recipient:    "IMP-BENCH-002",
 		Subject:      "Message 2",
 	}
 
-	messages, err := service.ListMessages(ctx, "IMP-GROVE-001", false)
+	messages, err := service.ListMessages(ctx, "IMP-BENCH-001", false)
 
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -247,7 +247,7 @@ func TestListMessages_UnreadOnly(t *testing.T) {
 		ID:           "MSG-001",
 		CommissionID: "COMM-001",
 		Sender:       "ORC",
-		Recipient:    "IMP-GROVE-001",
+		Recipient:    "IMP-BENCH-001",
 		Subject:      "Unread Message",
 		Read:         false,
 	}
@@ -255,12 +255,12 @@ func TestListMessages_UnreadOnly(t *testing.T) {
 		ID:           "MSG-002",
 		CommissionID: "COMM-001",
 		Sender:       "ORC",
-		Recipient:    "IMP-GROVE-001",
+		Recipient:    "IMP-BENCH-001",
 		Subject:      "Read Message",
 		Read:         true,
 	}
 
-	messages, err := service.ListMessages(ctx, "IMP-GROVE-001", true)
+	messages, err := service.ListMessages(ctx, "IMP-BENCH-001", true)
 
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -282,7 +282,7 @@ func TestMarkRead_Success(t *testing.T) {
 		ID:           "MSG-001",
 		CommissionID: "COMM-001",
 		Sender:       "ORC",
-		Recipient:    "IMP-GROVE-001",
+		Recipient:    "IMP-BENCH-001",
 		Subject:      "Test Message",
 		Read:         false,
 	}
@@ -309,13 +309,13 @@ func TestGetConversation_Success(t *testing.T) {
 		ID:           "MSG-001",
 		CommissionID: "COMM-001",
 		Sender:       "ORC",
-		Recipient:    "IMP-GROVE-001",
+		Recipient:    "IMP-BENCH-001",
 		Subject:      "From ORC",
 	}
 	messageRepo.messages["MSG-002"] = &secondary.MessageRecord{
 		ID:           "MSG-002",
 		CommissionID: "COMM-001",
-		Sender:       "IMP-GROVE-001",
+		Sender:       "IMP-BENCH-001",
 		Recipient:    "ORC",
 		Subject:      "Reply from IMP",
 	}
@@ -323,11 +323,11 @@ func TestGetConversation_Success(t *testing.T) {
 		ID:           "MSG-003",
 		CommissionID: "COMM-001",
 		Sender:       "ORC",
-		Recipient:    "IMP-GROVE-002",
+		Recipient:    "IMP-BENCH-002",
 		Subject:      "Different conversation",
 	}
 
-	messages, err := service.GetConversation(ctx, "ORC", "IMP-GROVE-001")
+	messages, err := service.GetConversation(ctx, "ORC", "IMP-BENCH-001")
 
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -345,12 +345,12 @@ func TestGetConversation_ReverseOrder(t *testing.T) {
 		ID:           "MSG-001",
 		CommissionID: "COMM-001",
 		Sender:       "ORC",
-		Recipient:    "IMP-GROVE-001",
+		Recipient:    "IMP-BENCH-001",
 		Subject:      "Message",
 	}
 
 	// Should work regardless of argument order
-	messages, err := service.GetConversation(ctx, "IMP-GROVE-001", "ORC")
+	messages, err := service.GetConversation(ctx, "IMP-BENCH-001", "ORC")
 
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -372,25 +372,25 @@ func TestGetUnreadCount_Success(t *testing.T) {
 		ID:           "MSG-001",
 		CommissionID: "COMM-001",
 		Sender:       "ORC",
-		Recipient:    "IMP-GROVE-001",
+		Recipient:    "IMP-BENCH-001",
 		Read:         false,
 	}
 	messageRepo.messages["MSG-002"] = &secondary.MessageRecord{
 		ID:           "MSG-002",
 		CommissionID: "COMM-001",
 		Sender:       "ORC",
-		Recipient:    "IMP-GROVE-001",
+		Recipient:    "IMP-BENCH-001",
 		Read:         false,
 	}
 	messageRepo.messages["MSG-003"] = &secondary.MessageRecord{
 		ID:           "MSG-003",
 		CommissionID: "COMM-001",
 		Sender:       "ORC",
-		Recipient:    "IMP-GROVE-001",
+		Recipient:    "IMP-BENCH-001",
 		Read:         true,
 	}
 
-	count, err := service.GetUnreadCount(ctx, "IMP-GROVE-001")
+	count, err := service.GetUnreadCount(ctx, "IMP-BENCH-001")
 
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -404,7 +404,7 @@ func TestGetUnreadCount_NoMessages(t *testing.T) {
 	service, _ := newTestMessageService()
 	ctx := context.Background()
 
-	count, err := service.GetUnreadCount(ctx, "IMP-GROVE-001")
+	count, err := service.GetUnreadCount(ctx, "IMP-BENCH-001")
 
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)

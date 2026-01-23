@@ -361,7 +361,7 @@ Examples:
 			// Create workbench window with IMP layout via adapter
 			ctx := context.Background()
 			tmuxAdapter := wire.TMuxAdapter()
-			err = tmuxAdapter.CreateGroveWindow(ctx, sessionName, nextIndex, workbench.Name, workbench.Path)
+			err = tmuxAdapter.CreateWorkbenchWindow(ctx, sessionName, nextIndex, workbench.Name, workbench.Path)
 			if err != nil {
 				return fmt.Errorf("failed to create workbench window: %w", err)
 			}

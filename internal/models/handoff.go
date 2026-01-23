@@ -6,10 +6,10 @@ import (
 )
 
 type Handoff struct {
-	ID                    string
-	CreatedAt             time.Time
-	HandoffNote           string
-	ActiveComcommissionID sql.NullString
-	ActiveWorkbenchID     sql.NullString
-	TodosSnapshot         sql.NullString
+	ID                 string
+	CreatedAt          time.Time
+	HandoffNote        string
+	ActiveCommissionID sql.NullString
+	ActiveWorkbenchID  sql.NullString
+	TodosSnapshot      sql.NullString
 }

@@ -35,11 +35,11 @@ func TestCanCreateCommission(t *testing.T) {
 			name: "IMP cannot create commissions",
 			ctx: GuardContext{
 				AgentType:    AgentTypeIMP,
-				AgentID:      "IMP-GROVE-001",
+				AgentID:      "IMP-BENCH-001",
 				CommissionID: "COMM-001",
 			},
 			wantAllowed: false,
-			wantReason:  "IMPs cannot create commissions - only ORC can create commissions (agent: IMP-GROVE-001)",
+			wantReason:  "IMPs cannot create commissions - only ORC can create commissions (agent: IMP-BENCH-001)",
 		},
 	}
 
@@ -88,11 +88,11 @@ func TestCanStartCommission(t *testing.T) {
 			name: "IMP cannot start commissions",
 			ctx: GuardContext{
 				AgentType:    AgentTypeIMP,
-				AgentID:      "IMP-GROVE-002",
+				AgentID:      "IMP-BENCH-002",
 				CommissionID: "COMM-001",
 			},
 			wantAllowed: false,
-			wantReason:  "IMPs cannot start commissions - only ORC can start commissions (agent: IMP-GROVE-002)",
+			wantReason:  "IMPs cannot start commissions - only ORC can start commissions (agent: IMP-BENCH-002)",
 		},
 	}
 
@@ -132,11 +132,11 @@ func TestCanLaunchCommission(t *testing.T) {
 			name: "IMP cannot launch commissions",
 			ctx: GuardContext{
 				AgentType:    AgentTypeIMP,
-				AgentID:      "IMP-GROVE-003",
+				AgentID:      "IMP-BENCH-003",
 				CommissionID: "COMM-002",
 			},
 			wantAllowed: false,
-			wantReason:  "IMPs cannot launch commissions - only ORC can launch commissions (agent: IMP-GROVE-003)",
+			wantReason:  "IMPs cannot launch commissions - only ORC can launch commissions (agent: IMP-BENCH-003)",
 		},
 	}
 
@@ -277,10 +277,10 @@ func TestCanDeleteCommission(t *testing.T) {
 		{
 			name: "can delete commission with no dependents",
 			ctx: DeleteContext{
-				CommissionID:  "COMM-001",
-				ShipmentCount: 0,
-				GroveCount:    0,
-				ForceDelete:   false,
+				CommissionID:   "COMM-001",
+				ShipmentCount:  0,
+				WorkbenchCount: 0,
+				ForceDelete:    false,
 			},
 			wantAllowed: true,
 			wantReason:  "",
@@ -288,43 +288,43 @@ func TestCanDeleteCommission(t *testing.T) {
 		{
 			name: "cannot delete commission with shipments without force",
 			ctx: DeleteContext{
-				CommissionID:  "COMM-002",
-				ShipmentCount: 3,
-				GroveCount:    0,
-				ForceDelete:   false,
+				CommissionID:   "COMM-002",
+				ShipmentCount:  3,
+				WorkbenchCount: 0,
+				ForceDelete:    false,
 			},
 			wantAllowed: false,
-			wantReason:  "Commission COMM-002 has 3 shipments and 0 groves. Use --force to delete anyway",
+			wantReason:  "Commission COMM-002 has 3 shipments and 0 workbenches. Use --force to delete anyway",
 		},
 		{
-			name: "cannot delete commission with groves without force",
+			name: "cannot delete commission with workbenches without force",
 			ctx: DeleteContext{
-				CommissionID:  "COMM-003",
-				ShipmentCount: 0,
-				GroveCount:    2,
-				ForceDelete:   false,
+				CommissionID:   "COMM-003",
+				ShipmentCount:  0,
+				WorkbenchCount: 2,
+				ForceDelete:    false,
 			},
 			wantAllowed: false,
-			wantReason:  "Commission COMM-003 has 0 shipments and 2 groves. Use --force to delete anyway",
+			wantReason:  "Commission COMM-003 has 0 shipments and 2 workbenches. Use --force to delete anyway",
 		},
 		{
-			name: "cannot delete commission with both shipments and groves without force",
+			name: "cannot delete commission with both shipments and workbenches without force",
 			ctx: DeleteContext{
-				CommissionID:  "COMM-004",
-				ShipmentCount: 5,
-				GroveCount:    3,
-				ForceDelete:   false,
+				CommissionID:   "COMM-004",
+				ShipmentCount:  5,
+				WorkbenchCount: 3,
+				ForceDelete:    false,
 			},
 			wantAllowed: false,
-			wantReason:  "Commission COMM-004 has 5 shipments and 3 groves. Use --force to delete anyway",
+			wantReason:  "Commission COMM-004 has 5 shipments and 3 workbenches. Use --force to delete anyway",
 		},
 		{
 			name: "can force delete commission with dependents",
 			ctx: DeleteContext{
-				CommissionID:  "COMM-005",
-				ShipmentCount: 5,
-				GroveCount:    3,
-				ForceDelete:   true,
+				CommissionID:   "COMM-005",
+				ShipmentCount:  5,
+				WorkbenchCount: 3,
+				ForceDelete:    true,
 			},
 			wantAllowed: true,
 			wantReason:  "",

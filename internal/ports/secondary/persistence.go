@@ -63,8 +63,8 @@ type AgentIdentityProvider interface {
 // AgentIdentity represents an agent's identity as provided by the secondary port.
 type AgentIdentity struct {
 	Type         AgentType
-	ID           string // "ORC" for orchestrator, Grove ID for IMP
-	FullID       string // Complete ID like "ORC" or "IMP-GROVE-001"
+	ID           string // "ORC" for orchestrator, Workbench ID for IMP
+	FullID       string // Complete ID like "ORC" or "IMP-BENCH-001"
 	CommissionID string // Commission ID (empty for ORC outside commission)
 }
 
@@ -74,7 +74,7 @@ type AgentType string
 const (
 	// AgentTypeORC represents the orchestrator agent.
 	AgentTypeORC AgentType = "ORC"
-	// AgentTypeIMP represents an implementation agent in a grove.
+	// AgentTypeIMP represents an implementation agent in a workbench.
 	AgentTypeIMP AgentType = "IMP"
 )
 
@@ -107,7 +107,7 @@ type ShipmentRepository interface {
 	// GetByWorkbench retrieves shipments assigned to a workbench.
 	GetByWorkbench(ctx context.Context, workbenchID string) ([]*ShipmentRecord, error)
 
-	// AssignWorkbench assigns a shipment to a grove.
+	// AssignWorkbench assigns a shipment to a workbench.
 	AssignWorkbench(ctx context.Context, shipmentID, workbenchID string) error
 
 	// UpdateStatus updates the status and optionally completed_at timestamp.
@@ -180,10 +180,10 @@ type TaskRepository interface {
 	// UpdateStatus updates the status with optional timestamps.
 	UpdateStatus(ctx context.Context, id, status string, setClaimed, setCompleted bool) error
 
-	// Claim claims a task for a grove.
+	// Claim claims a task for a workbench.
 	Claim(ctx context.Context, id, workbenchID string) error
 
-	// AssignWorkbenchByShipment assigns all tasks of a shipment to a grove.
+	// AssignWorkbenchByShipment assigns all tasks of a shipment to a workbench.
 	AssignWorkbenchByShipment(ctx context.Context, shipmentID, workbenchID string) error
 
 	// CommissionExists checks if a commission exists (for validation).
@@ -342,7 +342,7 @@ type HandoffRepository interface {
 	// GetLatest retrieves the most recent handoff.
 	GetLatest(ctx context.Context) (*HandoffRecord, error)
 
-	// GetLatestForWorkbench retrieves the most recent handoff for a grove.
+	// GetLatestForWorkbench retrieves the most recent handoff for a workbench.
 	GetLatestForWorkbench(ctx context.Context, workbenchID string) (*HandoffRecord, error)
 
 	// List retrieves handoffs with optional limit.
@@ -397,7 +397,7 @@ type TomeRepository interface {
 	// GetByConclave retrieves tomes belonging to a conclave.
 	GetByConclave(ctx context.Context, conclaveID string) ([]*TomeRecord, error)
 
-	// AssignWorkbench assigns a tome to a grove.
+	// AssignWorkbench assigns a tome to a workbench.
 	AssignWorkbench(ctx context.Context, tomeID, workbenchID string) error
 
 	// CommissionExists checks if a commission exists (for validation).
@@ -597,7 +597,7 @@ type InvestigationRepository interface {
 	// GetByWorkbench retrieves investigations assigned to a workbench.
 	GetByWorkbench(ctx context.Context, workbenchID string) ([]*InvestigationRecord, error)
 
-	// AssignWorkbench assigns an investigation to a grove.
+	// AssignWorkbench assigns an investigation to a workbench.
 	AssignWorkbench(ctx context.Context, investigationID, workbenchID string) error
 
 	// GetByConclave retrieves investigations for a conclave.
