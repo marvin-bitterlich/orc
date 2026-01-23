@@ -45,7 +45,7 @@ var recCreateCmd = &cobra.Command{
 		}
 
 		rec := resp.Receipt
-		fmt.Printf("Created receipt %s\n", rec.ID)
+		fmt.Printf("✓ Created receipt %s\n", rec.ID)
 		fmt.Printf("  Delivered Outcome: %s\n", rec.DeliveredOutcome)
 		fmt.Printf("  Shipment: %s\n", rec.ShipmentID)
 		fmt.Printf("  Status: %s\n", rec.Status)
@@ -70,7 +70,7 @@ var recListCmd = &cobra.Command{
 		}
 
 		if len(recs) == 0 {
-			fmt.Println("No receipts found")
+			fmt.Println("No receipts found.")
 			return nil
 		}
 
@@ -203,7 +203,7 @@ var recDeleteCmd = &cobra.Command{
 			return fmt.Errorf("failed to delete REC: %w", err)
 		}
 
-		fmt.Printf("Receipt %s deleted\n", recID)
+		fmt.Printf("✓ Receipt %s deleted\n", recID)
 		return nil
 	},
 }

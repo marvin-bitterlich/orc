@@ -76,7 +76,7 @@ var conclaveListCmd = &cobra.Command{
 		}
 
 		if len(conclaves) == 0 {
-			fmt.Println("No conclaves found")
+			fmt.Println("No conclaves found.")
 			return nil
 		}
 

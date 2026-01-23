@@ -101,7 +101,7 @@ Examples:
 		}
 
 		handoff := resp.Handoff
-		fmt.Printf("Created handoff %s\n", handoff.ID)
+		fmt.Printf("✓ Created handoff %s\n", handoff.ID)
 		fmt.Printf("  Created: %s\n", handoff.CreatedAt)
 		if handoff.ActiveCommissionID != "" {
 			fmt.Printf("  Commission: %s\n", handoff.ActiveCommissionID)
@@ -159,7 +159,7 @@ var handoffListCmd = &cobra.Command{
 		}
 
 		if len(handoffs) == 0 {
-			fmt.Println("No handoffs found")
+			fmt.Println("No handoffs found.")
 			return nil
 		}
 

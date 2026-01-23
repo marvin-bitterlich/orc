@@ -78,7 +78,7 @@ Examples:
 			}
 
 			workbench := resp.Workbench
-			fmt.Printf("Created workbench %s: %s\n", workbench.ID, workbench.Name)
+			fmt.Printf("✓ Created workbench %s: %s\n", workbench.ID, workbench.Name)
 			fmt.Printf("  Workshop: %s\n", workbench.WorkshopID)
 			fmt.Printf("  Path: %s\n", workbench.Path)
 
@@ -282,7 +282,7 @@ Examples:
 				return err
 			}
 
-			fmt.Printf("Deleted workbench %s\n", workbenchID)
+			fmt.Printf("✓ Workbench %s deleted\n", workbenchID)
 
 			if !removeWorktree {
 				fmt.Printf("  Worktree still exists at: %s\n", workbenchPath)

@@ -84,7 +84,7 @@ var investigationListCmd = &cobra.Command{
 		}
 
 		if len(investigations) == 0 {
-			fmt.Println("No investigations found")
+			fmt.Println("No investigations found.")
 			return nil
 		}
 

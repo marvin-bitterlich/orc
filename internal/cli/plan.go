@@ -93,7 +93,7 @@ var planListCmd = &cobra.Command{
 		}
 
 		if len(plans) == 0 {
-			fmt.Println("No plans found")
+			fmt.Println("No plans found.")
 			return nil
 		}
 

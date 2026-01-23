@@ -64,7 +64,7 @@ var cycleListCmd = &cobra.Command{
 		}
 
 		if len(cycles) == 0 {
-			fmt.Println("No cycles found")
+			fmt.Println("No cycles found.")
 			return nil
 		}
 

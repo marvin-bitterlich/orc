@@ -52,7 +52,7 @@ Examples:
 				return fmt.Errorf("failed to create factory: %w", err)
 			}
 
-			fmt.Printf("Created factory %s: %s\n", resp.FactoryID, resp.Factory.Name)
+			fmt.Printf("✓ Created factory %s: %s\n", resp.FactoryID, resp.Factory.Name)
 			return nil
 		},
 	}
@@ -152,7 +152,7 @@ Examples:
 				return err
 			}
 
-			fmt.Printf("Deleted factory %s\n", factoryID)
+			fmt.Printf("✓ Factory %s deleted\n", factoryID)
 			return nil
 		},
 	}

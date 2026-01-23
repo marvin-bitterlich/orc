@@ -43,7 +43,7 @@ var cwoCreateCmd = &cobra.Command{
 		}
 
 		cwo := resp.CycleWorkOrder
-		fmt.Printf("Created cycle work order %s\n", cwo.ID)
+		fmt.Printf("✓ Created cycle work order %s\n", cwo.ID)
 		fmt.Printf("  Outcome: %s\n", cwo.Outcome)
 		fmt.Printf("  Cycle: %s\n", cwo.CycleID)
 		fmt.Printf("  Shipment: %s\n", cwo.ShipmentID)
@@ -71,7 +71,7 @@ var cwoListCmd = &cobra.Command{
 		}
 
 		if len(cwos) == 0 {
-			fmt.Println("No cycle work orders found")
+			fmt.Println("No cycle work orders found.")
 			return nil
 		}
 
@@ -174,7 +174,7 @@ var cwoDeleteCmd = &cobra.Command{
 			return fmt.Errorf("failed to delete CWO: %w", err)
 		}
 
-		fmt.Printf("Cycle work order %s deleted\n", cwoID)
+		fmt.Printf("✓ Cycle work order %s deleted\n", cwoID)
 		return nil
 	},
 }

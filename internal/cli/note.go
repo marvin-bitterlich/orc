@@ -135,7 +135,7 @@ var noteListCmd = &cobra.Command{
 		}
 
 		if len(notes) == 0 {
-			fmt.Println("No notes found")
+			fmt.Println("No notes found.")
 			return nil
 		}
 

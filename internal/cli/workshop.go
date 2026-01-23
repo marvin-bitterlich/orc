@@ -63,7 +63,7 @@ Examples:
 				return fmt.Errorf("failed to create workshop: %w", err)
 			}
 
-			fmt.Printf("Created workshop %s: %s\n", resp.WorkshopID, resp.Workshop.Name)
+			fmt.Printf("✓ Created workshop %s: %s\n", resp.WorkshopID, resp.Workshop.Name)
 			fmt.Printf("  Factory: %s\n", resp.Workshop.FactoryID)
 			return nil
 		},
@@ -174,7 +174,7 @@ Examples:
 				return err
 			}
 
-			fmt.Printf("Deleted workshop %s\n", workshopID)
+			fmt.Printf("✓ Workshop %s deleted\n", workshopID)
 			return nil
 		},
 	}

@@ -68,7 +68,7 @@ Examples:
 						if err := wire.CommissionService().DeleteCommission(ctx, primary.DeleteCommissionRequest{CommissionID: commission.ID, Force: true}); err != nil {
 							fmt.Printf("  ⚠️  Failed to delete %s: %v\n", commission.ID, err)
 						} else {
-							fmt.Printf("  ✓ Deleted: %s\n", commission.ID)
+							fmt.Printf("  ✓ Test data %s deleted\n", commission.ID)
 							commissionsCleaned++
 						}
 					}

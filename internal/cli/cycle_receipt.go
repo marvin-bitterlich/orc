@@ -45,7 +45,7 @@ var crecCreateCmd = &cobra.Command{
 		}
 
 		crec := resp.CycleReceipt
-		fmt.Printf("Created cycle receipt %s\n", crec.ID)
+		fmt.Printf("✓ Created cycle receipt %s\n", crec.ID)
 		fmt.Printf("  Delivered Outcome: %s\n", crec.DeliveredOutcome)
 		fmt.Printf("  CWO: %s\n", crec.CWOID)
 		fmt.Printf("  Shipment: %s\n", crec.ShipmentID)
@@ -73,7 +73,7 @@ var crecListCmd = &cobra.Command{
 		}
 
 		if len(crecs) == 0 {
-			fmt.Println("No cycle receipts found")
+			fmt.Println("No cycle receipts found.")
 			return nil
 		}
 
@@ -208,7 +208,7 @@ var crecDeleteCmd = &cobra.Command{
 			return fmt.Errorf("failed to delete CREC: %w", err)
 		}
 
-		fmt.Printf("Cycle receipt %s deleted\n", crecID)
+		fmt.Printf("✓ Cycle receipt %s deleted\n", crecID)
 		return nil
 	},
 }

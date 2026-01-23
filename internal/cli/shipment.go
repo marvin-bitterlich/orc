@@ -50,7 +50,7 @@ var shipmentCreateCmd = &cobra.Command{
 			return fmt.Errorf("failed to create shipment: %w", err)
 		}
 
-		fmt.Printf("Created shipment %s: %s\n", resp.Shipment.ID, resp.Shipment.Title)
+		fmt.Printf("✓ Created shipment %s: %s\n", resp.Shipment.ID, resp.Shipment.Title)
 		fmt.Printf("  Under mission: %s\n", resp.Shipment.CommissionID)
 		if resp.Shipment.Branch != "" {
 			fmt.Printf("  Branch: %s\n", resp.Shipment.Branch)
@@ -84,7 +84,7 @@ var shipmentListCmd = &cobra.Command{
 		}
 
 		if len(shipments) == 0 {
-			fmt.Println("No shipments found")
+			fmt.Println("No shipments found.")
 			return nil
 		}
 

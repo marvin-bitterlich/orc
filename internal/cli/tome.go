@@ -84,7 +84,7 @@ var tomeListCmd = &cobra.Command{
 		}
 
 		if len(tomes) == 0 {
-			fmt.Println("No tomes found")
+			fmt.Println("No tomes found.")
 			return nil
 		}
 

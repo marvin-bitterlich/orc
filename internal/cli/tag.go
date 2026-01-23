@@ -53,7 +53,7 @@ var tagListCmd = &cobra.Command{
 		}
 
 		if len(tags) == 0 {
-			fmt.Println("No tags found")
+			fmt.Println("No tags found.")
 			return nil
 		}
 
@@ -130,7 +130,7 @@ var tagDeleteCmd = &cobra.Command{
 			return fmt.Errorf("failed to delete tag: %w", err)
 		}
 
-		fmt.Printf("✓ Deleted tag: %s\n", name)
+		fmt.Printf("✓ Tag %s deleted\n", name)
 		return nil
 	},
 }
