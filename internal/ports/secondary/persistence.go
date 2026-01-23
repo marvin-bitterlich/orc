@@ -394,6 +394,9 @@ type TomeRepository interface {
 	// GetByWorkbench retrieves tomes assigned to a workbench.
 	GetByWorkbench(ctx context.Context, workbenchID string) ([]*TomeRecord, error)
 
+	// GetByConclave retrieves tomes belonging to a conclave.
+	GetByConclave(ctx context.Context, conclaveID string) ([]*TomeRecord, error)
+
 	// AssignWorkbench assigns a tome to a grove.
 	AssignWorkbench(ctx context.Context, tomeID, workbenchID string) error
 
@@ -405,6 +408,7 @@ type TomeRepository interface {
 type TomeRecord struct {
 	ID                  string
 	CommissionID        string
+	ConclaveID          string // Empty string means null - optional parent conclave
 	Title               string
 	Description         string // Empty string means null
 	Status              string
@@ -412,12 +416,13 @@ type TomeRecord struct {
 	Pinned              bool
 	CreatedAt           string
 	UpdatedAt           string
-	CompletedAt         string // Empty string means null
+	ClosedAt            string // Empty string means null
 }
 
 // TomeFilters contains filter options for querying tomes.
 type TomeFilters struct {
 	CommissionID string
+	ConclaveID   string
 	Status       string
 }
 

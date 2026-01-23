@@ -13,8 +13,8 @@ type TomeService interface {
 	// ListTomes lists tomes with optional filters.
 	ListTomes(ctx context.Context, filters TomeFilters) ([]*Tome, error)
 
-	// CompleteTome marks a tome as complete.
-	CompleteTome(ctx context.Context, tomeID string) error
+	// CloseTome marks a tome as closed.
+	CloseTome(ctx context.Context, tomeID string) error
 
 	// PauseTome pauses an active tome.
 	PauseTome(ctx context.Context, tomeID string) error
@@ -47,6 +47,7 @@ type TomeService interface {
 // CreateTomeRequest contains parameters for creating a tome.
 type CreateTomeRequest struct {
 	CommissionID string
+	ConclaveID   string // Optional parent conclave
 	Title        string
 	Description  string
 }
@@ -68,6 +69,7 @@ type UpdateTomeRequest struct {
 type Tome struct {
 	ID                  string
 	CommissionID        string
+	ConclaveID          string // Optional parent conclave
 	Title               string
 	Description         string
 	Status              string
@@ -75,11 +77,12 @@ type Tome struct {
 	Pinned              bool
 	CreatedAt           string
 	UpdatedAt           string
-	CompletedAt         string
+	ClosedAt            string
 }
 
 // TomeFilters contains filter options for listing tomes.
 type TomeFilters struct {
 	CommissionID string
+	ConclaveID   string
 	Status       string
 }

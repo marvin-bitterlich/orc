@@ -283,7 +283,8 @@ func (r *NoteRepository) GetByContainer(ctx context.Context, containerType, cont
 	case "investigation":
 		query = "SELECT id, commission_id, title, content, type, status, shipment_id, investigation_id, conclave_id, tome_id, pinned, created_at, updated_at, closed_at, promoted_from_id, promoted_from_type FROM notes WHERE investigation_id = ? ORDER BY created_at DESC"
 	case "conclave":
-		query = "SELECT id, commission_id, title, content, type, status, shipment_id, investigation_id, conclave_id, tome_id, pinned, created_at, updated_at, closed_at, promoted_from_id, promoted_from_type FROM notes WHERE conclave_id = ? ORDER BY created_at DESC"
+		// Exclude notes that have been filed to a tome - they appear under the tome instead
+		query = "SELECT id, commission_id, title, content, type, status, shipment_id, investigation_id, conclave_id, tome_id, pinned, created_at, updated_at, closed_at, promoted_from_id, promoted_from_type FROM notes WHERE conclave_id = ? AND tome_id IS NULL ORDER BY created_at DESC"
 	case "tome":
 		query = "SELECT id, commission_id, title, content, type, status, shipment_id, investigation_id, conclave_id, tome_id, pinned, created_at, updated_at, closed_at, promoted_from_id, promoted_from_type FROM notes WHERE tome_id = ? ORDER BY created_at DESC"
 	default:

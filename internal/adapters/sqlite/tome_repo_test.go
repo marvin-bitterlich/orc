@@ -87,7 +87,7 @@ func TestTomeRepository_Create(t *testing.T) {
 	if retrieved.Title != "Test Tome" {
 		t.Errorf("expected title 'Test Tome', got '%s'", retrieved.Title)
 	}
-	if retrieved.Status != "active" {
+	if retrieved.Status != "open" {
 		t.Errorf("expected status 'active', got '%s'", retrieved.Status)
 	}
 }
@@ -172,9 +172,9 @@ func TestTomeRepository_List_FilterByStatus(t *testing.T) {
 	createTestTome(t, repo, ctx, "MISSION-001", "Another Active", "")
 
 	// Complete t1
-	_ = repo.UpdateStatus(ctx, t1.ID, "complete", true)
+	_ = repo.UpdateStatus(ctx, t1.ID, "closed", true)
 
-	tomes, err := repo.List(ctx, secondary.TomeFilters{Status: "active"})
+	tomes, err := repo.List(ctx, secondary.TomeFilters{Status: "open"})
 	if err != nil {
 		t.Fatalf("List failed: %v", err)
 	}
@@ -320,32 +320,27 @@ func TestTomeRepository_UpdateStatus(t *testing.T) {
 
 	tome := createTestTome(t, repo, ctx, "MISSION-001", "Status Test", "")
 
-	// Update status without completed timestamp
-	err := repo.UpdateStatus(ctx, tome.ID, "in_progress", false)
-	if err != nil {
-		t.Fatalf("UpdateStatus failed: %v", err)
-	}
-
+	// Verify initial status is open
 	retrieved, _ := repo.GetByID(ctx, tome.ID)
-	if retrieved.Status != "in_progress" {
-		t.Errorf("expected status 'in_progress', got '%s'", retrieved.Status)
+	if retrieved.Status != "open" {
+		t.Errorf("expected initial status 'open', got '%s'", retrieved.Status)
 	}
-	if retrieved.CompletedAt != "" {
-		t.Error("expected CompletedAt to be empty")
+	if retrieved.ClosedAt != "" {
+		t.Error("expected ClosedAt to be empty")
 	}
 
-	// Update to complete
-	err = repo.UpdateStatus(ctx, tome.ID, "complete", true)
+	// Update to closed
+	err := repo.UpdateStatus(ctx, tome.ID, "closed", true)
 	if err != nil {
 		t.Fatalf("UpdateStatus failed: %v", err)
 	}
 
 	retrieved, _ = repo.GetByID(ctx, tome.ID)
-	if retrieved.Status != "complete" {
+	if retrieved.Status != "closed" {
 		t.Errorf("expected status 'complete', got '%s'", retrieved.Status)
 	}
-	if retrieved.CompletedAt == "" {
-		t.Error("expected CompletedAt to be set")
+	if retrieved.ClosedAt == "" {
+		t.Error("expected ClosedAt to be set")
 	}
 }
 
@@ -354,7 +349,7 @@ func TestTomeRepository_UpdateStatus_NotFound(t *testing.T) {
 	repo := sqlite.NewTomeRepository(db)
 	ctx := context.Background()
 
-	err := repo.UpdateStatus(ctx, "TOME-999", "complete", true)
+	err := repo.UpdateStatus(ctx, "TOME-999", "closed", true)
 	if err == nil {
 		t.Error("expected error for non-existent tome")
 	}
@@ -430,5 +425,100 @@ func TestTomeRepository_CommissionExists(t *testing.T) {
 	}
 	if exists {
 		t.Error("expected mission to not exist")
+	}
+}
+
+func TestTomeRepository_CreateWithConclaveID(t *testing.T) {
+	testDB := setupTomeTestDB(t)
+	repo := sqlite.NewTomeRepository(testDB)
+	ctx := context.Background()
+
+	// Create a conclave first
+	_, _ = testDB.Exec("INSERT INTO conclaves (id, commission_id, title, status) VALUES ('CON-001', 'MISSION-001', 'Test Conclave', 'open')")
+
+	tome := &secondary.TomeRecord{
+		ID:           "TOME-001",
+		CommissionID: "MISSION-001",
+		ConclaveID:   "CON-001",
+		Title:        "Tome with Conclave",
+		Description:  "A test tome with parent conclave",
+	}
+
+	err := repo.Create(ctx, tome)
+	if err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+
+	// Verify tome was created with conclave_id
+	retrieved, err := repo.GetByID(ctx, "TOME-001")
+	if err != nil {
+		t.Fatalf("GetByID failed: %v", err)
+	}
+	if retrieved.ConclaveID != "CON-001" {
+		t.Errorf("expected conclave_id 'CON-001', got '%s'", retrieved.ConclaveID)
+	}
+}
+
+func TestTomeRepository_GetByConclave(t *testing.T) {
+	testDB := setupTomeTestDB(t)
+	repo := sqlite.NewTomeRepository(testDB)
+	ctx := context.Background()
+
+	// Create conclaves
+	_, _ = testDB.Exec("INSERT INTO conclaves (id, commission_id, title, status) VALUES ('CON-001', 'MISSION-001', 'Conclave 1', 'open')")
+	_, _ = testDB.Exec("INSERT INTO conclaves (id, commission_id, title, status) VALUES ('CON-002', 'MISSION-001', 'Conclave 2', 'open')")
+
+	// Create tomes: 2 for CON-001, 1 for CON-002, 1 without conclave
+	_ = repo.Create(ctx, &secondary.TomeRecord{ID: "TOME-001", CommissionID: "MISSION-001", ConclaveID: "CON-001", Title: "Tome 1"})
+	_ = repo.Create(ctx, &secondary.TomeRecord{ID: "TOME-002", CommissionID: "MISSION-001", ConclaveID: "CON-001", Title: "Tome 2"})
+	_ = repo.Create(ctx, &secondary.TomeRecord{ID: "TOME-003", CommissionID: "MISSION-001", ConclaveID: "CON-002", Title: "Tome 3"})
+	_ = repo.Create(ctx, &secondary.TomeRecord{ID: "TOME-004", CommissionID: "MISSION-001", Title: "Tome 4 (no conclave)"})
+
+	// Get tomes for CON-001
+	tomes, err := repo.GetByConclave(ctx, "CON-001")
+	if err != nil {
+		t.Fatalf("GetByConclave failed: %v", err)
+	}
+	if len(tomes) != 2 {
+		t.Errorf("expected 2 tomes for CON-001, got %d", len(tomes))
+	}
+
+	// Verify both have correct conclave_id
+	for _, tome := range tomes {
+		if tome.ConclaveID != "CON-001" {
+			t.Errorf("expected conclave_id 'CON-001', got '%s'", tome.ConclaveID)
+		}
+	}
+
+	// Get tomes for CON-002
+	tomes, err = repo.GetByConclave(ctx, "CON-002")
+	if err != nil {
+		t.Fatalf("GetByConclave failed: %v", err)
+	}
+	if len(tomes) != 1 {
+		t.Errorf("expected 1 tome for CON-002, got %d", len(tomes))
+	}
+}
+
+func TestTomeRepository_List_FilterByConclaveID(t *testing.T) {
+	testDB := setupTomeTestDB(t)
+	repo := sqlite.NewTomeRepository(testDB)
+	ctx := context.Background()
+
+	// Create a conclave
+	_, _ = testDB.Exec("INSERT INTO conclaves (id, commission_id, title, status) VALUES ('CON-001', 'MISSION-001', 'Test Conclave', 'open')")
+
+	// Create tomes: 2 with conclave, 1 without
+	_ = repo.Create(ctx, &secondary.TomeRecord{ID: "TOME-001", CommissionID: "MISSION-001", ConclaveID: "CON-001", Title: "Tome 1"})
+	_ = repo.Create(ctx, &secondary.TomeRecord{ID: "TOME-002", CommissionID: "MISSION-001", ConclaveID: "CON-001", Title: "Tome 2"})
+	_ = repo.Create(ctx, &secondary.TomeRecord{ID: "TOME-003", CommissionID: "MISSION-001", Title: "Tome 3 (no conclave)"})
+
+	// Filter by conclave
+	tomes, err := repo.List(ctx, secondary.TomeFilters{ConclaveID: "CON-001"})
+	if err != nil {
+		t.Fatalf("List failed: %v", err)
+	}
+	if len(tomes) != 2 {
+		t.Errorf("expected 2 tomes for conclave filter, got %d", len(tomes))
 	}
 }

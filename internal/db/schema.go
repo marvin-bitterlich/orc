@@ -162,15 +162,17 @@ CREATE TABLE IF NOT EXISTS investigations (
 CREATE TABLE IF NOT EXISTS tomes (
 	id TEXT PRIMARY KEY,
 	commission_id TEXT NOT NULL,
+	conclave_id TEXT,
 	title TEXT NOT NULL,
 	description TEXT,
-	status TEXT NOT NULL CHECK(status IN ('active', 'in_progress', 'complete')) DEFAULT 'active',
+	status TEXT NOT NULL CHECK(status IN ('open', 'closed')) DEFAULT 'open',
 	assigned_workbench_id TEXT,
 	pinned INTEGER DEFAULT 0,
 	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 	updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-	completed_at DATETIME,
+	closed_at DATETIME,
 	FOREIGN KEY (commission_id) REFERENCES commissions(id),
+	FOREIGN KEY (conclave_id) REFERENCES conclaves(id) ON DELETE SET NULL,
 	FOREIGN KEY (assigned_workbench_id) REFERENCES workbenches(id)
 );
 
@@ -335,6 +337,7 @@ CREATE INDEX IF NOT EXISTS idx_investigations_commission ON investigations(commi
 CREATE INDEX IF NOT EXISTS idx_investigations_status ON investigations(status);
 CREATE INDEX IF NOT EXISTS idx_investigations_conclave ON investigations(conclave_id);
 CREATE INDEX IF NOT EXISTS idx_tomes_commission ON tomes(commission_id);
+CREATE INDEX IF NOT EXISTS idx_tomes_conclave ON tomes(conclave_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_shipment ON tasks(shipment_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_commission ON tasks(commission_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);

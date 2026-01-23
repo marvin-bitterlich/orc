@@ -387,11 +387,22 @@ func displayShipmentChildren(shipmentID, prefix string, filters *filterConfig) i
 	return visibleCount
 }
 
-// displayConclaveChildren shows tasks/plans/notes under a conclave with tag filtering
+// displayConclaveChildren shows tomes (with notes), tasks, plans, and unfiled notes under a conclave
 // Returns count of visible items
 func displayConclaveChildren(conclaveID, prefix string, filters *filterConfig) int {
 	ctx := context.Background()
-	// Get tasks via ConclaveService
+	visibleCount := 0
+
+	// 1. Get tomes belonging to this conclave
+	tomes, _ := wire.TomeService().ListTomes(ctx, primary.TomeFilters{ConclaveID: conclaveID})
+	var openTomes []*primary.Tome
+	for _, t := range tomes {
+		if t.Status != "closed" && !filters.statusMap[t.Status] {
+			openTomes = append(openTomes, t)
+		}
+	}
+
+	// 2. Get tasks via ConclaveService
 	serviceTasks, _ := wire.ConclaveService().GetConclaveTasks(ctx, conclaveID)
 	var tasks []*models.Task
 	for _, t := range serviceTasks {
@@ -402,7 +413,8 @@ func displayConclaveChildren(conclaveID, prefix string, filters *filterConfig) i
 			Pinned: t.Pinned,
 		})
 	}
-	// Get plans via ConclaveService
+
+	// 3. Get plans via ConclaveService
 	servicePlans, _ := wire.ConclaveService().GetConclavePlans(ctx, conclaveID)
 	var plans []*models.Plan
 	for _, p := range servicePlans {
@@ -413,9 +425,9 @@ func displayConclaveChildren(conclaveID, prefix string, filters *filterConfig) i
 			Pinned: p.Pinned,
 		})
 	}
-	// Get notes (filter out closed notes)
+
+	// 4. Get unfiled notes (notes with conclave_id but no tome_id - the repo already filters these)
 	serviceNotes, _ := wire.NoteService().GetNotesByContainer(ctx, "conclave", conclaveID)
-	// Convert to models.Note for the rest of the function
 	var notes []*models.Note
 	for _, n := range serviceNotes {
 		if n.Status == "closed" {
@@ -428,7 +440,40 @@ func displayConclaveChildren(conclaveID, prefix string, filters *filterConfig) i
 		})
 	}
 
-	// Collect all children with tag filtering
+	// Collect all items to display
+	type displayItem struct {
+		render func(isLast bool)
+	}
+	var items []displayItem
+
+	// Add tomes (with their nested notes)
+	for _, tome := range openTomes {
+		t := tome // capture for closure
+		items = append(items, displayItem{
+			render: func(isLast bool) {
+				pinnedEmoji := ""
+				if t.Pinned {
+					pinnedEmoji = "📌 "
+				}
+				childPrefix := prefix + "├── "
+				nestedPrefix := prefix + "│   "
+				if isLast {
+					childPrefix = prefix + "└── "
+					nestedPrefix = prefix + "    "
+				}
+				statusInfo := colorizeStatus(t.Status)
+				if statusInfo != "" {
+					fmt.Printf("%s%s%s - %s - %s\n", childPrefix, pinnedEmoji, colorizeID(t.ID), statusInfo, t.Title)
+				} else {
+					fmt.Printf("%s%s%s - %s\n", childPrefix, pinnedEmoji, colorizeID(t.ID), t.Title)
+				}
+				// Display tome's notes
+				displayTomeChildren(t.ID, nestedPrefix, filters)
+			},
+		})
+	}
+
+	// Collect regular children (tasks, plans, unfiled notes) with tag filtering
 	type childItem struct {
 		id      string
 		title   string
@@ -436,7 +481,7 @@ func displayConclaveChildren(conclaveID, prefix string, filters *filterConfig) i
 		pinned  bool
 		tagName string
 	}
-	var visible []childItem
+	var regularChildren []childItem
 	hiddenCount := 0
 
 	for _, t := range tasks {
@@ -445,7 +490,7 @@ func displayConclaveChildren(conclaveID, prefix string, filters *filterConfig) i
 		}
 		show, tagName := shouldShowLeaf(t.ID, filters)
 		if show {
-			visible = append(visible, childItem{t.ID, t.Title, t.Status, t.Pinned, tagName})
+			regularChildren = append(regularChildren, childItem{t.ID, t.Title, t.Status, t.Pinned, tagName})
 		} else {
 			hiddenCount++
 		}
@@ -456,7 +501,7 @@ func displayConclaveChildren(conclaveID, prefix string, filters *filterConfig) i
 		}
 		show, tagName := shouldShowLeaf(p.ID, filters)
 		if show {
-			visible = append(visible, childItem{p.ID, p.Title, p.Status, p.Pinned, tagName})
+			regularChildren = append(regularChildren, childItem{p.ID, p.Title, p.Status, p.Pinned, tagName})
 		} else {
 			hiddenCount++
 		}
@@ -464,32 +509,47 @@ func displayConclaveChildren(conclaveID, prefix string, filters *filterConfig) i
 	for _, n := range notes {
 		show, tagName := shouldShowLeaf(n.ID, filters)
 		if show {
-			visible = append(visible, childItem{n.ID, n.Title, "", n.Pinned, tagName})
+			regularChildren = append(regularChildren, childItem{n.ID, n.Title, "", n.Pinned, tagName})
 		} else {
 			hiddenCount++
 		}
 	}
 
-	for k, child := range visible {
-		pinnedEmoji := ""
-		if child.pinned {
-			pinnedEmoji = "📌 "
-		}
-		isLast := k == len(visible)-1 && hiddenCount == 0
-		childPrefix := prefix + "├── "
-		if isLast {
-			childPrefix = prefix + "└── "
-		}
-		tagInfo := ""
-		if child.tagName != "" {
-			tagInfo = " " + colorizeTag(child.tagName)
-		}
-		statusInfo := colorizeStatus(child.status)
-		if statusInfo != "" {
-			fmt.Printf("%s%s%s - %s - %s%s\n", childPrefix, pinnedEmoji, colorizeID(child.id), statusInfo, child.title, tagInfo)
-		} else {
-			fmt.Printf("%s%s%s - %s%s\n", childPrefix, pinnedEmoji, colorizeID(child.id), child.title, tagInfo)
-		}
+	// Add regular children as display items
+	for i, child := range regularChildren {
+		c := child
+		idx := i
+		items = append(items, displayItem{
+			render: func(isLast bool) {
+				pinnedEmoji := ""
+				if c.pinned {
+					pinnedEmoji = "📌 "
+				}
+				// Calculate actual isLast considering remaining items
+				actualIsLast := isLast && idx == len(regularChildren)-1 && hiddenCount == 0
+				childPrefix := prefix + "├── "
+				if actualIsLast {
+					childPrefix = prefix + "└── "
+				}
+				tagInfo := ""
+				if c.tagName != "" {
+					tagInfo = " " + colorizeTag(c.tagName)
+				}
+				statusInfo := colorizeStatus(c.status)
+				if statusInfo != "" {
+					fmt.Printf("%s%s%s - %s - %s%s\n", childPrefix, pinnedEmoji, colorizeID(c.id), statusInfo, c.title, tagInfo)
+				} else {
+					fmt.Printf("%s%s%s - %s%s\n", childPrefix, pinnedEmoji, colorizeID(c.id), c.title, tagInfo)
+				}
+			},
+		})
+	}
+
+	// Render all items
+	for i, item := range items {
+		isLast := i == len(items)-1 && hiddenCount == 0
+		item.render(isLast)
+		visibleCount++
 	}
 
 	// Show hidden count if any
@@ -497,7 +557,7 @@ func displayConclaveChildren(conclaveID, prefix string, filters *filterConfig) i
 		fmt.Printf("%s└── (%d other items)\n", prefix, hiddenCount)
 	}
 
-	return len(visible)
+	return visibleCount
 }
 
 // displayInvestigationChildren shows notes under an investigation with tag filtering
@@ -834,11 +894,15 @@ Examples:
 					}
 				}
 
-				// Collect tomes
+				// Collect tomes (only those without a conclave_id - conclaved tomes appear nested under conclaves)
 				if len(filters.containerTypes) == 0 || filters.containerTypes["TOME"] {
 					tomes, _ := wire.TomeService().ListTomes(context.Background(), primary.TomeFilters{CommissionID: commission.ID})
 					for _, t := range tomes {
 						if t.Status == "complete" || filters.statusMap[t.Status] {
+							continue
+						}
+						// Skip tomes that have a conclave_id - they appear nested under their conclave
+						if t.ConclaveID != "" {
 							continue
 						}
 						c := containerInfo{

@@ -7,7 +7,8 @@ import (
 
 type Tome struct {
 	ID                  string
-	ComcommissionID     string
+	CommissionID        string
+	ConclaveID          sql.NullString // Optional parent conclave
 	Title               string
 	Description         sql.NullString
 	Status              string
@@ -15,12 +16,11 @@ type Tome struct {
 	Pinned              bool
 	CreatedAt           time.Time
 	UpdatedAt           time.Time
-	CompletedAt         sql.NullTime
+	ClosedAt            sql.NullTime
 }
 
 // Tome status constants
 const (
-	TomeStatusActive   = "active"
-	TomeStatusPaused   = "paused"
-	TomeStatusComplete = "complete"
+	TomeStatusOpen   = "open"
+	TomeStatusClosed = "closed"
 )

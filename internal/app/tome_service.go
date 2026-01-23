@@ -46,9 +46,10 @@ func (s *TomeServiceImpl) CreateTome(ctx context.Context, req primary.CreateTome
 	record := &secondary.TomeRecord{
 		ID:           nextID,
 		CommissionID: req.CommissionID,
+		ConclaveID:   req.ConclaveID,
 		Title:        req.Title,
 		Description:  req.Description,
-		Status:       "active",
+		Status:       "open",
 	}
 
 	if err := s.tomeRepo.Create(ctx, record); err != nil {
@@ -80,6 +81,7 @@ func (s *TomeServiceImpl) GetTome(ctx context.Context, tomeID string) (*primary.
 func (s *TomeServiceImpl) ListTomes(ctx context.Context, filters primary.TomeFilters) ([]*primary.Tome, error) {
 	records, err := s.tomeRepo.List(ctx, secondary.TomeFilters{
 		CommissionID: filters.CommissionID,
+		ConclaveID:   filters.ConclaveID,
 		Status:       filters.Status,
 	})
 	if err != nil {
@@ -93,49 +95,29 @@ func (s *TomeServiceImpl) ListTomes(ctx context.Context, filters primary.TomeFil
 	return tomes, nil
 }
 
-// CompleteTome marks a tome as complete.
-func (s *TomeServiceImpl) CompleteTome(ctx context.Context, tomeID string) error {
+// CloseTome marks a tome as closed.
+func (s *TomeServiceImpl) CloseTome(ctx context.Context, tomeID string) error {
 	record, err := s.tomeRepo.GetByID(ctx, tomeID)
 	if err != nil {
 		return err
 	}
 
-	// Guard: cannot complete pinned tome
+	// Guard: cannot close pinned tome
 	if record.Pinned {
-		return fmt.Errorf("cannot complete pinned tome %s. Unpin first with: orc tome unpin %s", tomeID, tomeID)
+		return fmt.Errorf("cannot close pinned tome %s. Unpin first with: orc tome unpin %s", tomeID, tomeID)
 	}
 
-	return s.tomeRepo.UpdateStatus(ctx, tomeID, "complete", true)
+	return s.tomeRepo.UpdateStatus(ctx, tomeID, "closed", true)
 }
 
-// PauseTome pauses an active tome.
+// PauseTome is deprecated - tomes only have open/closed status now.
 func (s *TomeServiceImpl) PauseTome(ctx context.Context, tomeID string) error {
-	record, err := s.tomeRepo.GetByID(ctx, tomeID)
-	if err != nil {
-		return err
-	}
-
-	// Guard: can only pause active tomes
-	if record.Status != "active" {
-		return fmt.Errorf("can only pause active tomes (current status: %s)", record.Status)
-	}
-
-	return s.tomeRepo.UpdateStatus(ctx, tomeID, "paused", false)
+	return fmt.Errorf("pause is not supported - tomes only have open/closed status")
 }
 
-// ResumeTome resumes a paused tome.
+// ResumeTome is deprecated - tomes only have open/closed status now.
 func (s *TomeServiceImpl) ResumeTome(ctx context.Context, tomeID string) error {
-	record, err := s.tomeRepo.GetByID(ctx, tomeID)
-	if err != nil {
-		return err
-	}
-
-	// Guard: can only resume paused tomes
-	if record.Status != "paused" {
-		return fmt.Errorf("can only resume paused tomes (current status: %s)", record.Status)
-	}
-
-	return s.tomeRepo.UpdateStatus(ctx, tomeID, "active", false)
+	return fmt.Errorf("resume is not supported - tomes only have open/closed status")
 }
 
 // UpdateTome updates a tome's title and/or description.
@@ -200,6 +182,7 @@ func (s *TomeServiceImpl) recordToTome(r *secondary.TomeRecord) *primary.Tome {
 	return &primary.Tome{
 		ID:                  r.ID,
 		CommissionID:        r.CommissionID,
+		ConclaveID:          r.ConclaveID,
 		Title:               r.Title,
 		Description:         r.Description,
 		Status:              r.Status,
@@ -207,7 +190,7 @@ func (s *TomeServiceImpl) recordToTome(r *secondary.TomeRecord) *primary.Tome {
 		Pinned:              r.Pinned,
 		CreatedAt:           r.CreatedAt,
 		UpdatedAt:           r.UpdatedAt,
-		CompletedAt:         r.CompletedAt,
+		ClosedAt:            r.ClosedAt,
 	}
 }
 

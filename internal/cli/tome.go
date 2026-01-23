@@ -16,7 +16,7 @@ import (
 var tomeCmd = &cobra.Command{
 	Use:   "tome",
 	Short: "Manage tomes (knowledge organization containers)",
-	Long:  "Create, list, complete, and manage tomes in the ORC ledger",
+	Long:  "Create, list, close, and manage tomes in the ORC ledger",
 }
 
 var tomeCreateCmd = &cobra.Command{
@@ -27,6 +27,7 @@ var tomeCreateCmd = &cobra.Command{
 		ctx := context.Background()
 		title := args[0]
 		missionID, _ := cmd.Flags().GetString("commission")
+		conclaveID, _ := cmd.Flags().GetString("conclave")
 		description, _ := cmd.Flags().GetString("description")
 
 		// Get mission from context or require explicit flag
@@ -39,6 +40,7 @@ var tomeCreateCmd = &cobra.Command{
 
 		resp, err := wire.TomeService().CreateTome(ctx, primary.CreateTomeRequest{
 			CommissionID: missionID,
+			ConclaveID:   conclaveID,
 			Title:        title,
 			Description:  description,
 		})
@@ -49,6 +51,9 @@ var tomeCreateCmd = &cobra.Command{
 		tome := resp.Tome
 		fmt.Printf("✓ Created tome %s: %s\n", tome.ID, tome.Title)
 		fmt.Printf("  Mission: %s\n", tome.CommissionID)
+		if tome.ConclaveID != "" {
+			fmt.Printf("  Conclave: %s\n", tome.ConclaveID)
+		}
 		fmt.Printf("  Status: %s\n", tome.Status)
 		fmt.Println()
 		fmt.Println("Next steps:")
@@ -92,7 +97,7 @@ var tomeListCmd = &cobra.Command{
 				pinnedMark = " [pinned]"
 			}
 			statusIcon := "📚"
-			if t.Status == "complete" {
+			if t.Status == "closed" {
 				statusIcon = "✅"
 			}
 			fmt.Fprintf(w, "%s\t%s%s\t%s %s\t%s\n", t.ID, t.Title, pinnedMark, statusIcon, t.Status, t.CommissionID)
@@ -126,8 +131,8 @@ var tomeShowCmd = &cobra.Command{
 			fmt.Printf("Pinned: yes\n")
 		}
 		fmt.Printf("Created: %s\n", tome.CreatedAt)
-		if tome.CompletedAt != "" {
-			fmt.Printf("Completed: %s\n", tome.CompletedAt)
+		if tome.ClosedAt != "" {
+			fmt.Printf("Closed: %s\n", tome.ClosedAt)
 		}
 
 		// Show notes in this tome
@@ -151,20 +156,20 @@ var tomeShowCmd = &cobra.Command{
 	},
 }
 
-var tomeCompleteCmd = &cobra.Command{
-	Use:   "complete [tome-id]",
-	Short: "Mark tome as complete",
+var tomeCloseCmd = &cobra.Command{
+	Use:   "close [tome-id]",
+	Short: "Mark tome as closed",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
 		tomeID := args[0]
 
-		err := wire.TomeService().CompleteTome(ctx, tomeID)
+		err := wire.TomeService().CloseTome(ctx, tomeID)
 		if err != nil {
-			return fmt.Errorf("failed to complete tome: %w", err)
+			return fmt.Errorf("failed to close tome: %w", err)
 		}
 
-		fmt.Printf("✓ Tome %s marked as complete\n", tomeID)
+		fmt.Printf("✓ Tome %s marked as closed\n", tomeID)
 		return nil
 	},
 }
@@ -290,11 +295,12 @@ var tomeDeleteCmd = &cobra.Command{
 func init() {
 	// tome create flags
 	tomeCreateCmd.Flags().StringP("commission", "c", "", "Commission ID (defaults to context)")
+	tomeCreateCmd.Flags().String("conclave", "", "Parent conclave ID (tome appears nested under this conclave in summary)")
 	tomeCreateCmd.Flags().StringP("description", "d", "", "Tome description")
 
 	// tome list flags
 	tomeListCmd.Flags().StringP("commission", "c", "", "Filter by mission")
-	tomeListCmd.Flags().StringP("status", "s", "", "Filter by status (active, complete)")
+	tomeListCmd.Flags().StringP("status", "s", "", "Filter by status (open, closed)")
 
 	// tome update flags
 	tomeUpdateCmd.Flags().String("title", "", "New title")
@@ -304,7 +310,7 @@ func init() {
 	tomeCmd.AddCommand(tomeCreateCmd)
 	tomeCmd.AddCommand(tomeListCmd)
 	tomeCmd.AddCommand(tomeShowCmd)
-	tomeCmd.AddCommand(tomeCompleteCmd)
+	tomeCmd.AddCommand(tomeCloseCmd)
 	tomeCmd.AddCommand(tomePauseCmd)
 	tomeCmd.AddCommand(tomeResumeCmd)
 	tomeCmd.AddCommand(tomeUpdateCmd)
