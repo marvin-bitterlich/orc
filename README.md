@@ -2,21 +2,21 @@
 
 ![Forest Factory](assets/orc.png)
 
-Deep in the forest stands a factory. The ORC oversees operations from the command center while IMPs work in scattered groves, hammering out code. Shipments move through the system - bundles of tasks ready for delivery. Tomes accumulate knowledge. Handoffs pass the torch between shifts.
+Deep in the forest stands a factory. The ORC oversees operations from the command center while IMPs work in scattered workbenches, hammering out code. Shipments move through the system - bundles of tasks ready for delivery. Tomes accumulate knowledge. Handoffs pass the torch between shifts.
 
-ORC is a CLI for structured AI-assisted development. It tracks missions, organizes work into containers, preserves context across sessions, and provisions isolated workspaces. The forest runs on SQLite and git worktrees.
+ORC is a CLI for structured AI-assisted development. It tracks commissions, organizes work into containers, preserves context across sessions, and provisions isolated workspaces. The forest runs on SQLite and git worktrees.
 
 Today, ORC orchestrates a single agent working thoughtfully through well-planned tasks. Tomorrow, a Shipment will spawn a swarm of IMPs working in parallel. But swarms need solid foundations - planning, context preservation, merge strategies, quality controls. The factory is being built to scale.
 
 ## 🎭 The Cast
 
-**🧌 The ORC** is your Orchestrator - the agent who oversees the forest, coordinates missions, and maintains the big picture. The ORC doesn't write code directly; it manages the work, tracks progress, and ensures context flows between sessions.
+**🧌 The ORC** is your Orchestrator - the agent who oversees the forest, coordinates commissions, and maintains the big picture. The ORC doesn't write code directly; it manages the work, tracks progress, and ensures context flows between sessions.
 
-**👹 IMPs** are Implementation agents. These mischievous workers inhabit groves and do the actual coding. Each IMP works in isolation, focused on its assigned tasks, reporting discoveries back to the Orchestrator.
+**👹 IMPs** are Implementation agents. These mischievous workers inhabit workbenches and do the actual coding. Each IMP works in isolation, focused on its assigned tasks, reporting discoveries back to the Orchestrator.
 
-**🌳 Groves** are where the work happens. Technically they're git worktrees - isolated copies of repositories where an IMP can make changes without affecting the main codebase. One mission might have several groves, each focused on different aspects of the work.
+**🌳 Workbenches** are where the work happens. Technically they're git worktrees - isolated copies of repositories where an IMP can make changes without affecting the main codebase. One commission might have several workbenches, each focused on different aspects of the work.
 
-**🎯 Missions** are the grand undertakings. Every piece of work belongs to a mission, giving it context and purpose.
+**🎯 Commissions** are the grand undertakings. Every piece of work belongs to a commission, giving it context and purpose.
 
 ### 📦 Containers
 
@@ -38,8 +38,8 @@ Inside containers live individual items: **Tasks** are deeds to be done. **Quest
 
 **Handoffs** pass the torch between sessions. When one Claude session ends and another begins, the handoff narrative carries context forward - what was accomplished, what remains, what pitfalls to avoid.
 
-**Priming** awakens context at session start. Run `orc prime` and the current mission, focus, and recent history flow into the conversation.
+**Priming** awakens context at session start. Run `orc prime` and the current commission, focus, and recent history flow into the conversation.
 
 ---
 
-*🌲 The forest hums with industry. Shipments move through groves. IMPs hammer at their tasks. And the ORC watches over all. 🌲*
+*🌲 The forest hums with industry. Shipments move through workbenches. IMPs hammer at their tasks. And the ORC watches over all. 🌲*

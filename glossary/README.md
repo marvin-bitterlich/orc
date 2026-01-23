@@ -10,13 +10,13 @@ This directory contains the canonical definitions for ORC terminology. When ther
 
 ### [ledger-entities.md](./ledger-entities.md)
 **System**: SQLite database (~/.orc/orc.db)
-**Contains**: Mission, Work Order, Grove, Handoff
+**Contains**: Commission, Work Order, Workbench, Handoff
 **Purpose**: Database schema definitions and entity relationships
 **Status**: ✅ Stable - simplified ORC 2.0 schema
 
 ### [forest-factory-roles.md](./forest-factory-roles.md)
 **System**: Conceptual model from NORTH_STAR.md
-**Contains**: El Presidente, ORC, IMP, Mage, Grove (as roles/metaphors)
+**Contains**: El Presidente, ORC, IMP, Workbench (as roles/metaphors)
 **Purpose**: Personality-driven language and role definitions
 **Status**: ⚠️ Has questions about IMP as entity vs role
 
@@ -24,28 +24,22 @@ This directory contains the canonical definitions for ORC terminology. When ther
 
 ## Key Tensions to Resolve
 
-### 1. **Expedition vs Work Order**
-- **Ledger**: Expedition has optional `work_order_id`, can exist independently
-- **Question**: What IS an expedition? Is it "work order in execution"?
-- **Impact**: Core to understanding when/how to create entities
-
-### 2. **IMP: Role vs Entity**
+### 1. **IMP: Role vs Entity**
 - **Ledger**: `assigned_imp` is TEXT field (e.g., "IMP-ZSH")
 - **NORTH_STAR**: IMPs are specialized workers with guilds
 - **Question**: Should IMPs be their own database table?
 - **Impact**: Affects how we track specializations and capabilities
 
-### 3. **Grove Lifecycle**
-- **Ledger**: Grove has `expedition_id` foreign key
-- **Question**: When are groves created? Can they exist without expeditions?
+### 2. **Workbench Lifecycle**
+- **Question**: When are workbenches created? What triggers their provisioning?
 - **Impact**: Affects worktree creation workflow
 
-### 4. **Plan Storage**
+### 3. **Plan Storage**
 - **Resolved**: ORC 2.0 uses SQLite database only for all structured data
 - Plans stored as work order notes or in handoff narratives
 - No separate filesystem-based tech plan system
 
-### 5. **Work Order State Management**
+### 4. **Work Order State Management**
 - **NORTH_STAR**: Directory-based (work-orders/01-backlog/, etc.)
 - **Ledger**: Database status fields ('backlog', 'in_progress', etc.)
 - **Question**: Which is source of truth? Both? Synchronized?

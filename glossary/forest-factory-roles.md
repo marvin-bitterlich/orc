@@ -31,7 +31,7 @@
 **Role**: Coordination layer between El Presidente and implementation work
 
 **Responsibilities**:
-- Coordinates all groves and IMP workforce
+- Coordinates all workbenches and IMP workforce
 - Creates work orders and assigns to IMPs
 - Manages forest health and productivity
 - **Does NOT write code directly** (coordinates only)
@@ -41,7 +41,7 @@
 - The orchestrator Claude instance
 - Works in ~/src/orc directory
 - Creates and manages ledger entries
-- Sets up groves for investigations
+- Sets up workbenches for investigations
 - Provides handoff context to IMPs
 
 **Safety Boundaries**:
@@ -52,10 +52,10 @@ If asked for direct code changes or debugging:
 
 ### 👹 IMP - Implementation Agent (Specialized Woodland Worker)
 
-**Role**: Code implementation and technical work in groves
+**Role**: Code implementation and technical work in workbenches
 
 **Characteristics**:
-- Work in isolated groves (one IMP per grove)
+- Work in isolated workbenches (one IMP per workbench)
 - Specialists in different domains (ZSH, PerfBot, ZeroCode, etc.)
 - Implement features, fix bugs, conduct investigations
 - Report progress through work orders
@@ -69,7 +69,7 @@ If asked for direct code changes or debugging:
 
 **In Practice**:
 - Investigation Claude instances
-- Work in ~/src/worktrees/[grove-name] directories
+- Work in ~/src/worktrees/[workbench-name] directories
 - Each has dedicated TMux session
 - Focus on implementation, not coordination
 
@@ -77,55 +77,36 @@ If asked for direct code changes or debugging:
 - **CRITICAL**: Is IMP an entity we track in the database?
 - Is IMP just a string identifier ("IMP-ZSH")?
 - Do we need an `imps` table to track capabilities/specializations?
-- Or is IMP just a role that gets assigned to expeditions?
+- Or is IMP just a role that gets assigned to workbenches?
 
 ---
 
-### 🧙 MAGE - Spellbook Keeper
-
-**Role**: ??? TBD - Placeholder for future definition ???
-
-**Possibilities**:
-- Keepers of reusable spells (commands/skills/workflows)
-- Relationship to global command system
-- Could manage /skills or /global-commands
-- Might handle cross-grove knowledge transfer
-
-**Status**: Role not yet defined
-
-**Questions/Contentious**:
-- Do we need this role?
-- Should global commands be "spells" managed by mages?
-- Is this premature complexity?
-
----
-
-### 🌲 GROVE - Worktree (Isolated Development Environment)
+### 🌲 WORKBENCH - Worktree (Isolated Development Environment)
 
 **Role**: Physical workspace for investigations
 
 **Characteristics**:
 - Isolated development environments
 - Physical separation → cognitive clarity
-- One IMP per grove working independently
+- One IMP per workbench working independently
 - Complete repository context per investigation
 - TMux session with forest theme
 
 **Terminology**:
-- We say "Grove" not "worktree"
-- Groves are named descriptively (e.g., `ml-auth-refactor`)
+- We say "Workbench" not "worktree"
+- Workbenches are named descriptively (e.g., `ml-auth-refactor`)
 - Located in ~/src/worktrees/
 
 **In Practice**:
 - Git worktree on disk
 - Has dedicated TMux session
-- Linked to expedition in database
+- Linked to commission in database
 - Contains CLAUDE.md for IMP instructions
 
 **Questions/Contentious**:
-- Should groves be auto-created when expedition starts?
-- Can a grove exist without an expedition?
-- When do groves get archived?
+- Should workbenches be auto-created when commission starts?
+- Can a workbench exist without a commission?
+- When do workbenches get archived?
 
 ---
 
@@ -139,17 +120,14 @@ From NORTH_STAR.md:
     └── 🧙‍♂️ ORC (Orchestrator - Forest Keeper)
             │
             ├── 👹 IMPs (Implementation Agents - Woodland Workers)
-            │   ├── IMP working in Grove A
-            │   ├── IMP working in Grove B
-            │   └── IMP working in Grove C
+            │   ├── IMP working in Workbench A
+            │   ├── IMP working in Workbench B
+            │   └── IMP working in Workbench C
             │
-            ├── 🧙 MAGES (Spellbook Keepers - TBD)
-            │   └── [Placeholder - role to be defined]
-            │
-            └── 🌲 GROVES (Worktrees - Isolated Development Environments)
-                ├── Grove: ml-feature-alpha
-                ├── Grove: ml-bugfix-beta
-                └── Grove: ml-investigation-gamma
+            └── 🌲 WORKBENCHES (Worktrees - Isolated Development Environments)
+                ├── Workbench: ml-feature-alpha
+                ├── Workbench: ml-bugfix-beta
+                └── Workbench: ml-investigation-gamma
 ```
 
 ---
@@ -161,8 +139,8 @@ From NORTH_STAR.md - Physical directory structure:
 ```
 work-orders/
 ├── 01-backlog/        # 📝 Ideas awaiting evaluation and assignment
-├── 02-next/           # 📅 Scheduled for upcoming work, groves ready
-├── 03-in-progress/    # 🔨 IMP actively working in grove
+├── 02-next/           # 📅 Scheduled for upcoming work, workbenches ready
+├── 03-in-progress/    # 🔨 IMP actively working in workbench
 └── 04-complete/       # ✅ Delivered and accepted by El Presidente
 ```
 
@@ -182,7 +160,7 @@ From NORTH_STAR.md:
 El Presidente Request →
   ORC Evaluation →
     Work Order Creation →
-      Grove Setup →
+      Workbench Setup →
         IMP Assignment →
           Implementation →
             Quality Check →
@@ -190,16 +168,15 @@ El Presidente Request →
 ```
 
 **Questions/Contentious**:
-- Where does "Expedition" fit in this pipeline?
-- Is "Grove Setup → IMP Assignment → Implementation" = "Expedition"?
-- Or is Expedition separate from this flow?
+- How do Workbenches fit in this pipeline?
+- Is "Workbench Setup → IMP Assignment → Implementation" the core workflow?
 
 ---
 
 ## Terminology Standards
 
 **We say** (from NORTH_STAR Personality Manifesto):
-- "Grove" not "worktree"
+- "Workbench" not "worktree"
 - "IMP" not "agent" or "claude"
 - "Forest Factory" not "task management"
 - "Work order" not "ticket" or "issue"
@@ -211,10 +188,9 @@ El Presidente Request →
 ## Summary of CRITICAL Questions
 
 1. **IMP as Entity**: Should IMPs be tracked in database, or just string identifiers?
-2. **Grove Lifecycle**: When are groves created relative to expeditions/work orders?
-3. **Mage Role**: Do we need this? What would it do?
-4. **Work Order Directories**: Should we use filesystem directories or database fields for state?
-5. **Pipeline vs Reality**: How does the conceptual pipeline map to actual ledger entities?
+2. **Workbench Lifecycle**: When are workbenches created relative to commissions/work orders?
+3. **Work Order Directories**: Should we use filesystem directories or database fields for state?
+4. **Pipeline vs Reality**: How does the conceptual pipeline map to actual ledger entities?
 
 ---
 

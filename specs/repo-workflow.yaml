@@ -9,7 +9,7 @@ version: "1.0"
 description: |
   Defines the complete lifecycle of a Repo entity in ORC.
   Repos are global resources representing source code repositories.
-  They are referenced by PRs and groves for worktree creation.
+  They are referenced by PRs and workbenches for worktree creation.
 
 # =============================================================================
 # STATES

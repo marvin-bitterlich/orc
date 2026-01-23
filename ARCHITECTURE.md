@@ -7,7 +7,7 @@
 
 ## Executive Summary
 
-ORC (Orchestrator) is a mission coordination system for managing complex, multi-repository software development work. It combines traditional task management with AI-powered context preservation, enabling seamless handoffs between human operators and Claude AI agents across multiple workspaces.
+ORC (Orchestrator) is a commission coordination system for managing complex, multi-repository software development work. It combines traditional task management with AI-powered context preservation, enabling seamless handoffs between human operators and Claude AI agents across multiple workspaces.
 
 **Key Innovation:** ORC uses SQLite as the single source of truth for all operational data, combined with handoff narratives that preserve context across sessions. This enables seamless handoffs between human operators and Claude AI agents.
 
@@ -18,14 +18,14 @@ ORC (Orchestrator) is a mission coordination system for managing complex, multi-
 ORC 2.0 uses a simplified, flat hierarchy optimized for real-world workflows:
 
 ```
-Mission (coordination scope)
+Commission (coordination scope)
 ├── Work Orders (tasks, flat structure with optional parent/child grouping)
-└── Groves (git worktrees - isolated workspaces with IMP agents)
+└── Workbenches (git worktrees - isolated workspaces with IMP agents)
 ```
 
 **Design Principles:**
 - **Simplicity Over Hierarchy** - Removed Operations and Expeditions layers
-- **Mission-Centric Organization** - Mission is the coordination boundary
+- **Commission-Centric Organization** - Commission is the coordination boundary
 - **Database as Source of Truth** - Single authoritative data source (SQLite)
 - **Physical Reality Wins** - Model matches actual workflow, not idealized process
 
@@ -33,15 +33,15 @@ Mission (coordination scope)
 
 ## Core Features
 
-### 1. Mission Management
-- **Mission**: Top-level coordination scope (e.g., "Sidekiq Deprecation", "Auth Refactor")
-- Owns multiple Groves (workspaces) and Work Orders (tasks)
-- Each mission can have a dedicated TMux session with IMP agents in groves
-- Support for both ORC-development missions and application-code missions
+### 1. Commission Management
+- **Commission**: Top-level coordination scope (e.g., "Sidekiq Deprecation", "Auth Refactor")
+- Owns multiple Workbenches (workspaces) and Work Orders (tasks)
+- Each commission can have a dedicated TMux session with IMP agents in workbenches
+- Support for both ORC-development commissions and application-code commissions
 
 ### 2. Work Order System
 **Flat hierarchy with Epic/Parent grouping:**
-- Work orders belong directly to missions (no forced intermediate layers)
+- Work orders belong directly to commissions (no forced intermediate layers)
 - Optional parent/child relationships for logical grouping
 - Status field with 7 states: ready, design, implement, deploy, blocked, paused, complete
 - Type categorization: research, implementation, fix, documentation, maintenance
@@ -58,41 +58,41 @@ orc work-order update WO-XXX --title "New title"
 orc summary                    # Hierarchical view with pinned items
 ```
 
-### 3. Grove Management (Git Worktree Integration)
-**Grove**: An isolated git worktree for a mission, registered in the database
+### 3. Workbench Management (Git Worktree Integration)
+**Workbench**: An isolated git worktree for a commission, registered in the database
 
-- Groves belong to missions, not individual work orders
-- Multiple groves per mission (e.g., backend, frontend, api repos)
-- Work orders are assigned to groves (via assigned_grove_id)
-- IMP (Implementation) = Grove (conceptual equivalence, no separate entity)
+- Workbenches belong to commissions, not individual work orders
+- Multiple workbenches per commission (e.g., backend, frontend, api repos)
+- Work orders are assigned to workbenches (via assigned_workbench_id)
+- IMP (Implementation) = Workbench (conceptual equivalence, no separate entity)
 
 **Key Commands:**
 ```bash
-orc grove create [name] --repos main-app --mission MISSION-001
-orc grove list [--mission MISSION-XXX]
-orc grove show GROVE-XXX
-orc grove rename GROVE-XXX new-name
-orc grove open GROVE-XXX      # Opens in new TMux window with IMP layout
+orc workbench create [name] --repos main-app --commission COMM-001
+orc workbench list [--commission COMM-XXX]
+orc workbench show WORKBENCH-XXX
+orc workbench rename WORKBENCH-XXX new-name
+orc workbench open WORKBENCH-XXX      # Opens in new TMux window with IMP layout
 ```
 
-**Grove Features:**
+**Workbench Features:**
 - Creates git worktree automatically
 - Writes config.json to .orc/ subdirectory (reference only)
-- Writes .orc-mission marker for context detection
+- Writes .orc-commission marker for context detection
 - Opens in TMux with 3-pane IMP layout: vim | claude | shell
 
 ### 4. Two-Tier Agent Architecture (ORC + IMPs)
 **Concept**: Simple two-tier coordination with one orchestrator and multiple implementation agents
 
 **Agent Types:**
-- **ORC (Orchestrator)**: Master coordinator that manages missions, creates groves, assigns epics
-- **IMP (Implementation Agent)**: Works within a grove on assigned epics/tasks
+- **ORC (Orchestrator)**: Master coordinator that manages commissions, creates workbenches, assigns epics
+- **IMP (Implementation Agent)**: Works within a workbench on assigned epics/tasks
 
 **Architecture Principles:**
 - Single ORC orchestrator
-- IMPs operate within grove boundaries
+- IMPs operate within workbench boundaries
 - ORC coordinates via mail system and epic assignments
-- IMPs can create groves/epics but not missions
+- IMPs can create workbenches/epics but not commissions
 
 **Mail System:**
 - Direct IMP ↔ ORC communication
@@ -103,7 +103,7 @@ orc grove open GROVE-XXX      # Opens in new TMux window with IMP layout
 
 Session boundaries are preserved through:
 - **Handoffs**: Narrative summaries stored in SQLite database
-- **orc prime**: Injects context at session start (mission, epic, tasks, recent handoff)
+- **orc prime**: Injects context at session start (commission, epic, tasks, recent handoff)
 - **orc handoff create**: Captures session work, decisions, discoveries at session end
 
 **Key Features:**
@@ -113,18 +113,18 @@ Session boundaries are preserved through:
 - Handoffs searchable via CLI (`orc handoff list`, `orc handoff show`)
 
 ### 6. TMux Integration
-**One TMux session per mission:**
+**One TMux session per commission:**
 ```
-TMux Session: "Mission Name" (orc-MISSION-XXX)
+TMux Session: "Commission Name" (orc-COMM-XXX)
 ├── Pane 0: ORC (coordination)
-├── Pane 1: IMP in grove-1 (vim)
-├── Pane 2: IMP in grove-1 (claude)
-└── Pane 3: IMP in grove-1 (shell)
+├── Pane 1: IMP in workbench-1 (vim)
+├── Pane 2: IMP in workbench-1 (claude)
+└── Pane 3: IMP in workbench-1 (shell)
 ```
 
 **Features:**
-- `orc grove open GROVE-XXX` creates new window with IMP layout
-- All panes CD into grove directory
+- `orc workbench open WORKBENCH-XXX` creates new window with IMP layout
+- All panes CD into workbench directory
 - Easy context switching between coordination and implementation
 
 **Agent Starting Pattern:**
@@ -137,7 +137,7 @@ claude "Run `orc prime`"
 This pattern replaces SessionStart hooks (which are broken in Claude Code v2.1.7). When agents start:
 1. TMux sends the command with prompt: `claude "Run \`orc prime\`"`
 2. Claude receives the prompt and executes `orc prime`
-3. `orc prime` detects the agent's location (grove/mission/global) and provides appropriate context
+3. `orc prime` detects the agent's location (workbench/commission/global) and provides appropriate context
 4. Agent begins work with full context immediately
 
 **Benefits:**
@@ -161,9 +161,9 @@ This pattern replaces SessionStart hooks (which are broken in Claude Code v2.1.7
 ### Database Schema (SQLite)
 
 **Core Tables:**
-- `missions` - Top-level coordination scopes
-- `work_orders` - Tasks with status, type, parent_id, assigned_grove_id, pinned flag
-- `groves` - Git worktrees registered to missions
+- `commissions` - Top-level coordination scopes
+- `work_orders` - Tasks with status, type, parent_id, assigned_workbench_id, pinned flag
+- `workbenches` - Git worktrees registered to commissions
 - `handoffs` - Session handoff narratives for context preservation
 
 **Removed Tables (simplified in 2.0):**
@@ -175,7 +175,7 @@ This pattern replaces SessionStart hooks (which are broken in Claude Code v2.1.7
 - `work_orders.status`: ready | design | implement | deploy | blocked | paused | complete
 - `work_orders.type`: research | implementation | fix | documentation | maintenance
 - `work_orders.parent_id`: Optional epic/parent reference
-- `work_orders.assigned_grove_id`: Grove assignment
+- `work_orders.assigned_workbench_id`: Workbench assignment
 - `work_orders.pinned`: Boolean for visibility
 
 ---
@@ -186,8 +186,8 @@ This pattern replaces SessionStart hooks (which are broken in Claude Code v2.1.7
 **Purpose:** Authoritative source for all structured operational data
 
 **Stores:**
-- Missions, epics, rabbit holes, tasks
-- Groves (git worktrees)
+- Commissions, epics, rabbit holes, tasks
+- Workbenches (git worktrees)
 - Handoffs (session narratives)
 - Tags and task-tag associations
 - Current state (status, assignments, timestamps)
@@ -216,7 +216,7 @@ Session Work → SQLite (operational state)
 New Session starts
     ↓
 orc prime queries:
-    - SQLite: Current mission, epic, tasks
+    - SQLite: Current commission, epic, tasks
     - SQLite: Recent handoff narrative
     - Git: Current branch, uncommitted changes
     ↓
@@ -249,21 +249,21 @@ Next session can bootstrap from this
 - **Status**: Active development (EPIC-178)
 
 **WO-021: Core Architecture Design**
-- Cross-grove coordination mechanisms (WO-016)
-- Grove lifecycle management (WO-015)
+- Cross-workbench coordination mechanisms (WO-016)
+- Workbench lifecycle management (WO-015)
 - Work order state transition model (WO-014)
 - Inter-agent mail system refinement
 
 **WO-057: Factory Production Line Issues** (Master ORC Tooling)
 - Continuous improvements to CLI tools
 - Bug fixes and UX refinements
-- IMP escalations from MISSION-002
+- IMP escalations from COMM-002
 
 ### Completed Major Features (2.0)
 
 ✅ **Forest Factory Architecture Simplification**
 - Removed Operations and Expeditions layers
-- Flat Mission → Work Order structure
+- Flat Commission → Work Order structure
 - Type-based categorization
 
 ✅ **Epic/Parent Work Order Hierarchy**
@@ -276,17 +276,17 @@ Next session can bootstrap from this
 - 7 semantic states (ready → complete)
 - Emoji indicators for quick scanning
 
-✅ **IMP Agent Deployment (MISSION-002)**
-- First real-world mission validated
+✅ **IMP Agent Deployment (COMM-002)**
+- First real-world commission validated
 - TMux automation working
 - ORC ↔ IMP communication working
 - **Validation**: Everything worked first try
 
-✅ **Grove Management**
+✅ **Workbench Management**
 - Create, list, rename, open commands
 - Git worktree integration
-- TMux window spawning (orc grove open)
-- Mission context detection
+- TMux window spawning (orc workbench open)
+- Commission context detection
 
 ✅ **Pinned Work Orders**
 - Pin/unpin commands
@@ -305,7 +305,7 @@ Next session can bootstrap from this
 - Working modes for different contexts
 - Epic focus and context injection
 
-**Phase 2: Cross-Mission Coordination**
+**Phase 2: Cross-Commission Coordination**
 - Refine mail system
 - IMP → ORC escalation workflow
 - ORC → IMP directive system
@@ -319,14 +319,14 @@ Next session can bootstrap from this
 
 **Phase 4: Workflow Automation**
 - Task state transitions (auto/manual rules)
-- Grove lifecycle automation
+- Workbench lifecycle automation
 - TMux session management
 - Handoff automation improvements
 
 ### Long-Term Vision
 
 **Factory-Themed Terminology**
-- Replace generic terms (Mission, Epic, Operation)
+- Replace generic terms (Commission, Epic, Operation)
 - Restore forest/factory metaphor consistently
 - Personality + functionality
 
@@ -337,9 +337,9 @@ Next session can bootstrap from this
 - Context inheritance patterns
 
 **Multi-Agent Orchestration**
-- ORC coordinates multiple IMPs across groves
+- ORC coordinates multiple IMPs across workbenches
 - IMP-to-IMP communication via ORC
-- Mission-based coordination structure
+- Commission-based coordination structure
 - Resource allocation and prioritization
 
 ---
@@ -347,7 +347,7 @@ Next session can bootstrap from this
 ## Success Metrics
 
 **First-Try Execution:**
-- MISSION-002 deployment: ✅ Worked on first attempt
+- COMM-002 deployment: ✅ Worked on first attempt
 - ORC + IMP coordination: ✅ Validated in real operation
 - TMux automation: ✅ Clean integration
 - Proto-mail system: ✅ Bidirectional communication working
@@ -426,17 +426,17 @@ Add to `~/.claude/settings.json`:
 orc init    # Creates ~/.orc/ directory and initializes database
 ```
 
-### Create Your First Mission
+### Create Your First Commission
 ```bash
-orc mission create "My Project" --description "Project description"
-orc work-order create "Setup repository" --mission MISSION-001
-orc grove create project-main --repos my-repo --mission MISSION-001
+orc commission create "My Project" --description "Project description"
+orc work-order create "Setup repository" --commission COMM-001
+orc workbench create project-main --repos my-repo --commission COMM-001
 ```
 
-### Work in a Grove
+### Work in a Workbench
 ```bash
 cd ~/src/worktrees/project-main
-orc status                    # Shows mission context
+orc status                    # Shows commission context
 orc work-order claim WO-001
 # ... do work ...
 orc work-order complete WO-001
@@ -462,7 +462,7 @@ orc handoff create --note "Session summary..."
 3. **Multi-Agent Coordination** - ORC/IMP architecture with mail system
 4. **Git Worktree Native** - First-class support for isolated workspaces
 5. **Semantic Epic System** - 9-epic types with working modes
-6. **TMux Integration** - One session per mission, programmatic layout
+6. **TMux Integration** - One session per commission, programmatic layout
 7. **Flat But Structured** - Simple hierarchy with optional grouping
 8. **Validation-Driven** - Proven by first-try production deployment
 
@@ -471,15 +471,15 @@ orc handoff create --note "Session summary..."
 ## Technical References
 
 **Codebase Structure:**
-- `internal/cli/` - Command implementations (mission, work-order, grove, etc.)
+- `internal/cli/` - Command implementations (commission, work-order, workbench, etc.)
 - `internal/models/` - Database models and queries
-- `internal/context/` - Mission context detection
+- `internal/context/` - Commission context detection
 - `internal/tmux/` - TMux session management
 - `internal/db/` - SQLite database setup and migrations
 
 **Key Files:**
 - `internal/cli/summary.go` - Hierarchical work order display
-- `internal/cli/grove.go` - Grove management and TMux integration
+- `internal/cli/workbench.go` - Workbench management and TMux integration
 - `internal/cli/work_order.go` - Work order CRUD operations
 - `internal/models/workorder.go` - Work order model and queries
 
@@ -492,11 +492,11 @@ orc handoff create --note "Session summary..."
 
 ## Glossary
 
-**Mission**: Top-level coordination scope, owns groves and work orders
-**Work Order**: Task within a mission, flat hierarchy with optional parent
-**Grove**: Git worktree registered to a mission, physical workspace
-**IMP**: Implementation (conceptual layer over grove, not separate entity)
-**ORC**: Main orchestrator that coordinates IMPs across missions
+**Commission**: Top-level coordination scope, owns workbenches and work orders
+**Work Order**: Task within a commission, flat hierarchy with optional parent
+**Workbench**: Git worktree registered to a commission, physical workspace
+**IMP**: Implementation (conceptual layer over workbench, not separate entity)
+**ORC**: Main orchestrator that coordinates IMPs across commissions
 **Proto-Mail**: Work-order-based bidirectional messaging
 **Handoff**: Session boundary artifact (narrative + work state)
 **orc prime**: Context injection at session start
@@ -509,4 +509,4 @@ orc handoff create --note "Session summary..."
 
 **Repository**: ~/src/orc
 **Documentation**: CLAUDE.md (project context), glossary/ (definitions)
-**Status**: Active development, production-validated (MISSION-002)
+**Status**: Active development, production-validated (COMM-002)

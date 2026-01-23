@@ -160,15 +160,15 @@ transitions:
       - not_in_orc_source
     effects:
       - { type: CreateWorkspace, path: "{workspace_path}" }
-      - { type: CreateWorkspace, path: "{workspace_path}/groves" }
-      - { type: WriteConfig, path: "{grove_path}/.orc/config.json", config_type: grove, foreach: groves }
-      - { type: WriteConfig, path: "{grove_path}/.claude/settings.local.json", foreach: groves }
-      - { type: UpdateDB, operation: UPDATE, table: groves, fields: [path], condition: "path changed" }
+      - { type: CreateWorkspace, path: "{workspace_path}/workbenches" }
+      - { type: WriteConfig, path: "{workbench_path}/.orc/config.json", config_type: workbench, foreach: workbenches }
+      - { type: WriteConfig, path: "{workbench_path}/.claude/settings.local.json", foreach: workbenches }
+      - { type: UpdateDB, operation: UPDATE, table: workbenches, fields: [path], condition: "path changed" }
       - { type: SpawnTmux, session: "orc-{COMM_ID}", conditional: "create_tmux == true" }
     test_cases:
-      - "Launch creates workspace and groves directory"
-      - "Launch moves groves to standard location"
-      - "Launch writes grove configs"
+      - "Launch creates workspace and workbenches directory"
+      - "Launch moves workbenches to standard location"
+      - "Launch writes workbench configs"
       - "Launch with --tmux creates session"
       - "Launch without --tmux skips TMux"
       - "Launch is idempotent (run twice, same result)"
@@ -267,13 +267,13 @@ transitions:
     to: deleted
     event: delete
     guards:
-      - no_dependents_or_force  # No groves/shipments, or --force flag
+      - no_dependents_or_force  # No workbenches/shipments, or --force flag
     effects:
       - { type: WriteDB, operation: DELETE, table: commissions }
       # TODO: Cascade delete when implemented
     test_cases:
       - "Delete commission with no dependents"
-      - "Delete commission with groves (error without --force)"
+      - "Delete commission with workbenches (error without --force)"
       - "Delete commission with shipments (error without --force)"
       - "Delete commission with --force (succeeds, orphans dependents)"
 
@@ -320,14 +320,14 @@ guards:
 
   no_dependents_or_force:
     description: |
-      Check for associated groves/shipments before deletion.
+      Check for associated workbenches/shipments before deletion.
       Bypassed with --force flag (but orphans dependents).
     implementation: |
       if force { return true }
-      groves, _ := models.GetGrovesByCommission(id)
+      workbenches, _ := models.GetWorkbenchesByCommission(id)
       shipments, _ := models.ListShipments(id, "")
-      return len(groves) == 0 && len(shipments) == 0
-    error_message: "Commission has {count} groves and {count} shipments. Use --force to delete anyway (will orphan dependents)"
+      return len(workbenches) == 0 && len(shipments) == 0
+    error_message: "Commission has {count} workbenches and {count} shipments. Use --force to delete anyway (will orphan dependents)"
 
   exists:
     description: Commission must exist in database
@@ -358,7 +358,7 @@ effects:
     description: Write JSON config file
     parameters:
       path: { type: string }
-      config_type: { type: enum, values: [commission, grove, global, claude_settings] }
+      config_type: { type: enum, values: [commission, workbench, global, claude_settings] }
     idempotent: true
 
   SpawnTmux:

@@ -8,8 +8,8 @@ name: shipment-workflow
 version: "1.0"
 description: |
   Defines the complete lifecycle of a Shipment entity in ORC.
-  Shipments are work packages within a mission that contain related tasks.
-  Unlike groves (infrastructure), shipments are workflow entities with pause/resume semantics.
+  Shipments are work packages within a commission that contain related tasks.
+  Unlike workbenches (infrastructure), shipments are workflow entities with pause/resume semantics.
 
 # =============================================================================
 # STATES
@@ -83,10 +83,10 @@ events:
     description: Unpin shipment to allow completion
     payload: {}
 
-  assign_grove:
-    description: Assign shipment to a grove for execution
+  assign_workbench:
+    description: Assign shipment to a workbench for execution
     payload:
-      grove_id: { type: string, required: true }
+      workbench_id: { type: string, required: true }
 
   delete:
     description: Hard-delete shipment from database
@@ -183,22 +183,22 @@ transitions:
     test_cases:
       - "Unpin shipment"
 
-  # --- Grove Assignment (no state change) ---
-  - name: assign_grove
+  # --- Workbench Assignment (no state change) ---
+  - name: assign_workbench
     from: active
     to: active
-    event: assign_grove
+    event: assign_workbench
     guards:
       - shipment_exists
-      - grove_not_assigned_elsewhere  # Grove exclusivity check
+      - workbench_not_assigned_elsewhere  # Workbench exclusivity check
     effects:
-      - { type: WriteDB, operation: UPDATE, table: shipments, fields: [assigned_grove_id, updated_at] }
-      - { type: CascadeGrove, target: tasks }  # Cascade to child tasks
+      - { type: WriteDB, operation: UPDATE, table: shipments, fields: [assigned_workbench_id, updated_at] }
+      - { type: CascadeWorkbench, target: tasks }  # Cascade to child tasks
     test_cases:
-      - "Assign grove to shipment (unassigned grove)"
-      - "Assign grove already assigned to this shipment (OK)"
-      - "Assign grove assigned to another shipment (error)"
-      - "Assign grove to non-existent shipment (error)"
+      - "Assign workbench to shipment (unassigned workbench)"
+      - "Assign workbench already assigned to this shipment (OK)"
+      - "Assign workbench assigned to another shipment (error)"
+      - "Assign workbench to non-existent shipment (error)"
 
   # --- Deletion ---
   - name: delete_active_shipment
@@ -278,14 +278,14 @@ guards:
       return !shipment.Pinned
     error_message: "cannot complete pinned shipment {shipment_id}. Unpin first with: orc shipment unpin {shipment_id}"
 
-  grove_not_assigned_elsewhere:
+  workbench_not_assigned_elsewhere:
     description: |
-      Check that grove is not already assigned to another shipment.
-      Each grove can only be assigned to one shipment at a time.
+      Check that workbench is not already assigned to another shipment.
+      Each workbench can only be assigned to one shipment at a time.
     implementation: |
-      otherID, err := repo.GroveAssignedToOther(ctx, grove_id, shipment_id)
+      otherID, err := repo.WorkbenchAssignedToOther(ctx, workbench_id, shipment_id)
       return err == nil && otherID == ""
-    error_message: "grove already assigned to shipment {other_shipment_id}"
+    error_message: "workbench already assigned to shipment {other_shipment_id}"
 
 # =============================================================================
 # EFFECTS
@@ -298,8 +298,8 @@ effects:
       table: { type: string }
       fields: { type: array, items: string, optional: true }
 
-  CascadeGrove:
-    description: Cascade grove assignment to related entities
+  CascadeWorkbench:
+    description: Cascade workbench assignment to related entities
     parameters:
       target: { type: enum, values: [tasks] }
 
@@ -336,17 +336,17 @@ invariants:
     check: status == 'complete' IMPLIES pinned == false
 
 # =============================================================================
-# DIFFERENCES FROM GROVE
+# DIFFERENCES FROM WORKBENCH
 # =============================================================================
-differences_from_grove:
+differences_from_workbench:
   - |
-    Shipments have 'paused' state; groves do not.
-    Pausing a shipment halts work; groves are infrastructure.
+    Shipments have 'paused' state; workbenches do not.
+    Pausing a shipment halts work; workbenches are infrastructure.
   - |
-    Shipments have 'complete' state; groves have 'archived'.
+    Shipments have 'complete' state; workbenches have 'archived'.
     Completion is a workflow state; archival is soft-delete.
   - |
-    Shipments have 'pinned' flag; groves do not.
+    Shipments have 'pinned' flag; workbenches do not.
     Pinning prevents accidental completion of important work.
   - |
     Shipments do NOT have 'archived' state.
@@ -355,8 +355,8 @@ differences_from_grove:
     Shipments do NOT have ORC-only guards.
     Any agent (ORC or IMP) can manage shipments.
   - |
-    Shipments have grove assignment with exclusivity.
-    Groves don't have this inverse relationship.
+    Shipments have workbench assignment with exclusivity.
+    Workbenches don't have this inverse relationship.
 
 # =============================================================================
 # NOTES
@@ -364,13 +364,13 @@ differences_from_grove:
 notes:
   - |
     Shipment is a workflow entity - it represents a package of work.
-    Unlike Grove (infrastructure), shipments have pause/resume/complete semantics.
+    Unlike Workbench (infrastructure), shipments have pause/resume/complete semantics.
   - |
     The 'pinned' flag prevents accidental completion of important shipments.
     Users must explicitly unpin before completing.
   - |
-    Grove assignment is exclusive - a grove can only be assigned to one shipment.
+    Workbench assignment is exclusive - a workbench can only be assigned to one shipment.
     This prevents work conflicts and maintains clear ownership.
   - |
     No ORC-only guards - shipments are managed by both ORC and IMPs.
-    This differs from groves where only ORC can create/archive.
+    This differs from workbenches where only ORC can create/archive.

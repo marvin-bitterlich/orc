@@ -8,8 +8,8 @@ name: task-workflow
 version: "1.0"
 description: |
   Defines the complete lifecycle of a Task entity in ORC.
-  Tasks are individual work items within a mission, optionally grouped by shipment.
-  Tasks have claim semantics (grove assignment) and support pause/resume workflows.
+  Tasks are individual work items within a commission, optionally grouped by shipment.
+  Tasks have claim semantics (workbench assignment) and support pause/resume workflows.
 
 # =============================================================================
 # STATES
@@ -20,7 +20,7 @@ states:
     terminal: false
 
   ready:
-    description: Task is created, waiting to be claimed by a grove
+    description: Task is created, waiting to be claimed by a workbench
     terminal: false
     invariants:
       - status == "ready"
@@ -34,7 +34,7 @@ states:
     terminal: false
     invariants:
       - status == "in_progress"
-      - claimed_by is set (grove ID)
+      - claimed_by is set (workbench ID)
 
   paused:
     description: Task is temporarily suspended, work halted
@@ -75,9 +75,9 @@ events:
       description: { type: string, required: false }
 
   claim:
-    description: Claim task for a grove (assigns work)
+    description: Claim task for a workbench (assigns work)
     payload:
-      grove_id: { type: string, required: true }
+      workbench_id: { type: string, required: true }
 
   pause:
     description: Temporarily suspend task work
@@ -162,7 +162,7 @@ transitions:
     effects:
       - { type: WriteDB, operation: UPDATE, table: tasks, fields: [status, claimed_by, updated_at] }
     test_cases:
-      - "Claim ready task for grove"
+      - "Claim ready task for workbench"
 
   # --- Pausing ---
   - name: pause_task
@@ -421,10 +421,10 @@ differences_from_shipment:
     Ready indicates waiting for claim; active means work can proceed.
   - |
     Tasks have 'in_progress' state; shipments use 'active'.
-    in_progress indicates a grove has claimed and is working on the task.
+    in_progress indicates a workbench has claimed and is working on the task.
   - |
     Tasks have explicit 'claim' operation; shipments do not.
-    Claiming assigns a task to a grove for execution.
+    Claiming assigns a task to a workbench for execution.
   - |
     Tasks have optional shipment_id parent; shipments have only mission_id.
     Tasks can be organized into shipments or exist directly under a mission.
@@ -443,10 +443,10 @@ notes:
     Task is the fundamental unit of work in ORC.
     Unlike Shipment (work package), tasks are individual actionable items.
   - |
-    The 'ready' state allows tasks to exist before a grove claims them.
+    The 'ready' state allows tasks to exist before a workbench claims them.
     This supports work discovery and assignment workflows.
   - |
-    The 'claim' transition converts ready -> in_progress with grove assignment.
+    The 'claim' transition converts ready -> in_progress with workbench assignment.
     This explicit claiming prevents work conflicts.
   - |
     The one-tag limit keeps categorization simple.
