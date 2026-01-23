@@ -237,7 +237,7 @@ func TestCreateTome_Success(t *testing.T) {
 	ctx := context.Background()
 
 	resp, err := service.CreateTome(ctx, primary.CreateTomeRequest{
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Test Tome",
 		Description:  "A test tome",
 	})
@@ -263,7 +263,7 @@ func TestCreateTome_MissionNotFound(t *testing.T) {
 	tomeRepo.missionExistsResult = false
 
 	_, err := service.CreateTome(ctx, primary.CreateTomeRequest{
-		CommissionID: "MISSION-NONEXISTENT",
+		CommissionID: "COMM-NONEXISTENT",
 		Title:        "Test Tome",
 		Description:  "A test tome",
 	})
@@ -283,7 +283,7 @@ func TestGetTome_Found(t *testing.T) {
 
 	tomeRepo.tomes["TOME-001"] = &secondary.TomeRecord{
 		ID:           "TOME-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Test Tome",
 		Status:       "open",
 	}
@@ -319,18 +319,18 @@ func TestListTomes_FilterByMission(t *testing.T) {
 
 	tomeRepo.tomes["TOME-001"] = &secondary.TomeRecord{
 		ID:           "TOME-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Tome 1",
 		Status:       "open",
 	}
 	tomeRepo.tomes["TOME-002"] = &secondary.TomeRecord{
 		ID:           "TOME-002",
-		CommissionID: "MISSION-002",
+		CommissionID: "COMM-002",
 		Title:        "Tome 2",
 		Status:       "open",
 	}
 
-	tomes, err := service.ListTomes(ctx, primary.TomeFilters{CommissionID: "MISSION-001"})
+	tomes, err := service.ListTomes(ctx, primary.TomeFilters{CommissionID: "COMM-001"})
 
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -346,13 +346,13 @@ func TestListTomes_FilterByStatus(t *testing.T) {
 
 	tomeRepo.tomes["TOME-001"] = &secondary.TomeRecord{
 		ID:           "TOME-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Active Tome",
 		Status:       "open",
 	}
 	tomeRepo.tomes["TOME-002"] = &secondary.TomeRecord{
 		ID:           "TOME-002",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Paused Tome",
 		Status:       "paused",
 	}
@@ -377,7 +377,7 @@ func TestCloseTome_UnpinnedAllowed(t *testing.T) {
 
 	tomeRepo.tomes["TOME-001"] = &secondary.TomeRecord{
 		ID:           "TOME-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Test Tome",
 		Status:       "open",
 		Pinned:       false,
@@ -399,7 +399,7 @@ func TestCloseTome_PinnedBlocked(t *testing.T) {
 
 	tomeRepo.tomes["TOME-001"] = &secondary.TomeRecord{
 		ID:           "TOME-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Pinned Tome",
 		Status:       "open",
 		Pinned:       true,
@@ -469,7 +469,7 @@ func TestPinTome(t *testing.T) {
 
 	tomeRepo.tomes["TOME-001"] = &secondary.TomeRecord{
 		ID:           "TOME-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Test Tome",
 		Status:       "open",
 		Pinned:       false,
@@ -491,7 +491,7 @@ func TestUnpinTome(t *testing.T) {
 
 	tomeRepo.tomes["TOME-001"] = &secondary.TomeRecord{
 		ID:           "TOME-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Pinned Tome",
 		Status:       "open",
 		Pinned:       true,
@@ -517,7 +517,7 @@ func TestUpdateTome_Title(t *testing.T) {
 
 	tomeRepo.tomes["TOME-001"] = &secondary.TomeRecord{
 		ID:           "TOME-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Old Title",
 		Description:  "Original description",
 		Status:       "open",
@@ -546,7 +546,7 @@ func TestDeleteTome_Success(t *testing.T) {
 
 	tomeRepo.tomes["TOME-001"] = &secondary.TomeRecord{
 		ID:           "TOME-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Test Tome",
 		Status:       "open",
 	}
@@ -571,7 +571,7 @@ func TestAssignTomeToGrove_Success(t *testing.T) {
 
 	tomeRepo.tomes["TOME-001"] = &secondary.TomeRecord{
 		ID:           "TOME-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Test Tome",
 		Status:       "open",
 	}
@@ -607,14 +607,14 @@ func TestGetTomesByGrove_Success(t *testing.T) {
 
 	tomeRepo.tomes["TOME-001"] = &secondary.TomeRecord{
 		ID:                  "TOME-001",
-		CommissionID:        "MISSION-001",
+		CommissionID:        "COMM-001",
 		Title:               "Assigned Tome",
 		Status:              "active",
 		AssignedWorkbenchID: "GROVE-001",
 	}
 	tomeRepo.tomes["TOME-002"] = &secondary.TomeRecord{
 		ID:           "TOME-002",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Unassigned Tome",
 		Status:       "open",
 	}

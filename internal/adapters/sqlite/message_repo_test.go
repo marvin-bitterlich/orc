@@ -29,7 +29,7 @@ func setupMessageTestDB(t *testing.T) *sql.DB {
 	}
 
 	// Insert test mission
-	_, _ = testDB.Exec("INSERT INTO commissions (id, title, status) VALUES ('MISSION-001', 'Test Mission', 'active')")
+	_, _ = testDB.Exec("INSERT INTO commissions (id, title, status) VALUES ('COMM-001', 'Test Mission', 'active')")
 
 	t.Cleanup(func() {
 		testDB.Close()
@@ -70,8 +70,8 @@ func TestMessageRepository_Create(t *testing.T) {
 	ctx := context.Background()
 
 	msg := &secondary.MessageRecord{
-		ID:           "MSG-MISSION-001-001",
-		CommissionID: "MISSION-001",
+		ID:           "MSG-COMM-001-001",
+		CommissionID: "COMM-001",
 		Sender:       "ORC",
 		Recipient:    "IMP-001",
 		Subject:      "Task Assignment",
@@ -84,7 +84,7 @@ func TestMessageRepository_Create(t *testing.T) {
 	}
 
 	// Verify message was created
-	retrieved, err := repo.GetByID(ctx, "MSG-MISSION-001-001")
+	retrieved, err := repo.GetByID(ctx, "MSG-COMM-001-001")
 	if err != nil {
 		t.Fatalf("GetByID failed: %v", err)
 	}
@@ -101,7 +101,7 @@ func TestMessageRepository_GetByID(t *testing.T) {
 	repo := sqlite.NewMessageRepository(db)
 	ctx := context.Background()
 
-	msg := createTestMessage(t, repo, ctx, "MISSION-001", "ORC", "IMP-001", "Test Subject", "Test Body")
+	msg := createTestMessage(t, repo, ctx, "COMM-001", "ORC", "IMP-001", "Test Subject", "Test Body")
 
 	retrieved, err := repo.GetByID(ctx, msg.ID)
 	if err != nil {
@@ -135,9 +135,9 @@ func TestMessageRepository_List(t *testing.T) {
 	repo := sqlite.NewMessageRepository(db)
 	ctx := context.Background()
 
-	createTestMessage(t, repo, ctx, "MISSION-001", "ORC", "IMP-001", "Message 1", "Body 1")
-	createTestMessage(t, repo, ctx, "MISSION-001", "ORC", "IMP-001", "Message 2", "Body 2")
-	createTestMessage(t, repo, ctx, "MISSION-001", "ORC", "IMP-002", "Message 3", "Body 3")
+	createTestMessage(t, repo, ctx, "COMM-001", "ORC", "IMP-001", "Message 1", "Body 1")
+	createTestMessage(t, repo, ctx, "COMM-001", "ORC", "IMP-001", "Message 2", "Body 2")
+	createTestMessage(t, repo, ctx, "COMM-001", "ORC", "IMP-002", "Message 3", "Body 3")
 
 	// List for IMP-001
 	messages, err := repo.List(ctx, secondary.MessageFilters{Recipient: "IMP-001"})
@@ -155,8 +155,8 @@ func TestMessageRepository_List_UnreadOnly(t *testing.T) {
 	repo := sqlite.NewMessageRepository(db)
 	ctx := context.Background()
 
-	msg1 := createTestMessage(t, repo, ctx, "MISSION-001", "ORC", "IMP-001", "Message 1", "Body 1")
-	createTestMessage(t, repo, ctx, "MISSION-001", "ORC", "IMP-001", "Message 2", "Body 2")
+	msg1 := createTestMessage(t, repo, ctx, "COMM-001", "ORC", "IMP-001", "Message 1", "Body 1")
+	createTestMessage(t, repo, ctx, "COMM-001", "ORC", "IMP-001", "Message 2", "Body 2")
 
 	// Mark msg1 as read
 	_ = repo.MarkRead(ctx, msg1.ID)
@@ -177,7 +177,7 @@ func TestMessageRepository_MarkRead(t *testing.T) {
 	repo := sqlite.NewMessageRepository(db)
 	ctx := context.Background()
 
-	msg := createTestMessage(t, repo, ctx, "MISSION-001", "ORC", "IMP-001", "Test", "Body")
+	msg := createTestMessage(t, repo, ctx, "COMM-001", "ORC", "IMP-001", "Test", "Body")
 
 	// Initially unread
 	retrieved, _ := repo.GetByID(ctx, msg.ID)
@@ -215,12 +215,12 @@ func TestMessageRepository_GetConversation(t *testing.T) {
 	ctx := context.Background()
 
 	// Create a conversation between ORC and IMP-001
-	createTestMessage(t, repo, ctx, "MISSION-001", "ORC", "IMP-001", "Hello", "Hi IMP")
-	createTestMessage(t, repo, ctx, "MISSION-001", "IMP-001", "ORC", "Re: Hello", "Hi ORC")
-	createTestMessage(t, repo, ctx, "MISSION-001", "ORC", "IMP-001", "Re: Hello", "How's it going?")
+	createTestMessage(t, repo, ctx, "COMM-001", "ORC", "IMP-001", "Hello", "Hi IMP")
+	createTestMessage(t, repo, ctx, "COMM-001", "IMP-001", "ORC", "Re: Hello", "Hi ORC")
+	createTestMessage(t, repo, ctx, "COMM-001", "ORC", "IMP-001", "Re: Hello", "How's it going?")
 
 	// Create a message with different participants
-	createTestMessage(t, repo, ctx, "MISSION-001", "ORC", "IMP-002", "Different", "To another IMP")
+	createTestMessage(t, repo, ctx, "COMM-001", "ORC", "IMP-002", "Different", "To another IMP")
 
 	// Get conversation between ORC and IMP-001
 	messages, err := repo.GetConversation(ctx, "ORC", "IMP-001")
@@ -243,7 +243,7 @@ func TestMessageRepository_GetConversation_Symmetric(t *testing.T) {
 	repo := sqlite.NewMessageRepository(db)
 	ctx := context.Background()
 
-	createTestMessage(t, repo, ctx, "MISSION-001", "ORC", "IMP-001", "Hello", "Body")
+	createTestMessage(t, repo, ctx, "COMM-001", "ORC", "IMP-001", "Hello", "Body")
 
 	// Get conversation from either direction
 	messages1, _ := repo.GetConversation(ctx, "ORC", "IMP-001")
@@ -269,9 +269,9 @@ func TestMessageRepository_GetUnreadCount(t *testing.T) {
 	}
 
 	// Create some messages
-	msg1 := createTestMessage(t, repo, ctx, "MISSION-001", "ORC", "IMP-001", "Message 1", "Body")
-	createTestMessage(t, repo, ctx, "MISSION-001", "ORC", "IMP-001", "Message 2", "Body")
-	createTestMessage(t, repo, ctx, "MISSION-001", "ORC", "IMP-002", "Message 3", "Body") // different recipient
+	msg1 := createTestMessage(t, repo, ctx, "COMM-001", "ORC", "IMP-001", "Message 1", "Body")
+	createTestMessage(t, repo, ctx, "COMM-001", "ORC", "IMP-001", "Message 2", "Body")
+	createTestMessage(t, repo, ctx, "COMM-001", "ORC", "IMP-002", "Message 3", "Body") // different recipient
 
 	// Count unread for IMP-001
 	count, err = repo.GetUnreadCount(ctx, "IMP-001")
@@ -299,22 +299,22 @@ func TestMessageRepository_GetNextID(t *testing.T) {
 	repo := sqlite.NewMessageRepository(db)
 	ctx := context.Background()
 
-	id, err := repo.GetNextID(ctx, "MISSION-001")
+	id, err := repo.GetNextID(ctx, "COMM-001")
 	if err != nil {
 		t.Fatalf("GetNextID failed: %v", err)
 	}
-	if id != "MSG-MISSION-001-001" {
-		t.Errorf("expected MSG-MISSION-001-001, got %s", id)
+	if id != "MSG-COMM-001-001" {
+		t.Errorf("expected MSG-COMM-001-001, got %s", id)
 	}
 
-	createTestMessage(t, repo, ctx, "MISSION-001", "ORC", "IMP-001", "Test", "Body")
+	createTestMessage(t, repo, ctx, "COMM-001", "ORC", "IMP-001", "Test", "Body")
 
-	id, err = repo.GetNextID(ctx, "MISSION-001")
+	id, err = repo.GetNextID(ctx, "COMM-001")
 	if err != nil {
 		t.Fatalf("GetNextID failed: %v", err)
 	}
-	if id != "MSG-MISSION-001-002" {
-		t.Errorf("expected MSG-MISSION-001-002, got %s", id)
+	if id != "MSG-COMM-001-002" {
+		t.Errorf("expected MSG-COMM-001-002, got %s", id)
 	}
 }
 
@@ -324,18 +324,18 @@ func TestMessageRepository_GetNextID_DifferentMissions(t *testing.T) {
 	ctx := context.Background()
 
 	// Add another mission
-	_, _ = db.Exec("INSERT INTO commissions (id, title, status) VALUES ('MISSION-002', 'Mission 2', 'active')")
+	_, _ = db.Exec("INSERT INTO commissions (id, title, status) VALUES ('COMM-002', 'Mission 2', 'active')")
 
-	createTestMessage(t, repo, ctx, "MISSION-001", "ORC", "IMP-001", "Test", "Body")
-	createTestMessage(t, repo, ctx, "MISSION-001", "ORC", "IMP-001", "Test 2", "Body")
+	createTestMessage(t, repo, ctx, "COMM-001", "ORC", "IMP-001", "Test", "Body")
+	createTestMessage(t, repo, ctx, "COMM-001", "ORC", "IMP-001", "Test 2", "Body")
 
-	// ID for MISSION-002 should still be 001
-	id, err := repo.GetNextID(ctx, "MISSION-002")
+	// ID for COMM-002 should still be 001
+	id, err := repo.GetNextID(ctx, "COMM-002")
 	if err != nil {
 		t.Fatalf("GetNextID failed: %v", err)
 	}
-	if id != "MSG-MISSION-002-001" {
-		t.Errorf("expected MSG-MISSION-002-001, got %s", id)
+	if id != "MSG-COMM-002-001" {
+		t.Errorf("expected MSG-COMM-002-001, got %s", id)
 	}
 }
 
@@ -344,7 +344,7 @@ func TestMessageRepository_CommissionExists(t *testing.T) {
 	repo := sqlite.NewMessageRepository(db)
 	ctx := context.Background()
 
-	exists, err := repo.CommissionExists(ctx, "MISSION-001")
+	exists, err := repo.CommissionExists(ctx, "COMM-001")
 	if err != nil {
 		t.Fatalf("CommissionExists failed: %v", err)
 	}

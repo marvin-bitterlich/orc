@@ -29,7 +29,7 @@ func setupInvestigationTestDB(t *testing.T) *sql.DB {
 	}
 
 	// Insert test data
-	_, _ = testDB.Exec("INSERT INTO commissions (id, title, status) VALUES ('MISSION-001', 'Test Mission', 'active')")
+	_, _ = testDB.Exec("INSERT INTO commissions (id, title, status) VALUES ('COMM-001', 'Test Mission', 'active')")
 
 	t.Cleanup(func() {
 		testDB.Close()
@@ -69,7 +69,7 @@ func TestInvestigationRepository_Create(t *testing.T) {
 
 	inv := &secondary.InvestigationRecord{
 		ID:           "INV-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Test Investigation",
 		Description:  "A test investigation description",
 	}
@@ -97,7 +97,7 @@ func TestInvestigationRepository_GetByID(t *testing.T) {
 	repo := sqlite.NewInvestigationRepository(db)
 	ctx := context.Background()
 
-	inv := createTestInvestigation(t, repo, ctx, "MISSION-001", "Test Investigation", "Description")
+	inv := createTestInvestigation(t, repo, ctx, "COMM-001", "Test Investigation", "Description")
 
 	retrieved, err := repo.GetByID(ctx, inv.ID)
 	if err != nil {
@@ -128,9 +128,9 @@ func TestInvestigationRepository_List(t *testing.T) {
 	repo := sqlite.NewInvestigationRepository(db)
 	ctx := context.Background()
 
-	createTestInvestigation(t, repo, ctx, "MISSION-001", "Investigation 1", "")
-	createTestInvestigation(t, repo, ctx, "MISSION-001", "Investigation 2", "")
-	createTestInvestigation(t, repo, ctx, "MISSION-001", "Investigation 3", "")
+	createTestInvestigation(t, repo, ctx, "COMM-001", "Investigation 1", "")
+	createTestInvestigation(t, repo, ctx, "COMM-001", "Investigation 2", "")
+	createTestInvestigation(t, repo, ctx, "COMM-001", "Investigation 3", "")
 
 	investigations, err := repo.List(ctx, secondary.InvestigationFilters{})
 	if err != nil {
@@ -148,18 +148,18 @@ func TestInvestigationRepository_List_FilterByMission(t *testing.T) {
 	ctx := context.Background()
 
 	// Add another mission
-	_, _ = db.Exec("INSERT INTO commissions (id, title, status) VALUES ('MISSION-002', 'Mission 2', 'active')")
+	_, _ = db.Exec("INSERT INTO commissions (id, title, status) VALUES ('COMM-002', 'Mission 2', 'active')")
 
-	createTestInvestigation(t, repo, ctx, "MISSION-001", "Investigation 1", "")
-	createTestInvestigation(t, repo, ctx, "MISSION-002", "Investigation 2", "")
+	createTestInvestigation(t, repo, ctx, "COMM-001", "Investigation 1", "")
+	createTestInvestigation(t, repo, ctx, "COMM-002", "Investigation 2", "")
 
-	investigations, err := repo.List(ctx, secondary.InvestigationFilters{CommissionID: "MISSION-001"})
+	investigations, err := repo.List(ctx, secondary.InvestigationFilters{CommissionID: "COMM-001"})
 	if err != nil {
 		t.Fatalf("List failed: %v", err)
 	}
 
 	if len(investigations) != 1 {
-		t.Errorf("expected 1 investigation for MISSION-001, got %d", len(investigations))
+		t.Errorf("expected 1 investigation for COMM-001, got %d", len(investigations))
 	}
 }
 
@@ -168,8 +168,8 @@ func TestInvestigationRepository_List_FilterByStatus(t *testing.T) {
 	repo := sqlite.NewInvestigationRepository(db)
 	ctx := context.Background()
 
-	inv1 := createTestInvestigation(t, repo, ctx, "MISSION-001", "Active Investigation", "")
-	createTestInvestigation(t, repo, ctx, "MISSION-001", "Another Active", "")
+	inv1 := createTestInvestigation(t, repo, ctx, "COMM-001", "Active Investigation", "")
+	createTestInvestigation(t, repo, ctx, "COMM-001", "Another Active", "")
 
 	// Complete inv1
 	_ = repo.UpdateStatus(ctx, inv1.ID, "complete", true)
@@ -189,7 +189,7 @@ func TestInvestigationRepository_Update(t *testing.T) {
 	repo := sqlite.NewInvestigationRepository(db)
 	ctx := context.Background()
 
-	inv := createTestInvestigation(t, repo, ctx, "MISSION-001", "Original Title", "")
+	inv := createTestInvestigation(t, repo, ctx, "COMM-001", "Original Title", "")
 
 	err := repo.Update(ctx, &secondary.InvestigationRecord{
 		ID:    inv.ID,
@@ -224,7 +224,7 @@ func TestInvestigationRepository_Delete(t *testing.T) {
 	repo := sqlite.NewInvestigationRepository(db)
 	ctx := context.Background()
 
-	inv := createTestInvestigation(t, repo, ctx, "MISSION-001", "To Delete", "")
+	inv := createTestInvestigation(t, repo, ctx, "COMM-001", "To Delete", "")
 
 	err := repo.Delete(ctx, inv.ID)
 	if err != nil {
@@ -253,7 +253,7 @@ func TestInvestigationRepository_Pin_Unpin(t *testing.T) {
 	repo := sqlite.NewInvestigationRepository(db)
 	ctx := context.Background()
 
-	inv := createTestInvestigation(t, repo, ctx, "MISSION-001", "Pin Test", "")
+	inv := createTestInvestigation(t, repo, ctx, "COMM-001", "Pin Test", "")
 
 	// Pin
 	err := repo.Pin(ctx, inv.ID)
@@ -302,7 +302,7 @@ func TestInvestigationRepository_GetNextID(t *testing.T) {
 		t.Errorf("expected INV-001, got %s", id)
 	}
 
-	createTestInvestigation(t, repo, ctx, "MISSION-001", "Test", "")
+	createTestInvestigation(t, repo, ctx, "COMM-001", "Test", "")
 
 	id, err = repo.GetNextID(ctx)
 	if err != nil {
@@ -318,7 +318,7 @@ func TestInvestigationRepository_UpdateStatus(t *testing.T) {
 	repo := sqlite.NewInvestigationRepository(db)
 	ctx := context.Background()
 
-	inv := createTestInvestigation(t, repo, ctx, "MISSION-001", "Status Test", "")
+	inv := createTestInvestigation(t, repo, ctx, "COMM-001", "Status Test", "")
 
 	// Update status without completed timestamp
 	err := repo.UpdateStatus(ctx, inv.ID, "in_progress", false)
@@ -365,7 +365,7 @@ func TestInvestigationRepository_AssignWorkbench(t *testing.T) {
 	repo := sqlite.NewInvestigationRepository(db)
 	ctx := context.Background()
 
-	inv := createTestInvestigation(t, repo, ctx, "MISSION-001", "Grove Test", "")
+	inv := createTestInvestigation(t, repo, ctx, "COMM-001", "Grove Test", "")
 
 	err := repo.AssignWorkbench(ctx, inv.ID, "GROVE-001")
 	if err != nil {
@@ -394,9 +394,9 @@ func TestInvestigationRepository_GetByWorkbench(t *testing.T) {
 	repo := sqlite.NewInvestigationRepository(db)
 	ctx := context.Background()
 
-	inv1 := createTestInvestigation(t, repo, ctx, "MISSION-001", "Investigation 1", "")
-	inv2 := createTestInvestigation(t, repo, ctx, "MISSION-001", "Investigation 2", "")
-	createTestInvestigation(t, repo, ctx, "MISSION-001", "Investigation 3 (unassigned)", "")
+	inv1 := createTestInvestigation(t, repo, ctx, "COMM-001", "Investigation 1", "")
+	inv2 := createTestInvestigation(t, repo, ctx, "COMM-001", "Investigation 2", "")
+	createTestInvestigation(t, repo, ctx, "COMM-001", "Investigation 3 (unassigned)", "")
 
 	_ = repo.AssignWorkbench(ctx, inv1.ID, "GROVE-001")
 	_ = repo.AssignWorkbench(ctx, inv2.ID, "GROVE-001")
@@ -416,7 +416,7 @@ func TestInvestigationRepository_CommissionExists(t *testing.T) {
 	repo := sqlite.NewInvestigationRepository(db)
 	ctx := context.Background()
 
-	exists, err := repo.CommissionExists(ctx, "MISSION-001")
+	exists, err := repo.CommissionExists(ctx, "COMM-001")
 	if err != nil {
 		t.Fatalf("CommissionExists failed: %v", err)
 	}

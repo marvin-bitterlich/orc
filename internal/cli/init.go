@@ -30,7 +30,7 @@ func InitCmd() *cobra.Command {
 			fmt.Println("Database initialized successfully")
 			fmt.Println()
 			fmt.Println("Next steps:")
-			fmt.Println("  orc expedition create \"My First Expedition\"")
+			fmt.Println("  orc commission create \"My First Commission\"")
 			fmt.Println("  orc status")
 
 			return nil

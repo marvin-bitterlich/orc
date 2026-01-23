@@ -34,7 +34,7 @@ var tomeCreateCmd = &cobra.Command{
 		if missionID == "" {
 			missionID = orccontext.GetContextCommissionID()
 			if missionID == "" {
-				return fmt.Errorf("no mission context detected\nHint: Use --commission flag or run from a workbench directory")
+				return fmt.Errorf("no commission context detected\nHint: Use --commission flag or run from a workbench directory")
 			}
 		}
 
@@ -126,7 +126,7 @@ var tomeShowCmd = &cobra.Command{
 			fmt.Printf("Description: %s\n", tome.Description)
 		}
 		fmt.Printf("Status: %s\n", tome.Status)
-		fmt.Printf("Mission: %s\n", tome.CommissionID)
+		fmt.Printf("Commission: %s\n", tome.CommissionID)
 		if tome.Pinned {
 			fmt.Printf("Pinned: yes\n")
 		}
@@ -299,7 +299,7 @@ func init() {
 	tomeCreateCmd.Flags().StringP("description", "d", "", "Tome description")
 
 	// tome list flags
-	tomeListCmd.Flags().StringP("commission", "c", "", "Filter by mission")
+	tomeListCmd.Flags().StringP("commission", "c", "", "Filter by commission")
 	tomeListCmd.Flags().StringP("status", "s", "", "Filter by status (open, closed)")
 
 	// tome update flags

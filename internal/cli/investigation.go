@@ -34,7 +34,7 @@ var investigationCreateCmd = &cobra.Command{
 		if missionID == "" {
 			missionID = orcctx.GetContextCommissionID()
 			if missionID == "" {
-				return fmt.Errorf("no mission context detected\nHint: Use --commission flag or run from a workbench directory")
+				return fmt.Errorf("no commission context detected\nHint: Use --commission flag or run from a workbench directory")
 			}
 		}
 
@@ -126,7 +126,7 @@ var investigationShowCmd = &cobra.Command{
 			fmt.Printf("Description: %s\n", investigation.Description)
 		}
 		fmt.Printf("Status: %s\n", investigation.Status)
-		fmt.Printf("Mission: %s\n", investigation.CommissionID)
+		fmt.Printf("Commission: %s\n", investigation.CommissionID)
 		if investigation.ConclaveID != "" {
 			fmt.Printf("Conclave: %s\n", investigation.ConclaveID)
 		}
@@ -307,7 +307,7 @@ func init() {
 	investigationCreateCmd.Flags().StringP("description", "d", "", "Investigation description")
 
 	// investigation list flags
-	investigationListCmd.Flags().StringP("commission", "c", "", "Filter by mission")
+	investigationListCmd.Flags().StringP("commission", "c", "", "Filter by commission")
 	investigationListCmd.Flags().String("conclave", "", "Filter by conclave")
 	investigationListCmd.Flags().StringP("status", "s", "", "Filter by status (active, complete)")
 

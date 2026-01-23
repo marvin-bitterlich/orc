@@ -91,9 +91,9 @@ var commissionStartCmd = &cobra.Command{
 This command:
 1. Creates a workspace directory for the commission
 2. Writes .orc/config.json for commission context detection
-3. Queries database for active groves
-4. Creates TMux session with ORC pane and grove panes
-5. Materializes git worktrees for groves if needed
+3. Queries database for active workbenches
+4. Creates TMux session with ORC pane and workbench panes
+5. Materializes git worktrees for workbenches if needed
 
 Examples:
   orc commission start COMM-001
@@ -222,7 +222,7 @@ var commissionDeleteCmd = &cobra.Command{
 	Short: "Delete a commission from the database",
 	Long: `Delete a commission and all associated data from the database.
 
-WARNING: This is a destructive operation. Associated shipments, tasks, and groves
+WARNING: This is a destructive operation. Associated shipments, tasks, and workbenches
 will lose their commission reference.
 
 Examples:
@@ -244,7 +244,7 @@ var commissionLaunchCmd = &cobra.Command{
 	Long: `Launch or update commission infrastructure using plan/apply pattern.
 
 This command:
-1. Reads desired state from database (commissions, shipments, groves)
+1. Reads desired state from database (commissions, shipments, workbenches)
 2. Analyzes current filesystem state
 3. Generates a plan of changes needed
 4. Shows plan and asks for confirmation
@@ -283,7 +283,7 @@ Examples:
 
 		state, err := orchSvc.LoadCommissionState(ctx, commissionID)
 		if err != nil {
-			return fmt.Errorf("comcommission not found in database: %w\nCreate it first: orc commission create", err)
+			return fmt.Errorf("commission not found in database: %w\nCreate it first: orc commission create", err)
 		}
 
 		// Phase 2: Generate infrastructure plan
@@ -360,7 +360,7 @@ func displayCommissionState(state *primary.CommissionState, workspacePath string
 	fmt.Printf("    Workspace: %s\n", workspacePath)
 	fmt.Printf("    Created: %s\n", state.Commission.CreatedAt)
 	fmt.Println()
-	fmt.Printf("  Groves in DB: %d\n", len(state.Groves))
+	fmt.Printf("  Workbenches in DB: %d\n", len(state.Groves))
 	for _, grove := range state.Groves {
 		fmt.Printf("    %s - %s\n", colorDim(grove.ID), grove.Name)
 		fmt.Printf("      Path: %s\n", grove.Path)
@@ -383,19 +383,19 @@ func displayInfrastructurePlan(plan *primary.InfrastructurePlan) {
 	}
 
 	if plan.CreateGrovesDir {
-		fmt.Printf("  %s groves directory: %s\n", colorCreate("CREATE"), plan.GrovesDir)
+		fmt.Printf("  %s workbenches directory: %s\n", colorCreate("CREATE"), plan.GrovesDir)
 	} else {
-		fmt.Printf("  %s groves directory: %s\n", colorExists("EXISTS"), plan.GrovesDir)
+		fmt.Printf("  %s workbenches directory: %s\n", colorExists("EXISTS"), plan.GrovesDir)
 	}
 
 	for _, action := range plan.GroveActions {
 		switch action.Action {
 		case "exists":
-			fmt.Printf("  %s grove %s: %s\n", colorExists("EXISTS"), action.GroveID, action.DesiredPath)
+			fmt.Printf("  %s workbench %s: %s\n", colorExists("EXISTS"), action.GroveID, action.DesiredPath)
 		case "move":
-			fmt.Printf("  MOVE grove %s: %s → %s\n", action.GroveID, action.CurrentPath, action.DesiredPath)
+			fmt.Printf("  MOVE workbench %s: %s → %s\n", action.GroveID, action.CurrentPath, action.DesiredPath)
 		case "missing":
-			fmt.Printf("  MISSING grove %s: %s (needs materialization)\n", action.GroveID, action.DesiredPath)
+			fmt.Printf("  MISSING workbench %s: %s (needs materialization)\n", action.GroveID, action.DesiredPath)
 		}
 		if action.UpdateDBPath && action.Action != "move" {
 			fmt.Printf("  UPDATE DB path for %s: %s → %s\n", action.GroveID, action.CurrentPath, action.DesiredPath)
@@ -424,13 +424,13 @@ func displayTmuxPlan(plan *primary.TmuxSessionPlan) {
 	for _, wp := range plan.WindowPlans {
 		switch wp.Action {
 		case "exists":
-			fmt.Printf("  %s window %d (%s): 3 panes, IMP running - Grove %s\n", colorExists("EXISTS"), wp.Index, wp.Name, wp.GroveID)
+			fmt.Printf("  %s window %d (%s): 3 panes, IMP running - Workbench %s\n", colorExists("EXISTS"), wp.Index, wp.Name, wp.GroveID)
 		case "create":
-			fmt.Printf("  %s window %d (%s): 3 panes in %s - Grove %s IMP\n", colorCreate("CREATE"), wp.Index, wp.Name, wp.GrovePath, wp.GroveID)
+			fmt.Printf("  %s window %d (%s): 3 panes in %s - Workbench %s IMP\n", colorCreate("CREATE"), wp.Index, wp.Name, wp.GrovePath, wp.GroveID)
 		case "update":
-			fmt.Printf("  %s window %d (%s): needs update - Grove %s\n", colorUpdate("UPDATE"), wp.Index, wp.Name, wp.GroveID)
+			fmt.Printf("  %s window %d (%s): needs update - Workbench %s\n", colorUpdate("UPDATE"), wp.Index, wp.Name, wp.GroveID)
 		case "skip":
-			fmt.Printf("  SKIP window %d (%s): grove path missing\n", wp.Index, wp.Name)
+			fmt.Printf("  SKIP window %d (%s): workbench path missing\n", wp.Index, wp.Name)
 		}
 	}
 	fmt.Println()
@@ -445,13 +445,13 @@ func displayInfrastructureResult(result *primary.InfrastructureApplyResult, comm
 	}
 
 	if result.GrovesDirCreated {
-		fmt.Println("✓ Groves directory created")
+		fmt.Println("✓ Workbenches directory created")
 	} else {
-		fmt.Println("✓ Groves directory ready")
+		fmt.Println("✓ Workbenches directory ready")
 	}
 
 	if result.GrovesProcessed > 0 {
-		fmt.Printf("✓ Processed %d groves\n", result.GrovesProcessed)
+		fmt.Printf("✓ Processed %d workbenches\n", result.GrovesProcessed)
 	}
 
 	if result.ConfigsWritten > 0 {
@@ -463,8 +463,8 @@ func displayInfrastructureResult(result *primary.InfrastructureApplyResult, comm
 	}
 
 	for _, grove := range result.GrovesNeedingWork {
-		fmt.Printf("  ℹ️  Grove %s worktree missing: %s\n", grove.GroveID, grove.DesiredPath)
-		fmt.Printf("      Materialize with: orc grove create %s --repos <repo> --commission %s\n", grove.GroveName, commissionID)
+		fmt.Printf("  ℹ️  Workbench %s worktree missing: %s\n", grove.GroveID, grove.DesiredPath)
+		fmt.Printf("      Materialize with: orc workbench create %s --repos <repo> --commission %s\n", grove.GroveName, commissionID)
 	}
 
 	for _, err := range result.Errors {
@@ -547,13 +547,13 @@ func applyTmuxSession(sessionName string, groves []*primary.Grove, grovesDir, wo
 					fmt.Printf("✓ Window %d: %s (IMP auto-booting) [%s]\n", windowIndex, grove.Name, grove.ID)
 				} else {
 					if err := tmuxAdapter.CreateGroveWindowShell(ctx, sessionName, windowIndex, grove.Name, grovePath); err != nil {
-						fmt.Printf("  ⚠️  Could not create window for grove %s: %v\n", grove.ID, err)
+						fmt.Printf("  ⚠️  Could not create window for workbench %s: %v\n", grove.ID, err)
 						continue
 					}
 					fmt.Printf("✓ Window %d: %s (IMP auto-booting) [%s]\n", windowIndex, grove.Name, grove.ID)
 				}
 			} else {
-				fmt.Printf("  ℹ️  Grove %s worktree missing, skipping window\n", grove.ID)
+				fmt.Printf("  ℹ️  Workbench %s worktree missing, skipping window\n", grove.ID)
 			}
 		}
 

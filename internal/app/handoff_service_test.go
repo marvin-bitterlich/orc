@@ -104,7 +104,7 @@ func TestCreateHandoff_Success(t *testing.T) {
 
 	resp, err := service.CreateHandoff(ctx, primary.CreateHandoffRequest{
 		HandoffNote:        "Session completed. Main task was fixing authentication bug.",
-		ActiveCommissionID: "MISSION-001",
+		ActiveCommissionID: "COMM-001",
 		ActiveWorkbenchID:  "GROVE-001",
 		TodosSnapshot:      "- Fix auth bug [DONE]\n- Update docs [IN PROGRESS]",
 	})
@@ -118,8 +118,8 @@ func TestCreateHandoff_Success(t *testing.T) {
 	if resp.Handoff.HandoffNote != "Session completed. Main task was fixing authentication bug." {
 		t.Errorf("unexpected handoff note: %s", resp.Handoff.HandoffNote)
 	}
-	if resp.Handoff.ActiveCommissionID != "MISSION-001" {
-		t.Errorf("expected active mission ID 'MISSION-001', got '%s'", resp.Handoff.ActiveCommissionID)
+	if resp.Handoff.ActiveCommissionID != "COMM-001" {
+		t.Errorf("expected active mission ID 'COMM-001', got '%s'", resp.Handoff.ActiveCommissionID)
 	}
 }
 
@@ -150,7 +150,7 @@ func TestGetHandoff_Found(t *testing.T) {
 	handoffRepo.handoffs["HANDOFF-001"] = &secondary.HandoffRecord{
 		ID:                 "HANDOFF-001",
 		HandoffNote:        "Test handoff",
-		ActiveCommissionID: "MISSION-001",
+		ActiveCommissionID: "COMM-001",
 		CreatedAt:          "2026-01-20T10:00:00Z",
 	}
 

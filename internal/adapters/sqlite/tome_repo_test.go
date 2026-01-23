@@ -29,7 +29,7 @@ func setupTomeTestDB(t *testing.T) *sql.DB {
 	}
 
 	// Insert test data
-	_, _ = testDB.Exec("INSERT INTO commissions (id, title, status) VALUES ('MISSION-001', 'Test Mission', 'active')")
+	_, _ = testDB.Exec("INSERT INTO commissions (id, title, status) VALUES ('COMM-001', 'Test Mission', 'active')")
 
 	t.Cleanup(func() {
 		testDB.Close()
@@ -69,7 +69,7 @@ func TestTomeRepository_Create(t *testing.T) {
 
 	tome := &secondary.TomeRecord{
 		ID:           "TOME-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Test Tome",
 		Description:  "A test tome description",
 	}
@@ -97,7 +97,7 @@ func TestTomeRepository_GetByID(t *testing.T) {
 	repo := sqlite.NewTomeRepository(db)
 	ctx := context.Background()
 
-	tome := createTestTome(t, repo, ctx, "MISSION-001", "Test Tome", "Description")
+	tome := createTestTome(t, repo, ctx, "COMM-001", "Test Tome", "Description")
 
 	retrieved, err := repo.GetByID(ctx, tome.ID)
 	if err != nil {
@@ -128,9 +128,9 @@ func TestTomeRepository_List(t *testing.T) {
 	repo := sqlite.NewTomeRepository(db)
 	ctx := context.Background()
 
-	createTestTome(t, repo, ctx, "MISSION-001", "Tome 1", "")
-	createTestTome(t, repo, ctx, "MISSION-001", "Tome 2", "")
-	createTestTome(t, repo, ctx, "MISSION-001", "Tome 3", "")
+	createTestTome(t, repo, ctx, "COMM-001", "Tome 1", "")
+	createTestTome(t, repo, ctx, "COMM-001", "Tome 2", "")
+	createTestTome(t, repo, ctx, "COMM-001", "Tome 3", "")
 
 	tomes, err := repo.List(ctx, secondary.TomeFilters{})
 	if err != nil {
@@ -148,18 +148,18 @@ func TestTomeRepository_List_FilterByMission(t *testing.T) {
 	ctx := context.Background()
 
 	// Add another mission
-	_, _ = db.Exec("INSERT INTO commissions (id, title, status) VALUES ('MISSION-002', 'Mission 2', 'active')")
+	_, _ = db.Exec("INSERT INTO commissions (id, title, status) VALUES ('COMM-002', 'Mission 2', 'active')")
 
-	createTestTome(t, repo, ctx, "MISSION-001", "Tome 1", "")
-	createTestTome(t, repo, ctx, "MISSION-002", "Tome 2", "")
+	createTestTome(t, repo, ctx, "COMM-001", "Tome 1", "")
+	createTestTome(t, repo, ctx, "COMM-002", "Tome 2", "")
 
-	tomes, err := repo.List(ctx, secondary.TomeFilters{CommissionID: "MISSION-001"})
+	tomes, err := repo.List(ctx, secondary.TomeFilters{CommissionID: "COMM-001"})
 	if err != nil {
 		t.Fatalf("List failed: %v", err)
 	}
 
 	if len(tomes) != 1 {
-		t.Errorf("expected 1 tome for MISSION-001, got %d", len(tomes))
+		t.Errorf("expected 1 tome for COMM-001, got %d", len(tomes))
 	}
 }
 
@@ -168,8 +168,8 @@ func TestTomeRepository_List_FilterByStatus(t *testing.T) {
 	repo := sqlite.NewTomeRepository(db)
 	ctx := context.Background()
 
-	t1 := createTestTome(t, repo, ctx, "MISSION-001", "Active Tome", "")
-	createTestTome(t, repo, ctx, "MISSION-001", "Another Active", "")
+	t1 := createTestTome(t, repo, ctx, "COMM-001", "Active Tome", "")
+	createTestTome(t, repo, ctx, "COMM-001", "Another Active", "")
 
 	// Complete t1
 	_ = repo.UpdateStatus(ctx, t1.ID, "closed", true)
@@ -189,7 +189,7 @@ func TestTomeRepository_Update(t *testing.T) {
 	repo := sqlite.NewTomeRepository(db)
 	ctx := context.Background()
 
-	tome := createTestTome(t, repo, ctx, "MISSION-001", "Original Title", "")
+	tome := createTestTome(t, repo, ctx, "COMM-001", "Original Title", "")
 
 	err := repo.Update(ctx, &secondary.TomeRecord{
 		ID:    tome.ID,
@@ -224,7 +224,7 @@ func TestTomeRepository_Delete(t *testing.T) {
 	repo := sqlite.NewTomeRepository(db)
 	ctx := context.Background()
 
-	tome := createTestTome(t, repo, ctx, "MISSION-001", "To Delete", "")
+	tome := createTestTome(t, repo, ctx, "COMM-001", "To Delete", "")
 
 	err := repo.Delete(ctx, tome.ID)
 	if err != nil {
@@ -253,7 +253,7 @@ func TestTomeRepository_Pin_Unpin(t *testing.T) {
 	repo := sqlite.NewTomeRepository(db)
 	ctx := context.Background()
 
-	tome := createTestTome(t, repo, ctx, "MISSION-001", "Pin Test", "")
+	tome := createTestTome(t, repo, ctx, "COMM-001", "Pin Test", "")
 
 	// Pin
 	err := repo.Pin(ctx, tome.ID)
@@ -302,7 +302,7 @@ func TestTomeRepository_GetNextID(t *testing.T) {
 		t.Errorf("expected TOME-001, got %s", id)
 	}
 
-	createTestTome(t, repo, ctx, "MISSION-001", "Test", "")
+	createTestTome(t, repo, ctx, "COMM-001", "Test", "")
 
 	id, err = repo.GetNextID(ctx)
 	if err != nil {
@@ -318,7 +318,7 @@ func TestTomeRepository_UpdateStatus(t *testing.T) {
 	repo := sqlite.NewTomeRepository(db)
 	ctx := context.Background()
 
-	tome := createTestTome(t, repo, ctx, "MISSION-001", "Status Test", "")
+	tome := createTestTome(t, repo, ctx, "COMM-001", "Status Test", "")
 
 	// Verify initial status is open
 	retrieved, _ := repo.GetByID(ctx, tome.ID)
@@ -360,7 +360,7 @@ func TestTomeRepository_AssignWorkbench(t *testing.T) {
 	repo := sqlite.NewTomeRepository(db)
 	ctx := context.Background()
 
-	tome := createTestTome(t, repo, ctx, "MISSION-001", "Grove Test", "")
+	tome := createTestTome(t, repo, ctx, "COMM-001", "Grove Test", "")
 
 	err := repo.AssignWorkbench(ctx, tome.ID, "GROVE-001")
 	if err != nil {
@@ -389,9 +389,9 @@ func TestTomeRepository_GetByWorkbench(t *testing.T) {
 	repo := sqlite.NewTomeRepository(db)
 	ctx := context.Background()
 
-	t1 := createTestTome(t, repo, ctx, "MISSION-001", "Tome 1", "")
-	t2 := createTestTome(t, repo, ctx, "MISSION-001", "Tome 2", "")
-	createTestTome(t, repo, ctx, "MISSION-001", "Tome 3 (unassigned)", "")
+	t1 := createTestTome(t, repo, ctx, "COMM-001", "Tome 1", "")
+	t2 := createTestTome(t, repo, ctx, "COMM-001", "Tome 2", "")
+	createTestTome(t, repo, ctx, "COMM-001", "Tome 3 (unassigned)", "")
 
 	_ = repo.AssignWorkbench(ctx, t1.ID, "GROVE-001")
 	_ = repo.AssignWorkbench(ctx, t2.ID, "GROVE-001")
@@ -411,7 +411,7 @@ func TestTomeRepository_CommissionExists(t *testing.T) {
 	repo := sqlite.NewTomeRepository(db)
 	ctx := context.Background()
 
-	exists, err := repo.CommissionExists(ctx, "MISSION-001")
+	exists, err := repo.CommissionExists(ctx, "COMM-001")
 	if err != nil {
 		t.Fatalf("CommissionExists failed: %v", err)
 	}
@@ -434,11 +434,11 @@ func TestTomeRepository_CreateWithConclaveID(t *testing.T) {
 	ctx := context.Background()
 
 	// Create a conclave first
-	_, _ = testDB.Exec("INSERT INTO conclaves (id, commission_id, title, status) VALUES ('CON-001', 'MISSION-001', 'Test Conclave', 'open')")
+	_, _ = testDB.Exec("INSERT INTO conclaves (id, commission_id, title, status) VALUES ('CON-001', 'COMM-001', 'Test Conclave', 'open')")
 
 	tome := &secondary.TomeRecord{
 		ID:           "TOME-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		ConclaveID:   "CON-001",
 		Title:        "Tome with Conclave",
 		Description:  "A test tome with parent conclave",
@@ -465,14 +465,14 @@ func TestTomeRepository_GetByConclave(t *testing.T) {
 	ctx := context.Background()
 
 	// Create conclaves
-	_, _ = testDB.Exec("INSERT INTO conclaves (id, commission_id, title, status) VALUES ('CON-001', 'MISSION-001', 'Conclave 1', 'open')")
-	_, _ = testDB.Exec("INSERT INTO conclaves (id, commission_id, title, status) VALUES ('CON-002', 'MISSION-001', 'Conclave 2', 'open')")
+	_, _ = testDB.Exec("INSERT INTO conclaves (id, commission_id, title, status) VALUES ('CON-001', 'COMM-001', 'Conclave 1', 'open')")
+	_, _ = testDB.Exec("INSERT INTO conclaves (id, commission_id, title, status) VALUES ('CON-002', 'COMM-001', 'Conclave 2', 'open')")
 
 	// Create tomes: 2 for CON-001, 1 for CON-002, 1 without conclave
-	_ = repo.Create(ctx, &secondary.TomeRecord{ID: "TOME-001", CommissionID: "MISSION-001", ConclaveID: "CON-001", Title: "Tome 1"})
-	_ = repo.Create(ctx, &secondary.TomeRecord{ID: "TOME-002", CommissionID: "MISSION-001", ConclaveID: "CON-001", Title: "Tome 2"})
-	_ = repo.Create(ctx, &secondary.TomeRecord{ID: "TOME-003", CommissionID: "MISSION-001", ConclaveID: "CON-002", Title: "Tome 3"})
-	_ = repo.Create(ctx, &secondary.TomeRecord{ID: "TOME-004", CommissionID: "MISSION-001", Title: "Tome 4 (no conclave)"})
+	_ = repo.Create(ctx, &secondary.TomeRecord{ID: "TOME-001", CommissionID: "COMM-001", ConclaveID: "CON-001", Title: "Tome 1"})
+	_ = repo.Create(ctx, &secondary.TomeRecord{ID: "TOME-002", CommissionID: "COMM-001", ConclaveID: "CON-001", Title: "Tome 2"})
+	_ = repo.Create(ctx, &secondary.TomeRecord{ID: "TOME-003", CommissionID: "COMM-001", ConclaveID: "CON-002", Title: "Tome 3"})
+	_ = repo.Create(ctx, &secondary.TomeRecord{ID: "TOME-004", CommissionID: "COMM-001", Title: "Tome 4 (no conclave)"})
 
 	// Get tomes for CON-001
 	tomes, err := repo.GetByConclave(ctx, "CON-001")
@@ -506,12 +506,12 @@ func TestTomeRepository_List_FilterByConclaveID(t *testing.T) {
 	ctx := context.Background()
 
 	// Create a conclave
-	_, _ = testDB.Exec("INSERT INTO conclaves (id, commission_id, title, status) VALUES ('CON-001', 'MISSION-001', 'Test Conclave', 'open')")
+	_, _ = testDB.Exec("INSERT INTO conclaves (id, commission_id, title, status) VALUES ('CON-001', 'COMM-001', 'Test Conclave', 'open')")
 
 	// Create tomes: 2 with conclave, 1 without
-	_ = repo.Create(ctx, &secondary.TomeRecord{ID: "TOME-001", CommissionID: "MISSION-001", ConclaveID: "CON-001", Title: "Tome 1"})
-	_ = repo.Create(ctx, &secondary.TomeRecord{ID: "TOME-002", CommissionID: "MISSION-001", ConclaveID: "CON-001", Title: "Tome 2"})
-	_ = repo.Create(ctx, &secondary.TomeRecord{ID: "TOME-003", CommissionID: "MISSION-001", Title: "Tome 3 (no conclave)"})
+	_ = repo.Create(ctx, &secondary.TomeRecord{ID: "TOME-001", CommissionID: "COMM-001", ConclaveID: "CON-001", Title: "Tome 1"})
+	_ = repo.Create(ctx, &secondary.TomeRecord{ID: "TOME-002", CommissionID: "COMM-001", ConclaveID: "CON-001", Title: "Tome 2"})
+	_ = repo.Create(ctx, &secondary.TomeRecord{ID: "TOME-003", CommissionID: "COMM-001", Title: "Tome 3 (no conclave)"})
 
 	// Filter by conclave
 	tomes, err := repo.List(ctx, secondary.TomeFilters{ConclaveID: "CON-001"})

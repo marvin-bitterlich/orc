@@ -12,7 +12,7 @@ func TestCanCreateConclave(t *testing.T) {
 		{
 			name: "can create conclave when mission exists",
 			ctx: CreateConclaveContext{
-				CommissionID:     "MISSION-001",
+				CommissionID:     "COMM-001",
 				CommissionExists: true,
 			},
 			wantAllowed: true,

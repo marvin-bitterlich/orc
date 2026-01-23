@@ -29,8 +29,8 @@ func setupConclaveTestDB(t *testing.T) *sql.DB {
 	}
 
 	// Insert test data
-	_, _ = testDB.Exec("INSERT INTO commissions (id, title, status) VALUES ('MISSION-001', 'Test Mission', 'active')")
-	_, _ = testDB.Exec("INSERT INTO shipments (id, commission_id, title, status) VALUES ('SHIP-001', 'MISSION-001', 'Test Shipment', 'active')")
+	_, _ = testDB.Exec("INSERT INTO commissions (id, title, status) VALUES ('COMM-001', 'Test Mission', 'active')")
+	_, _ = testDB.Exec("INSERT INTO shipments (id, commission_id, title, status) VALUES ('SHIP-001', 'COMM-001', 'Test Shipment', 'active')")
 
 	t.Cleanup(func() {
 		testDB.Close()
@@ -70,7 +70,7 @@ func TestConclaveRepository_Create(t *testing.T) {
 
 	conclave := &secondary.ConclaveRecord{
 		ID:           "CON-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Test Conclave",
 		Description:  "A test conclave description",
 	}
@@ -98,7 +98,7 @@ func TestConclaveRepository_GetByID(t *testing.T) {
 	repo := sqlite.NewConclaveRepository(db)
 	ctx := context.Background()
 
-	conclave := createTestConclave(t, repo, ctx, "MISSION-001", "Test Conclave", "Description")
+	conclave := createTestConclave(t, repo, ctx, "COMM-001", "Test Conclave", "Description")
 
 	retrieved, err := repo.GetByID(ctx, conclave.ID)
 	if err != nil {
@@ -129,9 +129,9 @@ func TestConclaveRepository_List(t *testing.T) {
 	repo := sqlite.NewConclaveRepository(db)
 	ctx := context.Background()
 
-	createTestConclave(t, repo, ctx, "MISSION-001", "Conclave 1", "")
-	createTestConclave(t, repo, ctx, "MISSION-001", "Conclave 2", "")
-	createTestConclave(t, repo, ctx, "MISSION-001", "Conclave 3", "")
+	createTestConclave(t, repo, ctx, "COMM-001", "Conclave 1", "")
+	createTestConclave(t, repo, ctx, "COMM-001", "Conclave 2", "")
+	createTestConclave(t, repo, ctx, "COMM-001", "Conclave 3", "")
 
 	conclaves, err := repo.List(ctx, secondary.ConclaveFilters{})
 	if err != nil {
@@ -149,18 +149,18 @@ func TestConclaveRepository_List_FilterByMission(t *testing.T) {
 	ctx := context.Background()
 
 	// Add another mission
-	_, _ = db.Exec("INSERT INTO commissions (id, title, status) VALUES ('MISSION-002', 'Mission 2', 'active')")
+	_, _ = db.Exec("INSERT INTO commissions (id, title, status) VALUES ('COMM-002', 'Mission 2', 'active')")
 
-	createTestConclave(t, repo, ctx, "MISSION-001", "Conclave 1", "")
-	createTestConclave(t, repo, ctx, "MISSION-002", "Conclave 2", "")
+	createTestConclave(t, repo, ctx, "COMM-001", "Conclave 1", "")
+	createTestConclave(t, repo, ctx, "COMM-002", "Conclave 2", "")
 
-	conclaves, err := repo.List(ctx, secondary.ConclaveFilters{CommissionID: "MISSION-001"})
+	conclaves, err := repo.List(ctx, secondary.ConclaveFilters{CommissionID: "COMM-001"})
 	if err != nil {
 		t.Fatalf("List failed: %v", err)
 	}
 
 	if len(conclaves) != 1 {
-		t.Errorf("expected 1 conclave for MISSION-001, got %d", len(conclaves))
+		t.Errorf("expected 1 conclave for COMM-001, got %d", len(conclaves))
 	}
 }
 
@@ -169,8 +169,8 @@ func TestConclaveRepository_List_FilterByStatus(t *testing.T) {
 	repo := sqlite.NewConclaveRepository(db)
 	ctx := context.Background()
 
-	c1 := createTestConclave(t, repo, ctx, "MISSION-001", "Active Conclave", "")
-	createTestConclave(t, repo, ctx, "MISSION-001", "Another Active", "")
+	c1 := createTestConclave(t, repo, ctx, "COMM-001", "Active Conclave", "")
+	createTestConclave(t, repo, ctx, "COMM-001", "Another Active", "")
 
 	// Close c1 (conclave statuses are: open, paused, closed)
 	_ = repo.UpdateStatus(ctx, c1.ID, "closed", true)
@@ -190,7 +190,7 @@ func TestConclaveRepository_Update(t *testing.T) {
 	repo := sqlite.NewConclaveRepository(db)
 	ctx := context.Background()
 
-	conclave := createTestConclave(t, repo, ctx, "MISSION-001", "Original Title", "")
+	conclave := createTestConclave(t, repo, ctx, "COMM-001", "Original Title", "")
 
 	err := repo.Update(ctx, &secondary.ConclaveRecord{
 		ID:    conclave.ID,
@@ -225,7 +225,7 @@ func TestConclaveRepository_Delete(t *testing.T) {
 	repo := sqlite.NewConclaveRepository(db)
 	ctx := context.Background()
 
-	conclave := createTestConclave(t, repo, ctx, "MISSION-001", "To Delete", "")
+	conclave := createTestConclave(t, repo, ctx, "COMM-001", "To Delete", "")
 
 	err := repo.Delete(ctx, conclave.ID)
 	if err != nil {
@@ -254,7 +254,7 @@ func TestConclaveRepository_Pin_Unpin(t *testing.T) {
 	repo := sqlite.NewConclaveRepository(db)
 	ctx := context.Background()
 
-	conclave := createTestConclave(t, repo, ctx, "MISSION-001", "Pin Test", "")
+	conclave := createTestConclave(t, repo, ctx, "COMM-001", "Pin Test", "")
 
 	// Pin
 	err := repo.Pin(ctx, conclave.ID)
@@ -303,7 +303,7 @@ func TestConclaveRepository_GetNextID(t *testing.T) {
 		t.Errorf("expected CON-001, got %s", id)
 	}
 
-	createTestConclave(t, repo, ctx, "MISSION-001", "Test", "")
+	createTestConclave(t, repo, ctx, "COMM-001", "Test", "")
 
 	id, err = repo.GetNextID(ctx)
 	if err != nil {
@@ -319,7 +319,7 @@ func TestConclaveRepository_UpdateStatus(t *testing.T) {
 	repo := sqlite.NewConclaveRepository(db)
 	ctx := context.Background()
 
-	conclave := createTestConclave(t, repo, ctx, "MISSION-001", "Status Test", "")
+	conclave := createTestConclave(t, repo, ctx, "COMM-001", "Status Test", "")
 
 	// Update status without completed timestamp
 	err := repo.UpdateStatus(ctx, conclave.ID, "paused", false)
@@ -368,7 +368,7 @@ func TestConclaveRepository_CommissionExists(t *testing.T) {
 	repo := sqlite.NewConclaveRepository(db)
 	ctx := context.Background()
 
-	exists, err := repo.CommissionExists(ctx, "MISSION-001")
+	exists, err := repo.CommissionExists(ctx, "COMM-001")
 	if err != nil {
 		t.Fatalf("CommissionExists failed: %v", err)
 	}
@@ -392,15 +392,15 @@ func TestConclaveRepository_GetTasksByConclave(t *testing.T) {
 	repo := sqlite.NewConclaveRepository(db)
 	ctx := context.Background()
 
-	conclave := createTestConclave(t, repo, ctx, "MISSION-001", "Conclave with Tasks", "")
+	conclave := createTestConclave(t, repo, ctx, "COMM-001", "Conclave with Tasks", "")
 
 	// Link conclave to shipment SHIP-001
 	_, _ = db.Exec("UPDATE conclaves SET shipment_id = 'SHIP-001' WHERE id = ?", conclave.ID)
 
 	// Insert tasks for the shipment (tasks link to shipments, not conclaves directly)
-	_, _ = db.Exec(`INSERT INTO tasks (id, shipment_id, commission_id, title, status) VALUES ('TASK-001', 'SHIP-001', 'MISSION-001', 'Task 1', 'ready')`)
-	_, _ = db.Exec(`INSERT INTO tasks (id, shipment_id, commission_id, title, status) VALUES ('TASK-002', 'SHIP-001', 'MISSION-001', 'Task 2', 'ready')`)
-	_, _ = db.Exec(`INSERT INTO tasks (id, commission_id, title, status) VALUES ('TASK-003', 'MISSION-001', 'Task 3 (no shipment)', 'ready')`)
+	_, _ = db.Exec(`INSERT INTO tasks (id, shipment_id, commission_id, title, status) VALUES ('TASK-001', 'SHIP-001', 'COMM-001', 'Task 1', 'ready')`)
+	_, _ = db.Exec(`INSERT INTO tasks (id, shipment_id, commission_id, title, status) VALUES ('TASK-002', 'SHIP-001', 'COMM-001', 'Task 2', 'ready')`)
+	_, _ = db.Exec(`INSERT INTO tasks (id, commission_id, title, status) VALUES ('TASK-003', 'COMM-001', 'Task 3 (no shipment)', 'ready')`)
 
 	tasks, err := repo.GetTasksByConclave(ctx, conclave.ID)
 	if err != nil {
@@ -422,15 +422,15 @@ func TestConclaveRepository_GetPlansByConclave(t *testing.T) {
 	repo := sqlite.NewConclaveRepository(db)
 	ctx := context.Background()
 
-	conclave := createTestConclave(t, repo, ctx, "MISSION-001", "Conclave with Plans", "")
+	conclave := createTestConclave(t, repo, ctx, "COMM-001", "Conclave with Plans", "")
 
 	// Link conclave to shipment SHIP-001
 	_, _ = db.Exec("UPDATE conclaves SET shipment_id = 'SHIP-001' WHERE id = ?", conclave.ID)
 
 	// Insert plans for the shipment (plans link to shipments, not conclaves directly)
-	_, _ = db.Exec(`INSERT INTO plans (id, shipment_id, commission_id, title, status) VALUES ('PLAN-001', 'SHIP-001', 'MISSION-001', 'Plan 1', 'draft')`)
-	_, _ = db.Exec(`INSERT INTO plans (id, shipment_id, commission_id, title, status) VALUES ('PLAN-002', 'SHIP-001', 'MISSION-001', 'Plan 2', 'draft')`)
-	_, _ = db.Exec(`INSERT INTO plans (id, commission_id, title, status) VALUES ('PLAN-003', 'MISSION-001', 'Plan 3 (no shipment)', 'draft')`)
+	_, _ = db.Exec(`INSERT INTO plans (id, shipment_id, commission_id, title, status) VALUES ('PLAN-001', 'SHIP-001', 'COMM-001', 'Plan 1', 'draft')`)
+	_, _ = db.Exec(`INSERT INTO plans (id, shipment_id, commission_id, title, status) VALUES ('PLAN-002', 'SHIP-001', 'COMM-001', 'Plan 2', 'draft')`)
+	_, _ = db.Exec(`INSERT INTO plans (id, commission_id, title, status) VALUES ('PLAN-003', 'COMM-001', 'Plan 3 (no shipment)', 'draft')`)
 
 	plans, err := repo.GetPlansByConclave(ctx, conclave.ID)
 	if err != nil {

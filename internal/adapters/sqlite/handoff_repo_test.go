@@ -68,7 +68,7 @@ func TestHandoffRepository_Create(t *testing.T) {
 	handoff := &secondary.HandoffRecord{
 		ID:                 "HO-001",
 		HandoffNote:        "Session complete. Next steps: review plan.",
-		ActiveCommissionID: "MISSION-001",
+		ActiveCommissionID: "COMM-001",
 		ActiveWorkbenchID:  "WB-001",
 		TodosSnapshot:      "[]",
 	}
@@ -86,8 +86,8 @@ func TestHandoffRepository_Create(t *testing.T) {
 	if retrieved.HandoffNote != "Session complete. Next steps: review plan." {
 		t.Errorf("expected correct handoff note, got '%s'", retrieved.HandoffNote)
 	}
-	if retrieved.ActiveCommissionID != "MISSION-001" {
-		t.Errorf("expected mission 'MISSION-001', got '%s'", retrieved.ActiveCommissionID)
+	if retrieved.ActiveCommissionID != "COMM-001" {
+		t.Errorf("expected mission 'COMM-001', got '%s'", retrieved.ActiveCommissionID)
 	}
 	if retrieved.ActiveWorkbenchID != "WB-001" {
 		t.Errorf("expected workbench 'WB-001', got '%s'", retrieved.ActiveWorkbenchID)
@@ -123,7 +123,7 @@ func TestHandoffRepository_GetByID(t *testing.T) {
 	repo := sqlite.NewHandoffRepository(db)
 	ctx := context.Background()
 
-	handoff := createTestHandoff(t, repo, ctx, "Test note", "MISSION-001", "WB-001", "[]")
+	handoff := createTestHandoff(t, repo, ctx, "Test note", "COMM-001", "WB-001", "[]")
 
 	retrieved, err := repo.GetByID(ctx, handoff.ID)
 	if err != nil {
@@ -157,7 +157,7 @@ func TestHandoffRepository_GetLatest(t *testing.T) {
 	// Create handoffs with explicit timestamps to ensure ordering
 	_, _ = db.Exec(`INSERT INTO handoffs (id, handoff_note, created_at) VALUES ('HO-001', 'First handoff', '2024-01-01 10:00:00')`)
 	_, _ = db.Exec(`INSERT INTO handoffs (id, handoff_note, created_at) VALUES ('HO-002', 'Second handoff', '2024-01-01 11:00:00')`)
-	_, _ = db.Exec(`INSERT INTO handoffs (id, handoff_note, active_commission_id, created_at) VALUES ('HO-003', 'Latest handoff', 'MISSION-001', '2024-01-01 12:00:00')`)
+	_, _ = db.Exec(`INSERT INTO handoffs (id, handoff_note, active_commission_id, created_at) VALUES ('HO-003', 'Latest handoff', 'COMM-001', '2024-01-01 12:00:00')`)
 
 	latest, err := repo.GetLatest(ctx)
 	if err != nil {

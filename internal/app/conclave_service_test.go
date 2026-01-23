@@ -156,7 +156,7 @@ func TestCreateConclave_Success(t *testing.T) {
 	ctx := context.Background()
 
 	resp, err := service.CreateConclave(ctx, primary.CreateConclaveRequest{
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Test Conclave",
 		Description:  "A test conclave",
 	})
@@ -182,7 +182,7 @@ func TestCreateConclave_MissionNotFound(t *testing.T) {
 	conclaveRepo.missionExistsResult = false
 
 	_, err := service.CreateConclave(ctx, primary.CreateConclaveRequest{
-		CommissionID: "MISSION-NONEXISTENT",
+		CommissionID: "COMM-NONEXISTENT",
 		Title:        "Test Conclave",
 		Description:  "A test conclave",
 	})
@@ -202,7 +202,7 @@ func TestGetConclave_Found(t *testing.T) {
 
 	conclaveRepo.conclaves["CON-001"] = &secondary.ConclaveRecord{
 		ID:           "CON-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Test Conclave",
 		Status:       "open",
 	}
@@ -238,18 +238,18 @@ func TestListConclaves_FilterByMission(t *testing.T) {
 
 	conclaveRepo.conclaves["CON-001"] = &secondary.ConclaveRecord{
 		ID:           "CON-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Conclave 1",
 		Status:       "open",
 	}
 	conclaveRepo.conclaves["CON-002"] = &secondary.ConclaveRecord{
 		ID:           "CON-002",
-		CommissionID: "MISSION-002",
+		CommissionID: "COMM-002",
 		Title:        "Conclave 2",
 		Status:       "open",
 	}
 
-	conclaves, err := service.ListConclaves(ctx, primary.ConclaveFilters{CommissionID: "MISSION-001"})
+	conclaves, err := service.ListConclaves(ctx, primary.ConclaveFilters{CommissionID: "COMM-001"})
 
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -265,13 +265,13 @@ func TestListConclaves_FilterByStatus(t *testing.T) {
 
 	conclaveRepo.conclaves["CON-001"] = &secondary.ConclaveRecord{
 		ID:           "CON-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Active Conclave",
 		Status:       "open",
 	}
 	conclaveRepo.conclaves["CON-002"] = &secondary.ConclaveRecord{
 		ID:           "CON-002",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Paused Conclave",
 		Status:       "paused",
 	}
@@ -296,7 +296,7 @@ func TestCompleteConclave_UnpinnedAllowed(t *testing.T) {
 
 	conclaveRepo.conclaves["CON-001"] = &secondary.ConclaveRecord{
 		ID:           "CON-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Test Conclave",
 		Status:       "open",
 		Pinned:       false,
@@ -318,7 +318,7 @@ func TestCompleteConclave_PinnedBlocked(t *testing.T) {
 
 	conclaveRepo.conclaves["CON-001"] = &secondary.ConclaveRecord{
 		ID:           "CON-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Pinned Conclave",
 		Status:       "open",
 		Pinned:       true,
@@ -352,7 +352,7 @@ func TestPauseConclave_ActiveAllowed(t *testing.T) {
 
 	conclaveRepo.conclaves["CON-001"] = &secondary.ConclaveRecord{
 		ID:           "CON-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Active Conclave",
 		Status:       "open",
 	}
@@ -373,7 +373,7 @@ func TestPauseConclave_NotActiveBlocked(t *testing.T) {
 
 	conclaveRepo.conclaves["CON-001"] = &secondary.ConclaveRecord{
 		ID:           "CON-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Paused Conclave",
 		Status:       "paused",
 	}
@@ -391,7 +391,7 @@ func TestPauseConclave_CompleteBlocked(t *testing.T) {
 
 	conclaveRepo.conclaves["CON-001"] = &secondary.ConclaveRecord{
 		ID:           "CON-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Complete Conclave",
 		Status:       "closed",
 	}
@@ -413,7 +413,7 @@ func TestResumeConclave_PausedAllowed(t *testing.T) {
 
 	conclaveRepo.conclaves["CON-001"] = &secondary.ConclaveRecord{
 		ID:           "CON-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Paused Conclave",
 		Status:       "paused",
 	}
@@ -434,7 +434,7 @@ func TestResumeConclave_NotPausedBlocked(t *testing.T) {
 
 	conclaveRepo.conclaves["CON-001"] = &secondary.ConclaveRecord{
 		ID:           "CON-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Active Conclave",
 		Status:       "open",
 	}
@@ -456,7 +456,7 @@ func TestPinConclave(t *testing.T) {
 
 	conclaveRepo.conclaves["CON-001"] = &secondary.ConclaveRecord{
 		ID:           "CON-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Test Conclave",
 		Status:       "open",
 		Pinned:       false,
@@ -478,7 +478,7 @@ func TestUnpinConclave(t *testing.T) {
 
 	conclaveRepo.conclaves["CON-001"] = &secondary.ConclaveRecord{
 		ID:           "CON-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Pinned Conclave",
 		Status:       "open",
 		Pinned:       true,
@@ -504,7 +504,7 @@ func TestUpdateConclave_Title(t *testing.T) {
 
 	conclaveRepo.conclaves["CON-001"] = &secondary.ConclaveRecord{
 		ID:           "CON-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Old Title",
 		Description:  "Original description",
 		Status:       "open",
@@ -533,7 +533,7 @@ func TestDeleteConclave_Success(t *testing.T) {
 
 	conclaveRepo.conclaves["CON-001"] = &secondary.ConclaveRecord{
 		ID:           "CON-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Test Conclave",
 		Status:       "open",
 	}
@@ -558,14 +558,14 @@ func TestGetConclavesByShipment_Success(t *testing.T) {
 
 	conclaveRepo.conclaves["CON-001"] = &secondary.ConclaveRecord{
 		ID:           "CON-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		ShipmentID:   "SHIP-001",
 		Title:        "Assigned Conclave",
 		Status:       "open",
 	}
 	conclaveRepo.conclaves["CON-002"] = &secondary.ConclaveRecord{
 		ID:           "CON-002",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Unassigned Conclave",
 		Status:       "open",
 	}

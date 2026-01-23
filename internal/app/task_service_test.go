@@ -301,7 +301,7 @@ func TestCreateTask_Success(t *testing.T) {
 	ctx := context.Background()
 
 	resp, err := service.CreateTask(ctx, primary.CreateTaskRequest{
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Test Task",
 		Description:  "A test task",
 	})
@@ -325,7 +325,7 @@ func TestCreateTask_WithShipment(t *testing.T) {
 	ctx := context.Background()
 
 	resp, err := service.CreateTask(ctx, primary.CreateTaskRequest{
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		ShipmentID:   "SHIPMENT-001",
 		Title:        "Shipment Task",
 		Description:  "A task for a shipment",
@@ -346,7 +346,7 @@ func TestCreateTask_MissionNotFound(t *testing.T) {
 	taskRepo.missionExistsResult = false
 
 	_, err := service.CreateTask(ctx, primary.CreateTaskRequest{
-		CommissionID: "MISSION-NONEXISTENT",
+		CommissionID: "COMM-NONEXISTENT",
 		Title:        "Test Task",
 		Description:  "A test task",
 	})
@@ -363,7 +363,7 @@ func TestCreateTask_ShipmentNotFound(t *testing.T) {
 	taskRepo.shipmentExistsResult = false
 
 	_, err := service.CreateTask(ctx, primary.CreateTaskRequest{
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		ShipmentID:   "SHIPMENT-NONEXISTENT",
 		Title:        "Test Task",
 		Description:  "A test task",
@@ -384,7 +384,7 @@ func TestGetTask_Found(t *testing.T) {
 
 	taskRepo.tasks["TASK-001"] = &secondary.TaskRecord{
 		ID:           "TASK-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Test Task",
 		Status:       "ready",
 	}
@@ -416,7 +416,7 @@ func TestGetTask_WithTag(t *testing.T) {
 
 	taskRepo.tasks["TASK-001"] = &secondary.TaskRecord{
 		ID:           "TASK-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Tagged Task",
 		Status:       "ready",
 	}
@@ -448,18 +448,18 @@ func TestListTasks_FilterByMission(t *testing.T) {
 
 	taskRepo.tasks["TASK-001"] = &secondary.TaskRecord{
 		ID:           "TASK-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Task 1",
 		Status:       "ready",
 	}
 	taskRepo.tasks["TASK-002"] = &secondary.TaskRecord{
 		ID:           "TASK-002",
-		CommissionID: "MISSION-002",
+		CommissionID: "COMM-002",
 		Title:        "Task 2",
 		Status:       "ready",
 	}
 
-	tasks, err := service.ListTasks(ctx, primary.TaskFilters{CommissionID: "MISSION-001"})
+	tasks, err := service.ListTasks(ctx, primary.TaskFilters{CommissionID: "COMM-001"})
 
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -475,13 +475,13 @@ func TestListTasks_FilterByStatus(t *testing.T) {
 
 	taskRepo.tasks["TASK-001"] = &secondary.TaskRecord{
 		ID:           "TASK-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Ready Task",
 		Status:       "ready",
 	}
 	taskRepo.tasks["TASK-002"] = &secondary.TaskRecord{
 		ID:           "TASK-002",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "In Progress Task",
 		Status:       "in_progress",
 	}
@@ -506,7 +506,7 @@ func TestClaimTask_Success(t *testing.T) {
 
 	taskRepo.tasks["TASK-001"] = &secondary.TaskRecord{
 		ID:           "TASK-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Test Task",
 		Status:       "ready",
 	}
@@ -548,7 +548,7 @@ func TestCompleteTask_UnpinnedAllowed(t *testing.T) {
 
 	taskRepo.tasks["TASK-001"] = &secondary.TaskRecord{
 		ID:           "TASK-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Test Task",
 		Status:       "in_progress",
 		Pinned:       false,
@@ -570,7 +570,7 @@ func TestCompleteTask_PinnedBlocked(t *testing.T) {
 
 	taskRepo.tasks["TASK-001"] = &secondary.TaskRecord{
 		ID:           "TASK-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Pinned Task",
 		Status:       "in_progress",
 		Pinned:       true,
@@ -604,7 +604,7 @@ func TestPauseTask_InProgressAllowed(t *testing.T) {
 
 	taskRepo.tasks["TASK-001"] = &secondary.TaskRecord{
 		ID:           "TASK-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "In Progress Task",
 		Status:       "in_progress",
 	}
@@ -625,7 +625,7 @@ func TestPauseTask_NotInProgressBlocked(t *testing.T) {
 
 	taskRepo.tasks["TASK-001"] = &secondary.TaskRecord{
 		ID:           "TASK-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Ready Task",
 		Status:       "ready",
 	}
@@ -647,7 +647,7 @@ func TestResumeTask_PausedAllowed(t *testing.T) {
 
 	taskRepo.tasks["TASK-001"] = &secondary.TaskRecord{
 		ID:           "TASK-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Paused Task",
 		Status:       "paused",
 	}
@@ -668,7 +668,7 @@ func TestResumeTask_NotPausedBlocked(t *testing.T) {
 
 	taskRepo.tasks["TASK-001"] = &secondary.TaskRecord{
 		ID:           "TASK-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Ready Task",
 		Status:       "ready",
 	}
@@ -690,7 +690,7 @@ func TestPinTask(t *testing.T) {
 
 	taskRepo.tasks["TASK-001"] = &secondary.TaskRecord{
 		ID:           "TASK-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Test Task",
 		Status:       "ready",
 		Pinned:       false,
@@ -712,7 +712,7 @@ func TestUnpinTask(t *testing.T) {
 
 	taskRepo.tasks["TASK-001"] = &secondary.TaskRecord{
 		ID:           "TASK-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Pinned Task",
 		Status:       "ready",
 		Pinned:       true,
@@ -738,7 +738,7 @@ func TestTagTask_Success(t *testing.T) {
 
 	taskRepo.tasks["TASK-001"] = &secondary.TaskRecord{
 		ID:           "TASK-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Test Task",
 		Status:       "ready",
 	}
@@ -776,7 +776,7 @@ func TestTagTask_TagNotFound(t *testing.T) {
 
 	taskRepo.tasks["TASK-001"] = &secondary.TaskRecord{
 		ID:           "TASK-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Test Task",
 		Status:       "ready",
 	}
@@ -794,7 +794,7 @@ func TestTagTask_AlreadyTagged(t *testing.T) {
 
 	taskRepo.tasks["TASK-001"] = &secondary.TaskRecord{
 		ID:           "TASK-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Test Task",
 		Status:       "ready",
 	}
@@ -824,7 +824,7 @@ func TestUntagTask_Success(t *testing.T) {
 
 	taskRepo.tasks["TASK-001"] = &secondary.TaskRecord{
 		ID:           "TASK-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Test Task",
 		Status:       "ready",
 	}
@@ -846,7 +846,7 @@ func TestUntagTask_NoTag(t *testing.T) {
 
 	taskRepo.tasks["TASK-001"] = &secondary.TaskRecord{
 		ID:           "TASK-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Test Task",
 		Status:       "ready",
 	}
@@ -868,14 +868,14 @@ func TestGetTasksByGrove_Success(t *testing.T) {
 
 	taskRepo.tasks["TASK-001"] = &secondary.TaskRecord{
 		ID:                  "TASK-001",
-		CommissionID:        "MISSION-001",
+		CommissionID:        "COMM-001",
 		Title:               "Assigned Task",
 		Status:              "in_progress",
 		AssignedWorkbenchID: "GROVE-001",
 	}
 	taskRepo.tasks["TASK-002"] = &secondary.TaskRecord{
 		ID:           "TASK-002",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Unassigned Task",
 		Status:       "ready",
 	}
@@ -900,14 +900,14 @@ func TestDiscoverTasks_FindsReadyTasks(t *testing.T) {
 
 	taskRepo.tasks["TASK-001"] = &secondary.TaskRecord{
 		ID:                  "TASK-001",
-		CommissionID:        "MISSION-001",
+		CommissionID:        "COMM-001",
 		Title:               "Ready Task",
 		Status:              "ready",
 		AssignedWorkbenchID: "GROVE-001",
 	}
 	taskRepo.tasks["TASK-002"] = &secondary.TaskRecord{
 		ID:                  "TASK-002",
-		CommissionID:        "MISSION-001",
+		CommissionID:        "COMM-001",
 		Title:               "In Progress Task",
 		Status:              "in_progress",
 		AssignedWorkbenchID: "GROVE-001",
@@ -933,7 +933,7 @@ func TestUpdateTask_Title(t *testing.T) {
 
 	taskRepo.tasks["TASK-001"] = &secondary.TaskRecord{
 		ID:           "TASK-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Old Title",
 		Description:  "Original description",
 		Status:       "ready",
@@ -962,7 +962,7 @@ func TestDeleteTask_Success(t *testing.T) {
 
 	taskRepo.tasks["TASK-001"] = &secondary.TaskRecord{
 		ID:           "TASK-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Test Task",
 		Status:       "ready",
 	}

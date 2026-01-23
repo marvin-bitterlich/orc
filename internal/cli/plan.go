@@ -35,7 +35,7 @@ var planCreateCmd = &cobra.Command{
 		if missionID == "" {
 			missionID = orcctx.GetContextCommissionID()
 			if missionID == "" {
-				return fmt.Errorf("no mission context detected\nHint: Use --commission flag or run from a workbench directory")
+				return fmt.Errorf("no commission context detected\nHint: Use --commission flag or run from a workbench directory")
 			}
 		}
 
@@ -278,7 +278,7 @@ func init() {
 	planCreateCmd.Flags().String("cycle-id", "", "Cycle ID to attach plan to")
 
 	// plan list flags
-	planListCmd.Flags().StringP("commission", "c", "", "Filter by mission")
+	planListCmd.Flags().StringP("commission", "c", "", "Filter by commission")
 	planListCmd.Flags().String("shipment", "", "Filter by shipment")
 	planListCmd.Flags().String("cycle-id", "", "Filter by cycle")
 	planListCmd.Flags().StringP("status", "s", "", "Filter by status (draft, approved)")

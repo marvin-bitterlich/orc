@@ -99,7 +99,7 @@ func (m *mockMessageRepository) GetUnreadCount(ctx context.Context, recipient st
 }
 
 func (m *mockMessageRepository) GetNextID(ctx context.Context, missionID string) (string, error) {
-	return "MSG-MISSION-001-001", nil
+	return "MSG-COMM-001-001", nil
 }
 
 func (m *mockMessageRepository) CommissionExists(ctx context.Context, missionID string) (bool, error) {
@@ -128,7 +128,7 @@ func TestCreateMessage_Success(t *testing.T) {
 	ctx := context.Background()
 
 	resp, err := service.CreateMessage(ctx, primary.CreateMessageRequest{
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Sender:       "ORC",
 		Recipient:    "IMP-GROVE-001",
 		Subject:      "Task Assignment",
@@ -156,7 +156,7 @@ func TestCreateMessage_MissionNotFound(t *testing.T) {
 	messageRepo.missionExistsResult = false
 
 	_, err := service.CreateMessage(ctx, primary.CreateMessageRequest{
-		CommissionID: "MISSION-NONEXISTENT",
+		CommissionID: "COMM-NONEXISTENT",
 		Sender:       "ORC",
 		Recipient:    "IMP-GROVE-001",
 		Subject:      "Test",
@@ -178,7 +178,7 @@ func TestGetMessage_Found(t *testing.T) {
 
 	messageRepo.messages["MSG-001"] = &secondary.MessageRecord{
 		ID:           "MSG-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Sender:       "ORC",
 		Recipient:    "IMP-GROVE-001",
 		Subject:      "Test Message",
@@ -216,14 +216,14 @@ func TestListMessages_FilterByRecipient(t *testing.T) {
 
 	messageRepo.messages["MSG-001"] = &secondary.MessageRecord{
 		ID:           "MSG-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Sender:       "ORC",
 		Recipient:    "IMP-GROVE-001",
 		Subject:      "Message 1",
 	}
 	messageRepo.messages["MSG-002"] = &secondary.MessageRecord{
 		ID:           "MSG-002",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Sender:       "ORC",
 		Recipient:    "IMP-GROVE-002",
 		Subject:      "Message 2",
@@ -245,7 +245,7 @@ func TestListMessages_UnreadOnly(t *testing.T) {
 
 	messageRepo.messages["MSG-001"] = &secondary.MessageRecord{
 		ID:           "MSG-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Sender:       "ORC",
 		Recipient:    "IMP-GROVE-001",
 		Subject:      "Unread Message",
@@ -253,7 +253,7 @@ func TestListMessages_UnreadOnly(t *testing.T) {
 	}
 	messageRepo.messages["MSG-002"] = &secondary.MessageRecord{
 		ID:           "MSG-002",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Sender:       "ORC",
 		Recipient:    "IMP-GROVE-001",
 		Subject:      "Read Message",
@@ -280,7 +280,7 @@ func TestMarkRead_Success(t *testing.T) {
 
 	messageRepo.messages["MSG-001"] = &secondary.MessageRecord{
 		ID:           "MSG-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Sender:       "ORC",
 		Recipient:    "IMP-GROVE-001",
 		Subject:      "Test Message",
@@ -307,21 +307,21 @@ func TestGetConversation_Success(t *testing.T) {
 
 	messageRepo.messages["MSG-001"] = &secondary.MessageRecord{
 		ID:           "MSG-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Sender:       "ORC",
 		Recipient:    "IMP-GROVE-001",
 		Subject:      "From ORC",
 	}
 	messageRepo.messages["MSG-002"] = &secondary.MessageRecord{
 		ID:           "MSG-002",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Sender:       "IMP-GROVE-001",
 		Recipient:    "ORC",
 		Subject:      "Reply from IMP",
 	}
 	messageRepo.messages["MSG-003"] = &secondary.MessageRecord{
 		ID:           "MSG-003",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Sender:       "ORC",
 		Recipient:    "IMP-GROVE-002",
 		Subject:      "Different conversation",
@@ -343,7 +343,7 @@ func TestGetConversation_ReverseOrder(t *testing.T) {
 
 	messageRepo.messages["MSG-001"] = &secondary.MessageRecord{
 		ID:           "MSG-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Sender:       "ORC",
 		Recipient:    "IMP-GROVE-001",
 		Subject:      "Message",
@@ -370,21 +370,21 @@ func TestGetUnreadCount_Success(t *testing.T) {
 
 	messageRepo.messages["MSG-001"] = &secondary.MessageRecord{
 		ID:           "MSG-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Sender:       "ORC",
 		Recipient:    "IMP-GROVE-001",
 		Read:         false,
 	}
 	messageRepo.messages["MSG-002"] = &secondary.MessageRecord{
 		ID:           "MSG-002",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Sender:       "ORC",
 		Recipient:    "IMP-GROVE-001",
 		Read:         false,
 	}
 	messageRepo.messages["MSG-003"] = &secondary.MessageRecord{
 		ID:           "MSG-003",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Sender:       "ORC",
 		Recipient:    "IMP-GROVE-001",
 		Read:         true,

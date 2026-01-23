@@ -29,7 +29,7 @@ func setupOperationTestDB(t *testing.T) *sql.DB {
 	}
 
 	// Insert test mission
-	_, _ = testDB.Exec("INSERT INTO commissions (id, title, status) VALUES ('MISSION-001', 'Test Mission', 'active')")
+	_, _ = testDB.Exec("INSERT INTO commissions (id, title, status) VALUES ('COMM-001', 'Test Mission', 'active')")
 
 	t.Cleanup(func() {
 		testDB.Close()
@@ -69,7 +69,7 @@ func TestOperationRepository_Create(t *testing.T) {
 
 	op := &secondary.OperationRecord{
 		ID:           "OP-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Test Operation",
 		Description:  "A test operation description",
 	}
@@ -97,7 +97,7 @@ func TestOperationRepository_GetByID(t *testing.T) {
 	repo := sqlite.NewOperationRepository(db)
 	ctx := context.Background()
 
-	op := createTestOperation(t, repo, ctx, "MISSION-001", "Test Operation", "Description")
+	op := createTestOperation(t, repo, ctx, "COMM-001", "Test Operation", "Description")
 
 	retrieved, err := repo.GetByID(ctx, op.ID)
 	if err != nil {
@@ -128,9 +128,9 @@ func TestOperationRepository_List(t *testing.T) {
 	repo := sqlite.NewOperationRepository(db)
 	ctx := context.Background()
 
-	createTestOperation(t, repo, ctx, "MISSION-001", "Operation 1", "")
-	createTestOperation(t, repo, ctx, "MISSION-001", "Operation 2", "")
-	createTestOperation(t, repo, ctx, "MISSION-001", "Operation 3", "")
+	createTestOperation(t, repo, ctx, "COMM-001", "Operation 1", "")
+	createTestOperation(t, repo, ctx, "COMM-001", "Operation 2", "")
+	createTestOperation(t, repo, ctx, "COMM-001", "Operation 3", "")
 
 	operations, err := repo.List(ctx, secondary.OperationFilters{})
 	if err != nil {
@@ -148,18 +148,18 @@ func TestOperationRepository_List_FilterByMission(t *testing.T) {
 	ctx := context.Background()
 
 	// Add another mission
-	_, _ = db.Exec("INSERT INTO commissions (id, title, status) VALUES ('MISSION-002', 'Mission 2', 'active')")
+	_, _ = db.Exec("INSERT INTO commissions (id, title, status) VALUES ('COMM-002', 'Mission 2', 'active')")
 
-	createTestOperation(t, repo, ctx, "MISSION-001", "Operation 1", "")
-	createTestOperation(t, repo, ctx, "MISSION-002", "Operation 2", "")
+	createTestOperation(t, repo, ctx, "COMM-001", "Operation 1", "")
+	createTestOperation(t, repo, ctx, "COMM-002", "Operation 2", "")
 
-	operations, err := repo.List(ctx, secondary.OperationFilters{CommissionID: "MISSION-001"})
+	operations, err := repo.List(ctx, secondary.OperationFilters{CommissionID: "COMM-001"})
 	if err != nil {
 		t.Fatalf("List failed: %v", err)
 	}
 
 	if len(operations) != 1 {
-		t.Errorf("expected 1 operation for MISSION-001, got %d", len(operations))
+		t.Errorf("expected 1 operation for COMM-001, got %d", len(operations))
 	}
 }
 
@@ -168,8 +168,8 @@ func TestOperationRepository_List_FilterByStatus(t *testing.T) {
 	repo := sqlite.NewOperationRepository(db)
 	ctx := context.Background()
 
-	op1 := createTestOperation(t, repo, ctx, "MISSION-001", "Ready Operation", "")
-	createTestOperation(t, repo, ctx, "MISSION-001", "Another Ready", "")
+	op1 := createTestOperation(t, repo, ctx, "COMM-001", "Ready Operation", "")
+	createTestOperation(t, repo, ctx, "COMM-001", "Another Ready", "")
 
 	// Complete op1
 	_ = repo.UpdateStatus(ctx, op1.ID, "complete", true)
@@ -189,7 +189,7 @@ func TestOperationRepository_UpdateStatus(t *testing.T) {
 	repo := sqlite.NewOperationRepository(db)
 	ctx := context.Background()
 
-	op := createTestOperation(t, repo, ctx, "MISSION-001", "Status Test", "")
+	op := createTestOperation(t, repo, ctx, "COMM-001", "Status Test", "")
 
 	// Update status without completed timestamp
 	err := repo.UpdateStatus(ctx, op.ID, "in_progress", false)
@@ -244,7 +244,7 @@ func TestOperationRepository_GetNextID(t *testing.T) {
 		t.Errorf("expected OP-001, got %s", id)
 	}
 
-	createTestOperation(t, repo, ctx, "MISSION-001", "Test", "")
+	createTestOperation(t, repo, ctx, "COMM-001", "Test", "")
 
 	id, err = repo.GetNextID(ctx)
 	if err != nil {
@@ -260,7 +260,7 @@ func TestOperationRepository_CommissionExists(t *testing.T) {
 	repo := sqlite.NewOperationRepository(db)
 	ctx := context.Background()
 
-	exists, err := repo.CommissionExists(ctx, "MISSION-001")
+	exists, err := repo.CommissionExists(ctx, "COMM-001")
 	if err != nil {
 		t.Fatalf("CommissionExists failed: %v", err)
 	}

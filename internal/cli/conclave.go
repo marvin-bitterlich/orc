@@ -32,7 +32,7 @@ var conclaveCreateCmd = &cobra.Command{
 		if missionID == "" {
 			missionID = orcctx.GetContextCommissionID()
 			if missionID == "" {
-				return fmt.Errorf("no mission context detected\nHint: Use --commission flag or run from a workbench directory")
+				return fmt.Errorf("no commission context detected\nHint: Use --commission flag or run from a workbench directory")
 			}
 		}
 
@@ -303,7 +303,7 @@ func init() {
 	conclaveCreateCmd.Flags().StringP("description", "d", "", "Conclave description")
 
 	// conclave list flags
-	conclaveListCmd.Flags().StringP("commission", "c", "", "Filter by mission")
+	conclaveListCmd.Flags().StringP("commission", "c", "", "Filter by commission")
 	conclaveListCmd.Flags().StringP("status", "s", "", "Filter by status (open, paused, closed)")
 
 	// conclave update flags

@@ -35,7 +35,7 @@ var taskCreateCmd = &cobra.Command{
 		if missionID == "" {
 			missionID = orccontext.GetContextCommissionID()
 			if missionID == "" {
-				return fmt.Errorf("no mission context detected\nHint: Use --commission flag or run from a workbench directory")
+				return fmt.Errorf("no commission context detected\nHint: Use --commission flag or run from a workbench directory")
 			}
 		}
 
@@ -168,7 +168,7 @@ var taskShowCmd = &cobra.Command{
 		if task.Type != "" {
 			fmt.Printf("Type: %s\n", task.Type)
 		}
-		fmt.Printf("Mission: %s\n", task.CommissionID)
+		fmt.Printf("Commission: %s\n", task.CommissionID)
 		if task.ShipmentID != "" {
 			fmt.Printf("Shipment: %s\n", task.ShipmentID)
 		}

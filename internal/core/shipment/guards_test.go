@@ -12,7 +12,7 @@ func TestCanCreateShipment(t *testing.T) {
 		{
 			name: "can create shipment when mission exists",
 			ctx: CreateShipmentContext{
-				CommissionID:     "MISSION-001",
+				CommissionID:     "COMM-001",
 				CommissionExists: true,
 			},
 			wantAllowed: true,

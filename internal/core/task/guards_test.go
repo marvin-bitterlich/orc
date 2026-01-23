@@ -12,7 +12,7 @@ func TestCanCreateTask(t *testing.T) {
 		{
 			name: "can create task when mission exists (no shipment)",
 			ctx: CreateTaskContext{
-				CommissionID:     "MISSION-001",
+				CommissionID:     "COMM-001",
 				CommissionExists: true,
 				ShipmentID:       "",
 			},
@@ -21,7 +21,7 @@ func TestCanCreateTask(t *testing.T) {
 		{
 			name: "can create task when mission and shipment exist",
 			ctx: CreateTaskContext{
-				CommissionID:     "MISSION-001",
+				CommissionID:     "COMM-001",
 				CommissionExists: true,
 				ShipmentID:       "SHIP-001",
 				ShipmentExists:   true,
@@ -41,7 +41,7 @@ func TestCanCreateTask(t *testing.T) {
 		{
 			name: "cannot create task when shipment not found",
 			ctx: CreateTaskContext{
-				CommissionID:     "MISSION-001",
+				CommissionID:     "COMM-001",
 				CommissionExists: true,
 				ShipmentID:       "SHIP-999",
 				ShipmentExists:   false,

@@ -169,7 +169,7 @@ func TestCreateInvestigation_Success(t *testing.T) {
 	ctx := context.Background()
 
 	resp, err := service.CreateInvestigation(ctx, primary.CreateInvestigationRequest{
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Test Investigation",
 		Description:  "A test investigation",
 	})
@@ -195,7 +195,7 @@ func TestCreateInvestigation_MissionNotFound(t *testing.T) {
 	investigationRepo.missionExistsResult = false
 
 	_, err := service.CreateInvestigation(ctx, primary.CreateInvestigationRequest{
-		CommissionID: "MISSION-NONEXISTENT",
+		CommissionID: "COMM-NONEXISTENT",
 		Title:        "Test Investigation",
 		Description:  "A test investigation",
 	})
@@ -215,7 +215,7 @@ func TestGetInvestigation_Found(t *testing.T) {
 
 	investigationRepo.investigations["INV-001"] = &secondary.InvestigationRecord{
 		ID:           "INV-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Test Investigation",
 		Status:       "active",
 	}
@@ -251,18 +251,18 @@ func TestListInvestigations_FilterByMission(t *testing.T) {
 
 	investigationRepo.investigations["INV-001"] = &secondary.InvestigationRecord{
 		ID:           "INV-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Investigation 1",
 		Status:       "active",
 	}
 	investigationRepo.investigations["INV-002"] = &secondary.InvestigationRecord{
 		ID:           "INV-002",
-		CommissionID: "MISSION-002",
+		CommissionID: "COMM-002",
 		Title:        "Investigation 2",
 		Status:       "active",
 	}
 
-	investigations, err := service.ListInvestigations(ctx, primary.InvestigationFilters{CommissionID: "MISSION-001"})
+	investigations, err := service.ListInvestigations(ctx, primary.InvestigationFilters{CommissionID: "COMM-001"})
 
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -278,13 +278,13 @@ func TestListInvestigations_FilterByStatus(t *testing.T) {
 
 	investigationRepo.investigations["INV-001"] = &secondary.InvestigationRecord{
 		ID:           "INV-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Active Investigation",
 		Status:       "active",
 	}
 	investigationRepo.investigations["INV-002"] = &secondary.InvestigationRecord{
 		ID:           "INV-002",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Paused Investigation",
 		Status:       "paused",
 	}
@@ -309,7 +309,7 @@ func TestCompleteInvestigation_UnpinnedAllowed(t *testing.T) {
 
 	investigationRepo.investigations["INV-001"] = &secondary.InvestigationRecord{
 		ID:           "INV-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Test Investigation",
 		Status:       "active",
 		Pinned:       false,
@@ -331,7 +331,7 @@ func TestCompleteInvestigation_PinnedBlocked(t *testing.T) {
 
 	investigationRepo.investigations["INV-001"] = &secondary.InvestigationRecord{
 		ID:           "INV-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Pinned Investigation",
 		Status:       "active",
 		Pinned:       true,
@@ -365,7 +365,7 @@ func TestPauseInvestigation_ActiveAllowed(t *testing.T) {
 
 	investigationRepo.investigations["INV-001"] = &secondary.InvestigationRecord{
 		ID:           "INV-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Active Investigation",
 		Status:       "active",
 	}
@@ -386,7 +386,7 @@ func TestPauseInvestigation_NotActiveBlocked(t *testing.T) {
 
 	investigationRepo.investigations["INV-001"] = &secondary.InvestigationRecord{
 		ID:           "INV-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Paused Investigation",
 		Status:       "paused",
 	}
@@ -404,7 +404,7 @@ func TestPauseInvestigation_CompleteBlocked(t *testing.T) {
 
 	investigationRepo.investigations["INV-001"] = &secondary.InvestigationRecord{
 		ID:           "INV-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Complete Investigation",
 		Status:       "complete",
 	}
@@ -426,7 +426,7 @@ func TestResumeInvestigation_PausedAllowed(t *testing.T) {
 
 	investigationRepo.investigations["INV-001"] = &secondary.InvestigationRecord{
 		ID:           "INV-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Paused Investigation",
 		Status:       "paused",
 	}
@@ -447,7 +447,7 @@ func TestResumeInvestigation_NotPausedBlocked(t *testing.T) {
 
 	investigationRepo.investigations["INV-001"] = &secondary.InvestigationRecord{
 		ID:           "INV-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Active Investigation",
 		Status:       "active",
 	}
@@ -469,7 +469,7 @@ func TestPinInvestigation(t *testing.T) {
 
 	investigationRepo.investigations["INV-001"] = &secondary.InvestigationRecord{
 		ID:           "INV-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Test Investigation",
 		Status:       "active",
 		Pinned:       false,
@@ -491,7 +491,7 @@ func TestUnpinInvestigation(t *testing.T) {
 
 	investigationRepo.investigations["INV-001"] = &secondary.InvestigationRecord{
 		ID:           "INV-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Pinned Investigation",
 		Status:       "active",
 		Pinned:       true,
@@ -517,7 +517,7 @@ func TestUpdateInvestigation_Title(t *testing.T) {
 
 	investigationRepo.investigations["INV-001"] = &secondary.InvestigationRecord{
 		ID:           "INV-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Old Title",
 		Description:  "Original description",
 		Status:       "active",
@@ -546,7 +546,7 @@ func TestDeleteInvestigation_Success(t *testing.T) {
 
 	investigationRepo.investigations["INV-001"] = &secondary.InvestigationRecord{
 		ID:           "INV-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Test Investigation",
 		Status:       "active",
 	}
@@ -571,7 +571,7 @@ func TestAssignInvestigationToGrove_Success(t *testing.T) {
 
 	investigationRepo.investigations["INV-001"] = &secondary.InvestigationRecord{
 		ID:           "INV-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Test Investigation",
 		Status:       "active",
 	}
@@ -596,14 +596,14 @@ func TestGetInvestigationsByGrove_Success(t *testing.T) {
 
 	investigationRepo.investigations["INV-001"] = &secondary.InvestigationRecord{
 		ID:                  "INV-001",
-		CommissionID:        "MISSION-001",
+		CommissionID:        "COMM-001",
 		Title:               "Assigned Investigation",
 		Status:              "active",
 		AssignedWorkbenchID: "GROVE-001",
 	}
 	investigationRepo.investigations["INV-002"] = &secondary.InvestigationRecord{
 		ID:           "INV-002",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Unassigned Investigation",
 		Status:       "active",
 	}

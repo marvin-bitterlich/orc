@@ -35,7 +35,7 @@ var shipmentCreateCmd = &cobra.Command{
 		if missionID == "" {
 			missionID = orccontext.GetContextCommissionID()
 			if missionID == "" {
-				return fmt.Errorf("no mission context detected\nHint: Use --commission flag or run from a workbench directory")
+				return fmt.Errorf("no commission context detected\nHint: Use --commission flag or run from a workbench directory")
 			}
 		}
 
@@ -122,7 +122,7 @@ var shipmentShowCmd = &cobra.Command{
 			fmt.Printf("Description: %s\n", shipment.Description)
 		}
 		fmt.Printf("Status: %s\n", shipment.Status)
-		fmt.Printf("Mission: %s\n", shipment.CommissionID)
+		fmt.Printf("Commission: %s\n", shipment.CommissionID)
 		if shipment.AssignedWorkbenchID != "" {
 			fmt.Printf("Assigned Workbench: %s\n", shipment.AssignedWorkbenchID)
 		}
@@ -303,7 +303,7 @@ func init() {
 	shipmentCreateCmd.Flags().String("branch", "", "Override auto-generated branch name")
 
 	// shipment list flags
-	shipmentListCmd.Flags().StringP("commission", "c", "", "Filter by mission")
+	shipmentListCmd.Flags().StringP("commission", "c", "", "Filter by commission")
 	shipmentListCmd.Flags().StringP("status", "s", "", "Filter by status")
 
 	// shipment update flags

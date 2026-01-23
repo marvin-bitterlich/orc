@@ -29,7 +29,7 @@ func setupShipmentTestDB(t *testing.T) *sql.DB {
 	}
 
 	// Insert a test mission
-	_, err = testDB.Exec("INSERT INTO commissions (id, title, status) VALUES ('MISSION-001', 'Test Mission', 'active')")
+	_, err = testDB.Exec("INSERT INTO commissions (id, title, status) VALUES ('COMM-001', 'Test Mission', 'active')")
 	if err != nil {
 		t.Fatalf("failed to insert test mission: %v", err)
 	}
@@ -72,7 +72,7 @@ func TestShipmentRepository_Create(t *testing.T) {
 
 	shipment := &secondary.ShipmentRecord{
 		ID:           "SHIP-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Test Shipment",
 		Description:  "A test shipment description",
 	}
@@ -101,7 +101,7 @@ func TestShipmentRepository_GetByID(t *testing.T) {
 	ctx := context.Background()
 
 	// Create a shipment using helper
-	shipment := createTestShipment(t, repo, ctx, "MISSION-001", "Test Shipment", "Description")
+	shipment := createTestShipment(t, repo, ctx, "COMM-001", "Test Shipment", "Description")
 
 	// Retrieve it
 	retrieved, err := repo.GetByID(ctx, shipment.ID)
@@ -139,9 +139,9 @@ func TestShipmentRepository_List(t *testing.T) {
 	ctx := context.Background()
 
 	// Create multiple shipments
-	createTestShipment(t, repo, ctx, "MISSION-001", "Shipment 1", "")
-	createTestShipment(t, repo, ctx, "MISSION-001", "Shipment 2", "")
-	createTestShipment(t, repo, ctx, "MISSION-001", "Shipment 3", "")
+	createTestShipment(t, repo, ctx, "COMM-001", "Shipment 1", "")
+	createTestShipment(t, repo, ctx, "COMM-001", "Shipment 2", "")
+	createTestShipment(t, repo, ctx, "COMM-001", "Shipment 3", "")
 
 	shipments, err := repo.List(ctx, secondary.ShipmentFilters{})
 	if err != nil {
@@ -159,20 +159,20 @@ func TestShipmentRepository_List_FilterByMission(t *testing.T) {
 	ctx := context.Background()
 
 	// Add another mission
-	_, _ = db.Exec("INSERT INTO commissions (id, title, status) VALUES ('MISSION-002', 'Test Mission 2', 'active')")
+	_, _ = db.Exec("INSERT INTO commissions (id, title, status) VALUES ('COMM-002', 'Test Mission 2', 'active')")
 
 	// Create shipments for different missions
-	createTestShipment(t, repo, ctx, "MISSION-001", "Shipment 1", "")
-	createTestShipment(t, repo, ctx, "MISSION-002", "Shipment 2", "")
+	createTestShipment(t, repo, ctx, "COMM-001", "Shipment 1", "")
+	createTestShipment(t, repo, ctx, "COMM-002", "Shipment 2", "")
 
-	// List only MISSION-001 shipments
-	shipments, err := repo.List(ctx, secondary.ShipmentFilters{CommissionID: "MISSION-001"})
+	// List only COMM-001 shipments
+	shipments, err := repo.List(ctx, secondary.ShipmentFilters{CommissionID: "COMM-001"})
 	if err != nil {
 		t.Fatalf("List failed: %v", err)
 	}
 
 	if len(shipments) != 1 {
-		t.Errorf("expected 1 shipment for MISSION-001, got %d", len(shipments))
+		t.Errorf("expected 1 shipment for COMM-001, got %d", len(shipments))
 	}
 }
 
@@ -182,10 +182,10 @@ func TestShipmentRepository_List_FilterByStatus(t *testing.T) {
 	ctx := context.Background()
 
 	// Create active shipment
-	createTestShipment(t, repo, ctx, "MISSION-001", "Active Shipment", "")
+	createTestShipment(t, repo, ctx, "COMM-001", "Active Shipment", "")
 
 	// Create and complete a shipment
-	s2 := createTestShipment(t, repo, ctx, "MISSION-001", "Complete Shipment", "")
+	s2 := createTestShipment(t, repo, ctx, "COMM-001", "Complete Shipment", "")
 	_ = repo.UpdateStatus(ctx, s2.ID, "complete", true)
 
 	// List only active
@@ -205,7 +205,7 @@ func TestShipmentRepository_Update(t *testing.T) {
 	ctx := context.Background()
 
 	// Create a shipment
-	shipment := createTestShipment(t, repo, ctx, "MISSION-001", "Original Title", "")
+	shipment := createTestShipment(t, repo, ctx, "COMM-001", "Original Title", "")
 
 	// Update it
 	err := repo.Update(ctx, &secondary.ShipmentRecord{
@@ -243,7 +243,7 @@ func TestShipmentRepository_Delete(t *testing.T) {
 	ctx := context.Background()
 
 	// Create a shipment
-	shipment := createTestShipment(t, repo, ctx, "MISSION-001", "To Delete", "")
+	shipment := createTestShipment(t, repo, ctx, "COMM-001", "To Delete", "")
 
 	// Delete it
 	err := repo.Delete(ctx, shipment.ID)
@@ -275,7 +275,7 @@ func TestShipmentRepository_Pin_Unpin(t *testing.T) {
 	ctx := context.Background()
 
 	// Create a shipment
-	shipment := createTestShipment(t, repo, ctx, "MISSION-001", "Pin Test", "")
+	shipment := createTestShipment(t, repo, ctx, "COMM-001", "Pin Test", "")
 
 	// Pin it
 	err := repo.Pin(ctx, shipment.ID)
@@ -328,7 +328,7 @@ func TestShipmentRepository_GetNextID(t *testing.T) {
 	}
 
 	// Create a shipment
-	createTestShipment(t, repo, ctx, "MISSION-001", "Test", "")
+	createTestShipment(t, repo, ctx, "COMM-001", "Test", "")
 
 	// Next ID should be SHIP-002
 	id, err = repo.GetNextID(ctx)
@@ -346,7 +346,7 @@ func TestShipmentRepository_UpdateStatus(t *testing.T) {
 	ctx := context.Background()
 
 	// Create a shipment
-	shipment := createTestShipment(t, repo, ctx, "MISSION-001", "Status Test", "")
+	shipment := createTestShipment(t, repo, ctx, "COMM-001", "Status Test", "")
 
 	// Update status without completed timestamp
 	err := repo.UpdateStatus(ctx, shipment.ID, "in_progress", false)
@@ -394,10 +394,10 @@ func TestShipmentRepository_AssignWorkbench(t *testing.T) {
 	ctx := context.Background()
 
 	// Insert a test grove
-	_, _ = db.Exec("INSERT INTO groves (id, commission_id, name, status) VALUES ('GROVE-001', 'MISSION-001', 'test-grove', 'active')")
+	_, _ = db.Exec("INSERT INTO groves (id, commission_id, name, status) VALUES ('GROVE-001', 'COMM-001', 'test-grove', 'active')")
 
 	// Create a shipment
-	shipment := createTestShipment(t, repo, ctx, "MISSION-001", "Grove Test", "")
+	shipment := createTestShipment(t, repo, ctx, "COMM-001", "Grove Test", "")
 
 	// Assign grove
 	err := repo.AssignWorkbench(ctx, shipment.ID, "GROVE-001")
@@ -429,12 +429,12 @@ func TestShipmentRepository_GetByWorkbench(t *testing.T) {
 	ctx := context.Background()
 
 	// Insert a test grove
-	_, _ = db.Exec("INSERT INTO groves (id, commission_id, name, status) VALUES ('GROVE-001', 'MISSION-001', 'test-grove', 'active')")
+	_, _ = db.Exec("INSERT INTO groves (id, commission_id, name, status) VALUES ('GROVE-001', 'COMM-001', 'test-grove', 'active')")
 
 	// Create shipments and assign to grove
-	s1 := createTestShipment(t, repo, ctx, "MISSION-001", "Ship 1", "")
-	s2 := createTestShipment(t, repo, ctx, "MISSION-001", "Ship 2", "")
-	createTestShipment(t, repo, ctx, "MISSION-001", "Ship 3 (unassigned)", "")
+	s1 := createTestShipment(t, repo, ctx, "COMM-001", "Ship 1", "")
+	s2 := createTestShipment(t, repo, ctx, "COMM-001", "Ship 2", "")
+	createTestShipment(t, repo, ctx, "COMM-001", "Ship 3 (unassigned)", "")
 
 	_ = repo.AssignWorkbench(ctx, s1.ID, "GROVE-001")
 	_ = repo.AssignWorkbench(ctx, s2.ID, "GROVE-001")
@@ -456,7 +456,7 @@ func TestShipmentRepository_CommissionExists(t *testing.T) {
 	ctx := context.Background()
 
 	// Existing mission
-	exists, err := repo.CommissionExists(ctx, "MISSION-001")
+	exists, err := repo.CommissionExists(ctx, "COMM-001")
 	if err != nil {
 		t.Fatalf("CommissionExists failed: %v", err)
 	}
@@ -480,11 +480,11 @@ func TestShipmentRepository_WorkbenchAssignedToOther(t *testing.T) {
 	ctx := context.Background()
 
 	// Insert a test grove
-	_, _ = db.Exec("INSERT INTO groves (id, commission_id, name, status) VALUES ('GROVE-001', 'MISSION-001', 'test-grove', 'active')")
+	_, _ = db.Exec("INSERT INTO groves (id, commission_id, name, status) VALUES ('GROVE-001', 'COMM-001', 'test-grove', 'active')")
 
 	// Create two shipments
-	s1 := createTestShipment(t, repo, ctx, "MISSION-001", "Ship 1", "")
-	s2 := createTestShipment(t, repo, ctx, "MISSION-001", "Ship 2", "")
+	s1 := createTestShipment(t, repo, ctx, "COMM-001", "Ship 1", "")
+	s2 := createTestShipment(t, repo, ctx, "COMM-001", "Ship 2", "")
 
 	// Assign grove to s1
 	_ = repo.AssignWorkbench(ctx, s1.ID, "GROVE-001")

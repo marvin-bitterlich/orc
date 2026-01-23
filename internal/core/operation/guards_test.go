@@ -12,7 +12,7 @@ func TestCanCreateOperation(t *testing.T) {
 		{
 			name: "can create operation when mission exists",
 			ctx: CreateOperationContext{
-				CommissionID:     "MISSION-001",
+				CommissionID:     "COMM-001",
 				CommissionExists: true,
 			},
 			wantAllowed: true,

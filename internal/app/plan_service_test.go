@@ -211,7 +211,7 @@ func TestCreatePlan_Success(t *testing.T) {
 	ctx := context.Background()
 
 	resp, err := service.CreatePlan(ctx, primary.CreatePlanRequest{
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Test Plan",
 		Description:  "A test plan",
 		Content:      "## Plan Content\n\n- Step 1\n- Step 2",
@@ -236,7 +236,7 @@ func TestCreatePlan_WithShipment(t *testing.T) {
 	ctx := context.Background()
 
 	resp, err := service.CreatePlan(ctx, primary.CreatePlanRequest{
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		ShipmentID:   "SHIPMENT-001",
 		Title:        "Shipment Plan",
 		Description:  "A plan for a shipment",
@@ -257,7 +257,7 @@ func TestCreatePlan_MissionNotFound(t *testing.T) {
 	planRepo.missionExistsResult = false
 
 	_, err := service.CreatePlan(ctx, primary.CreatePlanRequest{
-		CommissionID: "MISSION-NONEXISTENT",
+		CommissionID: "COMM-NONEXISTENT",
 		Title:        "Test Plan",
 		Description:  "A test plan",
 	})
@@ -274,7 +274,7 @@ func TestCreatePlan_ShipmentNotFound(t *testing.T) {
 	planRepo.shipmentExistsResult = false
 
 	_, err := service.CreatePlan(ctx, primary.CreatePlanRequest{
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		ShipmentID:   "SHIPMENT-NONEXISTENT",
 		Title:        "Test Plan",
 		Description:  "A test plan",
@@ -292,7 +292,7 @@ func TestCreatePlan_ShipmentAlreadyHasActivePlan(t *testing.T) {
 	// Create existing active plan
 	planRepo.plans["PLAN-001"] = &secondary.PlanRecord{
 		ID:           "PLAN-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		ShipmentID:   "SHIPMENT-001",
 		Title:        "Existing Plan",
 		Status:       "draft",
@@ -300,7 +300,7 @@ func TestCreatePlan_ShipmentAlreadyHasActivePlan(t *testing.T) {
 	planRepo.activePlanForShipment["SHIPMENT-001"] = "PLAN-001"
 
 	_, err := service.CreatePlan(ctx, primary.CreatePlanRequest{
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		ShipmentID:   "SHIPMENT-001",
 		Title:        "New Plan",
 		Description:  "Should fail",
@@ -321,7 +321,7 @@ func TestGetPlan_Found(t *testing.T) {
 
 	planRepo.plans["PLAN-001"] = &secondary.PlanRecord{
 		ID:           "PLAN-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Test Plan",
 		Status:       "draft",
 	}
@@ -357,18 +357,18 @@ func TestListPlans_FilterByMission(t *testing.T) {
 
 	planRepo.plans["PLAN-001"] = &secondary.PlanRecord{
 		ID:           "PLAN-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Plan 1",
 		Status:       "draft",
 	}
 	planRepo.plans["PLAN-002"] = &secondary.PlanRecord{
 		ID:           "PLAN-002",
-		CommissionID: "MISSION-002",
+		CommissionID: "COMM-002",
 		Title:        "Plan 2",
 		Status:       "draft",
 	}
 
-	plans, err := service.ListPlans(ctx, primary.PlanFilters{CommissionID: "MISSION-001"})
+	plans, err := service.ListPlans(ctx, primary.PlanFilters{CommissionID: "COMM-001"})
 
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -384,14 +384,14 @@ func TestListPlans_FilterByShipment(t *testing.T) {
 
 	planRepo.plans["PLAN-001"] = &secondary.PlanRecord{
 		ID:           "PLAN-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		ShipmentID:   "SHIPMENT-001",
 		Title:        "Shipment Plan",
 		Status:       "draft",
 	}
 	planRepo.plans["PLAN-002"] = &secondary.PlanRecord{
 		ID:           "PLAN-002",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Mission Plan",
 		Status:       "draft",
 	}
@@ -412,13 +412,13 @@ func TestListPlans_FilterByStatus(t *testing.T) {
 
 	planRepo.plans["PLAN-001"] = &secondary.PlanRecord{
 		ID:           "PLAN-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Draft Plan",
 		Status:       "draft",
 	}
 	planRepo.plans["PLAN-002"] = &secondary.PlanRecord{
 		ID:           "PLAN-002",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Approved Plan",
 		Status:       "approved",
 	}
@@ -443,7 +443,7 @@ func TestApprovePlan_Success(t *testing.T) {
 
 	planRepo.plans["PLAN-001"] = &secondary.PlanRecord{
 		ID:           "PLAN-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Test Plan",
 		Status:       "draft",
 	}
@@ -468,7 +468,7 @@ func TestPinPlan(t *testing.T) {
 
 	planRepo.plans["PLAN-001"] = &secondary.PlanRecord{
 		ID:           "PLAN-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Test Plan",
 		Status:       "draft",
 		Pinned:       false,
@@ -490,7 +490,7 @@ func TestUnpinPlan(t *testing.T) {
 
 	planRepo.plans["PLAN-001"] = &secondary.PlanRecord{
 		ID:           "PLAN-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Pinned Plan",
 		Status:       "draft",
 		Pinned:       true,
@@ -516,7 +516,7 @@ func TestUpdatePlan_Title(t *testing.T) {
 
 	planRepo.plans["PLAN-001"] = &secondary.PlanRecord{
 		ID:           "PLAN-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Old Title",
 		Description:  "Original description",
 		Status:       "draft",
@@ -541,7 +541,7 @@ func TestUpdatePlan_Content(t *testing.T) {
 
 	planRepo.plans["PLAN-001"] = &secondary.PlanRecord{
 		ID:           "PLAN-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Test Plan",
 		Content:      "Original content",
 		Status:       "draft",
@@ -570,7 +570,7 @@ func TestDeletePlan_Success(t *testing.T) {
 
 	planRepo.plans["PLAN-001"] = &secondary.PlanRecord{
 		ID:           "PLAN-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Test Plan",
 		Status:       "draft",
 	}
@@ -595,7 +595,7 @@ func TestGetShipmentActivePlan_Found(t *testing.T) {
 
 	planRepo.plans["PLAN-001"] = &secondary.PlanRecord{
 		ID:           "PLAN-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		ShipmentID:   "SHIPMENT-001",
 		Title:        "Active Plan",
 		Status:       "draft",

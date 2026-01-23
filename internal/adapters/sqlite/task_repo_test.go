@@ -29,8 +29,8 @@ func setupTaskTestDB(t *testing.T) *sql.DB {
 	}
 
 	// Insert test data
-	_, _ = testDB.Exec("INSERT INTO commissions (id, title, status) VALUES ('MISSION-001', 'Test Mission', 'active')")
-	_, _ = testDB.Exec("INSERT INTO shipments (id, commission_id, title, status) VALUES ('SHIP-001', 'MISSION-001', 'Test Shipment', 'active')")
+	_, _ = testDB.Exec("INSERT INTO commissions (id, title, status) VALUES ('COMM-001', 'Test Mission', 'active')")
+	_, _ = testDB.Exec("INSERT INTO shipments (id, commission_id, title, status) VALUES ('SHIP-001', 'COMM-001', 'Test Shipment', 'active')")
 
 	t.Cleanup(func() {
 		testDB.Close()
@@ -70,7 +70,7 @@ func TestTaskRepository_Create(t *testing.T) {
 
 	task := &secondary.TaskRecord{
 		ID:           "TASK-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		ShipmentID:   "SHIP-001",
 		Title:        "Test Task",
 		Description:  "A test task description",
@@ -105,7 +105,7 @@ func TestTaskRepository_Create_WithoutShipment(t *testing.T) {
 
 	task := &secondary.TaskRecord{
 		ID:           "TASK-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Standalone Task",
 	}
 
@@ -125,7 +125,7 @@ func TestTaskRepository_GetByID(t *testing.T) {
 	repo := sqlite.NewTaskRepository(db)
 	ctx := context.Background()
 
-	task := createTestTask(t, repo, ctx, "MISSION-001", "SHIP-001", "Test Task")
+	task := createTestTask(t, repo, ctx, "COMM-001", "SHIP-001", "Test Task")
 
 	retrieved, err := repo.GetByID(ctx, task.ID)
 	if err != nil {
@@ -135,8 +135,8 @@ func TestTaskRepository_GetByID(t *testing.T) {
 	if retrieved.Title != "Test Task" {
 		t.Errorf("expected title 'Test Task', got '%s'", retrieved.Title)
 	}
-	if retrieved.CommissionID != "MISSION-001" {
-		t.Errorf("expected mission 'MISSION-001', got '%s'", retrieved.CommissionID)
+	if retrieved.CommissionID != "COMM-001" {
+		t.Errorf("expected mission 'COMM-001', got '%s'", retrieved.CommissionID)
 	}
 }
 
@@ -156,9 +156,9 @@ func TestTaskRepository_List(t *testing.T) {
 	repo := sqlite.NewTaskRepository(db)
 	ctx := context.Background()
 
-	createTestTask(t, repo, ctx, "MISSION-001", "", "Task 1")
-	createTestTask(t, repo, ctx, "MISSION-001", "", "Task 2")
-	createTestTask(t, repo, ctx, "MISSION-001", "", "Task 3")
+	createTestTask(t, repo, ctx, "COMM-001", "", "Task 1")
+	createTestTask(t, repo, ctx, "COMM-001", "", "Task 2")
+	createTestTask(t, repo, ctx, "COMM-001", "", "Task 3")
 
 	tasks, err := repo.List(ctx, secondary.TaskFilters{})
 	if err != nil {
@@ -176,11 +176,11 @@ func TestTaskRepository_List_FilterByShipment(t *testing.T) {
 	ctx := context.Background()
 
 	// Add another shipment
-	_, _ = db.Exec("INSERT INTO shipments (id, commission_id, title) VALUES ('SHIP-002', 'MISSION-001', 'Ship 2')")
+	_, _ = db.Exec("INSERT INTO shipments (id, commission_id, title) VALUES ('SHIP-002', 'COMM-001', 'Ship 2')")
 
-	createTestTask(t, repo, ctx, "MISSION-001", "SHIP-001", "Task 1")
-	createTestTask(t, repo, ctx, "MISSION-001", "SHIP-001", "Task 2")
-	createTestTask(t, repo, ctx, "MISSION-001", "SHIP-002", "Task 3")
+	createTestTask(t, repo, ctx, "COMM-001", "SHIP-001", "Task 1")
+	createTestTask(t, repo, ctx, "COMM-001", "SHIP-001", "Task 2")
+	createTestTask(t, repo, ctx, "COMM-001", "SHIP-002", "Task 3")
 
 	tasks, err := repo.List(ctx, secondary.TaskFilters{ShipmentID: "SHIP-001"})
 	if err != nil {
@@ -197,8 +197,8 @@ func TestTaskRepository_List_FilterByStatus(t *testing.T) {
 	repo := sqlite.NewTaskRepository(db)
 	ctx := context.Background()
 
-	task1 := createTestTask(t, repo, ctx, "MISSION-001", "", "Ready Task")
-	createTestTask(t, repo, ctx, "MISSION-001", "", "Another Ready Task")
+	task1 := createTestTask(t, repo, ctx, "COMM-001", "", "Ready Task")
+	createTestTask(t, repo, ctx, "COMM-001", "", "Another Ready Task")
 
 	// Change status of task1
 	_ = repo.UpdateStatus(ctx, task1.ID, "in_progress", true, false)
@@ -219,18 +219,18 @@ func TestTaskRepository_List_FilterByMission(t *testing.T) {
 	ctx := context.Background()
 
 	// Add another mission
-	_, _ = db.Exec("INSERT INTO commissions (id, title, status) VALUES ('MISSION-002', 'Mission 2', 'active')")
+	_, _ = db.Exec("INSERT INTO commissions (id, title, status) VALUES ('COMM-002', 'Mission 2', 'active')")
 
-	createTestTask(t, repo, ctx, "MISSION-001", "", "Task 1")
-	createTestTask(t, repo, ctx, "MISSION-002", "", "Task 2")
+	createTestTask(t, repo, ctx, "COMM-001", "", "Task 1")
+	createTestTask(t, repo, ctx, "COMM-002", "", "Task 2")
 
-	tasks, err := repo.List(ctx, secondary.TaskFilters{CommissionID: "MISSION-001"})
+	tasks, err := repo.List(ctx, secondary.TaskFilters{CommissionID: "COMM-001"})
 	if err != nil {
 		t.Fatalf("List failed: %v", err)
 	}
 
 	if len(tasks) != 1 {
-		t.Errorf("expected 1 task for MISSION-001, got %d", len(tasks))
+		t.Errorf("expected 1 task for COMM-001, got %d", len(tasks))
 	}
 }
 
@@ -239,7 +239,7 @@ func TestTaskRepository_Update(t *testing.T) {
 	repo := sqlite.NewTaskRepository(db)
 	ctx := context.Background()
 
-	task := createTestTask(t, repo, ctx, "MISSION-001", "", "Original Title")
+	task := createTestTask(t, repo, ctx, "COMM-001", "", "Original Title")
 
 	err := repo.Update(ctx, &secondary.TaskRecord{
 		ID:    task.ID,
@@ -274,7 +274,7 @@ func TestTaskRepository_Delete(t *testing.T) {
 	repo := sqlite.NewTaskRepository(db)
 	ctx := context.Background()
 
-	task := createTestTask(t, repo, ctx, "MISSION-001", "", "To Delete")
+	task := createTestTask(t, repo, ctx, "COMM-001", "", "To Delete")
 
 	err := repo.Delete(ctx, task.ID)
 	if err != nil {
@@ -303,7 +303,7 @@ func TestTaskRepository_Pin_Unpin(t *testing.T) {
 	repo := sqlite.NewTaskRepository(db)
 	ctx := context.Background()
 
-	task := createTestTask(t, repo, ctx, "MISSION-001", "", "Pin Test")
+	task := createTestTask(t, repo, ctx, "COMM-001", "", "Pin Test")
 
 	// Pin
 	err := repo.Pin(ctx, task.ID)
@@ -341,7 +341,7 @@ func TestTaskRepository_GetNextID(t *testing.T) {
 		t.Errorf("expected TASK-001, got %s", id)
 	}
 
-	createTestTask(t, repo, ctx, "MISSION-001", "", "Test")
+	createTestTask(t, repo, ctx, "COMM-001", "", "Test")
 
 	id, err = repo.GetNextID(ctx)
 	if err != nil {
@@ -357,7 +357,7 @@ func TestTaskRepository_UpdateStatus(t *testing.T) {
 	repo := sqlite.NewTaskRepository(db)
 	ctx := context.Background()
 
-	task := createTestTask(t, repo, ctx, "MISSION-001", "", "Status Test")
+	task := createTestTask(t, repo, ctx, "COMM-001", "", "Status Test")
 
 	// Update status with claimed timestamp
 	err := repo.UpdateStatus(ctx, task.ID, "in_progress", true, false)
@@ -407,7 +407,7 @@ func TestTaskRepository_Claim(t *testing.T) {
 	repo := sqlite.NewTaskRepository(db)
 	ctx := context.Background()
 
-	task := createTestTask(t, repo, ctx, "MISSION-001", "", "Claim Test")
+	task := createTestTask(t, repo, ctx, "COMM-001", "", "Claim Test")
 
 	err := repo.Claim(ctx, task.ID, "GROVE-001")
 	if err != nil {
@@ -442,9 +442,9 @@ func TestTaskRepository_GetByWorkbench(t *testing.T) {
 	repo := sqlite.NewTaskRepository(db)
 	ctx := context.Background()
 
-	task1 := createTestTask(t, repo, ctx, "MISSION-001", "", "Task 1")
-	task2 := createTestTask(t, repo, ctx, "MISSION-001", "", "Task 2")
-	createTestTask(t, repo, ctx, "MISSION-001", "", "Task 3 (unclaimed)")
+	task1 := createTestTask(t, repo, ctx, "COMM-001", "", "Task 1")
+	task2 := createTestTask(t, repo, ctx, "COMM-001", "", "Task 2")
+	createTestTask(t, repo, ctx, "COMM-001", "", "Task 3 (unclaimed)")
 
 	_ = repo.Claim(ctx, task1.ID, "GROVE-001")
 	_ = repo.Claim(ctx, task2.ID, "GROVE-001")
@@ -464,9 +464,9 @@ func TestTaskRepository_GetByShipment(t *testing.T) {
 	repo := sqlite.NewTaskRepository(db)
 	ctx := context.Background()
 
-	createTestTask(t, repo, ctx, "MISSION-001", "SHIP-001", "Task 1")
-	createTestTask(t, repo, ctx, "MISSION-001", "SHIP-001", "Task 2")
-	createTestTask(t, repo, ctx, "MISSION-001", "", "Task 3 (no shipment)")
+	createTestTask(t, repo, ctx, "COMM-001", "SHIP-001", "Task 1")
+	createTestTask(t, repo, ctx, "COMM-001", "SHIP-001", "Task 2")
+	createTestTask(t, repo, ctx, "COMM-001", "", "Task 3 (no shipment)")
 
 	tasks, err := repo.GetByShipment(ctx, "SHIP-001")
 	if err != nil {
@@ -483,9 +483,9 @@ func TestTaskRepository_AssignWorkbenchByShipment(t *testing.T) {
 	repo := sqlite.NewTaskRepository(db)
 	ctx := context.Background()
 
-	task1 := createTestTask(t, repo, ctx, "MISSION-001", "SHIP-001", "Task 1")
-	task2 := createTestTask(t, repo, ctx, "MISSION-001", "SHIP-001", "Task 2")
-	task3 := createTestTask(t, repo, ctx, "MISSION-001", "", "Task 3 (no shipment)")
+	task1 := createTestTask(t, repo, ctx, "COMM-001", "SHIP-001", "Task 1")
+	task2 := createTestTask(t, repo, ctx, "COMM-001", "SHIP-001", "Task 2")
+	task3 := createTestTask(t, repo, ctx, "COMM-001", "", "Task 3 (no shipment)")
 
 	err := repo.AssignWorkbenchByShipment(ctx, "SHIP-001", "GROVE-001")
 	if err != nil {
@@ -515,7 +515,7 @@ func TestTaskRepository_CommissionExists(t *testing.T) {
 	repo := sqlite.NewTaskRepository(db)
 	ctx := context.Background()
 
-	exists, err := repo.CommissionExists(ctx, "MISSION-001")
+	exists, err := repo.CommissionExists(ctx, "COMM-001")
 	if err != nil {
 		t.Fatalf("CommissionExists failed: %v", err)
 	}
@@ -564,7 +564,7 @@ func TestTaskRepository_AddTag_GetTag_RemoveTag(t *testing.T) {
 	// Insert a test tag
 	_, _ = db.Exec("INSERT INTO tags (id, name) VALUES ('TAG-001', 'urgent')")
 
-	task := createTestTask(t, repo, ctx, "MISSION-001", "", "Tagged Task")
+	task := createTestTask(t, repo, ctx, "COMM-001", "", "Tagged Task")
 
 	// Initially no tag
 	tag, err := repo.GetTag(ctx, task.ID)
@@ -621,9 +621,9 @@ func TestTaskRepository_ListByTag(t *testing.T) {
 	_, _ = db.Exec("INSERT INTO tags (id, name) VALUES ('TAG-001', 'urgent')")
 	_, _ = db.Exec("INSERT INTO tags (id, name) VALUES ('TAG-002', 'low-priority')")
 
-	task1 := createTestTask(t, repo, ctx, "MISSION-001", "", "Task 1")
-	task2 := createTestTask(t, repo, ctx, "MISSION-001", "", "Task 2")
-	createTestTask(t, repo, ctx, "MISSION-001", "", "Task 3 (no tag)")
+	task1 := createTestTask(t, repo, ctx, "COMM-001", "", "Task 1")
+	task2 := createTestTask(t, repo, ctx, "COMM-001", "", "Task 2")
+	createTestTask(t, repo, ctx, "COMM-001", "", "Task 3 (no tag)")
 
 	_ = repo.AddTag(ctx, task1.ID, "TAG-001")
 	_ = repo.AddTag(ctx, task2.ID, "TAG-001")

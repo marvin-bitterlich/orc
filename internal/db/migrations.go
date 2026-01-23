@@ -308,7 +308,7 @@ func migrationV1(db *sql.DB) error {
 	}
 
 	// Step 2: Migrate work orders data (operation_id -> mission_id via operations table)
-	// All existing operations belong to MISSION-001, so we can hardcode it
+	// All existing operations belong to COMM-001, so we can hardcode it
 	_, err = db.Exec(`
 		INSERT INTO work_orders_new (
 			id, mission_id, title, description, status, context_ref,
@@ -316,7 +316,7 @@ func migrationV1(db *sql.DB) error {
 		)
 		SELECT
 			wo.id,
-			'MISSION-001' as mission_id,
+			'COMM-001' as mission_id,
 			wo.title,
 			wo.description,
 			wo.status,
@@ -354,7 +354,7 @@ func migrationV1(db *sql.DB) error {
 		INSERT INTO groves_new (id, mission_id, name, path, repos, status, created_at, updated_at)
 		SELECT
 			id,
-			'MISSION-001' as mission_id,
+			'COMM-001' as mission_id,
 			'grove-' || substr(id, 7) as name,
 			path,
 			repos,
@@ -863,7 +863,7 @@ func migrationV8(db *sql.DB) error {
 		{"TAG-001", "graphiti", "Graphiti memory system integration and functionality"},
 		{"TAG-002", "handoff", "Agent handoff coordination and context transfer"},
 		{"TAG-003", "orc-prime", "ORC Prime orchestrator agent capabilities"},
-		{"TAG-004", "mission-infra", "Mission workspace and infrastructure setup"},
+		{"TAG-004", "commission-infra", "Commission workspace and infrastructure setup"},
 		{"TAG-005", "desired-state", "Desired state tracking and reconciliation"},
 		{"TAG-006", "tech-plans", "Technical planning and design documentation"},
 		{"TAG-007", "semantic-epic-system", "9-epic semantic knowledge management"},

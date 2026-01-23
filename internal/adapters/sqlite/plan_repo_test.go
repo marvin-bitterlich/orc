@@ -29,8 +29,8 @@ func setupPlanTestDB(t *testing.T) *sql.DB {
 	}
 
 	// Insert test data
-	_, _ = testDB.Exec("INSERT INTO commissions (id, title, status) VALUES ('MISSION-001', 'Test Mission', 'active')")
-	_, _ = testDB.Exec("INSERT INTO shipments (id, commission_id, title, status) VALUES ('SHIP-001', 'MISSION-001', 'Test Shipment', 'active')")
+	_, _ = testDB.Exec("INSERT INTO commissions (id, title, status) VALUES ('COMM-001', 'Test Mission', 'active')")
+	_, _ = testDB.Exec("INSERT INTO shipments (id, commission_id, title, status) VALUES ('SHIP-001', 'COMM-001', 'Test Shipment', 'active')")
 
 	t.Cleanup(func() {
 		testDB.Close()
@@ -70,7 +70,7 @@ func TestPlanRepository_Create(t *testing.T) {
 
 	plan := &secondary.PlanRecord{
 		ID:           "PLAN-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		ShipmentID:   "SHIP-001",
 		Title:        "Test Plan",
 		Description:  "A test plan description",
@@ -105,7 +105,7 @@ func TestPlanRepository_Create_WithoutShipment(t *testing.T) {
 
 	plan := &secondary.PlanRecord{
 		ID:           "PLAN-001",
-		CommissionID: "MISSION-001",
+		CommissionID: "COMM-001",
 		Title:        "Standalone Plan",
 	}
 
@@ -125,7 +125,7 @@ func TestPlanRepository_GetByID(t *testing.T) {
 	repo := sqlite.NewPlanRepository(db)
 	ctx := context.Background()
 
-	plan := createTestPlan(t, repo, ctx, "MISSION-001", "SHIP-001", "Test Plan")
+	plan := createTestPlan(t, repo, ctx, "COMM-001", "SHIP-001", "Test Plan")
 
 	retrieved, err := repo.GetByID(ctx, plan.ID)
 	if err != nil {
@@ -135,8 +135,8 @@ func TestPlanRepository_GetByID(t *testing.T) {
 	if retrieved.Title != "Test Plan" {
 		t.Errorf("expected title 'Test Plan', got '%s'", retrieved.Title)
 	}
-	if retrieved.CommissionID != "MISSION-001" {
-		t.Errorf("expected mission 'MISSION-001', got '%s'", retrieved.CommissionID)
+	if retrieved.CommissionID != "COMM-001" {
+		t.Errorf("expected mission 'COMM-001', got '%s'", retrieved.CommissionID)
 	}
 }
 
@@ -156,9 +156,9 @@ func TestPlanRepository_List(t *testing.T) {
 	repo := sqlite.NewPlanRepository(db)
 	ctx := context.Background()
 
-	createTestPlan(t, repo, ctx, "MISSION-001", "", "Plan 1")
-	createTestPlan(t, repo, ctx, "MISSION-001", "", "Plan 2")
-	createTestPlan(t, repo, ctx, "MISSION-001", "", "Plan 3")
+	createTestPlan(t, repo, ctx, "COMM-001", "", "Plan 1")
+	createTestPlan(t, repo, ctx, "COMM-001", "", "Plan 2")
+	createTestPlan(t, repo, ctx, "COMM-001", "", "Plan 3")
 
 	plans, err := repo.List(ctx, secondary.PlanFilters{})
 	if err != nil {
@@ -176,10 +176,10 @@ func TestPlanRepository_List_FilterByShipment(t *testing.T) {
 	ctx := context.Background()
 
 	// Add another shipment
-	_, _ = db.Exec("INSERT INTO shipments (id, commission_id, title) VALUES ('SHIP-002', 'MISSION-001', 'Ship 2')")
+	_, _ = db.Exec("INSERT INTO shipments (id, commission_id, title) VALUES ('SHIP-002', 'COMM-001', 'Ship 2')")
 
-	createTestPlan(t, repo, ctx, "MISSION-001", "SHIP-001", "Plan 1")
-	createTestPlan(t, repo, ctx, "MISSION-001", "SHIP-002", "Plan 2")
+	createTestPlan(t, repo, ctx, "COMM-001", "SHIP-001", "Plan 1")
+	createTestPlan(t, repo, ctx, "COMM-001", "SHIP-002", "Plan 2")
 
 	plans, err := repo.List(ctx, secondary.PlanFilters{ShipmentID: "SHIP-001"})
 	if err != nil {
@@ -197,18 +197,18 @@ func TestPlanRepository_List_FilterByMission(t *testing.T) {
 	ctx := context.Background()
 
 	// Add another mission
-	_, _ = db.Exec("INSERT INTO commissions (id, title, status) VALUES ('MISSION-002', 'Mission 2', 'active')")
+	_, _ = db.Exec("INSERT INTO commissions (id, title, status) VALUES ('COMM-002', 'Mission 2', 'active')")
 
-	createTestPlan(t, repo, ctx, "MISSION-001", "", "Plan 1")
-	createTestPlan(t, repo, ctx, "MISSION-002", "", "Plan 2")
+	createTestPlan(t, repo, ctx, "COMM-001", "", "Plan 1")
+	createTestPlan(t, repo, ctx, "COMM-002", "", "Plan 2")
 
-	plans, err := repo.List(ctx, secondary.PlanFilters{CommissionID: "MISSION-001"})
+	plans, err := repo.List(ctx, secondary.PlanFilters{CommissionID: "COMM-001"})
 	if err != nil {
 		t.Fatalf("List failed: %v", err)
 	}
 
 	if len(plans) != 1 {
-		t.Errorf("expected 1 plan for MISSION-001, got %d", len(plans))
+		t.Errorf("expected 1 plan for COMM-001, got %d", len(plans))
 	}
 }
 
@@ -217,8 +217,8 @@ func TestPlanRepository_List_FilterByStatus(t *testing.T) {
 	repo := sqlite.NewPlanRepository(db)
 	ctx := context.Background()
 
-	plan1 := createTestPlan(t, repo, ctx, "MISSION-001", "", "Draft Plan")
-	createTestPlan(t, repo, ctx, "MISSION-001", "", "Another Draft Plan")
+	plan1 := createTestPlan(t, repo, ctx, "COMM-001", "", "Draft Plan")
+	createTestPlan(t, repo, ctx, "COMM-001", "", "Another Draft Plan")
 
 	// Approve plan1
 	_ = repo.Approve(ctx, plan1.ID)
@@ -238,7 +238,7 @@ func TestPlanRepository_Update(t *testing.T) {
 	repo := sqlite.NewPlanRepository(db)
 	ctx := context.Background()
 
-	plan := createTestPlan(t, repo, ctx, "MISSION-001", "", "Original Title")
+	plan := createTestPlan(t, repo, ctx, "COMM-001", "", "Original Title")
 
 	err := repo.Update(ctx, &secondary.PlanRecord{
 		ID:      plan.ID,
@@ -277,7 +277,7 @@ func TestPlanRepository_Delete(t *testing.T) {
 	repo := sqlite.NewPlanRepository(db)
 	ctx := context.Background()
 
-	plan := createTestPlan(t, repo, ctx, "MISSION-001", "", "To Delete")
+	plan := createTestPlan(t, repo, ctx, "COMM-001", "", "To Delete")
 
 	err := repo.Delete(ctx, plan.ID)
 	if err != nil {
@@ -306,7 +306,7 @@ func TestPlanRepository_Pin_Unpin(t *testing.T) {
 	repo := sqlite.NewPlanRepository(db)
 	ctx := context.Background()
 
-	plan := createTestPlan(t, repo, ctx, "MISSION-001", "", "Pin Test")
+	plan := createTestPlan(t, repo, ctx, "COMM-001", "", "Pin Test")
 
 	// Pin
 	err := repo.Pin(ctx, plan.ID)
@@ -355,7 +355,7 @@ func TestPlanRepository_GetNextID(t *testing.T) {
 		t.Errorf("expected PLAN-001, got %s", id)
 	}
 
-	createTestPlan(t, repo, ctx, "MISSION-001", "", "Test")
+	createTestPlan(t, repo, ctx, "COMM-001", "", "Test")
 
 	id, err = repo.GetNextID(ctx)
 	if err != nil {
@@ -371,7 +371,7 @@ func TestPlanRepository_Approve(t *testing.T) {
 	repo := sqlite.NewPlanRepository(db)
 	ctx := context.Background()
 
-	plan := createTestPlan(t, repo, ctx, "MISSION-001", "", "Plan to Approve")
+	plan := createTestPlan(t, repo, ctx, "COMM-001", "", "Plan to Approve")
 
 	err := repo.Approve(ctx, plan.ID)
 	if err != nil {
@@ -404,7 +404,7 @@ func TestPlanRepository_GetActivePlanForShipment(t *testing.T) {
 	ctx := context.Background()
 
 	// Create a draft plan for shipment
-	plan := createTestPlan(t, repo, ctx, "MISSION-001", "SHIP-001", "Active Plan")
+	plan := createTestPlan(t, repo, ctx, "COMM-001", "SHIP-001", "Active Plan")
 
 	// Get active plan
 	active, err := repo.GetActivePlanForShipment(ctx, "SHIP-001")
@@ -460,7 +460,7 @@ func TestPlanRepository_HasActivePlanForShipment(t *testing.T) {
 	}
 
 	// Create a draft plan
-	plan := createTestPlan(t, repo, ctx, "MISSION-001", "SHIP-001", "Draft Plan")
+	plan := createTestPlan(t, repo, ctx, "COMM-001", "SHIP-001", "Draft Plan")
 
 	has, err = repo.HasActivePlanForShipment(ctx, "SHIP-001")
 	if err != nil {
@@ -487,7 +487,7 @@ func TestPlanRepository_CommissionExists(t *testing.T) {
 	repo := sqlite.NewPlanRepository(db)
 	ctx := context.Background()
 
-	exists, err := repo.CommissionExists(ctx, "MISSION-001")
+	exists, err := repo.CommissionExists(ctx, "COMM-001")
 	if err != nil {
 		t.Fatalf("CommissionExists failed: %v", err)
 	}

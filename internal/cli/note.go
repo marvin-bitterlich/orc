@@ -38,7 +38,7 @@ var noteCreateCmd = &cobra.Command{
 		if missionID == "" {
 			missionID = orccontext.GetContextCommissionID()
 			if missionID == "" {
-				return fmt.Errorf("no mission context detected\nHint: Use --commission flag or run from a workbench directory")
+				return fmt.Errorf("no commission context detected\nHint: Use --commission flag or run from a workbench directory")
 			}
 		}
 
@@ -198,7 +198,7 @@ var noteShowCmd = &cobra.Command{
 			status = "open"
 		}
 		fmt.Printf("Status: %s\n", status)
-		fmt.Printf("Mission: %s\n", note.CommissionID)
+		fmt.Printf("Commission: %s\n", note.CommissionID)
 		if note.ShipmentID != "" {
 			fmt.Printf("Shipment: %s\n", note.ShipmentID)
 		}
@@ -353,7 +353,7 @@ func init() {
 	noteCreateCmd.Flags().String("tome", "", "Tome ID to attach note to")
 
 	// note list flags
-	noteListCmd.Flags().StringP("commission", "c", "", "Filter by mission")
+	noteListCmd.Flags().StringP("commission", "c", "", "Filter by commission")
 	noteListCmd.Flags().StringP("type", "t", "", "Filter by type")
 	noteListCmd.Flags().String("shipment", "", "Filter by shipment")
 	noteListCmd.Flags().String("investigation", "", "Filter by investigation")
