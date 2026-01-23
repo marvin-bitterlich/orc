@@ -5,37 +5,16 @@ import (
 	"database/sql"
 	"testing"
 
-	_ "github.com/mattn/go-sqlite3"
-
 	"github.com/example/orc/internal/adapters/sqlite"
-	"github.com/example/orc/internal/db"
 	"github.com/example/orc/internal/ports/secondary"
 )
 
-// setupConclaveTestDB creates an in-memory database with the authoritative schema.
-// Uses db.GetSchemaSQL() to prevent test schemas from drifting.
+// setupConclaveTestDB creates the test database with required seed data.
 func setupConclaveTestDB(t *testing.T) *sql.DB {
 	t.Helper()
-
-	testDB, err := sql.Open("sqlite3", ":memory:")
-	if err != nil {
-		t.Fatalf("failed to open test db: %v", err)
-	}
-
-	// Use the authoritative schema from schema.go
-	_, err = testDB.Exec(db.GetSchemaSQL())
-	if err != nil {
-		t.Fatalf("failed to create schema: %v", err)
-	}
-
-	// Insert test data
-	_, _ = testDB.Exec("INSERT INTO commissions (id, title, status) VALUES ('COMM-001', 'Test Mission', 'active')")
-	_, _ = testDB.Exec("INSERT INTO shipments (id, commission_id, title, status) VALUES ('SHIP-001', 'COMM-001', 'Test Shipment', 'active')")
-
-	t.Cleanup(func() {
-		testDB.Close()
-	})
-
+	testDB := setupTestDB(t)
+	seedCommission(t, testDB, "COMM-001", "Test Commission")
+	seedShipment(t, testDB, "SHIP-001", "COMM-001", "Test Shipment")
 	return testDB
 }
 

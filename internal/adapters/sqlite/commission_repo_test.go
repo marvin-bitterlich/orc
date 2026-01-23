@@ -2,39 +2,12 @@ package sqlite_test
 
 import (
 	"context"
-	"database/sql"
 	"testing"
-
-	_ "github.com/mattn/go-sqlite3"
 
 	"github.com/example/orc/internal/adapters/sqlite"
 	corecommission "github.com/example/orc/internal/core/commission"
-	"github.com/example/orc/internal/db"
 	"github.com/example/orc/internal/ports/secondary"
 )
-
-// setupTestDB creates an in-memory database with the authoritative schema.
-// Uses db.GetSchemaSQL() to prevent test schemas from drifting.
-func setupTestDB(t *testing.T) *sql.DB {
-	t.Helper()
-
-	testDB, err := sql.Open("sqlite3", ":memory:")
-	if err != nil {
-		t.Fatalf("failed to open test db: %v", err)
-	}
-
-	// Use the authoritative schema from schema.go
-	_, err = testDB.Exec(db.GetSchemaSQL())
-	if err != nil {
-		t.Fatalf("failed to create schema: %v", err)
-	}
-
-	t.Cleanup(func() {
-		testDB.Close()
-	})
-
-	return testDB
-}
 
 // createTestCommission is a helper that simulates service-layer behavior:
 // gets next ID, sets initial status, then creates.

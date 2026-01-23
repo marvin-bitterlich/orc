@@ -7,7 +7,7 @@
 // the authoritative schema, preventing drift between test and production.
 //
 // DO NOT hardcode CREATE TABLE statements in test files. `make schema-check`
-// will fail if you do. Instead, use setupTestDB() or setupIntegrationDB().
+// will fail if you do. Instead, use setupTestDB() and the seed* helpers.
 package sqlite_test
 
 import (
@@ -19,10 +19,10 @@ import (
 	"github.com/example/orc/internal/db"
 )
 
-// setupIntegrationDB creates a shared in-memory database with all tables
-// for integration testing scenarios that span multiple repositories.
-// Uses the authoritative schema from db.GetSchemaSQL() to prevent drift.
-func setupIntegrationDB(t *testing.T) *sql.DB {
+// setupTestDB creates an in-memory database with the authoritative schema.
+// This is the single shared test database setup function for all repository tests.
+// Uses db.GetSchemaSQL() to prevent test schemas from drifting.
+func setupTestDB(t *testing.T) *sql.DB {
 	t.Helper()
 
 	testDB, err := sql.Open("sqlite3", ":memory:")
@@ -43,10 +43,15 @@ func setupIntegrationDB(t *testing.T) *sql.DB {
 	return testDB
 }
 
-// seedMission inserts a test commission and returns its ID.
-// Note: Function name kept for backwards compatibility with existing tests.
-func seedMission(t *testing.T, db *sql.DB, id, title string) string {
+// seedCommission inserts a test commission and returns its ID.
+func seedCommission(t *testing.T, db *sql.DB, id, title string) string {
 	t.Helper()
+	if id == "" {
+		id = "COMM-001"
+	}
+	if title == "" {
+		title = "Test Commission"
+	}
 	_, err := db.Exec("INSERT INTO commissions (id, title, status) VALUES (?, ?, 'active')", id, title)
 	if err != nil {
 		t.Fatalf("failed to seed commission: %v", err)
@@ -54,12 +59,40 @@ func seedMission(t *testing.T, db *sql.DB, id, title string) string {
 	return id
 }
 
-// seedGrove inserts a test grove and returns its ID.
-func seedGrove(t *testing.T, db *sql.DB, id, missionID, name string) string {
+// seedShipment inserts a test shipment and returns its ID.
+func seedShipment(t *testing.T, db *sql.DB, id, commissionID, title string) string {
 	t.Helper()
-	_, err := db.Exec("INSERT INTO groves (id, commission_id, name, status) VALUES (?, ?, ?, 'active')", id, missionID, name)
+	if id == "" {
+		id = "SHIP-001"
+	}
+	if commissionID == "" {
+		commissionID = "COMM-001"
+	}
+	if title == "" {
+		title = "Test Shipment"
+	}
+	_, err := db.Exec("INSERT INTO shipments (id, commission_id, title, status) VALUES (?, ?, ?, 'active')", id, commissionID, title)
 	if err != nil {
-		t.Fatalf("failed to seed grove: %v", err)
+		t.Fatalf("failed to seed shipment: %v", err)
+	}
+	return id
+}
+
+// seedWorkbench inserts a test workbench and returns its ID.
+func seedWorkbench(t *testing.T, db *sql.DB, id, commissionID, name string) string {
+	t.Helper()
+	if id == "" {
+		id = "GROVE-001"
+	}
+	if commissionID == "" {
+		commissionID = "COMM-001"
+	}
+	if name == "" {
+		name = "test-workbench"
+	}
+	_, err := db.Exec("INSERT INTO groves (id, commission_id, name, status) VALUES (?, ?, ?, 'active')", id, commissionID, name)
+	if err != nil {
+		t.Fatalf("failed to seed workbench: %v", err)
 	}
 	return id
 }
@@ -67,6 +100,12 @@ func seedGrove(t *testing.T, db *sql.DB, id, missionID, name string) string {
 // seedTag inserts a test tag and returns its ID.
 func seedTag(t *testing.T, db *sql.DB, id, name string) string {
 	t.Helper()
+	if id == "" {
+		id = "TAG-001"
+	}
+	if name == "" {
+		name = "test-tag"
+	}
 	_, err := db.Exec("INSERT INTO tags (id, name) VALUES (?, ?)", id, name)
 	if err != nil {
 		t.Fatalf("failed to seed tag: %v", err)
