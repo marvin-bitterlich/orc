@@ -64,6 +64,7 @@ It coordinates IMPs (Implementation Agents) working in isolated workbenches (wor
 
 	// Developer tools
 	rootCmd.AddCommand(cli.ScaffoldCmd())
+	rootCmd.AddCommand(cli.DebugCmd())
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)

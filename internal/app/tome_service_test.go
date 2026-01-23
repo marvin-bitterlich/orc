@@ -424,42 +424,6 @@ func TestCloseTome_NotFound(t *testing.T) {
 }
 
 // ============================================================================
-// PauseTome Tests
-// ============================================================================
-
-func TestPauseTome_NotSupported(t *testing.T) {
-	service, _, _ := newTestTomeService()
-	ctx := context.Background()
-
-	err := service.PauseTome(ctx, "TOME-001")
-
-	if err == nil {
-		t.Fatal("expected error for pause not supported, got nil")
-	}
-	if err.Error() != "pause is not supported - tomes only have open/closed status" {
-		t.Errorf("unexpected error: %v", err)
-	}
-}
-
-// ============================================================================
-// ResumeTome Tests
-// ============================================================================
-
-func TestResumeTome_NotSupported(t *testing.T) {
-	service, _, _ := newTestTomeService()
-	ctx := context.Background()
-
-	err := service.ResumeTome(ctx, "TOME-001")
-
-	if err == nil {
-		t.Fatal("expected error for resume not supported, got nil")
-	}
-	if err.Error() != "resume is not supported - tomes only have open/closed status" {
-		t.Errorf("unexpected error: %v", err)
-	}
-}
-
-// ============================================================================
 // Pin/Unpin Tests
 // ============================================================================
 

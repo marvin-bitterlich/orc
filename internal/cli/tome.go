@@ -174,42 +174,6 @@ var tomeCloseCmd = &cobra.Command{
 	},
 }
 
-var tomePauseCmd = &cobra.Command{
-	Use:   "pause [tome-id]",
-	Short: "Pause an active tome",
-	Args:  cobra.ExactArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
-		tomeID := args[0]
-
-		err := wire.TomeService().PauseTome(ctx, tomeID)
-		if err != nil {
-			return fmt.Errorf("failed to pause tome: %w", err)
-		}
-
-		fmt.Printf("✓ Tome %s paused\n", tomeID)
-		return nil
-	},
-}
-
-var tomeResumeCmd = &cobra.Command{
-	Use:   "resume [tome-id]",
-	Short: "Resume a paused tome",
-	Args:  cobra.ExactArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
-		tomeID := args[0]
-
-		err := wire.TomeService().ResumeTome(ctx, tomeID)
-		if err != nil {
-			return fmt.Errorf("failed to resume tome: %w", err)
-		}
-
-		fmt.Printf("✓ Tome %s resumed\n", tomeID)
-		return nil
-	},
-}
-
 var tomeUpdateCmd = &cobra.Command{
 	Use:   "update [tome-id]",
 	Short: "Update tome title and/or description",
@@ -311,8 +275,6 @@ func init() {
 	tomeCmd.AddCommand(tomeListCmd)
 	tomeCmd.AddCommand(tomeShowCmd)
 	tomeCmd.AddCommand(tomeCloseCmd)
-	tomeCmd.AddCommand(tomePauseCmd)
-	tomeCmd.AddCommand(tomeResumeCmd)
 	tomeCmd.AddCommand(tomeUpdateCmd)
 	tomeCmd.AddCommand(tomePinCmd)
 	tomeCmd.AddCommand(tomeUnpinCmd)

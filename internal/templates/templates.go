@@ -34,11 +34,6 @@ func GetWelcomeGoblin() (string, error) {
 	return string(content), nil
 }
 
-// GetWelcomeORC returns the ORC welcome message template content (deprecated, use GetWelcomeGoblin)
-func GetWelcomeORC() (string, error) {
-	return GetWelcomeGoblin()
-}
-
 // GetWelcomeIMP returns the IMP welcome message template content
 func GetWelcomeIMP() (string, error) {
 	content, err := primeTemplates.ReadFile("prime/welcome-imp.tmpl")

@@ -110,16 +110,6 @@ func (s *TomeServiceImpl) CloseTome(ctx context.Context, tomeID string) error {
 	return s.tomeRepo.UpdateStatus(ctx, tomeID, "closed", true)
 }
 
-// PauseTome is deprecated - tomes only have open/closed status now.
-func (s *TomeServiceImpl) PauseTome(ctx context.Context, tomeID string) error {
-	return fmt.Errorf("pause is not supported - tomes only have open/closed status")
-}
-
-// ResumeTome is deprecated - tomes only have open/closed status now.
-func (s *TomeServiceImpl) ResumeTome(ctx context.Context, tomeID string) error {
-	return fmt.Errorf("resume is not supported - tomes only have open/closed status")
-}
-
 // UpdateTome updates a tome's title and/or description.
 func (s *TomeServiceImpl) UpdateTome(ctx context.Context, req primary.UpdateTomeRequest) error {
 	record := &secondary.TomeRecord{

@@ -16,12 +16,6 @@ type TomeService interface {
 	// CloseTome marks a tome as closed.
 	CloseTome(ctx context.Context, tomeID string) error
 
-	// PauseTome pauses an active tome.
-	PauseTome(ctx context.Context, tomeID string) error
-
-	// ResumeTome resumes a paused tome.
-	ResumeTome(ctx context.Context, tomeID string) error
-
 	// UpdateTome updates a tome's title and/or description.
 	UpdateTome(ctx context.Context, req UpdateTomeRequest) error
 
