@@ -95,39 +95,37 @@ func colorizeID(id string) string {
 	return c.Sprint(id)
 }
 
-// getStatusColor returns a fixed semantic color for a status
-// Uses meaningful colors: ready=green, paused=yellow, blocked=red, etc.
-func getStatusColor(status string) *color.Color {
-	switch status {
-	case "ready":
-		return color.New(color.FgGreen)
-	case "needs_design":
-		return color.New(color.FgHiYellow) // Bright yellow for needs design
-	case "ready_to_implement":
-		return color.New(color.FgHiCyan) // Bright cyan for ready to implement
-	case "paused":
-		return color.New(color.FgYellow)
-	case "blocked":
-		return color.New(color.FgRed)
-	case "design":
-		return color.New(color.FgCyan)
-	case "awaiting_approval":
-		return color.New(color.FgMagenta) // Magenta for awaiting approval
-	case "complete":
-		return color.New(color.FgHiGreen) // Bright green
-	default:
-		return color.New(color.FgWhite)
-	}
-}
-
 // colorizeStatus formats status as uppercase with semantic color
 // Returns empty string for "ready" status (default, not shown)
 func colorizeStatus(status string) string {
 	if status == "" || status == "ready" || status == "active" {
 		return "" // Don't show empty or default statuses
 	}
-	c := getStatusColor(status)
-	return c.Sprintf("%s", strings.ToUpper(status))
+	upper := strings.ToUpper(status)
+
+	// Inline color application (same pattern as [FOCUSED] which works)
+	switch status {
+	case "needs_design":
+		return color.New(color.FgHiYellow).Sprint(upper)
+	case "ready_to_implement":
+		return color.New(color.FgHiCyan).Sprint(upper)
+	case "paused", "draft":
+		return color.New(color.FgYellow).Sprint(upper)
+	case "blocked":
+		return color.New(color.FgRed).Sprint(upper)
+	case "design", "open":
+		return color.New(color.FgCyan).Sprint(upper)
+	case "awaiting_approval", "submitted":
+		return color.New(color.FgMagenta).Sprint(upper)
+	case "complete", "verified", "merged":
+		return color.New(color.FgHiGreen).Sprint(upper)
+	case "in_progress", "implement":
+		return color.New(color.FgHiBlue).Sprint(upper)
+	case "archived", "closed":
+		return color.New(color.FgHiBlack).Sprint(upper)
+	default:
+		return color.New(color.FgWhite).Sprint(upper)
+	}
 }
 
 // getEntityType returns the entity type string for tag lookups based on ID prefix
