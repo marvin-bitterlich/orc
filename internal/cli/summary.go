@@ -143,6 +143,35 @@ func getEntityType(id string) string {
 	}
 }
 
+// resolveContainerCommission looks up the commission_id for any container type
+func resolveContainerCommission(containerID string) string {
+	ctx := context.Background()
+
+	// Determine container type from ID prefix
+	switch {
+	case strings.HasPrefix(containerID, "CON-"):
+		if conclave, err := wire.ConclaveService().GetConclave(ctx, containerID); err == nil {
+			return conclave.CommissionID
+		}
+	case strings.HasPrefix(containerID, "SHIP-"):
+		if shipment, err := wire.ShipmentService().GetShipment(ctx, containerID); err == nil {
+			return shipment.CommissionID
+		}
+	case strings.HasPrefix(containerID, "INV-"):
+		if inv, err := wire.InvestigationService().GetInvestigation(ctx, containerID); err == nil {
+			return inv.CommissionID
+		}
+	case strings.HasPrefix(containerID, "TOME-"):
+		if tome, err := wire.TomeService().GetTome(ctx, containerID); err == nil {
+			return tome.CommissionID
+		}
+	case strings.HasPrefix(containerID, "COMM-"):
+		// Focus is already a commission
+		return containerID
+	}
+	return ""
+}
+
 // shouldShowLeaf checks if a leaf item should be shown based on tag filters
 // Returns (show bool, tagName string)
 func shouldShowLeaf(entityID string, filters *filterConfig) (bool, string) {
@@ -709,8 +738,9 @@ func SummaryCmd() *cobra.Command {
 		Long: `Show a hierarchical summary of missions with all container types.
 
 Display modes:
-  Default: Show only focused container (if focus is set)
-  --all: Show all containers
+  Default: Show only focused container's commission (if focus is set)
+  --all: Show all commissions and containers
+  --commission [id]: Show specific commission (or 'current' for focus/context)
 
 Containers shown:
   - Shipments (SHIP-*) with Tasks
@@ -719,15 +749,16 @@ Containers shown:
   - Tomes (TOME-*) with Notes
 
 Filtering:
-  --commission [id]              Show specific mission (or 'current')
+  --commission [id]           Show specific mission (or 'current')
   --filter-statuses paused    Hide items with these statuses
   --filter-containers SHIP    Show only these container types
   --tags research             Show only leaves with these tags
   --not-tags blocked          Hide leaves with these tags
 
 Examples:
-  orc summary                          # focused container only (if set)
-  orc summary --all                    # all containers
+  orc summary                          # focused container's commission only
+  orc summary --all                    # all commissions
+  orc summary --commission current     # explicit current commission
   orc summary --filter-containers SHIP,CON --all
   orc summary --tags research --all
   orc summary --filter-statuses paused,blocked`,
@@ -783,14 +814,21 @@ Examples:
 			// Determine mission filter
 			var filterCommissionID string
 			if missionFilter == "current" {
-				// Get current mission from config in cwd
+				// First try config in cwd
 				commissionID := ctx.GetContextCommissionID()
+				// Fall back to resolving from focus
+				if commissionID == "" && focusID != "" {
+					commissionID = resolveContainerCommission(focusID)
+				}
 				if commissionID == "" {
-					return fmt.Errorf("--commission current requires being in a mission context (no .orc/config.json found with commission_id)")
+					return fmt.Errorf("--commission current requires a focused container or being in a mission context")
 				}
 				filterCommissionID = commissionID
 			} else if missionFilter != "" {
 				filterCommissionID = missionFilter
+			} else if focusID != "" && !expandAll {
+				// DEFAULT BEHAVIOR: When focused (and not --all), scope to focus's commission
+				filterCommissionID = resolveContainerCommission(focusID)
 			}
 
 			// Build header with filter info
