@@ -43,18 +43,9 @@ type CreateWorkbenchContext struct {
 
 // CanCreateWorkbench evaluates whether a workbench can be created.
 // Rules:
-// - Only ORC can create workbenches (IMPs work within existing workbenches)
 // - Workshop must exist
 func CanCreateWorkbench(ctx CreateWorkbenchContext) GuardResult {
-	// Rule 1: Only ORC can create workbenches
-	if ctx.AgentType == AgentTypeIMP {
-		return GuardResult{
-			Allowed: false,
-			Reason:  fmt.Sprintf("IMPs cannot create workbenches - only ORC can create workbenches (agent: %s)", ctx.AgentID),
-		}
-	}
-
-	// Rule 2: Workshop must exist
+	// Workshop must exist
 	if !ctx.WorkshopExists {
 		return GuardResult{
 			Allowed: false,
