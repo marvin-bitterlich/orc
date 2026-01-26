@@ -66,7 +66,7 @@ CREATE TABLE IF NOT EXISTS factories (
 	updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
--- Workshops (Persistent places within factories)
+-- Workshops (TMux sessions - runtime environments within a factory)
 CREATE TABLE IF NOT EXISTS workshops (
 	id TEXT PRIMARY KEY,
 	factory_id TEXT NOT NULL,
@@ -77,7 +77,7 @@ CREATE TABLE IF NOT EXISTS workshops (
 	FOREIGN KEY (factory_id) REFERENCES factories(id)
 );
 
--- Workbenches (Git worktrees - replaces Groves)
+-- Workbenches (Git worktrees within a workshop)
 CREATE TABLE IF NOT EXISTS workbenches (
 	id TEXT PRIMARY KEY,
 	workshop_id TEXT NOT NULL,
