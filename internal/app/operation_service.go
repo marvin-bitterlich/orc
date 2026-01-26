@@ -24,7 +24,7 @@ func NewOperationService(
 
 // CreateOperation creates a new operation.
 func (s *OperationServiceImpl) CreateOperation(ctx context.Context, req primary.CreateOperationRequest) (*primary.CreateOperationResponse, error) {
-	// Validate mission exists
+	// Validate commission exists
 	exists, err := s.operationRepo.CommissionExists(ctx, req.CommissionID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to validate commission: %w", err)

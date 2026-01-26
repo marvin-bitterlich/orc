@@ -26,9 +26,9 @@ func NewShipmentService(
 	}
 }
 
-// CreateShipment creates a new shipment for a mission.
+// CreateShipment creates a new shipment for a commission.
 func (s *ShipmentServiceImpl) CreateShipment(ctx context.Context, req primary.CreateShipmentRequest) (*primary.CreateShipmentResponse, error) {
-	// Validate mission exists
+	// Validate commission exists
 	exists, err := s.shipmentRepo.CommissionExists(ctx, req.CommissionID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to validate commission: %w", err)
@@ -256,6 +256,8 @@ func recordToTask(r *secondary.TaskRecord) *primary.Task {
 		ID:                  r.ID,
 		ShipmentID:          r.ShipmentID,
 		InvestigationID:     r.InvestigationID,
+		TomeID:              r.TomeID,
+		ConclaveID:          r.ConclaveID,
 		CommissionID:        r.CommissionID,
 		Title:               r.Title,
 		Description:         r.Description,

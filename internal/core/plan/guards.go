@@ -46,7 +46,7 @@ type DeletePlanContext struct {
 // - Shipment must exist if provided
 // - No active (draft) plan for shipment if provided
 func CanCreatePlan(ctx CreatePlanContext) GuardResult {
-	// Check mission exists
+	// Check commission exists
 	if !ctx.CommissionExists {
 		return GuardResult{
 			Allowed: false,

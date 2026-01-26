@@ -192,6 +192,12 @@ type TaskRepository interface {
 	// ShipmentExists checks if a shipment exists (for validation).
 	ShipmentExists(ctx context.Context, shipmentID string) (bool, error)
 
+	// TomeExists checks if a tome exists (for validation).
+	TomeExists(ctx context.Context, tomeID string) (bool, error)
+
+	// ConclaveExists checks if a conclave exists (for validation).
+	ConclaveExists(ctx context.Context, conclaveID string) (bool, error)
+
 	// GetTag retrieves the tag for a task (nil if none).
 	GetTag(ctx context.Context, taskID string) (*TagRecord, error)
 
@@ -214,6 +220,8 @@ type TaskRecord struct {
 	ShipmentID          string // Empty string means null
 	CommissionID        string
 	InvestigationID     string // Empty string means null
+	TomeID              string // Empty string means null
+	ConclaveID          string // Empty string means null
 	Title               string
 	Description         string // Empty string means null
 	Type                string // Empty string means null
@@ -299,6 +307,15 @@ type NoteRepository interface {
 
 	// CommissionExists checks if a commission exists (for validation).
 	CommissionExists(ctx context.Context, commissionID string) (bool, error)
+
+	// ShipmentExists checks if a shipment exists (for validation).
+	ShipmentExists(ctx context.Context, shipmentID string) (bool, error)
+
+	// TomeExists checks if a tome exists (for validation).
+	TomeExists(ctx context.Context, tomeID string) (bool, error)
+
+	// ConclaveExists checks if a conclave exists (for validation).
+	ConclaveExists(ctx context.Context, conclaveID string) (bool, error)
 
 	// UpdateStatus updates the status of a note (open/closed).
 	UpdateStatus(ctx context.Context, id string, status string) error

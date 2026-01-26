@@ -26,21 +26,21 @@ var investigationCreateCmd = &cobra.Command{
 	Args:  cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		title := args[0]
-		missionID, _ := cmd.Flags().GetString("commission")
+		commissionID, _ := cmd.Flags().GetString("commission")
 		conclaveID, _ := cmd.Flags().GetString("conclave")
 		description, _ := cmd.Flags().GetString("description")
 
-		// Get mission from context or require explicit flag
-		if missionID == "" {
-			missionID = orcctx.GetContextCommissionID()
-			if missionID == "" {
+		// Get commission from context or require explicit flag
+		if commissionID == "" {
+			commissionID = orcctx.GetContextCommissionID()
+			if commissionID == "" {
 				return fmt.Errorf("no commission context detected\nHint: Use --commission flag or run from a workbench directory")
 			}
 		}
 
 		ctx := context.Background()
 		resp, err := wire.InvestigationService().CreateInvestigation(ctx, primary.CreateInvestigationRequest{
-			CommissionID: missionID,
+			CommissionID: commissionID,
 			ConclaveID:   conclaveID,
 			Title:        title,
 			Description:  description,
@@ -51,7 +51,7 @@ var investigationCreateCmd = &cobra.Command{
 
 		investigation := resp.Investigation
 		fmt.Printf("✓ Created investigation %s: %s\n", investigation.ID, investigation.Title)
-		fmt.Printf("  Mission: %s\n", investigation.CommissionID)
+		fmt.Printf("  Commission: %s\n", investigation.CommissionID)
 		fmt.Printf("  Status: %s\n", investigation.Status)
 		fmt.Println()
 		fmt.Println("Next steps:")
@@ -64,18 +64,18 @@ var investigationListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List investigations",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		missionID, _ := cmd.Flags().GetString("commission")
+		commissionID, _ := cmd.Flags().GetString("commission")
 		conclaveID, _ := cmd.Flags().GetString("conclave")
 		status, _ := cmd.Flags().GetString("status")
 
-		// Get mission from context if not specified
-		if missionID == "" {
-			missionID = orcctx.GetContextCommissionID()
+		// Get commission from context if not specified
+		if commissionID == "" {
+			commissionID = orcctx.GetContextCommissionID()
 		}
 
 		ctx := context.Background()
 		investigations, err := wire.InvestigationService().ListInvestigations(ctx, primary.InvestigationFilters{
-			CommissionID: missionID,
+			CommissionID: commissionID,
 			ConclaveID:   conclaveID,
 			Status:       status,
 		})
@@ -89,7 +89,7 @@ var investigationListCmd = &cobra.Command{
 		}
 
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-		fmt.Fprintln(w, "ID\tTITLE\tSTATUS\tMISSION")
+		fmt.Fprintln(w, "ID\tTITLE\tSTATUS\tCOMMISSION")
 		fmt.Fprintln(w, "--\t-----\t------\t-------")
 		for _, inv := range investigations {
 			pinnedMark := ""

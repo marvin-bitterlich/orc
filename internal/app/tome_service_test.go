@@ -15,22 +15,22 @@ import (
 
 // mockTomeRepository implements secondary.TomeRepository for testing.
 type mockTomeRepository struct {
-	tomes               map[string]*secondary.TomeRecord
-	createErr           error
-	getErr              error
-	updateErr           error
-	deleteErr           error
-	listErr             error
-	updateStatusErr     error
-	assignWorkbenchErr  error
-	missionExistsResult bool
-	missionExistsErr    error
+	tomes                  map[string]*secondary.TomeRecord
+	createErr              error
+	getErr                 error
+	updateErr              error
+	deleteErr              error
+	listErr                error
+	updateStatusErr        error
+	assignWorkbenchErr     error
+	commissionExistsResult bool
+	commissionExistsErr    error
 }
 
 func newMockTomeRepository() *mockTomeRepository {
 	return &mockTomeRepository{
-		tomes:               make(map[string]*secondary.TomeRecord),
-		missionExistsResult: true,
+		tomes:                  make(map[string]*secondary.TomeRecord),
+		commissionExistsResult: true,
 	}
 }
 
@@ -156,11 +156,11 @@ func (m *mockTomeRepository) AssignWorkbench(ctx context.Context, tomeID, workbe
 	return nil
 }
 
-func (m *mockTomeRepository) CommissionExists(ctx context.Context, missionID string) (bool, error) {
-	if m.missionExistsErr != nil {
-		return false, m.missionExistsErr
+func (m *mockTomeRepository) CommissionExists(ctx context.Context, commissionID string) (bool, error) {
+	if m.commissionExistsErr != nil {
+		return false, m.commissionExistsErr
 	}
-	return m.missionExistsResult, nil
+	return m.commissionExistsResult, nil
 }
 
 // mockNoteServiceForTome implements minimal NoteService for tome tests.
@@ -217,6 +217,10 @@ func (m *mockNoteServiceForTome) ReopenNote(ctx context.Context, noteID string) 
 	return nil
 }
 
+func (m *mockNoteServiceForTome) MoveNote(ctx context.Context, req primary.MoveNoteRequest) error {
+	return nil
+}
+
 // ============================================================================
 // Test Helper
 // ============================================================================
@@ -256,11 +260,11 @@ func TestCreateTome_Success(t *testing.T) {
 	}
 }
 
-func TestCreateTome_MissionNotFound(t *testing.T) {
+func TestCreateTome_CommissionNotFound(t *testing.T) {
 	service, tomeRepo, _ := newTestTomeService()
 	ctx := context.Background()
 
-	tomeRepo.missionExistsResult = false
+	tomeRepo.commissionExistsResult = false
 
 	_, err := service.CreateTome(ctx, primary.CreateTomeRequest{
 		CommissionID: "COMM-NONEXISTENT",
@@ -269,7 +273,7 @@ func TestCreateTome_MissionNotFound(t *testing.T) {
 	})
 
 	if err == nil {
-		t.Fatal("expected error for non-existent mission, got nil")
+		t.Fatal("expected error for non-existent commission, got nil")
 	}
 }
 
@@ -313,7 +317,7 @@ func TestGetTome_NotFound(t *testing.T) {
 // ListTomes Tests
 // ============================================================================
 
-func TestListTomes_FilterByMission(t *testing.T) {
+func TestListTomes_FilterByCommission(t *testing.T) {
 	service, tomeRepo, _ := newTestTomeService()
 	ctx := context.Background()
 

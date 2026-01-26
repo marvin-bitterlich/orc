@@ -15,19 +15,19 @@ import (
 
 // mockMessageRepository implements secondary.MessageRepository for testing.
 type mockMessageRepository struct {
-	messages            map[string]*secondary.MessageRecord
-	createErr           error
-	getErr              error
-	listErr             error
-	markReadErr         error
-	missionExistsResult bool
-	missionExistsErr    error
+	messages               map[string]*secondary.MessageRecord
+	createErr              error
+	getErr                 error
+	listErr                error
+	markReadErr            error
+	commissionExistsResult bool
+	commissionExistsErr    error
 }
 
 func newMockMessageRepository() *mockMessageRepository {
 	return &mockMessageRepository{
-		messages:            make(map[string]*secondary.MessageRecord),
-		missionExistsResult: true,
+		messages:               make(map[string]*secondary.MessageRecord),
+		commissionExistsResult: true,
 	}
 }
 
@@ -98,15 +98,15 @@ func (m *mockMessageRepository) GetUnreadCount(ctx context.Context, recipient st
 	return count, nil
 }
 
-func (m *mockMessageRepository) GetNextID(ctx context.Context, missionID string) (string, error) {
+func (m *mockMessageRepository) GetNextID(ctx context.Context, commissionID string) (string, error) {
 	return "MSG-COMM-001-001", nil
 }
 
-func (m *mockMessageRepository) CommissionExists(ctx context.Context, missionID string) (bool, error) {
-	if m.missionExistsErr != nil {
-		return false, m.missionExistsErr
+func (m *mockMessageRepository) CommissionExists(ctx context.Context, commissionID string) (bool, error) {
+	if m.commissionExistsErr != nil {
+		return false, m.commissionExistsErr
 	}
-	return m.missionExistsResult, nil
+	return m.commissionExistsResult, nil
 }
 
 // ============================================================================
@@ -149,11 +149,11 @@ func TestCreateMessage_Success(t *testing.T) {
 	}
 }
 
-func TestCreateMessage_MissionNotFound(t *testing.T) {
+func TestCreateMessage_CommissionNotFound(t *testing.T) {
 	service, messageRepo := newTestMessageService()
 	ctx := context.Background()
 
-	messageRepo.missionExistsResult = false
+	messageRepo.commissionExistsResult = false
 
 	_, err := service.CreateMessage(ctx, primary.CreateMessageRequest{
 		CommissionID: "COMM-NONEXISTENT",
@@ -164,7 +164,7 @@ func TestCreateMessage_MissionNotFound(t *testing.T) {
 	})
 
 	if err == nil {
-		t.Fatal("expected error for non-existent mission, got nil")
+		t.Fatal("expected error for non-existent commission, got nil")
 	}
 }
 

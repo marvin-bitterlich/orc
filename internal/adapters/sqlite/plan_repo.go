@@ -360,12 +360,12 @@ func (r *PlanRepository) HasActivePlanForShipment(ctx context.Context, shipmentI
 	return count > 0, nil
 }
 
-// CommissionExists checks if a mission exists.
-func (r *PlanRepository) CommissionExists(ctx context.Context, missionID string) (bool, error) {
+// CommissionExists checks if a commission exists.
+func (r *PlanRepository) CommissionExists(ctx context.Context, commissionID string) (bool, error) {
 	var count int
-	err := r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM commissions WHERE id = ?", missionID).Scan(&count)
+	err := r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM commissions WHERE id = ?", commissionID).Scan(&count)
 	if err != nil {
-		return false, fmt.Errorf("failed to check mission existence: %w", err)
+		return false, fmt.Errorf("failed to check commission existence: %w", err)
 	}
 	return count > 0, nil
 }

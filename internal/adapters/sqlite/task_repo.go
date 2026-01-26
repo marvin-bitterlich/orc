@@ -27,6 +27,8 @@ func scanTask(scanner interface {
 	var (
 		shipmentID          sql.NullString
 		investigationID     sql.NullString
+		tomeID              sql.NullString
+		conclaveID          sql.NullString
 		desc                sql.NullString
 		taskType            sql.NullString
 		priority            sql.NullString
@@ -40,7 +42,7 @@ func scanTask(scanner interface {
 
 	record := &secondary.TaskRecord{}
 	err := scanner.Scan(
-		&record.ID, &shipmentID, &record.CommissionID, &investigationID, &record.Title, &desc,
+		&record.ID, &shipmentID, &record.CommissionID, &investigationID, &tomeID, &conclaveID, &record.Title, &desc,
 		&taskType, &record.Status, &priority, &assignedWorkbenchID,
 		&pinned, &createdAt, &updatedAt, &claimedAt, &completedAt,
 	)
@@ -50,6 +52,8 @@ func scanTask(scanner interface {
 
 	record.ShipmentID = shipmentID.String
 	record.InvestigationID = investigationID.String
+	record.TomeID = tomeID.String
+	record.ConclaveID = conclaveID.String
 	record.Description = desc.String
 	record.Type = taskType.String
 	record.Priority = priority.String
@@ -68,7 +72,7 @@ func scanTask(scanner interface {
 	return record, nil
 }
 
-const taskSelectCols = "id, shipment_id, commission_id, investigation_id, title, description, type, status, priority, assigned_workbench_id, pinned, created_at, updated_at, claimed_at, completed_at"
+const taskSelectCols = "id, shipment_id, commission_id, investigation_id, tome_id, conclave_id, title, description, type, status, priority, assigned_workbench_id, pinned, created_at, updated_at, claimed_at, completed_at"
 
 // Create persists a new task.
 func (r *TaskRepository) Create(ctx context.Context, task *secondary.TaskRecord) error {
@@ -174,6 +178,22 @@ func (r *TaskRepository) Update(ctx context.Context, task *secondary.TaskRecord)
 	if task.Description != "" {
 		query += ", description = ?"
 		args = append(args, sql.NullString{String: task.Description, Valid: true})
+	}
+
+	// Container move: when moving to a new container, clear all other container IDs
+	// to maintain mutual exclusivity (a task can only belong to one container)
+	if task.ShipmentID != "" {
+		query += ", shipment_id = ?, investigation_id = NULL, tome_id = NULL, conclave_id = NULL"
+		args = append(args, task.ShipmentID)
+	} else if task.TomeID != "" {
+		query += ", tome_id = ?, shipment_id = NULL, investigation_id = NULL, conclave_id = NULL"
+		args = append(args, task.TomeID)
+	} else if task.ConclaveID != "" {
+		query += ", conclave_id = ?, shipment_id = NULL, investigation_id = NULL, tome_id = NULL"
+		args = append(args, task.ConclaveID)
+	} else if task.InvestigationID != "" {
+		query += ", investigation_id = ?, shipment_id = NULL, tome_id = NULL, conclave_id = NULL"
+		args = append(args, task.InvestigationID)
 	}
 
 	query += " WHERE id = ?"
@@ -383,12 +403,12 @@ func (r *TaskRepository) AssignWorkbenchByShipment(ctx context.Context, shipment
 	return nil
 }
 
-// CommissionExists checks if a mission exists.
-func (r *TaskRepository) CommissionExists(ctx context.Context, missionID string) (bool, error) {
+// CommissionExists checks if a commission exists.
+func (r *TaskRepository) CommissionExists(ctx context.Context, commissionID string) (bool, error) {
 	var count int
-	err := r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM commissions WHERE id = ?", missionID).Scan(&count)
+	err := r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM commissions WHERE id = ?", commissionID).Scan(&count)
 	if err != nil {
-		return false, fmt.Errorf("failed to check mission existence: %w", err)
+		return false, fmt.Errorf("failed to check commission existence: %w", err)
 	}
 	return count > 0, nil
 }
@@ -399,6 +419,26 @@ func (r *TaskRepository) ShipmentExists(ctx context.Context, shipmentID string) 
 	err := r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM shipments WHERE id = ?", shipmentID).Scan(&count)
 	if err != nil {
 		return false, fmt.Errorf("failed to check shipment existence: %w", err)
+	}
+	return count > 0, nil
+}
+
+// TomeExists checks if a tome exists.
+func (r *TaskRepository) TomeExists(ctx context.Context, tomeID string) (bool, error) {
+	var count int
+	err := r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM tomes WHERE id = ?", tomeID).Scan(&count)
+	if err != nil {
+		return false, fmt.Errorf("failed to check tome existence: %w", err)
+	}
+	return count > 0, nil
+}
+
+// ConclaveExists checks if a conclave exists.
+func (r *TaskRepository) ConclaveExists(ctx context.Context, conclaveID string) (bool, error) {
+	var count int
+	err := r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM conclaves WHERE id = ?", conclaveID).Scan(&count)
+	if err != nil {
+		return false, fmt.Errorf("failed to check conclave existence: %w", err)
 	}
 	return count > 0, nil
 }
@@ -456,7 +496,7 @@ func (r *TaskRepository) RemoveTag(ctx context.Context, taskID string) error {
 // ListByTag retrieves tasks with a specific tag.
 func (r *TaskRepository) ListByTag(ctx context.Context, tagID string) ([]*secondary.TaskRecord, error) {
 	query := `
-		SELECT t.id, t.shipment_id, t.commission_id, t.investigation_id, t.title, t.description,
+		SELECT t.id, t.shipment_id, t.commission_id, t.investigation_id, t.tome_id, t.conclave_id, t.title, t.description,
 		       t.type, t.status, t.priority, t.assigned_workbench_id,
 		       t.pinned, t.created_at, t.updated_at, t.claimed_at, t.completed_at
 		FROM tasks t

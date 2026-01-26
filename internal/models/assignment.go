@@ -13,7 +13,7 @@ type ShipmentAssignment struct {
 	ShipmentID          string       `json:"shipment_id"`
 	ShipmentTitle       string       `json:"shipment_title"`
 	ShipmentDescription string       `json:"shipment_description"`
-	CommissionID        string       `json:"mission_id"`
+	CommissionID        string       `json:"commission_id"`
 	AssignedBy          string       `json:"assigned_by"`
 	AssignedAt          string       `json:"assigned_at"`
 	Status              string       `json:"status"` // assigned, in_progress, complete

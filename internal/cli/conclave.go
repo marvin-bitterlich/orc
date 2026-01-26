@@ -25,19 +25,19 @@ var conclaveCreateCmd = &cobra.Command{
 	Args:  cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		title := args[0]
-		missionID, _ := cmd.Flags().GetString("commission")
+		commissionID, _ := cmd.Flags().GetString("commission")
 		description, _ := cmd.Flags().GetString("description")
 
-		// Get mission from context or require explicit flag
-		if missionID == "" {
-			missionID = orcctx.GetContextCommissionID()
-			if missionID == "" {
+		// Get commission from context or require explicit flag
+		if commissionID == "" {
+			commissionID = orcctx.GetContextCommissionID()
+			if commissionID == "" {
 				return fmt.Errorf("no commission context detected\nHint: Use --commission flag or run from a workbench directory")
 			}
 		}
 
 		resp, err := wire.ConclaveService().CreateConclave(context.Background(), primary.CreateConclaveRequest{
-			CommissionID: missionID,
+			CommissionID: commissionID,
 			Title:        title,
 			Description:  description,
 		})
@@ -46,7 +46,7 @@ var conclaveCreateCmd = &cobra.Command{
 		}
 
 		fmt.Printf("✓ Created conclave %s: %s\n", resp.Conclave.ID, resp.Conclave.Title)
-		fmt.Printf("  Mission: %s\n", resp.Conclave.CommissionID)
+		fmt.Printf("  Commission: %s\n", resp.Conclave.CommissionID)
 		fmt.Printf("  Status: %s\n", resp.Conclave.Status)
 		fmt.Println()
 		fmt.Println("Next steps:")
@@ -59,16 +59,16 @@ var conclaveListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List conclaves",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		missionID, _ := cmd.Flags().GetString("commission")
+		commissionID, _ := cmd.Flags().GetString("commission")
 		status, _ := cmd.Flags().GetString("status")
 
-		// Get mission from context if not specified
-		if missionID == "" {
-			missionID = orcctx.GetContextCommissionID()
+		// Get commission from context if not specified
+		if commissionID == "" {
+			commissionID = orcctx.GetContextCommissionID()
 		}
 
 		conclaves, err := wire.ConclaveService().ListConclaves(context.Background(), primary.ConclaveFilters{
-			CommissionID: missionID,
+			CommissionID: commissionID,
 			Status:       status,
 		})
 		if err != nil {
@@ -81,7 +81,7 @@ var conclaveListCmd = &cobra.Command{
 		}
 
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-		fmt.Fprintln(w, "ID\tTITLE\tSTATUS\tMISSION")
+		fmt.Fprintln(w, "ID\tTITLE\tSTATUS\tCOMMISSION")
 		fmt.Fprintln(w, "--\t-----\t------\t-------")
 		for _, c := range conclaves {
 			pinnedMark := ""

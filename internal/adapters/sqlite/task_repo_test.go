@@ -19,7 +19,7 @@ func setupTaskTestDB(t *testing.T) *sql.DB {
 }
 
 // createTestTask is a helper that creates a task with a generated ID.
-func createTestTask(t *testing.T, repo *sqlite.TaskRepository, ctx context.Context, missionID, shipmentID, title string) *secondary.TaskRecord {
+func createTestTask(t *testing.T, repo *sqlite.TaskRepository, ctx context.Context, commissionID, shipmentID, title string) *secondary.TaskRecord {
 	t.Helper()
 
 	nextID, err := repo.GetNextID(ctx)
@@ -29,7 +29,7 @@ func createTestTask(t *testing.T, repo *sqlite.TaskRepository, ctx context.Conte
 
 	task := &secondary.TaskRecord{
 		ID:           nextID,
-		CommissionID: missionID,
+		CommissionID: commissionID,
 		ShipmentID:   shipmentID,
 		Title:        title,
 	}
@@ -115,7 +115,7 @@ func TestTaskRepository_GetByID(t *testing.T) {
 		t.Errorf("expected title 'Test Task', got '%s'", retrieved.Title)
 	}
 	if retrieved.CommissionID != "COMM-001" {
-		t.Errorf("expected mission 'COMM-001', got '%s'", retrieved.CommissionID)
+		t.Errorf("expected commission 'COMM-001', got '%s'", retrieved.CommissionID)
 	}
 }
 
@@ -192,13 +192,13 @@ func TestTaskRepository_List_FilterByStatus(t *testing.T) {
 	}
 }
 
-func TestTaskRepository_List_FilterByMission(t *testing.T) {
+func TestTaskRepository_List_FilterByCommission(t *testing.T) {
 	db := setupTaskTestDB(t)
 	repo := sqlite.NewTaskRepository(db)
 	ctx := context.Background()
 
-	// Add another mission
-	_, _ = db.Exec("INSERT INTO commissions (id, title, status) VALUES ('COMM-002', 'Mission 2', 'active')")
+	// Add another commission
+	_, _ = db.Exec("INSERT INTO commissions (id, title, status) VALUES ('COMM-002', 'Commission 2', 'active')")
 
 	createTestTask(t, repo, ctx, "COMM-001", "", "Task 1")
 	createTestTask(t, repo, ctx, "COMM-002", "", "Task 2")
@@ -499,15 +499,15 @@ func TestTaskRepository_CommissionExists(t *testing.T) {
 		t.Fatalf("CommissionExists failed: %v", err)
 	}
 	if !exists {
-		t.Error("expected mission to exist")
+		t.Error("expected commission to exist")
 	}
 
-	exists, err = repo.CommissionExists(ctx, "MISSION-999")
+	exists, err = repo.CommissionExists(ctx, "COMM-999")
 	if err != nil {
 		t.Fatalf("CommissionExists failed: %v", err)
 	}
 	if exists {
-		t.Error("expected mission to not exist")
+		t.Error("expected commission to not exist")
 	}
 }
 

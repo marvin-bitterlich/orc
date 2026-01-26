@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-// Operation represents a unit of work within a mission.
+// Operation represents a unit of work within a commission.
 // All database operations are handled by OperationRepository in the adapters layer.
 type Operation struct {
 	ID           string

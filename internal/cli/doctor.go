@@ -221,16 +221,16 @@ func checkDirectories(quiet bool) error {
 	}
 
 	worktreesPath := filepath.Join(homeDir, "src", "worktrees")
-	missionsPath := filepath.Join(homeDir, "src", "missions")
+	factoriesPath := filepath.Join(homeDir, "src", "factories")
 
 	worktreesExists := true
 	if _, err := os.Stat(worktreesPath); os.IsNotExist(err) {
 		worktreesExists = false
 	}
 
-	missionsExists := true
-	if _, err := os.Stat(missionsPath); os.IsNotExist(err) {
-		missionsExists = false
+	factoriesExists := true
+	if _, err := os.Stat(factoriesPath); os.IsNotExist(err) {
+		factoriesExists = false
 	}
 
 	if !quiet {
@@ -243,13 +243,13 @@ func checkDirectories(quiet bool) error {
 			fmt.Println("   ⚠️  ~/src/worktrees does not exist (will be created on first workbench)")
 		}
 
-		if missionsExists {
-			// Count missions
-			entries, _ := os.ReadDir(missionsPath)
+		if factoriesExists {
+			// Count factories
+			entries, _ := os.ReadDir(factoriesPath)
 			factoryCount := len(entries)
 			fmt.Printf("   ✓ ~/src/factories exists (%d factories)\n", factoryCount)
 		} else {
-			fmt.Println("   ⚠️  ~/src/factories does not exist (will be created on first mission)")
+			fmt.Println("   ⚠️  ~/src/factories does not exist (will be created on first commission)")
 		}
 		fmt.Println()
 	}

@@ -10,7 +10,7 @@ func TestCanCreateInvestigation(t *testing.T) {
 		wantReason  string
 	}{
 		{
-			name: "can create investigation when mission exists",
+			name: "can create investigation when commission exists",
 			ctx: CreateInvestigationContext{
 				CommissionID:     "COMM-001",
 				CommissionExists: true,
@@ -18,13 +18,13 @@ func TestCanCreateInvestigation(t *testing.T) {
 			wantAllowed: true,
 		},
 		{
-			name: "cannot create investigation when mission not found",
+			name: "cannot create investigation when commission not found",
 			ctx: CreateInvestigationContext{
-				CommissionID:     "MISSION-999",
+				CommissionID:     "COMM-999",
 				CommissionExists: false,
 			},
 			wantAllowed: false,
-			wantReason:  "commission MISSION-999 not found",
+			wantReason:  "commission COMM-999 not found",
 		},
 	}
 

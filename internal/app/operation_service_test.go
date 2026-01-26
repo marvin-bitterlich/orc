@@ -15,19 +15,19 @@ import (
 
 // mockOperationRepository implements secondary.OperationRepository for testing.
 type mockOperationRepository struct {
-	operations          map[string]*secondary.OperationRecord
-	createErr           error
-	getErr              error
-	listErr             error
-	updateStatusErr     error
-	missionExistsResult bool
-	missionExistsErr    error
+	operations             map[string]*secondary.OperationRecord
+	createErr              error
+	getErr                 error
+	listErr                error
+	updateStatusErr        error
+	commissionExistsResult bool
+	commissionExistsErr    error
 }
 
 func newMockOperationRepository() *mockOperationRepository {
 	return &mockOperationRepository{
-		operations:          make(map[string]*secondary.OperationRecord),
-		missionExistsResult: true,
+		operations:             make(map[string]*secondary.OperationRecord),
+		commissionExistsResult: true,
 	}
 }
 
@@ -83,11 +83,11 @@ func (m *mockOperationRepository) GetNextID(ctx context.Context) (string, error)
 	return "OP-001", nil
 }
 
-func (m *mockOperationRepository) CommissionExists(ctx context.Context, missionID string) (bool, error) {
-	if m.missionExistsErr != nil {
-		return false, m.missionExistsErr
+func (m *mockOperationRepository) CommissionExists(ctx context.Context, commissionID string) (bool, error) {
+	if m.commissionExistsErr != nil {
+		return false, m.commissionExistsErr
 	}
-	return m.missionExistsResult, nil
+	return m.commissionExistsResult, nil
 }
 
 // ============================================================================
@@ -128,11 +128,11 @@ func TestCreateOperation_Success(t *testing.T) {
 	}
 }
 
-func TestCreateOperation_MissionNotFound(t *testing.T) {
+func TestCreateOperation_CommissionNotFound(t *testing.T) {
 	service, operationRepo := newTestOperationService()
 	ctx := context.Background()
 
-	operationRepo.missionExistsResult = false
+	operationRepo.commissionExistsResult = false
 
 	_, err := service.CreateOperation(ctx, primary.CreateOperationRequest{
 		CommissionID: "COMM-NONEXISTENT",
@@ -141,15 +141,15 @@ func TestCreateOperation_MissionNotFound(t *testing.T) {
 	})
 
 	if err == nil {
-		t.Fatal("expected error for non-existent mission, got nil")
+		t.Fatal("expected error for non-existent commission, got nil")
 	}
 }
 
-func TestCreateOperation_MissionValidationError(t *testing.T) {
+func TestCreateOperation_CommissionValidationError(t *testing.T) {
 	service, operationRepo := newTestOperationService()
 	ctx := context.Background()
 
-	operationRepo.missionExistsErr = errors.New("database error")
+	operationRepo.commissionExistsErr = errors.New("database error")
 
 	_, err := service.CreateOperation(ctx, primary.CreateOperationRequest{
 		CommissionID: "COMM-001",
@@ -158,7 +158,7 @@ func TestCreateOperation_MissionValidationError(t *testing.T) {
 	})
 
 	if err == nil {
-		t.Fatal("expected error for mission validation failure, got nil")
+		t.Fatal("expected error for commission validation failure, got nil")
 	}
 }
 
@@ -202,7 +202,7 @@ func TestGetOperation_NotFound(t *testing.T) {
 // ListOperations Tests
 // ============================================================================
 
-func TestListOperations_FilterByMission(t *testing.T) {
+func TestListOperations_FilterByCommission(t *testing.T) {
 	service, operationRepo := newTestOperationService()
 	ctx := context.Background()
 

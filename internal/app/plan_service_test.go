@@ -15,29 +15,29 @@ import (
 
 // mockPlanRepository implements secondary.PlanRepository for testing.
 type mockPlanRepository struct {
-	plans                 map[string]*secondary.PlanRecord
-	activePlanForShipment map[string]string // shipmentID -> planID
-	createErr             error
-	getErr                error
-	updateErr             error
-	deleteErr             error
-	listErr               error
-	approveErr            error
-	missionExistsResult   bool
-	missionExistsErr      error
-	shipmentExistsResult  bool
-	shipmentExistsErr     error
-	hasActivePlanResult   bool
-	hasActivePlanErr      error
+	plans                  map[string]*secondary.PlanRecord
+	activePlanForShipment  map[string]string // shipmentID -> planID
+	createErr              error
+	getErr                 error
+	updateErr              error
+	deleteErr              error
+	listErr                error
+	approveErr             error
+	commissionExistsResult bool
+	commissionExistsErr    error
+	shipmentExistsResult   bool
+	shipmentExistsErr      error
+	hasActivePlanResult    bool
+	hasActivePlanErr       error
 }
 
 func newMockPlanRepository() *mockPlanRepository {
 	return &mockPlanRepository{
-		plans:                 make(map[string]*secondary.PlanRecord),
-		activePlanForShipment: make(map[string]string),
-		missionExistsResult:   true,
-		shipmentExistsResult:  true,
-		hasActivePlanResult:   false,
+		plans:                  make(map[string]*secondary.PlanRecord),
+		activePlanForShipment:  make(map[string]string),
+		commissionExistsResult: true,
+		shipmentExistsResult:   true,
+		hasActivePlanResult:    false,
 	}
 }
 
@@ -163,11 +163,11 @@ func (m *mockPlanRepository) HasActivePlanForShipment(ctx context.Context, shipm
 	return exists || m.hasActivePlanResult, nil
 }
 
-func (m *mockPlanRepository) CommissionExists(ctx context.Context, missionID string) (bool, error) {
-	if m.missionExistsErr != nil {
-		return false, m.missionExistsErr
+func (m *mockPlanRepository) CommissionExists(ctx context.Context, commissionID string) (bool, error) {
+	if m.commissionExistsErr != nil {
+		return false, m.commissionExistsErr
 	}
-	return m.missionExistsResult, nil
+	return m.commissionExistsResult, nil
 }
 
 func (m *mockPlanRepository) ShipmentExists(ctx context.Context, shipmentID string) (bool, error) {
@@ -250,11 +250,11 @@ func TestCreatePlan_WithShipment(t *testing.T) {
 	}
 }
 
-func TestCreatePlan_MissionNotFound(t *testing.T) {
+func TestCreatePlan_CommissionNotFound(t *testing.T) {
 	service, planRepo := newTestPlanService()
 	ctx := context.Background()
 
-	planRepo.missionExistsResult = false
+	planRepo.commissionExistsResult = false
 
 	_, err := service.CreatePlan(ctx, primary.CreatePlanRequest{
 		CommissionID: "COMM-NONEXISTENT",
@@ -263,7 +263,7 @@ func TestCreatePlan_MissionNotFound(t *testing.T) {
 	})
 
 	if err == nil {
-		t.Fatal("expected error for non-existent mission, got nil")
+		t.Fatal("expected error for non-existent commission, got nil")
 	}
 }
 
@@ -351,7 +351,7 @@ func TestGetPlan_NotFound(t *testing.T) {
 // ListPlans Tests
 // ============================================================================
 
-func TestListPlans_FilterByMission(t *testing.T) {
+func TestListPlans_FilterByCommission(t *testing.T) {
 	service, planRepo := newTestPlanService()
 	ctx := context.Background()
 
@@ -392,7 +392,7 @@ func TestListPlans_FilterByShipment(t *testing.T) {
 	planRepo.plans["PLAN-002"] = &secondary.PlanRecord{
 		ID:           "PLAN-002",
 		CommissionID: "COMM-001",
-		Title:        "Mission Plan",
+		Title:        "Commission Plan",
 		Status:       "draft",
 	}
 

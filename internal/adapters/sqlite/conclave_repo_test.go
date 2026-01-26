@@ -19,7 +19,7 @@ func setupConclaveTestDB(t *testing.T) *sql.DB {
 }
 
 // createTestConclave is a helper that creates a conclave with a generated ID.
-func createTestConclave(t *testing.T, repo *sqlite.ConclaveRepository, ctx context.Context, missionID, title, description string) *secondary.ConclaveRecord {
+func createTestConclave(t *testing.T, repo *sqlite.ConclaveRepository, ctx context.Context, commissionID, title, description string) *secondary.ConclaveRecord {
 	t.Helper()
 
 	nextID, err := repo.GetNextID(ctx)
@@ -29,7 +29,7 @@ func createTestConclave(t *testing.T, repo *sqlite.ConclaveRepository, ctx conte
 
 	conclave := &secondary.ConclaveRecord{
 		ID:           nextID,
-		CommissionID: missionID,
+		CommissionID: commissionID,
 		Title:        title,
 		Description:  description,
 	}
@@ -122,13 +122,13 @@ func TestConclaveRepository_List(t *testing.T) {
 	}
 }
 
-func TestConclaveRepository_List_FilterByMission(t *testing.T) {
+func TestConclaveRepository_List_FilterByCommission(t *testing.T) {
 	db := setupConclaveTestDB(t)
 	repo := sqlite.NewConclaveRepository(db)
 	ctx := context.Background()
 
-	// Add another mission
-	_, _ = db.Exec("INSERT INTO commissions (id, title, status) VALUES ('COMM-002', 'Mission 2', 'active')")
+	// Add another commission
+	_, _ = db.Exec("INSERT INTO commissions (id, title, status) VALUES ('COMM-002', 'Commission 2', 'active')")
 
 	createTestConclave(t, repo, ctx, "COMM-001", "Conclave 1", "")
 	createTestConclave(t, repo, ctx, "COMM-002", "Conclave 2", "")
@@ -352,15 +352,15 @@ func TestConclaveRepository_CommissionExists(t *testing.T) {
 		t.Fatalf("CommissionExists failed: %v", err)
 	}
 	if !exists {
-		t.Error("expected mission to exist")
+		t.Error("expected commission to exist")
 	}
 
-	exists, err = repo.CommissionExists(ctx, "MISSION-999")
+	exists, err = repo.CommissionExists(ctx, "COMM-999")
 	if err != nil {
 		t.Fatalf("CommissionExists failed: %v", err)
 	}
 	if exists {
-		t.Error("expected mission to not exist")
+		t.Error("expected commission to not exist")
 	}
 }
 

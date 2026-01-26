@@ -27,14 +27,14 @@ var taskCreateCmd = &cobra.Command{
 		title := args[0]
 		shipmentID, _ := cmd.Flags().GetString("shipment")
 		investigationID, _ := cmd.Flags().GetString("investigation")
-		missionID, _ := cmd.Flags().GetString("commission")
+		commissionID, _ := cmd.Flags().GetString("commission")
 		description, _ := cmd.Flags().GetString("description")
 		taskType, _ := cmd.Flags().GetString("type")
 
-		// Get mission from context or require explicit flag
-		if missionID == "" {
-			missionID = orccontext.GetContextCommissionID()
-			if missionID == "" {
+		// Get commission from context or require explicit flag
+		if commissionID == "" {
+			commissionID = orccontext.GetContextCommissionID()
+			if commissionID == "" {
 				return fmt.Errorf("no commission context detected\nHint: Use --commission flag or run from a workbench directory")
 			}
 		}
@@ -42,7 +42,7 @@ var taskCreateCmd = &cobra.Command{
 		resp, err := wire.TaskService().CreateTask(ctx, primary.CreateTaskRequest{
 			ShipmentID:      shipmentID,
 			InvestigationID: investigationID,
-			CommissionID:    missionID,
+			CommissionID:    commissionID,
 			Title:           title,
 			Description:     description,
 			Type:            taskType,
@@ -59,7 +59,7 @@ var taskCreateCmd = &cobra.Command{
 		if task.InvestigationID != "" {
 			fmt.Printf("  Under investigation: %s\n", task.InvestigationID)
 		}
-		fmt.Printf("  Mission: %s\n", task.CommissionID)
+		fmt.Printf("  Commission: %s\n", task.CommissionID)
 		return nil
 	},
 }
@@ -174,6 +174,12 @@ var taskShowCmd = &cobra.Command{
 		}
 		if task.InvestigationID != "" {
 			fmt.Printf("Investigation: %s\n", task.InvestigationID)
+		}
+		if task.TomeID != "" {
+			fmt.Printf("Tome: %s\n", task.TomeID)
+		}
+		if task.ConclaveID != "" {
+			fmt.Printf("Conclave: %s\n", task.ConclaveID)
 		}
 		if task.AssignedWorkbenchID != "" {
 			fmt.Printf("Assigned Workbench: %s\n", task.AssignedWorkbenchID)
@@ -460,6 +466,60 @@ var taskUntagCmd = &cobra.Command{
 	},
 }
 
+var taskMoveCmd = &cobra.Command{
+	Use:   "move [task-id]",
+	Short: "Move a task to a different container",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx := context.Background()
+		taskID := args[0]
+		toShipment, _ := cmd.Flags().GetString("to-shipment")
+		toTome, _ := cmd.Flags().GetString("to-tome")
+		toConclave, _ := cmd.Flags().GetString("to-conclave")
+
+		// Validate exactly one target specified
+		targetCount := 0
+		if toShipment != "" {
+			targetCount++
+		}
+		if toTome != "" {
+			targetCount++
+		}
+		if toConclave != "" {
+			targetCount++
+		}
+
+		if targetCount == 0 {
+			return fmt.Errorf("must specify exactly one target: --to-shipment, --to-tome, or --to-conclave")
+		}
+		if targetCount > 1 {
+			return fmt.Errorf("cannot specify multiple targets")
+		}
+
+		err := wire.TaskService().MoveTask(ctx, primary.MoveTaskRequest{
+			TaskID:       taskID,
+			ToShipmentID: toShipment,
+			ToTomeID:     toTome,
+			ToConclaveID: toConclave,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to move task: %w", err)
+		}
+
+		target := ""
+		if toShipment != "" {
+			target = toShipment
+		} else if toTome != "" {
+			target = toTome
+		} else {
+			target = toConclave
+		}
+
+		fmt.Printf("✓ Task %s moved to %s\n", taskID, target)
+		return nil
+	},
+}
+
 func init() {
 	// task create flags
 	taskCreateCmd.Flags().String("shipment", "", "Shipment ID")
@@ -481,6 +541,11 @@ func init() {
 	// task discover flags
 	taskDiscoverCmd.Flags().Bool("auto-claim", false, "Automatically claim the first ready task")
 
+	// task move flags
+	taskMoveCmd.Flags().String("to-shipment", "", "Move to shipment")
+	taskMoveCmd.Flags().String("to-tome", "", "Move to tome")
+	taskMoveCmd.Flags().String("to-conclave", "", "Move to conclave")
+
 	// Register subcommands
 	taskCmd.AddCommand(taskCreateCmd)
 	taskCmd.AddCommand(taskListCmd)
@@ -495,6 +560,7 @@ func init() {
 	taskCmd.AddCommand(taskDiscoverCmd)
 	taskCmd.AddCommand(taskTagCmd)
 	taskCmd.AddCommand(taskUntagCmd)
+	taskCmd.AddCommand(taskMoveCmd)
 }
 
 // TaskCmd returns the task command

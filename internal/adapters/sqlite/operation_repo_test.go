@@ -18,7 +18,7 @@ func setupOperationTestDB(t *testing.T) *sql.DB {
 }
 
 // createTestOperation is a helper that creates an operation with a generated ID.
-func createTestOperation(t *testing.T, repo *sqlite.OperationRepository, ctx context.Context, missionID, title, description string) *secondary.OperationRecord {
+func createTestOperation(t *testing.T, repo *sqlite.OperationRepository, ctx context.Context, commissionID, title, description string) *secondary.OperationRecord {
 	t.Helper()
 
 	nextID, err := repo.GetNextID(ctx)
@@ -28,7 +28,7 @@ func createTestOperation(t *testing.T, repo *sqlite.OperationRepository, ctx con
 
 	op := &secondary.OperationRecord{
 		ID:           nextID,
-		CommissionID: missionID,
+		CommissionID: commissionID,
 		Title:        title,
 		Description:  description,
 	}
@@ -121,13 +121,13 @@ func TestOperationRepository_List(t *testing.T) {
 	}
 }
 
-func TestOperationRepository_List_FilterByMission(t *testing.T) {
+func TestOperationRepository_List_FilterByCommission(t *testing.T) {
 	db := setupOperationTestDB(t)
 	repo := sqlite.NewOperationRepository(db)
 	ctx := context.Background()
 
-	// Add another mission
-	_, _ = db.Exec("INSERT INTO commissions (id, title, status) VALUES ('COMM-002', 'Mission 2', 'active')")
+	// Add another commission
+	_, _ = db.Exec("INSERT INTO commissions (id, title, status) VALUES ('COMM-002', 'Commission 2', 'active')")
 
 	createTestOperation(t, repo, ctx, "COMM-001", "Operation 1", "")
 	createTestOperation(t, repo, ctx, "COMM-002", "Operation 2", "")
@@ -244,14 +244,14 @@ func TestOperationRepository_CommissionExists(t *testing.T) {
 		t.Fatalf("CommissionExists failed: %v", err)
 	}
 	if !exists {
-		t.Error("expected mission to exist")
+		t.Error("expected commission to exist")
 	}
 
-	exists, err = repo.CommissionExists(ctx, "MISSION-999")
+	exists, err = repo.CommissionExists(ctx, "COMM-999")
 	if err != nil {
 		t.Fatalf("CommissionExists failed: %v", err)
 	}
 	if exists {
-		t.Error("expected mission to not exist")
+		t.Error("expected commission to not exist")
 	}
 }

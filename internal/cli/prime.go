@@ -37,7 +37,7 @@ Output includes:
 
 Still useful for:
 - Manual context refresh during long sessions
-- Debugging and understanding mission context
+- Debugging and understanding commission context
 - Testing what would be injected via hooks (if they worked)
 
 Examples:
@@ -178,7 +178,7 @@ func buildGoblinPrimeOutput(cwd string, cfg *config.Config) string {
 	if err == nil {
 		output.WriteString(welcome)
 	} else {
-		output.WriteString("---\nYou are a Goblin - Orchestrator coordinating missions and IMPs.\n")
+		output.WriteString("---\nYou are a Goblin - Orchestrator coordinating commissions and IMPs.\n")
 	}
 
 	return output.String()
@@ -257,13 +257,13 @@ func buildIMPPrimeOutput(workbenchCtx *ctx.WorkbenchContext, cwd string) string 
 
 	if !hasAssignments {
 		output.WriteString("*No containers currently assigned to this workbench.*\n\n")
-		output.WriteString("Run `orc summary` to see the full mission tree.\n\n")
+		output.WriteString("Run `orc summary` to see the full commission tree.\n\n")
 	}
 
 	// Section 3: ORC CLI Primer
 	output.WriteString("## ORC CLI Primer\n\n")
 	output.WriteString("**Core Commands**:\n")
-	output.WriteString("- `orc summary` - View mission tree with all containers\n")
+	output.WriteString("- `orc summary` - View commission tree with all containers\n")
 	output.WriteString("- `orc focus ID` - Set focus to a container (SHIP-*, CON-*, INV-*, TOME-*)\n")
 	output.WriteString("- `orc task list --shipment SHIP-ID` - List tasks for a shipment\n")
 	output.WriteString("- `orc note list --investigation INV-ID` - List notes for an investigation\n")

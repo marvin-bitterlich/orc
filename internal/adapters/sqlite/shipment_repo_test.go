@@ -18,7 +18,7 @@ func setupShipmentTestDB(t *testing.T) *sql.DB {
 }
 
 // createTestShipment is a helper that creates a shipment with a generated ID.
-func createTestShipment(t *testing.T, repo *sqlite.ShipmentRepository, ctx context.Context, missionID, title, description string) *secondary.ShipmentRecord {
+func createTestShipment(t *testing.T, repo *sqlite.ShipmentRepository, ctx context.Context, commissionID, title, description string) *secondary.ShipmentRecord {
 	t.Helper()
 
 	nextID, err := repo.GetNextID(ctx)
@@ -28,7 +28,7 @@ func createTestShipment(t *testing.T, repo *sqlite.ShipmentRepository, ctx conte
 
 	shipment := &secondary.ShipmentRecord{
 		ID:           nextID,
-		CommissionID: missionID,
+		CommissionID: commissionID,
 		Title:        title,
 		Description:  description,
 	}
@@ -129,15 +129,15 @@ func TestShipmentRepository_List(t *testing.T) {
 	}
 }
 
-func TestShipmentRepository_List_FilterByMission(t *testing.T) {
+func TestShipmentRepository_List_FilterByCommission(t *testing.T) {
 	db := setupShipmentTestDB(t)
 	repo := sqlite.NewShipmentRepository(db)
 	ctx := context.Background()
 
-	// Add another mission
-	_, _ = db.Exec("INSERT INTO commissions (id, title, status) VALUES ('COMM-002', 'Test Mission 2', 'active')")
+	// Add another commission
+	_, _ = db.Exec("INSERT INTO commissions (id, title, status) VALUES ('COMM-002', 'Test Commission 2', 'active')")
 
-	// Create shipments for different missions
+	// Create shipments for different commissions
 	createTestShipment(t, repo, ctx, "COMM-001", "Shipment 1", "")
 	createTestShipment(t, repo, ctx, "COMM-002", "Shipment 2", "")
 
@@ -431,22 +431,22 @@ func TestShipmentRepository_CommissionExists(t *testing.T) {
 	repo := sqlite.NewShipmentRepository(db)
 	ctx := context.Background()
 
-	// Existing mission
+	// Existing commission
 	exists, err := repo.CommissionExists(ctx, "COMM-001")
 	if err != nil {
 		t.Fatalf("CommissionExists failed: %v", err)
 	}
 	if !exists {
-		t.Error("expected mission to exist")
+		t.Error("expected commission to exist")
 	}
 
-	// Non-existing mission
-	exists, err = repo.CommissionExists(ctx, "MISSION-999")
+	// Non-existing commission
+	exists, err = repo.CommissionExists(ctx, "COMM-999")
 	if err != nil {
 		t.Fatalf("CommissionExists failed: %v", err)
 	}
 	if exists {
-		t.Error("expected mission to not exist")
+		t.Error("expected commission to not exist")
 	}
 }
 

@@ -107,7 +107,7 @@ func (s *WorkOrderServiceImpl) ListWorkOrders(ctx context.Context, filters prima
 }
 
 // UpdateWorkOrder updates a workOrder.
-// Only active work orders can be updated.
+// Draft and active work orders can be updated.
 func (s *WorkOrderServiceImpl) UpdateWorkOrder(ctx context.Context, req primary.UpdateWorkOrderRequest) error {
 	// Verify work order exists and is in active status
 	existing, err := s.workOrderRepo.GetByID(ctx, req.WorkOrderID)
@@ -115,8 +115,8 @@ func (s *WorkOrderServiceImpl) UpdateWorkOrder(ctx context.Context, req primary.
 		return err
 	}
 
-	if existing.Status != "active" {
-		return fmt.Errorf("cannot update work order %s: current status is %s (must be active)", req.WorkOrderID, existing.Status)
+	if existing.Status != "draft" && existing.Status != "active" {
+		return fmt.Errorf("cannot update work order %s: current status is %s (must be draft or active)", req.WorkOrderID, existing.Status)
 	}
 
 	record := &secondary.WorkOrderRecord{

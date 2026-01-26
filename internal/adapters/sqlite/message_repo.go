@@ -164,27 +164,27 @@ func (r *MessageRepository) GetUnreadCount(ctx context.Context, recipient string
 	return count, nil
 }
 
-// GetNextID returns the next available message ID for a mission.
-func (r *MessageRepository) GetNextID(ctx context.Context, missionID string) (string, error) {
-	prefix := fmt.Sprintf("MSG-%s-", missionID)
+// GetNextID returns the next available message ID for a commission.
+func (r *MessageRepository) GetNextID(ctx context.Context, commissionID string) (string, error) {
+	prefix := fmt.Sprintf("MSG-%s-", commissionID)
 	var maxID int
 	err := r.db.QueryRowContext(ctx,
 		"SELECT COALESCE(MAX(CAST(REPLACE(id, ?, '') AS INTEGER)), 0) FROM messages WHERE commission_id = ?",
-		prefix, missionID,
+		prefix, commissionID,
 	).Scan(&maxID)
 	if err != nil {
 		return "", fmt.Errorf("failed to get next message ID: %w", err)
 	}
 
-	return fmt.Sprintf("MSG-%s-%03d", missionID, maxID+1), nil
+	return fmt.Sprintf("MSG-%s-%03d", commissionID, maxID+1), nil
 }
 
-// CommissionExists checks if a mission exists.
-func (r *MessageRepository) CommissionExists(ctx context.Context, missionID string) (bool, error) {
+// CommissionExists checks if a commission exists.
+func (r *MessageRepository) CommissionExists(ctx context.Context, commissionID string) (bool, error) {
 	var count int
-	err := r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM commissions WHERE id = ?", missionID).Scan(&count)
+	err := r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM commissions WHERE id = ?", commissionID).Scan(&count)
 	if err != nil {
-		return false, fmt.Errorf("failed to check mission existence: %w", err)
+		return false, fmt.Errorf("failed to check commission existence: %w", err)
 	}
 	return count > 0, nil
 }

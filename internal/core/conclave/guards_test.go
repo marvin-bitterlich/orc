@@ -10,7 +10,7 @@ func TestCanCreateConclave(t *testing.T) {
 		wantReason  string
 	}{
 		{
-			name: "can create conclave when mission exists",
+			name: "can create conclave when commission exists",
 			ctx: CreateConclaveContext{
 				CommissionID:     "COMM-001",
 				CommissionExists: true,
@@ -18,13 +18,13 @@ func TestCanCreateConclave(t *testing.T) {
 			wantAllowed: true,
 		},
 		{
-			name: "cannot create conclave when mission not found",
+			name: "cannot create conclave when commission not found",
 			ctx: CreateConclaveContext{
-				CommissionID:     "MISSION-999",
+				CommissionID:     "COMM-999",
 				CommissionExists: false,
 			},
 			wantAllowed: false,
-			wantReason:  "commission MISSION-999 not found",
+			wantReason:  "commission COMM-999 not found",
 		},
 	}
 

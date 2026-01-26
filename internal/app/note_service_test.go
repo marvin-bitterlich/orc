@@ -15,20 +15,20 @@ import (
 
 // mockNoteRepository implements secondary.NoteRepository for testing.
 type mockNoteRepository struct {
-	notes               map[string]*secondary.NoteRecord
-	createErr           error
-	getErr              error
-	updateErr           error
-	deleteErr           error
-	listErr             error
-	missionExistsResult bool
-	missionExistsErr    error
+	notes                  map[string]*secondary.NoteRecord
+	createErr              error
+	getErr                 error
+	updateErr              error
+	deleteErr              error
+	listErr                error
+	commissionExistsResult bool
+	commissionExistsErr    error
 }
 
 func newMockNoteRepository() *mockNoteRepository {
 	return &mockNoteRepository{
-		notes:               make(map[string]*secondary.NoteRecord),
-		missionExistsResult: true,
+		notes:                  make(map[string]*secondary.NoteRecord),
+		commissionExistsResult: true,
 	}
 }
 
@@ -133,11 +133,23 @@ func (m *mockNoteRepository) GetByContainer(ctx context.Context, containerType, 
 	return result, nil
 }
 
-func (m *mockNoteRepository) CommissionExists(ctx context.Context, missionID string) (bool, error) {
-	if m.missionExistsErr != nil {
-		return false, m.missionExistsErr
+func (m *mockNoteRepository) CommissionExists(ctx context.Context, commissionID string) (bool, error) {
+	if m.commissionExistsErr != nil {
+		return false, m.commissionExistsErr
 	}
-	return m.missionExistsResult, nil
+	return m.commissionExistsResult, nil
+}
+
+func (m *mockNoteRepository) ShipmentExists(ctx context.Context, shipmentID string) (bool, error) {
+	return true, nil
+}
+
+func (m *mockNoteRepository) TomeExists(ctx context.Context, tomeID string) (bool, error) {
+	return true, nil
+}
+
+func (m *mockNoteRepository) ConclaveExists(ctx context.Context, conclaveID string) (bool, error) {
+	return true, nil
 }
 
 func (m *mockNoteRepository) UpdateStatus(ctx context.Context, id string, status string) error {
@@ -263,11 +275,11 @@ func TestCreateNote_WithTomeContainer(t *testing.T) {
 	}
 }
 
-func TestCreateNote_MissionNotFound(t *testing.T) {
+func TestCreateNote_CommissionNotFound(t *testing.T) {
 	service, noteRepo := newTestNoteService()
 	ctx := context.Background()
 
-	noteRepo.missionExistsResult = false
+	noteRepo.commissionExistsResult = false
 
 	_, err := service.CreateNote(ctx, primary.CreateNoteRequest{
 		CommissionID: "COMM-NONEXISTENT",
@@ -276,7 +288,7 @@ func TestCreateNote_MissionNotFound(t *testing.T) {
 	})
 
 	if err == nil {
-		t.Fatal("expected error for non-existent mission, got nil")
+		t.Fatal("expected error for non-existent commission, got nil")
 	}
 }
 
@@ -320,7 +332,7 @@ func TestGetNote_NotFound(t *testing.T) {
 // ListNotes Tests
 // ============================================================================
 
-func TestListNotes_FilterByMission(t *testing.T) {
+func TestListNotes_FilterByCommission(t *testing.T) {
 	service, noteRepo := newTestNoteService()
 	ctx := context.Background()
 

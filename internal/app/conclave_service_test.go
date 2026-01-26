@@ -15,21 +15,21 @@ import (
 
 // mockConclaveRepository implements secondary.ConclaveRepository for testing.
 type mockConclaveRepository struct {
-	conclaves           map[string]*secondary.ConclaveRecord
-	createErr           error
-	getErr              error
-	updateErr           error
-	deleteErr           error
-	listErr             error
-	updateStatusErr     error
-	missionExistsResult bool
-	missionExistsErr    error
+	conclaves              map[string]*secondary.ConclaveRecord
+	createErr              error
+	getErr                 error
+	updateErr              error
+	deleteErr              error
+	listErr                error
+	updateStatusErr        error
+	commissionExistsResult bool
+	commissionExistsErr    error
 }
 
 func newMockConclaveRepository() *mockConclaveRepository {
 	return &mockConclaveRepository{
-		conclaves:           make(map[string]*secondary.ConclaveRecord),
-		missionExistsResult: true,
+		conclaves:              make(map[string]*secondary.ConclaveRecord),
+		commissionExistsResult: true,
 	}
 }
 
@@ -122,11 +122,11 @@ func (m *mockConclaveRepository) UpdateStatus(ctx context.Context, id, status st
 	return nil
 }
 
-func (m *mockConclaveRepository) CommissionExists(ctx context.Context, missionID string) (bool, error) {
-	if m.missionExistsErr != nil {
-		return false, m.missionExistsErr
+func (m *mockConclaveRepository) CommissionExists(ctx context.Context, commissionID string) (bool, error) {
+	if m.commissionExistsErr != nil {
+		return false, m.commissionExistsErr
 	}
-	return m.missionExistsResult, nil
+	return m.commissionExistsResult, nil
 }
 
 func (m *mockConclaveRepository) GetTasksByConclave(ctx context.Context, conclaveID string) ([]*secondary.ConclaveTaskRecord, error) {
@@ -179,7 +179,7 @@ func TestCreateConclave_MissionNotFound(t *testing.T) {
 	service, conclaveRepo := newTestConclaveService()
 	ctx := context.Background()
 
-	conclaveRepo.missionExistsResult = false
+	conclaveRepo.commissionExistsResult = false
 
 	_, err := service.CreateConclave(ctx, primary.CreateConclaveRequest{
 		CommissionID: "COMM-NONEXISTENT",
@@ -188,7 +188,7 @@ func TestCreateConclave_MissionNotFound(t *testing.T) {
 	})
 
 	if err == nil {
-		t.Fatal("expected error for non-existent mission, got nil")
+		t.Fatal("expected error for non-existent commission, got nil")
 	}
 }
 

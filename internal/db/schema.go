@@ -182,6 +182,8 @@ CREATE TABLE IF NOT EXISTS tasks (
 	shipment_id TEXT,
 	commission_id TEXT NOT NULL,
 	investigation_id TEXT,
+	tome_id TEXT,
+	conclave_id TEXT,
 	title TEXT NOT NULL,
 	description TEXT,
 	type TEXT CHECK(type IN ('research', 'implementation', 'fix', 'documentation', 'maintenance')),
@@ -197,6 +199,8 @@ CREATE TABLE IF NOT EXISTS tasks (
 	FOREIGN KEY (shipment_id) REFERENCES shipments(id) ON DELETE CASCADE,
 	FOREIGN KEY (commission_id) REFERENCES commissions(id),
 	FOREIGN KEY (investigation_id) REFERENCES investigations(id) ON DELETE SET NULL,
+	FOREIGN KEY (tome_id) REFERENCES tomes(id) ON DELETE SET NULL,
+	FOREIGN KEY (conclave_id) REFERENCES conclaves(id) ON DELETE SET NULL,
 	FOREIGN KEY (assigned_workbench_id) REFERENCES workbenches(id)
 );
 
@@ -343,6 +347,8 @@ CREATE INDEX IF NOT EXISTS idx_tasks_commission ON tasks(commission_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
 CREATE INDEX IF NOT EXISTS idx_tasks_workbench ON tasks(assigned_workbench_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_investigation ON tasks(investigation_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_tome ON tasks(tome_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_conclave ON tasks(conclave_id);
 CREATE INDEX IF NOT EXISTS idx_operations_commission ON operations(commission_id);
 CREATE INDEX IF NOT EXISTS idx_handoffs_created ON handoffs(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_prs_shipment ON prs(shipment_id);
@@ -486,7 +492,7 @@ func InitSchema() error {
 				return err
 			}
 			// Insert all migration versions as applied
-			for i := 1; i <= 39; i++ {
+			for i := 1; i <= 41; i++ {
 				_, err = db.Exec("INSERT INTO schema_version (version) VALUES (?)", i)
 				if err != nil {
 					return err

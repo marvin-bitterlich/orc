@@ -4,7 +4,7 @@ import "context"
 
 // ShipmentService defines the primary port for shipment operations.
 type ShipmentService interface {
-	// CreateShipment creates a new shipment for a mission.
+	// CreateShipment creates a new shipment for a commission.
 	CreateShipment(ctx context.Context, req CreateShipmentRequest) (*CreateShipmentResponse, error)
 
 	// GetShipment retrieves a shipment by ID.

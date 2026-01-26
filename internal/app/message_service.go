@@ -22,7 +22,7 @@ func NewMessageService(messageRepo secondary.MessageRepository) *MessageServiceI
 
 // CreateMessage creates a new message.
 func (s *MessageServiceImpl) CreateMessage(ctx context.Context, req primary.CreateMessageRequest) (*primary.CreateMessageResponse, error) {
-	// Validate mission exists
+	// Validate commission exists
 	exists, err := s.messageRepo.CommissionExists(ctx, req.CommissionID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to validate commission: %w", err)

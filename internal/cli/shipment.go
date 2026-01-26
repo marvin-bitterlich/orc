@@ -26,21 +26,21 @@ var shipmentCreateCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
 		title := args[0]
-		missionID, _ := cmd.Flags().GetString("commission")
+		commissionID, _ := cmd.Flags().GetString("commission")
 		description, _ := cmd.Flags().GetString("description")
 		repoID, _ := cmd.Flags().GetString("repo")
 		branch, _ := cmd.Flags().GetString("branch")
 
-		// Get mission from context or require explicit flag
-		if missionID == "" {
-			missionID = orccontext.GetContextCommissionID()
-			if missionID == "" {
+		// Get commission from context or require explicit flag
+		if commissionID == "" {
+			commissionID = orccontext.GetContextCommissionID()
+			if commissionID == "" {
 				return fmt.Errorf("no commission context detected\nHint: Use --commission flag or run from a workbench directory")
 			}
 		}
 
 		resp, err := wire.ShipmentService().CreateShipment(ctx, primary.CreateShipmentRequest{
-			CommissionID: missionID,
+			CommissionID: commissionID,
 			Title:        title,
 			Description:  description,
 			RepoID:       repoID,
@@ -51,7 +51,7 @@ var shipmentCreateCmd = &cobra.Command{
 		}
 
 		fmt.Printf("✓ Created shipment %s: %s\n", resp.Shipment.ID, resp.Shipment.Title)
-		fmt.Printf("  Under mission: %s\n", resp.Shipment.CommissionID)
+		fmt.Printf("  Under commission: %s\n", resp.Shipment.CommissionID)
 		if resp.Shipment.Branch != "" {
 			fmt.Printf("  Branch: %s\n", resp.Shipment.Branch)
 		}
@@ -67,16 +67,16 @@ var shipmentListCmd = &cobra.Command{
 	Short: "List shipments",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
-		missionID, _ := cmd.Flags().GetString("commission")
+		commissionID, _ := cmd.Flags().GetString("commission")
 		status, _ := cmd.Flags().GetString("status")
 
-		// Get mission from context if not specified
-		if missionID == "" {
-			missionID = orccontext.GetContextCommissionID()
+		// Get commission from context if not specified
+		if commissionID == "" {
+			commissionID = orccontext.GetContextCommissionID()
 		}
 
 		shipments, err := wire.ShipmentService().ListShipments(ctx, primary.ShipmentFilters{
-			CommissionID: missionID,
+			CommissionID: commissionID,
 			Status:       status,
 		})
 		if err != nil {
@@ -89,7 +89,7 @@ var shipmentListCmd = &cobra.Command{
 		}
 
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-		fmt.Fprintln(w, "ID\tTITLE\tSTATUS\tMISSION")
+		fmt.Fprintln(w, "ID\tTITLE\tSTATUS\tCOMMISSION")
 		fmt.Fprintln(w, "--\t-----\t------\t-------")
 		for _, s := range shipments {
 			pinnedMark := ""

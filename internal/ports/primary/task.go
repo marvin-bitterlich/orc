@@ -51,6 +51,9 @@ type TaskService interface {
 
 	// DiscoverTasks finds ready tasks in the current workbench context.
 	DiscoverTasks(ctx context.Context, workbenchID string) ([]*Task, error)
+
+	// MoveTask moves a task to a different container.
+	MoveTask(ctx context.Context, req MoveTaskRequest) error
 }
 
 // CreateTaskRequest contains parameters for creating a task.
@@ -82,11 +85,22 @@ type UpdateTaskRequest struct {
 	Description string
 }
 
+// MoveTaskRequest contains parameters for moving a task to a different container.
+// Exactly one of the To* fields should be set.
+type MoveTaskRequest struct {
+	TaskID       string
+	ToShipmentID string
+	ToTomeID     string
+	ToConclaveID string
+}
+
 // Task represents a task entity at the port boundary.
 type Task struct {
 	ID                  string
 	ShipmentID          string
 	InvestigationID     string
+	TomeID              string
+	ConclaveID          string
 	CommissionID        string
 	Title               string
 	Description         string

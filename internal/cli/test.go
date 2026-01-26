@@ -35,9 +35,9 @@ func testCleanupPreFlightCmd() *cobra.Command {
 		Short: "Clean up all test state before running orchestration tests",
 		Long: `Remove all test-related resources to ensure a clean slate:
 
-- Delete all MISSION-TEST-* missions from database
+- Delete all COMM-TEST-* commissions from database
 - Remove all test-canary-* and orc-canary worktrees
-- Kill all orc-MISSION-TEST-* TMux sessions
+- Kill all orc-COMM-TEST-* TMux sessions
 
 This prevents test state accumulation from repeated runs and ensures
 each test starts with a clean environment.
@@ -137,7 +137,7 @@ Examples:
 				sessions := strings.Split(strings.TrimSpace(string(output)), "\n")
 				for _, session := range sessions {
 					session = strings.TrimSpace(session)
-					if strings.HasPrefix(session, "orc-MISSION-TEST-") {
+					if strings.HasPrefix(session, "orc-COMM-TEST-") {
 						if dryRun {
 							fmt.Printf("  [DRY RUN] Would kill: %s\n", session)
 							tmuxCleaned++
@@ -163,17 +163,17 @@ Examples:
 			totalCleaned += tmuxCleaned
 			fmt.Println()
 
-			// 5. Clean up mission workspaces
-			fmt.Println("🗂️  Cleaning up test mission workspaces...")
-			missionsPath := filepath.Join(home, "src", "missions")
+			// 5. Clean up commission workspaces
+			fmt.Println("🗂️  Cleaning up test commission workspaces...")
+			factoriesPath := filepath.Join(home, "src", "factories")
 			var workspacesCleaned int
 
-			if entries, err := os.ReadDir(missionsPath); err == nil {
+			if entries, err := os.ReadDir(factoriesPath); err == nil {
 				for _, entry := range entries {
 					if entry.IsDir() {
 						name := entry.Name()
-						if strings.HasPrefix(name, "MISSION-TEST-") {
-							fullPath := filepath.Join(missionsPath, name)
+						if strings.HasPrefix(name, "COMM-TEST-") {
+							fullPath := filepath.Join(factoriesPath, name)
 							if dryRun {
 								fmt.Printf("  [DRY RUN] Would remove: %s\n", fullPath)
 								workspacesCleaned++
@@ -191,7 +191,7 @@ Examples:
 			}
 
 			if workspacesCleaned == 0 && !dryRun {
-				fmt.Println("  ℹ️  No test mission workspaces found")
+				fmt.Println("  ℹ️  No test commission workspaces found")
 			} else if dryRun {
 				fmt.Printf("  Found %d test workspaces\n", workspacesCleaned)
 			}

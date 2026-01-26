@@ -119,7 +119,7 @@ func TestCreateHandoff_Success(t *testing.T) {
 		t.Errorf("unexpected handoff note: %s", resp.Handoff.HandoffNote)
 	}
 	if resp.Handoff.ActiveCommissionID != "COMM-001" {
-		t.Errorf("expected active mission ID 'COMM-001', got '%s'", resp.Handoff.ActiveCommissionID)
+		t.Errorf("expected active commission ID 'COMM-001', got '%s'", resp.Handoff.ActiveCommissionID)
 	}
 }
 

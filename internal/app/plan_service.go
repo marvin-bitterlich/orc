@@ -27,7 +27,7 @@ func NewPlanService(
 
 // CreatePlan creates a new plan.
 func (s *PlanServiceImpl) CreatePlan(ctx context.Context, req primary.CreatePlanRequest) (*primary.CreatePlanResponse, error) {
-	// Validate mission exists
+	// Validate commission exists
 	exists, err := s.planRepo.CommissionExists(ctx, req.CommissionID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to validate commission: %w", err)

@@ -25,23 +25,23 @@ var planCreateCmd = &cobra.Command{
 	Args:  cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		title := args[0]
-		missionID, _ := cmd.Flags().GetString("commission")
+		commissionID, _ := cmd.Flags().GetString("commission")
 		description, _ := cmd.Flags().GetString("description")
 		content, _ := cmd.Flags().GetString("content")
 		shipmentID, _ := cmd.Flags().GetString("shipment")
 		cycleID, _ := cmd.Flags().GetString("cycle-id")
 
-		// Get mission from context or require explicit flag
-		if missionID == "" {
-			missionID = orcctx.GetContextCommissionID()
-			if missionID == "" {
+		// Get commission from context or require explicit flag
+		if commissionID == "" {
+			commissionID = orcctx.GetContextCommissionID()
+			if commissionID == "" {
 				return fmt.Errorf("no commission context detected\nHint: Use --commission flag or run from a workbench directory")
 			}
 		}
 
 		ctx := context.Background()
 		resp, err := wire.PlanService().CreatePlan(ctx, primary.CreatePlanRequest{
-			CommissionID: missionID,
+			CommissionID: commissionID,
 			ShipmentID:   shipmentID,
 			CycleID:      cycleID,
 			Title:        title,
@@ -57,7 +57,7 @@ var planCreateCmd = &cobra.Command{
 		if plan.ShipmentID != "" {
 			fmt.Printf("  Shipment: %s\n", plan.ShipmentID)
 		}
-		fmt.Printf("  Mission: %s\n", plan.CommissionID)
+		fmt.Printf("  Commission: %s\n", plan.CommissionID)
 		fmt.Printf("  Status: %s\n", plan.Status)
 		fmt.Println()
 		fmt.Println("Next steps:")
@@ -71,19 +71,19 @@ var planListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List plans",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		missionID, _ := cmd.Flags().GetString("commission")
+		commissionID, _ := cmd.Flags().GetString("commission")
 		shipmentID, _ := cmd.Flags().GetString("shipment")
 		cycleID, _ := cmd.Flags().GetString("cycle-id")
 		status, _ := cmd.Flags().GetString("status")
 
-		// Get mission from context if not specified
-		if missionID == "" {
-			missionID = orcctx.GetContextCommissionID()
+		// Get commission from context if not specified
+		if commissionID == "" {
+			commissionID = orcctx.GetContextCommissionID()
 		}
 
 		ctx := context.Background()
 		plans, err := wire.PlanService().ListPlans(ctx, primary.PlanFilters{
-			CommissionID: missionID,
+			CommissionID: commissionID,
 			ShipmentID:   shipmentID,
 			CycleID:      cycleID,
 			Status:       status,
@@ -142,7 +142,7 @@ var planShowCmd = &cobra.Command{
 		if plan.Content != "" {
 			fmt.Printf("\nContent:\n%s\n", plan.Content)
 		}
-		fmt.Printf("\nMission: %s\n", plan.CommissionID)
+		fmt.Printf("\nCommission: %s\n", plan.CommissionID)
 		if plan.ShipmentID != "" {
 			fmt.Printf("Shipment: %s\n", plan.ShipmentID)
 		}

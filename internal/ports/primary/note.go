@@ -33,6 +33,9 @@ type NoteService interface {
 
 	// ReopenNote reopens a closed note.
 	ReopenNote(ctx context.Context, noteID string) error
+
+	// MoveNote moves a note to a different container.
+	MoveNote(ctx context.Context, req MoveNoteRequest) error
 }
 
 // CreateNoteRequest contains parameters for creating a note.
@@ -56,6 +59,15 @@ type UpdateNoteRequest struct {
 	NoteID  string
 	Title   string
 	Content string
+}
+
+// MoveNoteRequest contains parameters for moving a note to a different container.
+// Exactly one of the To* fields should be set.
+type MoveNoteRequest struct {
+	NoteID       string
+	ToTomeID     string
+	ToShipmentID string
+	ToConclaveID string
 }
 
 // Note represents a note entity at the port boundary.

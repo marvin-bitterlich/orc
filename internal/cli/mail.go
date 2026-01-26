@@ -68,27 +68,27 @@ Examples:
 				subject = "(no subject)"
 			}
 
-			// Determine mission ID for message
-			// Messages must be scoped to a mission for database storage
-			missionID := identity.CommissionID
+			// Determine commission ID for message
+			// Messages must be scoped to a commission for database storage
+			commissionID := identity.CommissionID
 
 			if identity.Type == agent.AgentTypeGoblin {
-				// Goblin sending: use recipient's mission ID (must be IMP)
+				// Goblin sending: use recipient's commission ID (must be IMP)
 				if recipientIdentity.Type == agent.AgentTypeIMP {
 					// Use recipient's commission ID
 					if recipientIdentity.CommissionID != "" {
-						missionID = recipientIdentity.CommissionID
+						commissionID = recipientIdentity.CommissionID
 					} else {
-						return fmt.Errorf("cannot determine mission ID for IMP agent")
+						return fmt.Errorf("cannot determine commission ID for IMP agent")
 					}
 				} else {
 					return fmt.Errorf("Goblin can only send to IMP agents")
 				}
 			} else if recipientIdentity.Type == agent.AgentTypeGoblin {
-				// Sending TO ORC: use sender's mission ID (IMPs reporting to ORC)
-				missionID = identity.CommissionID
+				// Sending TO ORC: use sender's commission ID (IMPs reporting to ORC)
+				commissionID = identity.CommissionID
 			}
-			// Otherwise: IMP to IMP, use sender's mission ID (already set)
+			// Otherwise: IMP to IMP, use sender's commission ID (already set)
 
 			// Create message
 			resp, err := wire.MessageService().CreateMessage(ctx, primary.CreateMessageRequest{
@@ -96,7 +96,7 @@ Examples:
 				Recipient:    recipientIdentity.FullID,
 				Subject:      subject,
 				Body:         body,
-				CommissionID: missionID,
+				CommissionID: commissionID,
 			})
 			if err != nil {
 				return fmt.Errorf("failed to create message: %w", err)

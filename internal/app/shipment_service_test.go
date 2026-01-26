@@ -15,24 +15,24 @@ import (
 
 // mockShipmentRepository implements secondary.ShipmentRepository for testing.
 type mockShipmentRepository struct {
-	shipments            map[string]*secondary.ShipmentRecord
-	workbenchAssignments map[string]string // workbenchID -> shipmentID
-	createErr            error
-	getErr               error
-	updateErr            error
-	deleteErr            error
-	listErr              error
-	updateStatusErr      error
-	assignWorkbenchErr   error
-	missionExistsResult  bool
-	missionExistsErr     error
+	shipments              map[string]*secondary.ShipmentRecord
+	workbenchAssignments   map[string]string // workbenchID -> shipmentID
+	createErr              error
+	getErr                 error
+	updateErr              error
+	deleteErr              error
+	listErr                error
+	updateStatusErr        error
+	assignWorkbenchErr     error
+	commissionExistsResult bool
+	commissionExistsErr    error
 }
 
 func newMockShipmentRepository() *mockShipmentRepository {
 	return &mockShipmentRepository{
-		shipments:            make(map[string]*secondary.ShipmentRecord),
-		workbenchAssignments: make(map[string]string),
-		missionExistsResult:  true,
+		shipments:              make(map[string]*secondary.ShipmentRecord),
+		workbenchAssignments:   make(map[string]string),
+		commissionExistsResult: true,
 	}
 }
 
@@ -146,11 +146,11 @@ func (m *mockShipmentRepository) UpdateStatus(ctx context.Context, id, status st
 	return nil
 }
 
-func (m *mockShipmentRepository) CommissionExists(ctx context.Context, missionID string) (bool, error) {
-	if m.missionExistsErr != nil {
-		return false, m.missionExistsErr
+func (m *mockShipmentRepository) CommissionExists(ctx context.Context, commissionID string) (bool, error) {
+	if m.commissionExistsErr != nil {
+		return false, m.commissionExistsErr
 	}
-	return m.missionExistsResult, nil
+	return m.commissionExistsResult, nil
 }
 
 func (m *mockShipmentRepository) WorkbenchAssignedToOther(ctx context.Context, workbenchID, excludeShipmentID string) (string, error) {
@@ -225,11 +225,19 @@ func (m *mockTaskRepositoryForShipment) AssignWorkbenchByShipment(ctx context.Co
 	return m.assignErr
 }
 
-func (m *mockTaskRepositoryForShipment) CommissionExists(ctx context.Context, missionID string) (bool, error) {
+func (m *mockTaskRepositoryForShipment) CommissionExists(ctx context.Context, commissionID string) (bool, error) {
 	return true, nil
 }
 
 func (m *mockTaskRepositoryForShipment) ShipmentExists(ctx context.Context, shipmentID string) (bool, error) {
+	return true, nil
+}
+
+func (m *mockTaskRepositoryForShipment) TomeExists(ctx context.Context, tomeID string) (bool, error) {
+	return true, nil
+}
+
+func (m *mockTaskRepositoryForShipment) ConclaveExists(ctx context.Context, conclaveID string) (bool, error) {
 	return true, nil
 }
 
@@ -292,11 +300,11 @@ func TestCreateShipment_Success(t *testing.T) {
 	}
 }
 
-func TestCreateShipment_MissionNotFound(t *testing.T) {
+func TestCreateShipment_CommissionNotFound(t *testing.T) {
 	service, shipmentRepo, _ := newTestShipmentService()
 	ctx := context.Background()
 
-	shipmentRepo.missionExistsResult = false
+	shipmentRepo.commissionExistsResult = false
 
 	_, err := service.CreateShipment(ctx, primary.CreateShipmentRequest{
 		CommissionID: "COMM-NONEXISTENT",
@@ -305,15 +313,15 @@ func TestCreateShipment_MissionNotFound(t *testing.T) {
 	})
 
 	if err == nil {
-		t.Fatal("expected error for non-existent mission, got nil")
+		t.Fatal("expected error for non-existent commission, got nil")
 	}
 }
 
-func TestCreateShipment_MissionValidationError(t *testing.T) {
+func TestCreateShipment_CommissionValidationError(t *testing.T) {
 	service, shipmentRepo, _ := newTestShipmentService()
 	ctx := context.Background()
 
-	shipmentRepo.missionExistsErr = errors.New("database error")
+	shipmentRepo.commissionExistsErr = errors.New("database error")
 
 	_, err := service.CreateShipment(ctx, primary.CreateShipmentRequest{
 		CommissionID: "COMM-001",
@@ -322,7 +330,7 @@ func TestCreateShipment_MissionValidationError(t *testing.T) {
 	})
 
 	if err == nil {
-		t.Fatal("expected error for mission validation failure, got nil")
+		t.Fatal("expected error for commission validation failure, got nil")
 	}
 }
 
@@ -366,7 +374,7 @@ func TestGetShipment_NotFound(t *testing.T) {
 // ListShipments Tests
 // ============================================================================
 
-func TestListShipments_FilterByMission(t *testing.T) {
+func TestListShipments_FilterByCommission(t *testing.T) {
 	service, shipmentRepo, _ := newTestShipmentService()
 	ctx := context.Background()
 

@@ -10,7 +10,7 @@ func TestCanCreateOperation(t *testing.T) {
 		wantReason  string
 	}{
 		{
-			name: "can create operation when mission exists",
+			name: "can create operation when commission exists",
 			ctx: CreateOperationContext{
 				CommissionID:     "COMM-001",
 				CommissionExists: true,
@@ -18,13 +18,13 @@ func TestCanCreateOperation(t *testing.T) {
 			wantAllowed: true,
 		},
 		{
-			name: "cannot create operation when mission not found",
+			name: "cannot create operation when commission not found",
 			ctx: CreateOperationContext{
-				CommissionID:     "MISSION-999",
+				CommissionID:     "COMM-999",
 				CommissionExists: false,
 			},
 			wantAllowed: false,
-			wantReason:  "commission MISSION-999 not found",
+			wantReason:  "commission COMM-999 not found",
 		},
 	}
 

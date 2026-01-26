@@ -18,17 +18,17 @@ func setupMessageTestDB(t *testing.T) *sql.DB {
 }
 
 // createTestMessage is a helper that creates a message with a generated ID.
-func createTestMessage(t *testing.T, repo *sqlite.MessageRepository, ctx context.Context, missionID, sender, recipient, subject, body string) *secondary.MessageRecord {
+func createTestMessage(t *testing.T, repo *sqlite.MessageRepository, ctx context.Context, commissionID, sender, recipient, subject, body string) *secondary.MessageRecord {
 	t.Helper()
 
-	nextID, err := repo.GetNextID(ctx, missionID)
+	nextID, err := repo.GetNextID(ctx, commissionID)
 	if err != nil {
 		t.Fatalf("GetNextID failed: %v", err)
 	}
 
 	msg := &secondary.MessageRecord{
 		ID:           nextID,
-		CommissionID: missionID,
+		CommissionID: commissionID,
 		Sender:       sender,
 		Recipient:    recipient,
 		Subject:      subject,
@@ -297,13 +297,13 @@ func TestMessageRepository_GetNextID(t *testing.T) {
 	}
 }
 
-func TestMessageRepository_GetNextID_DifferentMissions(t *testing.T) {
+func TestMessageRepository_GetNextID_DifferentCommissions(t *testing.T) {
 	db := setupMessageTestDB(t)
 	repo := sqlite.NewMessageRepository(db)
 	ctx := context.Background()
 
-	// Add another mission
-	_, _ = db.Exec("INSERT INTO commissions (id, title, status) VALUES ('COMM-002', 'Mission 2', 'active')")
+	// Add another commission
+	_, _ = db.Exec("INSERT INTO commissions (id, title, status) VALUES ('COMM-002', 'Commission 2', 'active')")
 
 	createTestMessage(t, repo, ctx, "COMM-001", "ORC", "IMP-001", "Test", "Body")
 	createTestMessage(t, repo, ctx, "COMM-001", "ORC", "IMP-001", "Test 2", "Body")
@@ -328,14 +328,14 @@ func TestMessageRepository_CommissionExists(t *testing.T) {
 		t.Fatalf("CommissionExists failed: %v", err)
 	}
 	if !exists {
-		t.Error("expected mission to exist")
+		t.Error("expected commission to exist")
 	}
 
-	exists, err = repo.CommissionExists(ctx, "MISSION-999")
+	exists, err = repo.CommissionExists(ctx, "COMM-999")
 	if err != nil {
 		t.Fatalf("CommissionExists failed: %v", err)
 	}
 	if exists {
-		t.Error("expected mission to not exist")
+		t.Error("expected commission to not exist")
 	}
 }

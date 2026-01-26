@@ -15,27 +15,27 @@ import (
 
 // mockTaskRepository implements secondary.TaskRepository for testing.
 type mockTaskRepository struct {
-	tasks                map[string]*secondary.TaskRecord
-	tags                 map[string]*secondary.TagRecord // taskID -> tag
-	createErr            error
-	getErr               error
-	updateErr            error
-	deleteErr            error
-	listErr              error
-	updateStatusErr      error
-	claimErr             error
-	missionExistsResult  bool
-	missionExistsErr     error
-	shipmentExistsResult bool
-	shipmentExistsErr    error
+	tasks                  map[string]*secondary.TaskRecord
+	tags                   map[string]*secondary.TagRecord // taskID -> tag
+	createErr              error
+	getErr                 error
+	updateErr              error
+	deleteErr              error
+	listErr                error
+	updateStatusErr        error
+	claimErr               error
+	commissionExistsResult bool
+	commissionExistsErr    error
+	shipmentExistsResult   bool
+	shipmentExistsErr      error
 }
 
 func newMockTaskRepository() *mockTaskRepository {
 	return &mockTaskRepository{
-		tasks:                make(map[string]*secondary.TaskRecord),
-		tags:                 make(map[string]*secondary.TagRecord),
-		missionExistsResult:  true,
-		shipmentExistsResult: true,
+		tasks:                  make(map[string]*secondary.TaskRecord),
+		tags:                   make(map[string]*secondary.TagRecord),
+		commissionExistsResult: true,
+		shipmentExistsResult:   true,
 	}
 }
 
@@ -180,11 +180,11 @@ func (m *mockTaskRepository) AssignWorkbenchByShipment(ctx context.Context, ship
 	return nil
 }
 
-func (m *mockTaskRepository) CommissionExists(ctx context.Context, missionID string) (bool, error) {
-	if m.missionExistsErr != nil {
-		return false, m.missionExistsErr
+func (m *mockTaskRepository) CommissionExists(ctx context.Context, commissionID string) (bool, error) {
+	if m.commissionExistsErr != nil {
+		return false, m.commissionExistsErr
 	}
-	return m.missionExistsResult, nil
+	return m.commissionExistsResult, nil
 }
 
 func (m *mockTaskRepository) ShipmentExists(ctx context.Context, shipmentID string) (bool, error) {
@@ -192,6 +192,14 @@ func (m *mockTaskRepository) ShipmentExists(ctx context.Context, shipmentID stri
 		return false, m.shipmentExistsErr
 	}
 	return m.shipmentExistsResult, nil
+}
+
+func (m *mockTaskRepository) TomeExists(ctx context.Context, tomeID string) (bool, error) {
+	return true, nil
+}
+
+func (m *mockTaskRepository) ConclaveExists(ctx context.Context, conclaveID string) (bool, error) {
+	return true, nil
 }
 
 func (m *mockTaskRepository) GetTag(ctx context.Context, taskID string) (*secondary.TagRecord, error) {
@@ -339,11 +347,11 @@ func TestCreateTask_WithShipment(t *testing.T) {
 	}
 }
 
-func TestCreateTask_MissionNotFound(t *testing.T) {
+func TestCreateTask_CommissionNotFound(t *testing.T) {
 	service, taskRepo, _ := newTestTaskService()
 	ctx := context.Background()
 
-	taskRepo.missionExistsResult = false
+	taskRepo.commissionExistsResult = false
 
 	_, err := service.CreateTask(ctx, primary.CreateTaskRequest{
 		CommissionID: "COMM-NONEXISTENT",
@@ -352,7 +360,7 @@ func TestCreateTask_MissionNotFound(t *testing.T) {
 	})
 
 	if err == nil {
-		t.Fatal("expected error for non-existent mission, got nil")
+		t.Fatal("expected error for non-existent commission, got nil")
 	}
 }
 
@@ -442,7 +450,7 @@ func TestGetTask_WithTag(t *testing.T) {
 // ListTasks Tests
 // ============================================================================
 
-func TestListTasks_FilterByMission(t *testing.T) {
+func TestListTasks_FilterByCommission(t *testing.T) {
 	service, taskRepo, _ := newTestTaskService()
 	ctx := context.Background()
 

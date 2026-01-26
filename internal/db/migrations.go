@@ -214,6 +214,11 @@ var migrations = []Migration{
 		Name:    "add_conclave_id_to_investigations",
 		Up:      migrationV40,
 	},
+	{
+		Version: 41,
+		Name:    "add_tome_id_and_conclave_id_to_tasks",
+		Up:      migrationV41,
+	},
 }
 
 // RunMigrations executes all pending migrations
@@ -3921,5 +3926,32 @@ func migrationV40(db *sql.DB) error {
 	if err != nil {
 		return fmt.Errorf("failed to add conclave_id column to investigations: %w", err)
 	}
+	return nil
+}
+
+func migrationV41(db *sql.DB) error {
+	// Add tome_id and conclave_id columns to tasks table for entity move support
+	_, err := db.Exec(`ALTER TABLE tasks ADD COLUMN tome_id TEXT REFERENCES tomes(id) ON DELETE SET NULL`)
+	if err != nil {
+		return fmt.Errorf("failed to add tome_id column to tasks: %w", err)
+	}
+
+	_, err = db.Exec(`ALTER TABLE tasks ADD COLUMN conclave_id TEXT REFERENCES conclaves(id) ON DELETE SET NULL`)
+	if err != nil {
+		return fmt.Errorf("failed to add conclave_id column to tasks: %w", err)
+	}
+
+	// Add index for tome_id lookups
+	_, err = db.Exec(`CREATE INDEX IF NOT EXISTS idx_tasks_tome ON tasks(tome_id)`)
+	if err != nil {
+		return fmt.Errorf("failed to create tasks tome index: %w", err)
+	}
+
+	// Add index for conclave_id lookups
+	_, err = db.Exec(`CREATE INDEX IF NOT EXISTS idx_tasks_conclave ON tasks(conclave_id)`)
+	if err != nil {
+		return fmt.Errorf("failed to create tasks conclave index: %w", err)
+	}
+
 	return nil
 }

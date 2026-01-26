@@ -16,7 +16,7 @@ func setupHandoffTestDB(t *testing.T) *sql.DB {
 }
 
 // createTestHandoff is a helper that creates a handoff with a generated ID.
-func createTestHandoff(t *testing.T, repo *sqlite.HandoffRepository, ctx context.Context, note, missionID, workbenchID, todos string) *secondary.HandoffRecord {
+func createTestHandoff(t *testing.T, repo *sqlite.HandoffRepository, ctx context.Context, note, commissionID, workbenchID, todos string) *secondary.HandoffRecord {
 	t.Helper()
 
 	nextID, err := repo.GetNextID(ctx)
@@ -27,7 +27,7 @@ func createTestHandoff(t *testing.T, repo *sqlite.HandoffRepository, ctx context
 	handoff := &secondary.HandoffRecord{
 		ID:                 nextID,
 		HandoffNote:        note,
-		ActiveCommissionID: missionID,
+		ActiveCommissionID: commissionID,
 		ActiveWorkbenchID:  workbenchID,
 		TodosSnapshot:      todos,
 	}
@@ -67,7 +67,7 @@ func TestHandoffRepository_Create(t *testing.T) {
 		t.Errorf("expected correct handoff note, got '%s'", retrieved.HandoffNote)
 	}
 	if retrieved.ActiveCommissionID != "COMM-001" {
-		t.Errorf("expected mission 'COMM-001', got '%s'", retrieved.ActiveCommissionID)
+		t.Errorf("expected commission 'COMM-001', got '%s'", retrieved.ActiveCommissionID)
 	}
 	if retrieved.ActiveWorkbenchID != "WB-001" {
 		t.Errorf("expected workbench 'WB-001', got '%s'", retrieved.ActiveWorkbenchID)
@@ -91,7 +91,7 @@ func TestHandoffRepository_Create_MinimalData(t *testing.T) {
 
 	retrieved, _ := repo.GetByID(ctx, "HO-001")
 	if retrieved.ActiveCommissionID != "" {
-		t.Errorf("expected empty mission ID, got '%s'", retrieved.ActiveCommissionID)
+		t.Errorf("expected empty commission ID, got '%s'", retrieved.ActiveCommissionID)
 	}
 	if retrieved.ActiveWorkbenchID != "" {
 		t.Errorf("expected empty workbench ID, got '%s'", retrieved.ActiveWorkbenchID)

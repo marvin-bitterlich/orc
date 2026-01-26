@@ -15,21 +15,21 @@ import (
 
 // mockInvestigationRepository implements secondary.InvestigationRepository for testing.
 type mockInvestigationRepository struct {
-	investigations      map[string]*secondary.InvestigationRecord
-	createErr           error
-	getErr              error
-	updateErr           error
-	deleteErr           error
-	listErr             error
-	updateStatusErr     error
-	missionExistsResult bool
-	missionExistsErr    error
+	investigations         map[string]*secondary.InvestigationRecord
+	createErr              error
+	getErr                 error
+	updateErr              error
+	deleteErr              error
+	listErr                error
+	updateStatusErr        error
+	commissionExistsResult bool
+	commissionExistsErr    error
 }
 
 func newMockInvestigationRepository() *mockInvestigationRepository {
 	return &mockInvestigationRepository{
-		investigations:      make(map[string]*secondary.InvestigationRecord),
-		missionExistsResult: true,
+		investigations:         make(map[string]*secondary.InvestigationRecord),
+		commissionExistsResult: true,
 	}
 }
 
@@ -139,11 +139,11 @@ func (m *mockInvestigationRepository) AssignWorkbench(ctx context.Context, inves
 	return nil
 }
 
-func (m *mockInvestigationRepository) CommissionExists(ctx context.Context, missionID string) (bool, error) {
-	if m.missionExistsErr != nil {
-		return false, m.missionExistsErr
+func (m *mockInvestigationRepository) CommissionExists(ctx context.Context, commissionID string) (bool, error) {
+	if m.commissionExistsErr != nil {
+		return false, m.commissionExistsErr
 	}
-	return m.missionExistsResult, nil
+	return m.commissionExistsResult, nil
 }
 
 func (m *mockInvestigationRepository) GetByConclave(ctx context.Context, conclaveID string) ([]*secondary.InvestigationRecord, error) {
@@ -188,11 +188,11 @@ func TestCreateInvestigation_Success(t *testing.T) {
 	}
 }
 
-func TestCreateInvestigation_MissionNotFound(t *testing.T) {
+func TestCreateInvestigation_CommissionNotFound(t *testing.T) {
 	service, investigationRepo := newTestInvestigationService()
 	ctx := context.Background()
 
-	investigationRepo.missionExistsResult = false
+	investigationRepo.commissionExistsResult = false
 
 	_, err := service.CreateInvestigation(ctx, primary.CreateInvestigationRequest{
 		CommissionID: "COMM-NONEXISTENT",
@@ -201,7 +201,7 @@ func TestCreateInvestigation_MissionNotFound(t *testing.T) {
 	})
 
 	if err == nil {
-		t.Fatal("expected error for non-existent mission, got nil")
+		t.Fatal("expected error for non-existent commission, got nil")
 	}
 }
 
@@ -245,7 +245,7 @@ func TestGetInvestigation_NotFound(t *testing.T) {
 // ListInvestigations Tests
 // ============================================================================
 
-func TestListInvestigations_FilterByMission(t *testing.T) {
+func TestListInvestigations_FilterByCommission(t *testing.T) {
 	service, investigationRepo := newTestInvestigationService()
 	ctx := context.Background()
 

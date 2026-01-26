@@ -18,7 +18,7 @@ func setupTomeTestDB(t *testing.T) *sql.DB {
 }
 
 // createTestTome is a helper that creates a tome with a generated ID.
-func createTestTome(t *testing.T, repo *sqlite.TomeRepository, ctx context.Context, missionID, title, description string) *secondary.TomeRecord {
+func createTestTome(t *testing.T, repo *sqlite.TomeRepository, ctx context.Context, commissionID, title, description string) *secondary.TomeRecord {
 	t.Helper()
 
 	nextID, err := repo.GetNextID(ctx)
@@ -28,7 +28,7 @@ func createTestTome(t *testing.T, repo *sqlite.TomeRepository, ctx context.Conte
 
 	tome := &secondary.TomeRecord{
 		ID:           nextID,
-		CommissionID: missionID,
+		CommissionID: commissionID,
 		Title:        title,
 		Description:  description,
 	}
@@ -121,13 +121,13 @@ func TestTomeRepository_List(t *testing.T) {
 	}
 }
 
-func TestTomeRepository_List_FilterByMission(t *testing.T) {
+func TestTomeRepository_List_FilterByCommission(t *testing.T) {
 	db := setupTomeTestDB(t)
 	repo := sqlite.NewTomeRepository(db)
 	ctx := context.Background()
 
-	// Add another mission
-	_, _ = db.Exec("INSERT INTO commissions (id, title, status) VALUES ('COMM-002', 'Mission 2', 'active')")
+	// Add another commission
+	_, _ = db.Exec("INSERT INTO commissions (id, title, status) VALUES ('COMM-002', 'Commission 2', 'active')")
 
 	createTestTome(t, repo, ctx, "COMM-001", "Tome 1", "")
 	createTestTome(t, repo, ctx, "COMM-002", "Tome 2", "")
@@ -395,15 +395,15 @@ func TestTomeRepository_CommissionExists(t *testing.T) {
 		t.Fatalf("CommissionExists failed: %v", err)
 	}
 	if !exists {
-		t.Error("expected mission to exist")
+		t.Error("expected commission to exist")
 	}
 
-	exists, err = repo.CommissionExists(ctx, "MISSION-999")
+	exists, err = repo.CommissionExists(ctx, "COMM-999")
 	if err != nil {
 		t.Fatalf("CommissionExists failed: %v", err)
 	}
 	if exists {
-		t.Error("expected mission to not exist")
+		t.Error("expected commission to not exist")
 	}
 }
 

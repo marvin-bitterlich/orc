@@ -194,6 +194,22 @@ func (r *NoteRepository) Update(ctx context.Context, note *secondary.NoteRecord)
 		args = append(args, sql.NullString{String: note.Content, Valid: true})
 	}
 
+	// Container move: when moving to a new container, clear all other container IDs
+	// to maintain mutual exclusivity (a note can only belong to one container)
+	if note.ShipmentID != "" {
+		query += ", shipment_id = ?, investigation_id = NULL, tome_id = NULL, conclave_id = NULL"
+		args = append(args, note.ShipmentID)
+	} else if note.TomeID != "" {
+		query += ", tome_id = ?, shipment_id = NULL, investigation_id = NULL, conclave_id = NULL"
+		args = append(args, note.TomeID)
+	} else if note.ConclaveID != "" {
+		query += ", conclave_id = ?, shipment_id = NULL, investigation_id = NULL, tome_id = NULL"
+		args = append(args, note.ConclaveID)
+	} else if note.InvestigationID != "" {
+		query += ", investigation_id = ?, shipment_id = NULL, tome_id = NULL, conclave_id = NULL"
+		args = append(args, note.InvestigationID)
+	}
+
 	query += " WHERE id = ?"
 	args = append(args, note.ID)
 
@@ -343,12 +359,42 @@ func (r *NoteRepository) GetByContainer(ctx context.Context, containerType, cont
 	return notes, nil
 }
 
-// CommissionExists checks if a mission exists.
-func (r *NoteRepository) CommissionExists(ctx context.Context, missionID string) (bool, error) {
+// CommissionExists checks if a commission exists.
+func (r *NoteRepository) CommissionExists(ctx context.Context, commissionID string) (bool, error) {
 	var count int
-	err := r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM commissions WHERE id = ?", missionID).Scan(&count)
+	err := r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM commissions WHERE id = ?", commissionID).Scan(&count)
 	if err != nil {
-		return false, fmt.Errorf("failed to check mission existence: %w", err)
+		return false, fmt.Errorf("failed to check commission existence: %w", err)
+	}
+	return count > 0, nil
+}
+
+// ShipmentExists checks if a shipment exists.
+func (r *NoteRepository) ShipmentExists(ctx context.Context, shipmentID string) (bool, error) {
+	var count int
+	err := r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM shipments WHERE id = ?", shipmentID).Scan(&count)
+	if err != nil {
+		return false, fmt.Errorf("failed to check shipment existence: %w", err)
+	}
+	return count > 0, nil
+}
+
+// TomeExists checks if a tome exists.
+func (r *NoteRepository) TomeExists(ctx context.Context, tomeID string) (bool, error) {
+	var count int
+	err := r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM tomes WHERE id = ?", tomeID).Scan(&count)
+	if err != nil {
+		return false, fmt.Errorf("failed to check tome existence: %w", err)
+	}
+	return count > 0, nil
+}
+
+// ConclaveExists checks if a conclave exists.
+func (r *NoteRepository) ConclaveExists(ctx context.Context, conclaveID string) (bool, error) {
+	var count int
+	err := r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM conclaves WHERE id = ?", conclaveID).Scan(&count)
+	if err != nil {
+		return false, fmt.Errorf("failed to check conclave existence: %w", err)
 	}
 	return count > 0, nil
 }

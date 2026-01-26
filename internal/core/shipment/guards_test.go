@@ -10,7 +10,7 @@ func TestCanCreateShipment(t *testing.T) {
 		wantReason  string
 	}{
 		{
-			name: "can create shipment when mission exists",
+			name: "can create shipment when commission exists",
 			ctx: CreateShipmentContext{
 				CommissionID:     "COMM-001",
 				CommissionExists: true,
@@ -18,13 +18,13 @@ func TestCanCreateShipment(t *testing.T) {
 			wantAllowed: true,
 		},
 		{
-			name: "cannot create shipment when mission not found",
+			name: "cannot create shipment when commission not found",
 			ctx: CreateShipmentContext{
-				CommissionID:     "MISSION-999",
+				CommissionID:     "COMM-999",
 				CommissionExists: false,
 			},
 			wantAllowed: false,
-			wantReason:  "commission MISSION-999 not found",
+			wantReason:  "commission COMM-999 not found",
 		},
 	}
 

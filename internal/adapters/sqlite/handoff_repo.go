@@ -23,10 +23,10 @@ func NewHandoffRepository(db *sql.DB) *HandoffRepository {
 
 // Create persists a new handoff.
 func (r *HandoffRepository) Create(ctx context.Context, handoff *secondary.HandoffRecord) error {
-	var missionID, workbenchID, todos sql.NullString
+	var commissionID, workbenchID, todos sql.NullString
 
 	if handoff.ActiveCommissionID != "" {
-		missionID = sql.NullString{String: handoff.ActiveCommissionID, Valid: true}
+		commissionID = sql.NullString{String: handoff.ActiveCommissionID, Valid: true}
 	}
 	if handoff.ActiveWorkbenchID != "" {
 		workbenchID = sql.NullString{String: handoff.ActiveWorkbenchID, Valid: true}
@@ -38,7 +38,7 @@ func (r *HandoffRepository) Create(ctx context.Context, handoff *secondary.Hando
 	_, err := r.db.ExecContext(ctx,
 		`INSERT INTO handoffs (id, handoff_note, active_commission_id, active_workbench_id, todos_snapshot)
 		 VALUES (?, ?, ?, ?, ?)`,
-		handoff.ID, handoff.HandoffNote, missionID, workbenchID, todos,
+		handoff.ID, handoff.HandoffNote, commissionID, workbenchID, todos,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create handoff: %w", err)
@@ -50,10 +50,10 @@ func (r *HandoffRepository) Create(ctx context.Context, handoff *secondary.Hando
 // GetByID retrieves a handoff by its ID.
 func (r *HandoffRepository) GetByID(ctx context.Context, id string) (*secondary.HandoffRecord, error) {
 	var (
-		createdAt   time.Time
-		missionID   sql.NullString
-		workbenchID sql.NullString
-		todos       sql.NullString
+		createdAt    time.Time
+		commissionID sql.NullString
+		workbenchID  sql.NullString
+		todos        sql.NullString
 	)
 
 	record := &secondary.HandoffRecord{}
@@ -61,7 +61,7 @@ func (r *HandoffRepository) GetByID(ctx context.Context, id string) (*secondary.
 		`SELECT id, created_at, handoff_note, active_commission_id, active_workbench_id, todos_snapshot
 		 FROM handoffs WHERE id = ?`,
 		id,
-	).Scan(&record.ID, &createdAt, &record.HandoffNote, &missionID, &workbenchID, &todos)
+	).Scan(&record.ID, &createdAt, &record.HandoffNote, &commissionID, &workbenchID, &todos)
 
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("handoff %s not found", id)
@@ -71,7 +71,7 @@ func (r *HandoffRepository) GetByID(ctx context.Context, id string) (*secondary.
 	}
 
 	record.CreatedAt = createdAt.Format(time.RFC3339)
-	record.ActiveCommissionID = missionID.String
+	record.ActiveCommissionID = commissionID.String
 	record.ActiveWorkbenchID = workbenchID.String
 	record.TodosSnapshot = todos.String
 
@@ -81,17 +81,17 @@ func (r *HandoffRepository) GetByID(ctx context.Context, id string) (*secondary.
 // GetLatest retrieves the most recent handoff.
 func (r *HandoffRepository) GetLatest(ctx context.Context) (*secondary.HandoffRecord, error) {
 	var (
-		createdAt   time.Time
-		missionID   sql.NullString
-		workbenchID sql.NullString
-		todos       sql.NullString
+		createdAt    time.Time
+		commissionID sql.NullString
+		workbenchID  sql.NullString
+		todos        sql.NullString
 	)
 
 	record := &secondary.HandoffRecord{}
 	err := r.db.QueryRowContext(ctx,
 		`SELECT id, created_at, handoff_note, active_commission_id, active_workbench_id, todos_snapshot
 		 FROM handoffs ORDER BY created_at DESC LIMIT 1`,
-	).Scan(&record.ID, &createdAt, &record.HandoffNote, &missionID, &workbenchID, &todos)
+	).Scan(&record.ID, &createdAt, &record.HandoffNote, &commissionID, &workbenchID, &todos)
 
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("no handoffs found")
@@ -101,7 +101,7 @@ func (r *HandoffRepository) GetLatest(ctx context.Context) (*secondary.HandoffRe
 	}
 
 	record.CreatedAt = createdAt.Format(time.RFC3339)
-	record.ActiveCommissionID = missionID.String
+	record.ActiveCommissionID = commissionID.String
 	record.ActiveWorkbenchID = workbenchID.String
 	record.TodosSnapshot = todos.String
 
@@ -111,10 +111,10 @@ func (r *HandoffRepository) GetLatest(ctx context.Context) (*secondary.HandoffRe
 // GetLatestForWorkbench retrieves the most recent handoff for a workbench.
 func (r *HandoffRepository) GetLatestForWorkbench(ctx context.Context, workbenchID string) (*secondary.HandoffRecord, error) {
 	var (
-		createdAt time.Time
-		missionID sql.NullString
-		wbID      sql.NullString
-		todos     sql.NullString
+		createdAt    time.Time
+		commissionID sql.NullString
+		wbID         sql.NullString
+		todos        sql.NullString
 	)
 
 	record := &secondary.HandoffRecord{}
@@ -122,7 +122,7 @@ func (r *HandoffRepository) GetLatestForWorkbench(ctx context.Context, workbench
 		`SELECT id, created_at, handoff_note, active_commission_id, active_workbench_id, todos_snapshot
 		 FROM handoffs WHERE active_workbench_id = ? ORDER BY created_at DESC LIMIT 1`,
 		workbenchID,
-	).Scan(&record.ID, &createdAt, &record.HandoffNote, &missionID, &wbID, &todos)
+	).Scan(&record.ID, &createdAt, &record.HandoffNote, &commissionID, &wbID, &todos)
 
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("no handoffs found for workbench %s", workbenchID)
@@ -132,7 +132,7 @@ func (r *HandoffRepository) GetLatestForWorkbench(ctx context.Context, workbench
 	}
 
 	record.CreatedAt = createdAt.Format(time.RFC3339)
-	record.ActiveCommissionID = missionID.String
+	record.ActiveCommissionID = commissionID.String
 	record.ActiveWorkbenchID = wbID.String
 	record.TodosSnapshot = todos.String
 
@@ -157,20 +157,20 @@ func (r *HandoffRepository) List(ctx context.Context, limit int) ([]*secondary.H
 	var handoffs []*secondary.HandoffRecord
 	for rows.Next() {
 		var (
-			createdAt   time.Time
-			missionID   sql.NullString
-			workbenchID sql.NullString
-			todos       sql.NullString
+			createdAt    time.Time
+			commissionID sql.NullString
+			workbenchID  sql.NullString
+			todos        sql.NullString
 		)
 
 		record := &secondary.HandoffRecord{}
-		err := rows.Scan(&record.ID, &createdAt, &record.HandoffNote, &missionID, &workbenchID, &todos)
+		err := rows.Scan(&record.ID, &createdAt, &record.HandoffNote, &commissionID, &workbenchID, &todos)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan handoff: %w", err)
 		}
 
 		record.CreatedAt = createdAt.Format(time.RFC3339)
-		record.ActiveCommissionID = missionID.String
+		record.ActiveCommissionID = commissionID.String
 		record.ActiveWorkbenchID = workbenchID.String
 		record.TodosSnapshot = todos.String
 

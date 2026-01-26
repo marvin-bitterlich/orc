@@ -26,20 +26,20 @@ var tomeCreateCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
 		title := args[0]
-		missionID, _ := cmd.Flags().GetString("commission")
+		commissionID, _ := cmd.Flags().GetString("commission")
 		conclaveID, _ := cmd.Flags().GetString("conclave")
 		description, _ := cmd.Flags().GetString("description")
 
-		// Get mission from context or require explicit flag
-		if missionID == "" {
-			missionID = orccontext.GetContextCommissionID()
-			if missionID == "" {
+		// Get commission from context or require explicit flag
+		if commissionID == "" {
+			commissionID = orccontext.GetContextCommissionID()
+			if commissionID == "" {
 				return fmt.Errorf("no commission context detected\nHint: Use --commission flag or run from a workbench directory")
 			}
 		}
 
 		resp, err := wire.TomeService().CreateTome(ctx, primary.CreateTomeRequest{
-			CommissionID: missionID,
+			CommissionID: commissionID,
 			ConclaveID:   conclaveID,
 			Title:        title,
 			Description:  description,
@@ -50,7 +50,7 @@ var tomeCreateCmd = &cobra.Command{
 
 		tome := resp.Tome
 		fmt.Printf("✓ Created tome %s: %s\n", tome.ID, tome.Title)
-		fmt.Printf("  Mission: %s\n", tome.CommissionID)
+		fmt.Printf("  Commission: %s\n", tome.CommissionID)
 		if tome.ConclaveID != "" {
 			fmt.Printf("  Conclave: %s\n", tome.ConclaveID)
 		}
@@ -67,16 +67,16 @@ var tomeListCmd = &cobra.Command{
 	Short: "List tomes",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
-		missionID, _ := cmd.Flags().GetString("commission")
+		commissionID, _ := cmd.Flags().GetString("commission")
 		status, _ := cmd.Flags().GetString("status")
 
-		// Get mission from context if not specified
-		if missionID == "" {
-			missionID = orccontext.GetContextCommissionID()
+		// Get commission from context if not specified
+		if commissionID == "" {
+			commissionID = orccontext.GetContextCommissionID()
 		}
 
 		tomes, err := wire.TomeService().ListTomes(ctx, primary.TomeFilters{
-			CommissionID: missionID,
+			CommissionID: commissionID,
 			Status:       status,
 		})
 		if err != nil {
@@ -89,7 +89,7 @@ var tomeListCmd = &cobra.Command{
 		}
 
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-		fmt.Fprintln(w, "ID\tTITLE\tSTATUS\tMISSION")
+		fmt.Fprintln(w, "ID\tTITLE\tSTATUS\tCOMMISSION")
 		fmt.Fprintln(w, "--\t-----\t------\t-------")
 		for _, t := range tomes {
 			pinnedMark := ""

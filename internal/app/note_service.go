@@ -22,7 +22,7 @@ func NewNoteService(noteRepo secondary.NoteRepository) *NoteServiceImpl {
 
 // CreateNote creates a new note.
 func (s *NoteServiceImpl) CreateNote(ctx context.Context, req primary.CreateNoteRequest) (*primary.CreateNoteResponse, error) {
-	// Validate mission exists
+	// Validate commission exists
 	exists, err := s.noteRepo.CommissionExists(ctx, req.CommissionID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to validate commission: %w", err)
@@ -169,6 +169,72 @@ func (s *NoteServiceImpl) ReopenNote(ctx context.Context, noteID string) error {
 	}
 
 	return s.noteRepo.UpdateStatus(ctx, noteID, "open")
+}
+
+// MoveNote moves a note to a different container.
+func (s *NoteServiceImpl) MoveNote(ctx context.Context, req primary.MoveNoteRequest) error {
+	// Verify note exists
+	_, err := s.noteRepo.GetByID(ctx, req.NoteID)
+	if err != nil {
+		return err
+	}
+
+	// Count how many targets are specified - exactly one required
+	targetCount := 0
+	if req.ToTomeID != "" {
+		targetCount++
+	}
+	if req.ToShipmentID != "" {
+		targetCount++
+	}
+	if req.ToConclaveID != "" {
+		targetCount++
+	}
+
+	if targetCount == 0 {
+		return fmt.Errorf("must specify exactly one target container (--to-tome, --to-shipment, or --to-conclave)")
+	}
+	if targetCount > 1 {
+		return fmt.Errorf("cannot specify multiple target containers")
+	}
+
+	// Validate target container exists and build update record
+	record := &secondary.NoteRecord{ID: req.NoteID}
+
+	if req.ToTomeID != "" {
+		exists, err := s.noteRepo.TomeExists(ctx, req.ToTomeID)
+		if err != nil {
+			return fmt.Errorf("failed to validate tome: %w", err)
+		}
+		if !exists {
+			return fmt.Errorf("tome %s not found", req.ToTomeID)
+		}
+		record.TomeID = req.ToTomeID
+	}
+
+	if req.ToShipmentID != "" {
+		exists, err := s.noteRepo.ShipmentExists(ctx, req.ToShipmentID)
+		if err != nil {
+			return fmt.Errorf("failed to validate shipment: %w", err)
+		}
+		if !exists {
+			return fmt.Errorf("shipment %s not found", req.ToShipmentID)
+		}
+		record.ShipmentID = req.ToShipmentID
+	}
+
+	if req.ToConclaveID != "" {
+		exists, err := s.noteRepo.ConclaveExists(ctx, req.ToConclaveID)
+		if err != nil {
+			return fmt.Errorf("failed to validate conclave: %w", err)
+		}
+		if !exists {
+			return fmt.Errorf("conclave %s not found", req.ToConclaveID)
+		}
+		record.ConclaveID = req.ToConclaveID
+	}
+
+	return s.noteRepo.Update(ctx, record)
 }
 
 // Helper methods

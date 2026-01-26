@@ -27,7 +27,7 @@ func NewTaskService(
 
 // CreateTask creates a new task.
 func (s *TaskServiceImpl) CreateTask(ctx context.Context, req primary.CreateTaskRequest) (*primary.CreateTaskResponse, error) {
-	// Validate mission exists
+	// Validate commission exists
 	exists, err := s.taskRepo.CommissionExists(ctx, req.CommissionID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to validate commission: %w", err)
@@ -300,6 +300,72 @@ func (s *TaskServiceImpl) DiscoverTasks(ctx context.Context, workbenchID string)
 		}
 	}
 	return readyTasks, nil
+}
+
+// MoveTask moves a task to a different container.
+func (s *TaskServiceImpl) MoveTask(ctx context.Context, req primary.MoveTaskRequest) error {
+	// Verify task exists
+	_, err := s.taskRepo.GetByID(ctx, req.TaskID)
+	if err != nil {
+		return err
+	}
+
+	// Count how many targets are specified - exactly one required
+	targetCount := 0
+	if req.ToShipmentID != "" {
+		targetCount++
+	}
+	if req.ToTomeID != "" {
+		targetCount++
+	}
+	if req.ToConclaveID != "" {
+		targetCount++
+	}
+
+	if targetCount == 0 {
+		return fmt.Errorf("must specify exactly one target container (--to-shipment, --to-tome, or --to-conclave)")
+	}
+	if targetCount > 1 {
+		return fmt.Errorf("cannot specify multiple target containers")
+	}
+
+	// Validate target container exists and build update record
+	record := &secondary.TaskRecord{ID: req.TaskID}
+
+	if req.ToShipmentID != "" {
+		exists, err := s.taskRepo.ShipmentExists(ctx, req.ToShipmentID)
+		if err != nil {
+			return fmt.Errorf("failed to validate shipment: %w", err)
+		}
+		if !exists {
+			return fmt.Errorf("shipment %s not found", req.ToShipmentID)
+		}
+		record.ShipmentID = req.ToShipmentID
+	}
+
+	if req.ToTomeID != "" {
+		exists, err := s.taskRepo.TomeExists(ctx, req.ToTomeID)
+		if err != nil {
+			return fmt.Errorf("failed to validate tome: %w", err)
+		}
+		if !exists {
+			return fmt.Errorf("tome %s not found", req.ToTomeID)
+		}
+		record.TomeID = req.ToTomeID
+	}
+
+	if req.ToConclaveID != "" {
+		exists, err := s.taskRepo.ConclaveExists(ctx, req.ToConclaveID)
+		if err != nil {
+			return fmt.Errorf("failed to validate conclave: %w", err)
+		}
+		if !exists {
+			return fmt.Errorf("conclave %s not found", req.ToConclaveID)
+		}
+		record.ConclaveID = req.ToConclaveID
+	}
+
+	return s.taskRepo.Update(ctx, record)
 }
 
 // Ensure TaskServiceImpl implements the interface

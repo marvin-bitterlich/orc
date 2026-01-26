@@ -70,7 +70,7 @@ Examples:
 		}
 
 		// Get active context from flags
-		missionID, _ := cmd.Flags().GetString("commission")
+		commissionID, _ := cmd.Flags().GetString("commission")
 		workbenchID, _ := cmd.Flags().GetString("workbench")
 		todosFile, _ := cmd.Flags().GetString("todos")
 
@@ -92,7 +92,7 @@ Examples:
 
 		resp, err := wire.HandoffService().CreateHandoff(ctx, primary.CreateHandoffRequest{
 			HandoffNote:        note,
-			ActiveCommissionID: missionID,
+			ActiveCommissionID: commissionID,
 			ActiveWorkbenchID:  workbenchID,
 			TodosSnapshot:      todosJSON,
 		})

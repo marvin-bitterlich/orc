@@ -12,7 +12,7 @@ import (
 // Integration tests verify cross-repository workflows and constraints.
 
 // ============================================================================
-// Mission Lifecycle Tests
+// Commission Lifecycle Tests
 // ============================================================================
 
 func TestIntegration_CommissionWithShipmentsAndTasks(t *testing.T) {
@@ -94,7 +94,7 @@ func TestIntegration_ShipmentWithPlanAndTasks(t *testing.T) {
 	db := setupTestDB(t)
 	ctx := context.Background()
 
-	seedCommission(t, db, "COMM-001", "Test Mission")
+	seedCommission(t, db, "COMM-001", "Test Commission")
 
 	shipmentRepo := sqlite.NewShipmentRepository(db)
 	planRepo := sqlite.NewPlanRepository(db)
@@ -277,7 +277,7 @@ func TestIntegration_ConclaveWithTasksQuestionsPlans(t *testing.T) {
 	db := setupTestDB(t)
 	ctx := context.Background()
 
-	seedCommission(t, db, "COMM-001", "Test Mission")
+	seedCommission(t, db, "COMM-001", "Test Commission")
 
 	// Create a shipment for the conclave
 	_, _ = db.Exec(`INSERT INTO shipments (id, commission_id, title, status) VALUES ('SHIP-001', 'COMM-001', 'Test Shipment', 'open')`)
@@ -319,7 +319,7 @@ func TestIntegration_TagAcrossEntities(t *testing.T) {
 	db := setupTestDB(t)
 	ctx := context.Background()
 
-	seedCommission(t, db, "COMM-001", "Test Mission")
+	seedCommission(t, db, "COMM-001", "Test Commission")
 	seedTag(t, db, "TAG-001", "urgent")
 
 	taskRepo := sqlite.NewTaskRepository(db)
@@ -421,7 +421,7 @@ func TestIntegration_NotesAcrossContainers(t *testing.T) {
 	db := setupTestDB(t)
 	ctx := context.Background()
 
-	seedCommission(t, db, "COMM-001", "Test Mission")
+	seedCommission(t, db, "COMM-001", "Test Commission")
 
 	noteRepo := sqlite.NewNoteRepository(db)
 	shipmentRepo := sqlite.NewShipmentRepository(db)
@@ -467,7 +467,7 @@ func TestIntegration_NotesAcrossContainers(t *testing.T) {
 		t.Errorf("expected 1 tome note, got %d", len(tomeNotes))
 	}
 
-	// Verify all notes in mission
+	// Verify all notes in commission
 	allNotes, _ := noteRepo.List(ctx, secondary.NoteFilters{CommissionID: "COMM-001"})
 	if len(allNotes) != 4 {
 		t.Errorf("expected 4 notes total, got %d", len(allNotes))
@@ -482,7 +482,7 @@ func TestIntegration_MessageConversations(t *testing.T) {
 	db := setupTestDB(t)
 	ctx := context.Background()
 
-	seedCommission(t, db, "COMM-001", "Test Mission")
+	seedCommission(t, db, "COMM-001", "Test Commission")
 
 	messageRepo := sqlite.NewMessageRepository(db)
 
@@ -549,7 +549,7 @@ func TestIntegration_EntityStatusWorkflows(t *testing.T) {
 	db := setupTestDB(t)
 	ctx := context.Background()
 
-	seedCommission(t, db, "COMM-001", "Test Mission")
+	seedCommission(t, db, "COMM-001", "Test Commission")
 
 	shipmentRepo := sqlite.NewShipmentRepository(db)
 	taskRepo := sqlite.NewTaskRepository(db)
@@ -614,7 +614,7 @@ func TestIntegration_PinAcrossEntities(t *testing.T) {
 	db := setupTestDB(t)
 	ctx := context.Background()
 
-	seedCommission(t, db, "COMM-001", "Test Mission")
+	seedCommission(t, db, "COMM-001", "Test Commission")
 
 	shipmentRepo := sqlite.NewShipmentRepository(db)
 	taskRepo := sqlite.NewTaskRepository(db)
@@ -666,7 +666,7 @@ func TestIntegration_IDGenerationAcrossRepositories(t *testing.T) {
 	db := setupTestDB(t)
 	ctx := context.Background()
 
-	seedCommission(t, db, "COMM-001", "Test Mission")
+	seedCommission(t, db, "COMM-001", "Test Commission")
 
 	shipmentRepo := sqlite.NewShipmentRepository(db)
 	taskRepo := sqlite.NewTaskRepository(db)

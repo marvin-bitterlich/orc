@@ -26,7 +26,7 @@ var noteCreateCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
 		title := args[0]
-		missionID, _ := cmd.Flags().GetString("commission")
+		commissionID, _ := cmd.Flags().GetString("commission")
 		content, _ := cmd.Flags().GetString("content")
 		noteType, _ := cmd.Flags().GetString("type")
 		shipmentID, _ := cmd.Flags().GetString("shipment")
@@ -34,10 +34,10 @@ var noteCreateCmd = &cobra.Command{
 		conclaveID, _ := cmd.Flags().GetString("conclave")
 		tomeID, _ := cmd.Flags().GetString("tome")
 
-		// Get mission from context or require explicit flag
-		if missionID == "" {
-			missionID = orccontext.GetContextCommissionID()
-			if missionID == "" {
+		// Get commission from context or require explicit flag
+		if commissionID == "" {
+			commissionID = orccontext.GetContextCommissionID()
+			if commissionID == "" {
 				return fmt.Errorf("no commission context detected\nHint: Use --commission flag or run from a workbench directory")
 			}
 		}
@@ -73,7 +73,7 @@ var noteCreateCmd = &cobra.Command{
 		}
 
 		resp, err := wire.NoteService().CreateNote(ctx, primary.CreateNoteRequest{
-			CommissionID:  missionID,
+			CommissionID:  commissionID,
 			Title:         title,
 			Content:       content,
 			Type:          noteType,
@@ -92,7 +92,7 @@ var noteCreateCmd = &cobra.Command{
 		if containerID != "" {
 			fmt.Printf("  Container: %s (%s)\n", containerID, containerType)
 		}
-		fmt.Printf("  Mission: %s\n", note.CommissionID)
+		fmt.Printf("  Commission: %s\n", note.CommissionID)
 		return nil
 	},
 }
@@ -102,15 +102,15 @@ var noteListCmd = &cobra.Command{
 	Short: "List notes",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
-		missionID, _ := cmd.Flags().GetString("commission")
+		commissionID, _ := cmd.Flags().GetString("commission")
 		noteType, _ := cmd.Flags().GetString("type")
 		shipmentID, _ := cmd.Flags().GetString("shipment")
 		investigationID, _ := cmd.Flags().GetString("investigation")
 		tomeID, _ := cmd.Flags().GetString("tome")
 
-		// Get mission from context if not specified
-		if missionID == "" {
-			missionID = orccontext.GetContextCommissionID()
+		// Get commission from context if not specified
+		if commissionID == "" {
+			commissionID = orccontext.GetContextCommissionID()
 		}
 
 		var notes []*primary.Note
@@ -126,7 +126,7 @@ var noteListCmd = &cobra.Command{
 		} else {
 			notes, err = wire.NoteService().ListNotes(ctx, primary.NoteFilters{
 				Type:         noteType,
-				CommissionID: missionID,
+				CommissionID: commissionID,
 			})
 		}
 
@@ -342,6 +342,60 @@ var noteReopenCmd = &cobra.Command{
 	},
 }
 
+var noteMoveCmd = &cobra.Command{
+	Use:   "move [note-id]",
+	Short: "Move a note to a different container",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx := context.Background()
+		noteID := args[0]
+		toTome, _ := cmd.Flags().GetString("to-tome")
+		toShipment, _ := cmd.Flags().GetString("to-shipment")
+		toConclave, _ := cmd.Flags().GetString("to-conclave")
+
+		// Validate exactly one target specified
+		targetCount := 0
+		if toTome != "" {
+			targetCount++
+		}
+		if toShipment != "" {
+			targetCount++
+		}
+		if toConclave != "" {
+			targetCount++
+		}
+
+		if targetCount == 0 {
+			return fmt.Errorf("must specify exactly one target: --to-tome, --to-shipment, or --to-conclave")
+		}
+		if targetCount > 1 {
+			return fmt.Errorf("cannot specify multiple targets")
+		}
+
+		err := wire.NoteService().MoveNote(ctx, primary.MoveNoteRequest{
+			NoteID:       noteID,
+			ToTomeID:     toTome,
+			ToShipmentID: toShipment,
+			ToConclaveID: toConclave,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to move note: %w", err)
+		}
+
+		target := ""
+		if toTome != "" {
+			target = toTome
+		} else if toShipment != "" {
+			target = toShipment
+		} else {
+			target = toConclave
+		}
+
+		fmt.Printf("✓ Note %s moved to %s\n", noteID, target)
+		return nil
+	},
+}
+
 func init() {
 	// note create flags
 	noteCreateCmd.Flags().StringP("commission", "c", "", "Commission ID (defaults to context)")
@@ -363,6 +417,11 @@ func init() {
 	noteUpdateCmd.Flags().String("title", "", "New title")
 	noteUpdateCmd.Flags().String("content", "", "New content")
 
+	// note move flags
+	noteMoveCmd.Flags().String("to-tome", "", "Move to tome")
+	noteMoveCmd.Flags().String("to-shipment", "", "Move to shipment")
+	noteMoveCmd.Flags().String("to-conclave", "", "Move to conclave")
+
 	// Register subcommands
 	noteCmd.AddCommand(noteCreateCmd)
 	noteCmd.AddCommand(noteListCmd)
@@ -373,6 +432,7 @@ func init() {
 	noteCmd.AddCommand(noteDeleteCmd)
 	noteCmd.AddCommand(noteCloseCmd)
 	noteCmd.AddCommand(noteReopenCmd)
+	noteCmd.AddCommand(noteMoveCmd)
 }
 
 // NoteCmd returns the note command

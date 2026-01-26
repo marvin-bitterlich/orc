@@ -22,7 +22,9 @@ type Config struct {
 	CurrentFocus string `json:"current_focus,omitempty"` // SHIP-*, CON-*, etc.
 }
 
-// LoadConfig reads config.json from directory
+// LoadConfig reads .orc/config.json from the specified directory.
+// Resolution order: cwd only (no home fallback).
+// Returns error if no config found - caller should handle accordingly.
 func LoadConfig(dir string) (*Config, error) {
 	path := filepath.Join(dir, ".orc", "config.json")
 	data, err := os.ReadFile(path)
@@ -56,12 +58,6 @@ func SaveConfig(dir string, cfg *Config) error {
 	}
 
 	return nil
-}
-
-// LoadConfigWithFallback loads config from .orc/config.json
-// Name kept for compatibility with callers, but no longer has fallback behavior
-func LoadConfigWithFallback(dir string) (*Config, error) {
-	return LoadConfig(dir)
 }
 
 // IsGoblinRole returns true if the role is Goblin (including backwards-compat "ORC")

@@ -27,7 +27,7 @@ func NewTomeService(
 
 // CreateTome creates a new tome (knowledge container).
 func (s *TomeServiceImpl) CreateTome(ctx context.Context, req primary.CreateTomeRequest) (*primary.CreateTomeResponse, error) {
-	// Validate mission exists
+	// Validate commission exists
 	exists, err := s.tomeRepo.CommissionExists(ctx, req.CommissionID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to validate commission: %w", err)

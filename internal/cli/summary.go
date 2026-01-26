@@ -67,10 +67,10 @@ func colorizeWorkbench(workbenchName, workbenchID string) string {
 	return c.Sprintf("[Workbench: %s (%s)]", workbenchName, workbenchID)
 }
 
-// getIDColor returns a deterministic color for an ID type (TASK, SHIP, MISSION)
+// getIDColor returns a deterministic color for an ID type (TASK, SHIP, COMM)
 // Uses FNV-1a hash on the ID prefix to ensure all IDs of same type have same color
 func getIDColor(idType string) *color.Color {
-	// Hash the ID type (e.g., "TASK", "SHIP", "MISSION")
+	// Hash the ID type (e.g., "TASK", "SHIP", "COMM")
 	h := fnv.New32a()
 	h.Write([]byte(idType))
 	hash := h.Sum32()
@@ -90,7 +90,7 @@ func colorizeID(id string) string {
 		return id // No prefix, return plain
 	}
 
-	prefix := parts[0] // "TASK", "SHIP", "MISSION"
+	prefix := parts[0] // "TASK", "SHIP", "COMM"
 	c := getIDColor(prefix)
 	return c.Sprint(id)
 }
@@ -745,8 +745,8 @@ type containerInfo struct {
 func SummaryCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "summary",
-		Short: "Show summary of all open missions and containers",
-		Long: `Show a hierarchical summary of missions with all container types.
+		Short: "Show summary of all open commissions and containers",
+		Long: `Show a hierarchical summary of commissions with all container types.
 
 Display modes:
   Default: Show only focused container's commission (if focus is set)
@@ -760,7 +760,7 @@ Containers shown:
   - Tomes (TOME-*) with Notes
 
 Filtering:
-  --commission [id]           Show specific mission (or 'current')
+  --commission [id]           Show specific commission (or 'current')
   --filter-statuses paused    Hide items with these statuses
   --filter-containers SHIP    Show only these container types
   --tags research             Show only leaves with these tags
@@ -781,7 +781,7 @@ Examples:
 			}
 
 			// Get flags
-			missionFilter, _ := cmd.Flags().GetString("commission")
+			commissionFilter, _ := cmd.Flags().GetString("commission")
 			expandAll, _ := cmd.Flags().GetBool("all")
 			filterStatuses, _ := cmd.Flags().GetStringSlice("filter-statuses")
 			filterContainers, _ := cmd.Flags().GetStringSlice("filter-containers")
@@ -813,18 +813,13 @@ Examples:
 				filters.excludeTags[t] = true
 			}
 
-			// Get current focus (check cwd config, fall back to global)
+			// Get current focus from cwd config only (no home fallback)
 			cfg, _ := config.LoadConfig(cwd)
-			if cfg == nil {
-				if homeDir, err := os.UserHomeDir(); err == nil {
-					cfg, _ = config.LoadConfig(homeDir)
-				}
-			}
 			focusID := GetCurrentFocus(cfg)
 
-			// Determine mission filter
+			// Determine commission filter
 			var filterCommissionID string
-			if missionFilter == "current" {
+			if commissionFilter == "current" {
 				// First try config in cwd
 				commissionID := ctx.GetContextCommissionID()
 				// Fall back to resolving from focus
@@ -832,20 +827,20 @@ Examples:
 					commissionID = resolveContainerCommission(focusID)
 				}
 				if commissionID == "" {
-					return fmt.Errorf("--commission current requires a focused container or being in a mission context")
+					return fmt.Errorf("--commission current requires a focused container or being in a commission context")
 				}
 				filterCommissionID = commissionID
-			} else if missionFilter != "" {
+			} else if commissionFilter != "" {
 				// Resolve aliases first (e.g., "test" -> "COMM-003")
-				resolved := resolveCommissionAlias(missionFilter)
+				resolved := resolveCommissionAlias(commissionFilter)
 
 				// Validate commission exists
 				if _, err := wire.CommissionService().GetCommission(cmd.Context(), resolved); err != nil {
-					return fmt.Errorf("commission %q not found", missionFilter)
+					return fmt.Errorf("commission %q not found", commissionFilter)
 				}
 				filterCommissionID = resolved
 			} else if focusID != "" && !expandAll {
-				// DEFAULT BEHAVIOR: When focused (and not --all), scope to focus's commission
+				// DEFAULT BEHAVIOR: When focused (and not --all), scope to focused commission
 				filterCommissionID = resolveContainerCommission(focusID)
 			}
 
@@ -890,9 +885,9 @@ Examples:
 				return nil
 			}
 
-			// Display each mission
+			// Display each commission
 			for i, commission := range openCommissions {
-				// Collect all active containers for this mission
+				// Collect all active containers for this commission
 				var allContainers []containerInfo
 				var focusedContainer *containerInfo
 
@@ -997,10 +992,10 @@ Examples:
 				}
 
 				if len(containersToShow) == 0 && otherContainerCount == 0 {
-					continue // Skip this mission entirely
+					continue // Skip this commission entirely
 				}
 
-				// Display mission header
+				// Display commission header
 				fmt.Printf("%s - %s\n", colorizeID(commission.ID), commission.Title)
 				fmt.Println("│")
 
@@ -1084,7 +1079,7 @@ Examples:
 		},
 	}
 
-	cmd.Flags().StringP("commission", "c", "", "Commission filter: mission ID or 'current' for context commission")
+	cmd.Flags().StringP("commission", "c", "", "Commission filter: commission ID or 'current' for context commission")
 	cmd.Flags().Bool("all", false, "Show all containers (default: only show focused container if set)")
 	cmd.Flags().StringSlice("filter-statuses", []string{}, "Hide items with these statuses (comma-separated: paused,blocked)")
 	cmd.Flags().StringSlice("filter-containers", []string{}, "Show only these container types (comma-separated: SHIP,CON,INV,TOME)")

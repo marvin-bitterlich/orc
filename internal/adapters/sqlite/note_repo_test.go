@@ -18,7 +18,7 @@ func setupNoteTestDB(t *testing.T) *sql.DB {
 }
 
 // createTestNote is a helper that creates a note with a generated ID.
-func createTestNote(t *testing.T, repo *sqlite.NoteRepository, ctx context.Context, missionID, title, content string) *secondary.NoteRecord {
+func createTestNote(t *testing.T, repo *sqlite.NoteRepository, ctx context.Context, commissionID, title, content string) *secondary.NoteRecord {
 	t.Helper()
 
 	nextID, err := repo.GetNextID(ctx)
@@ -28,7 +28,7 @@ func createTestNote(t *testing.T, repo *sqlite.NoteRepository, ctx context.Conte
 
 	note := &secondary.NoteRecord{
 		ID:           nextID,
-		CommissionID: missionID,
+		CommissionID: commissionID,
 		Title:        title,
 		Content:      content,
 	}
@@ -170,13 +170,13 @@ func TestNoteRepository_List_FilterByType(t *testing.T) {
 	}
 }
 
-func TestNoteRepository_List_FilterByMission(t *testing.T) {
+func TestNoteRepository_List_FilterByCommission(t *testing.T) {
 	db := setupNoteTestDB(t)
 	repo := sqlite.NewNoteRepository(db)
 	ctx := context.Background()
 
-	// Add another mission
-	_, _ = db.Exec("INSERT INTO commissions (id, title, status) VALUES ('COMM-002', 'Mission 2', 'active')")
+	// Add another commission
+	_, _ = db.Exec("INSERT INTO commissions (id, title, status) VALUES ('COMM-002', 'Commission 2', 'active')")
 
 	createTestNote(t, repo, ctx, "COMM-001", "Note 1", "")
 	createTestNote(t, repo, ctx, "COMM-002", "Note 2", "")
@@ -420,14 +420,14 @@ func TestNoteRepository_CommissionExists(t *testing.T) {
 		t.Fatalf("CommissionExists failed: %v", err)
 	}
 	if !exists {
-		t.Error("expected mission to exist")
+		t.Error("expected commission to exist")
 	}
 
-	exists, err = repo.CommissionExists(ctx, "MISSION-999")
+	exists, err = repo.CommissionExists(ctx, "COMM-999")
 	if err != nil {
 		t.Fatalf("CommissionExists failed: %v", err)
 	}
 	if exists {
-		t.Error("expected mission to not exist")
+		t.Error("expected commission to not exist")
 	}
 }
