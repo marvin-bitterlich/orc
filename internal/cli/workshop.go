@@ -8,6 +8,7 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 
 	"github.com/example/orc/internal/ports/primary"
@@ -249,51 +250,94 @@ Examples:
 }
 
 func displayOpenPlan(plan *primary.OpenWorkshopPlan) {
-	fmt.Printf("Workshop: %s (%s)\n\n", plan.WorkshopID, plan.WorkshopName)
+	fmt.Printf("🔍 Analyzing workshop: %s\n\n", plan.WorkshopID)
+	fmt.Println("📋 Plan:")
+	fmt.Println()
 
-	// Gatehouse
-	if plan.GatehouseOp != nil {
-		if plan.GatehouseOp.Exists && plan.GatehouseOp.ConfigExists {
-			fmt.Printf("  ✓ %s (exists)\n", plan.GatehouseOp.Path)
-		} else if plan.GatehouseOp.Exists {
-			fmt.Printf("  ✓ %s (exists)\n", plan.GatehouseOp.Path)
-			fmt.Printf("    + .orc/config.json (Goblin)\n")
-		} else {
-			fmt.Printf("  + %s\n", plan.GatehouseOp.Path)
-			fmt.Printf("    + .orc/config.json (Goblin)\n")
-		}
-	}
+	displayDBState(plan)
+	displayInfrastructure(plan)
+	displayTMuxPlan(plan)
+}
 
-	// Workbenches
-	for _, wb := range plan.WorkbenchOps {
-		if wb.Exists && wb.ConfigExists {
-			fmt.Printf("  ✓ %s (exists)\n", wb.Path)
-		} else if wb.Exists {
-			fmt.Printf("  ✓ %s (exists)\n", wb.Path)
-			fmt.Printf("    + .orc/config.json (IMP)\n")
-		} else {
-			if wb.RepoName != "" {
-				fmt.Printf("  + %s (worktree: %s@%s)\n", wb.Path, wb.RepoName, wb.Branch)
-			} else {
-				fmt.Printf("  + %s (directory)\n", wb.Path)
-			}
-			if !wb.ConfigExists {
-				fmt.Printf("    + .orc/config.json (IMP)\n")
-			}
-		}
-	}
+func displayDBState(plan *primary.OpenWorkshopPlan) {
+	fmt.Println("Database State:")
+	fmt.Printf("  Workshop: %s - %s\n", plan.WorkshopID, plan.WorkshopName)
+	fmt.Printf("  Factory: %s - %s\n", plan.FactoryID, plan.FactoryName)
 
-	// TMux
-	if plan.TMuxOp != nil {
-		fmt.Printf("\n  + tmux session: %s\n", plan.TMuxOp.SessionName)
-		for _, w := range plan.TMuxOp.Windows {
-			fmt.Printf("    + window: %s\n", w)
+	if plan.DBState != nil {
+		fmt.Printf("  Workbenches in DB: %d\n", plan.DBState.WorkbenchCount)
+		for _, wb := range plan.DBState.Workbenches {
+			fmt.Printf("    %s - %s\n", wb.ID, wb.Name)
+			fmt.Printf("      Path: %s\n", wb.Path)
+			fmt.Printf("      Status: %s\n", wb.Status)
 		}
 	} else {
-		fmt.Printf("\n  ✓ tmux session: %s (exists)\n", plan.SessionName)
+		fmt.Println("  Workbenches in DB: 0")
+	}
+	fmt.Println()
+}
+
+func displayInfrastructure(plan *primary.OpenWorkshopPlan) {
+	fmt.Println("Infrastructure:")
+	dim := color.New(color.Faint).SprintFunc()
+
+	if plan.GatehouseOp != nil {
+		fmt.Printf("  %s gatehouse: %s\n", statusColor(plan.GatehouseOp.Status), plan.GatehouseOp.Path)
+		fmt.Printf("  %s gatehouse config: %s/.orc/config.json\n",
+			statusColor(plan.GatehouseOp.ConfigStatus), plan.GatehouseOp.Path)
+		if plan.GatehouseOp.ConfigStatus == primary.OpCreate {
+			fmt.Printf("          %s\n", dim(`{ "role": "GOBLIN", ... }`))
+		}
 	}
 
+	for _, wb := range plan.WorkbenchOps {
+		label := fmt.Sprintf("workbench %s", wb.ID)
+		fmt.Printf("  %s %s: %s\n", statusColor(wb.Status), label, wb.Path)
+
+		if wb.Status == primary.OpCreate && wb.RepoName != "" {
+			fmt.Printf("          %s\n", dim(fmt.Sprintf("(worktree: %s@%s)", wb.RepoName, wb.Branch)))
+		}
+
+		fmt.Printf("  %s %s config: %s/.orc/config.json\n",
+			statusColor(wb.ConfigStatus), label, wb.Path)
+		if wb.ConfigStatus == primary.OpCreate {
+			fmt.Printf("          %s\n", dim(`{ "role": "IMP", ... }`))
+		}
+	}
 	fmt.Println()
+}
+
+func displayTMuxPlan(plan *primary.OpenWorkshopPlan) {
+	if plan.TMuxOp == nil {
+		fmt.Println("TMux Session:")
+		fmt.Printf("  %s session: %s\n", statusColor(primary.OpExists), plan.SessionName)
+		fmt.Println()
+		return
+	}
+
+	fmt.Println("TMux Session:")
+	fmt.Printf("  %s session: %s\n", statusColor(plan.TMuxOp.SessionStatus), plan.SessionName)
+	for _, w := range plan.TMuxOp.Windows {
+		fmt.Printf("  %s window %d (%s): %s\n",
+			statusColor(w.Status), w.Index, w.Name, w.Path)
+	}
+	fmt.Println()
+}
+
+// statusColor returns a color-formatted status string.
+func statusColor(status primary.OpStatus) string {
+	switch status {
+	case primary.OpExists:
+		return color.New(color.FgBlue).Sprint("EXISTS ")
+	case primary.OpCreate:
+		return color.New(color.FgGreen).Sprint("CREATE ")
+	case primary.OpUpdate:
+		return color.New(color.FgYellow).Sprint("UPDATE ")
+	case primary.OpMissing:
+		return color.New(color.FgRed).Sprint("MISSING")
+	default:
+		return string(status)
+	}
 }
 
 func confirmPrompt(msg string) bool {

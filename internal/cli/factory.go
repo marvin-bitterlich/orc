@@ -16,8 +16,8 @@ import (
 func FactoryCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "factory",
-		Short: "Manage factories (TMux sessions)",
-		Long:  `Create and manage factories - persistent TMux runtime environments.`,
+		Short: "Manage factories (logical groupings)",
+		Long:  `Create and manage factories - logical groupings of workshops.`,
 	}
 
 	cmd.AddCommand(factoryCreateCmd())
@@ -32,10 +32,11 @@ func factoryCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create [name]",
 		Short: "Create a new factory",
-		Long: `Create a new factory (TMux session environment).
+		Long: `Create a new factory.
 
-A Factory is the top-level runtime environment, typically corresponding
-to a TMux session. Factories contain Workshops, which contain Workbenches.
+A Factory is a logical grouping of workshops. Most users only need the
+"default" factory, which is created automatically. Factories contain
+Workshops (TMux sessions), which contain Workbenches (git worktrees).
 
 Examples:
   orc factory create phoenix-dev

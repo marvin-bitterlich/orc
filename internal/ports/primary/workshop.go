@@ -88,28 +88,60 @@ type OpenWorkshopResponse struct {
 	AttachInstructions string
 }
 
+// OpStatus represents the status of a planned operation.
+type OpStatus string
+
+const (
+	OpExists  OpStatus = "EXISTS"
+	OpCreate  OpStatus = "CREATE"
+	OpUpdate  OpStatus = "UPDATE"
+	OpMissing OpStatus = "MISSING"
+)
+
 // OpenWorkshopPlan describes what will be created when opening a workshop.
 type OpenWorkshopPlan struct {
 	WorkshopID   string
 	WorkshopName string
+	FactoryID    string
+	FactoryName  string
 	SessionName  string
+	DBState      *DBStatePlan
 	GatehouseOp  *GatehouseOp
 	WorkbenchOps []WorkbenchOp
 	TMuxOp       *TMuxOp
 	NothingToDo  bool
 }
 
+// DBStatePlan describes the database state section of the plan.
+type DBStatePlan struct {
+	WorkbenchCount int
+	Workbenches    []WorkbenchDBState
+}
+
+// WorkbenchDBState describes a workbench as stored in the database.
+type WorkbenchDBState struct {
+	ID     string
+	Name   string
+	Path   string
+	Status string
+}
+
 // GatehouseOp describes the gatehouse directory operation.
 type GatehouseOp struct {
 	Path         string
+	Status       OpStatus
+	ConfigStatus OpStatus
 	Exists       bool
 	ConfigExists bool
 }
 
 // WorkbenchOp describes a workbench worktree operation.
 type WorkbenchOp struct {
+	ID           string
 	Name         string
 	Path         string
+	Status       OpStatus
+	ConfigStatus OpStatus
 	Exists       bool
 	RepoName     string
 	Branch       string
@@ -118,6 +150,15 @@ type WorkbenchOp struct {
 
 // TMuxOp describes the tmux session operation.
 type TMuxOp struct {
-	SessionName string
-	Windows     []string
+	SessionName   string
+	SessionStatus OpStatus
+	Windows       []TMuxWindowOp
+}
+
+// TMuxWindowOp describes a tmux window operation.
+type TMuxWindowOp struct {
+	Index  int
+	Name   string
+	Path   string
+	Status OpStatus
 }

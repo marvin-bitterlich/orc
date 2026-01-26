@@ -8,6 +8,8 @@ import "path/filepath"
 type OpenPlanInput struct {
 	WorkshopID            string
 	WorkshopName          string
+	FactoryID             string
+	FactoryName           string
 	SessionExists         bool
 	GatehouseDir          string
 	GatehouseDirExists    bool
@@ -24,17 +26,29 @@ type WorkbenchPlanInput struct {
 	HomeBranch     string
 	WorktreeExists bool
 	ConfigExists   bool
+	Status         string // DB status: active, archived, etc.
 }
 
 // OpenWorkshopPlan describes what will be created when opening a workshop.
 type OpenWorkshopPlan struct {
 	WorkshopID   string
 	WorkshopName string
+	FactoryID    string
+	FactoryName  string
 	SessionName  string
+	Workbenches  []WorkbenchDBState // For DB state display
 	GatehouseOp  *GatehouseOp
 	WorkbenchOps []WorkbenchOp
 	TMuxOp       *TMuxOp
 	NothingToDo  bool
+}
+
+// WorkbenchDBState describes a workbench as stored in the database.
+type WorkbenchDBState struct {
+	ID     string
+	Name   string
+	Path   string
+	Status string
 }
 
 // GatehouseOp describes the gatehouse directory operation.
@@ -46,6 +60,7 @@ type GatehouseOp struct {
 
 // WorkbenchOp describes a workbench worktree operation.
 type WorkbenchOp struct {
+	ID           string
 	Name         string
 	Path         string
 	Exists       bool
@@ -57,7 +72,14 @@ type WorkbenchOp struct {
 // TMuxOp describes the tmux session operation.
 type TMuxOp struct {
 	SessionName string
-	Windows     []string
+	Windows     []TMuxWindowOp
+}
+
+// TMuxWindowOp describes a tmux window operation.
+type TMuxWindowOp struct {
+	Index int
+	Name  string
+	Path  string
 }
 
 // GenerateOpenPlan creates a plan for opening workshop infrastructure.
@@ -67,7 +89,19 @@ func GenerateOpenPlan(input OpenPlanInput) OpenWorkshopPlan {
 	plan := OpenWorkshopPlan{
 		WorkshopID:   input.WorkshopID,
 		WorkshopName: input.WorkshopName,
+		FactoryID:    input.FactoryID,
+		FactoryName:  input.FactoryName,
 		SessionName:  input.WorkshopID,
+	}
+
+	// DB State - workbenches from database
+	for _, wb := range input.Workbenches {
+		plan.Workbenches = append(plan.Workbenches, WorkbenchDBState{
+			ID:     wb.ID,
+			Name:   wb.Name,
+			Path:   wb.WorktreePath,
+			Status: wb.Status,
+		})
 	}
 
 	// Gatehouse - always include so we can display existing vs new
@@ -80,6 +114,7 @@ func GenerateOpenPlan(input OpenPlanInput) OpenWorkshopPlan {
 	// Workbenches - always include all
 	for _, wb := range input.Workbenches {
 		plan.WorkbenchOps = append(plan.WorkbenchOps, WorkbenchOp{
+			ID:           wb.ID,
 			Name:         wb.Name,
 			Path:         wb.WorktreePath,
 			Exists:       wb.WorktreeExists,
@@ -91,9 +126,15 @@ func GenerateOpenPlan(input OpenPlanInput) OpenWorkshopPlan {
 
 	// TMux - include if session doesn't exist
 	if !input.SessionExists {
-		windows := []string{"orc"}
-		for _, wb := range input.Workbenches {
-			windows = append(windows, wb.Name)
+		windows := []TMuxWindowOp{
+			{Index: 0, Name: "orc", Path: input.GatehouseDir},
+		}
+		for i, wb := range input.Workbenches {
+			windows = append(windows, TMuxWindowOp{
+				Index: i + 1,
+				Name:  wb.Name,
+				Path:  wb.WorktreePath,
+			})
 		}
 		plan.TMuxOp = &TMuxOp{
 			SessionName: input.WorkshopID,
