@@ -259,7 +259,7 @@ func initServices() {
 		log.Fatalf("failed to create workspace adapter: %v", err)
 	}
 	factoryService = app.NewFactoryService(factoryRepo)
-	workshopService = app.NewWorkshopService(factoryRepo, workshopRepo, workbenchRepo, repoRepo, tmuxService, workspaceAdapter)
+	workshopService = app.NewWorkshopService(factoryRepo, workshopRepo, workbenchRepo, repoRepo, tmuxService, workspaceAdapter, executor)
 	workbenchService = app.NewWorkbenchService(workbenchRepo, workshopRepo, agentProvider, executor)
 
 	// Create work order, cycle, and cycle work order services

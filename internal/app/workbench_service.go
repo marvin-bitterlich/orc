@@ -2,10 +2,13 @@ package app
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 
+	"github.com/example/orc/internal/config"
+	"github.com/example/orc/internal/core/effects"
 	coreworkbench "github.com/example/orc/internal/core/workbench"
 	"github.com/example/orc/internal/ports/primary"
 	"github.com/example/orc/internal/ports/secondary"
@@ -86,6 +89,10 @@ func (s *WorkbenchServiceImpl) CreateWorkbench(ctx context.Context, req primary.
 	if err := s.workbenchRepo.Create(ctx, record); err != nil {
 		return nil, fmt.Errorf("failed to create workbench: %w", err)
 	}
+
+	// 7. Write .orc/config.json via effects (non-fatal - workbench created even if config fails)
+	configEffects := s.buildConfigEffects(workbenchPath, record.ID)
+	_ = s.executor.Execute(ctx, configEffects)
 
 	return &primary.CreateWorkbenchResponse{
 		WorkbenchID: record.ID,
@@ -242,6 +249,24 @@ func (s *WorkbenchServiceImpl) pathExists(path string) bool {
 func (s *WorkbenchServiceImpl) getTMuxSession() string {
 	// In production, would parse TMUX env var or run tmux display-message
 	return "orc"
+}
+
+// buildConfigEffects generates FileEffects for writing .orc/config.json
+func (s *WorkbenchServiceImpl) buildConfigEffects(workbenchPath, workbenchID string) []effects.Effect {
+	orcDir := filepath.Join(workbenchPath, ".orc")
+	configPath := filepath.Join(orcDir, "config.json")
+
+	cfg := &config.Config{
+		Version:     "1.0",
+		Role:        config.RoleIMP,
+		WorkbenchID: workbenchID,
+	}
+	configJSON, _ := json.MarshalIndent(cfg, "", "  ")
+
+	return []effects.Effect{
+		effects.FileEffect{Operation: "mkdir", Path: orcDir, Mode: 0755},
+		effects.FileEffect{Operation: "write", Path: configPath, Content: configJSON, Mode: 0644},
+	}
 }
 
 // CheckoutBranch switches to a target branch using stash dance.

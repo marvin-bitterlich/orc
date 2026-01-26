@@ -2,12 +2,14 @@ package app
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/example/orc/internal/config"
+	"github.com/example/orc/internal/core/effects"
 	coreworkshop "github.com/example/orc/internal/core/workshop"
 	"github.com/example/orc/internal/ports/primary"
 	"github.com/example/orc/internal/ports/secondary"
@@ -21,6 +23,7 @@ type WorkshopServiceImpl struct {
 	repoRepo         secondary.RepoRepository
 	tmuxAdapter      secondary.TMuxAdapter
 	workspaceAdapter secondary.WorkspaceAdapter
+	executor         EffectExecutor
 }
 
 // NewWorkshopService creates a new WorkshopService with injected dependencies.
@@ -31,6 +34,7 @@ func NewWorkshopService(
 	repoRepo secondary.RepoRepository,
 	tmuxAdapter secondary.TMuxAdapter,
 	workspaceAdapter secondary.WorkspaceAdapter,
+	executor EffectExecutor,
 ) *WorkshopServiceImpl {
 	return &WorkshopServiceImpl{
 		factoryRepo:      factoryRepo,
@@ -39,6 +43,7 @@ func NewWorkshopService(
 		repoRepo:         repoRepo,
 		tmuxAdapter:      tmuxAdapter,
 		workspaceAdapter: workspaceAdapter,
+		executor:         executor,
 	}
 }
 
@@ -343,31 +348,31 @@ func (s *WorkshopServiceImpl) ensureWorktreeExists(ctx context.Context, wb *seco
 	}
 
 	// Ensure IMP config exists
-	return s.ensureWorkbenchConfig(wb)
+	return s.ensureWorkbenchConfig(ctx, wb)
 }
 
-// ensureWorkbenchConfig creates the .orc/config.json for a workbench with IMP role.
-func (s *WorkshopServiceImpl) ensureWorkbenchConfig(wb *secondary.WorkbenchRecord) error {
+// ensureWorkbenchConfig writes .orc/config.json for a workbench with IMP role.
+// Idempotent - always writes via effects (no direct I/O existence check).
+func (s *WorkshopServiceImpl) ensureWorkbenchConfig(ctx context.Context, wb *secondary.WorkbenchRecord) error {
 	orcDir := filepath.Join(wb.WorktreePath, ".orc")
 	configPath := filepath.Join(orcDir, "config.json")
 
-	// Check if config already exists
-	if _, err := os.Stat(configPath); err == nil {
-		return nil // Already exists
-	}
-
-	// Create .orc directory
-	if err := os.MkdirAll(orcDir, 0755); err != nil {
-		return fmt.Errorf("failed to create .orc dir: %w", err)
-	}
-
-	// Create config with IMP role
 	cfg := &config.Config{
 		Version:     "1.0",
 		Role:        config.RoleIMP,
 		WorkbenchID: wb.ID,
 	}
-	return config.SaveConfig(wb.WorktreePath, cfg)
+	configJSON, err := json.MarshalIndent(cfg, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal config: %w", err)
+	}
+
+	effs := []effects.Effect{
+		effects.FileEffect{Operation: "mkdir", Path: orcDir, Mode: 0755},
+		effects.FileEffect{Operation: "write", Path: configPath, Content: configJSON, Mode: 0644},
+	}
+
+	return s.executor.Execute(ctx, effs)
 }
 
 // CloseWorkshop kills the workshop's TMux session.
