@@ -163,6 +163,13 @@ func setFocus(cfg *config.Config, configDir, containerID, containerType, title s
 		}
 	}
 
+	// Auto-rename tmux session for commissions (Goblin only)
+	if strings.HasPrefix(containerID, "COMM-") && cfg.Role == config.RoleGoblin {
+		if err := autoRenameTmuxSession(cfg, title); err != nil {
+			fmt.Printf("  (tmux session rename skipped: %v)\n", err)
+		}
+	}
+
 	fmt.Println("\nRun 'orc prime' to see updated context.")
 	return nil
 }
@@ -188,6 +195,40 @@ func autoCheckoutShipmentBranch(workbenchID, shipmentID string) error {
 		TargetBranch: ship.Branch,
 	})
 	return err
+}
+
+// autoRenameTmuxSession renames the tmux session to reflect the focused commission.
+// Format: "Workshop Name - Commission Title"
+func autoRenameTmuxSession(cfg *config.Config, commissionTitle string) error {
+	// Check if in tmux
+	if os.Getenv("TMUX") == "" {
+		return fmt.Errorf("not in tmux session")
+	}
+
+	ctx := context.Background()
+
+	// Get current session name
+	currentSession := wire.TMuxAdapter().GetCurrentSessionName(ctx)
+	if currentSession == "" {
+		return fmt.Errorf("could not determine current session")
+	}
+
+	// Get workshop name from workbench context
+	workshopName := "Workshop"
+	if cfg.WorkbenchID != "" {
+		wb, err := wire.WorkbenchService().GetWorkbench(ctx, cfg.WorkbenchID)
+		if err == nil && wb.WorkshopID != "" {
+			ws, err := wire.WorkshopService().GetWorkshop(ctx, wb.WorkshopID)
+			if err == nil {
+				workshopName = ws.Name
+			}
+		}
+	}
+
+	// Build new name: "Workshop Name - Commission Title"
+	newName := fmt.Sprintf("%s - %s", workshopName, commissionTitle)
+
+	return wire.TMuxAdapter().RenameSession(ctx, currentSession, newName)
 }
 
 // clearFocus clears the current focus
