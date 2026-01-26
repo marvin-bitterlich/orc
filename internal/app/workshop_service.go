@@ -190,16 +190,22 @@ func (s *WorkshopServiceImpl) PlanOpenWorkshop(ctx context.Context, req primary.
 		return nil, fmt.Errorf("workshop not found: %w", err)
 	}
 
-	// 2. Check if session already exists
+	// 2. Get factory info
+	factory, err := s.factoryRepo.GetByID(ctx, workshop.FactoryID)
+	if err != nil {
+		return nil, fmt.Errorf("factory not found: %w", err)
+	}
+
+	// 3. Check if session already exists
 	sessionExists := s.tmuxAdapter.SessionExists(ctx, req.WorkshopID)
 
-	// 3. Compute gatehouse path and check existence
+	// 4. Compute gatehouse path and check existence
 	home, _ := os.UserHomeDir()
 	gatehouseDir := coreworkshop.GatehousePath(home, req.WorkshopID, workshop.Name)
 	gatehouseDirExists := s.dirExists(gatehouseDir)
 	gatehouseConfigExists := s.fileExists(filepath.Join(gatehouseDir, ".orc", "config.json"))
 
-	// 4. Get workbenches and check each one's state
+	// 5. Get workbenches and check each one's state
 	workbenches, _ := s.workbenchRepo.List(ctx, req.WorkshopID)
 	var wbInputs []coreworkshop.WorkbenchPlanInput
 	for _, wb := range workbenches {
@@ -217,13 +223,16 @@ func (s *WorkshopServiceImpl) PlanOpenWorkshop(ctx context.Context, req primary.
 			HomeBranch:     wb.HomeBranch,
 			WorktreeExists: s.dirExists(wb.WorktreePath),
 			ConfigExists:   s.fileExists(filepath.Join(wb.WorktreePath, ".orc", "config.json")),
+			Status:         wb.Status,
 		})
 	}
 
-	// 5. Generate plan using pure function
+	// 6. Generate plan using pure function
 	input := coreworkshop.OpenPlanInput{
 		WorkshopID:            req.WorkshopID,
 		WorkshopName:          workshop.Name,
+		FactoryID:             factory.ID,
+		FactoryName:           factory.Name,
 		SessionExists:         sessionExists,
 		GatehouseDir:          gatehouseDir,
 		GatehouseDirExists:    gatehouseDirExists,
@@ -232,7 +241,7 @@ func (s *WorkshopServiceImpl) PlanOpenWorkshop(ctx context.Context, req primary.
 	}
 	corePlan := coreworkshop.GenerateOpenPlan(input)
 
-	// 6. Convert core plan to primary plan
+	// 7. Convert core plan to primary plan
 	return s.corePlanToPrimary(&corePlan), nil
 }
 
@@ -439,37 +448,80 @@ func (s *WorkshopServiceImpl) corePlanToPrimary(core *coreworkshop.OpenWorkshopP
 	plan := &primary.OpenWorkshopPlan{
 		WorkshopID:   core.WorkshopID,
 		WorkshopName: core.WorkshopName,
+		FactoryID:    core.FactoryID,
+		FactoryName:  core.FactoryName,
 		SessionName:  core.SessionName,
 		NothingToDo:  core.NothingToDo,
 	}
 
+	// Map DB state
+	if len(core.Workbenches) > 0 {
+		plan.DBState = &primary.DBStatePlan{
+			WorkbenchCount: len(core.Workbenches),
+		}
+		for _, wb := range core.Workbenches {
+			plan.DBState.Workbenches = append(plan.DBState.Workbenches, primary.WorkbenchDBState{
+				ID:     wb.ID,
+				Name:   wb.Name,
+				Path:   wb.Path,
+				Status: wb.Status,
+			})
+		}
+	}
+
+	// Map gatehouse op with derived status
 	if core.GatehouseOp != nil {
 		plan.GatehouseOp = &primary.GatehouseOp{
 			Path:         core.GatehouseOp.Path,
 			Exists:       core.GatehouseOp.Exists,
 			ConfigExists: core.GatehouseOp.ConfigExists,
+			Status:       boolToOpStatus(core.GatehouseOp.Exists),
+			ConfigStatus: boolToOpStatus(core.GatehouseOp.ConfigExists),
 		}
 	}
 
+	// Map workbench ops with derived status
 	for _, wb := range core.WorkbenchOps {
 		plan.WorkbenchOps = append(plan.WorkbenchOps, primary.WorkbenchOp{
+			ID:           wb.ID,
 			Name:         wb.Name,
 			Path:         wb.Path,
 			Exists:       wb.Exists,
 			RepoName:     wb.RepoName,
 			Branch:       wb.Branch,
 			ConfigExists: wb.ConfigExists,
+			Status:       boolToOpStatus(wb.Exists),
+			ConfigStatus: boolToOpStatus(wb.ConfigExists),
 		})
 	}
 
+	// Map tmux op with derived status
 	if core.TMuxOp != nil {
+		var windows []primary.TMuxWindowOp
+		for _, w := range core.TMuxOp.Windows {
+			windows = append(windows, primary.TMuxWindowOp{
+				Index:  w.Index,
+				Name:   w.Name,
+				Path:   w.Path,
+				Status: primary.OpCreate, // Windows in a new session are always CREATE
+			})
+		}
 		plan.TMuxOp = &primary.TMuxOp{
-			SessionName: core.TMuxOp.SessionName,
-			Windows:     core.TMuxOp.Windows,
+			SessionName:   core.TMuxOp.SessionName,
+			SessionStatus: primary.OpCreate, // TMuxOp only exists if session doesn't
+			Windows:       windows,
 		}
 	}
 
 	return plan
+}
+
+// boolToOpStatus converts an existence flag to an OpStatus.
+func boolToOpStatus(exists bool) primary.OpStatus {
+	if exists {
+		return primary.OpExists
+	}
+	return primary.OpCreate
 }
 
 // Ensure WorkshopServiceImpl implements the interface

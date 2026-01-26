@@ -287,7 +287,7 @@ func displayOpenPlan(plan *primary.OpenWorkshopPlan) {
 	if plan.TMuxOp != nil {
 		fmt.Printf("\n  + tmux session: %s\n", plan.TMuxOp.SessionName)
 		for _, w := range plan.TMuxOp.Windows {
-			fmt.Printf("    + window: %s\n", w)
+			fmt.Printf("    + window: %s (%s)\n", w.Name, w.Path)
 		}
 	} else {
 		fmt.Printf("\n  ✓ tmux session: %s (exists)\n", plan.SessionName)
