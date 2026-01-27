@@ -37,6 +37,7 @@ type filterConfig struct {
 	includeTags    map[string]bool // tags to include (empty = all)
 	excludeTags    map[string]bool // tags to exclude
 	leafTypes      map[string]bool // leaf types to show (empty = all): tasks, notes, questions, plans
+	headLines      int             // number of content lines to show (1 = title only)
 }
 
 // getTagColor returns a deterministic color for a tag name
@@ -216,6 +217,35 @@ func shouldShowLeaf(entityID string, filters *filterConfig) (bool, string) {
 	return true, tagName
 }
 
+// renderContentLines renders additional content lines with proper tree prefix
+// content is the full text content, headLines is the max lines to show (including title)
+// isLast indicates if this is the last sibling (affects prefix character)
+func renderContentLines(prefix string, content string, headLines int, isLast bool) {
+	if headLines <= 1 || content == "" {
+		return
+	}
+	lines := strings.Split(content, "\n")
+	maxLines := headLines - 1 // -1 because title is line 1
+	if maxLines > len(lines) {
+		maxLines = len(lines)
+	}
+
+	// Build continuation prefix
+	contPrefix := prefix
+	if isLast {
+		contPrefix += "        " // spaces if last item
+	} else {
+		contPrefix += "│       " // tree line if not last
+	}
+
+	for i := 0; i < maxLines; i++ {
+		line := strings.TrimSpace(lines[i])
+		if line != "" {
+			fmt.Printf("%s%s\n", contPrefix, line)
+		}
+	}
+}
+
 // displayShipmentChildren shows Spec-Kit artifacts, tasks, and notes under a shipment
 // Returns count of visible items
 func displayShipmentChildren(shipmentID, prefix string, filters *filterConfig) int {
@@ -361,6 +391,7 @@ func displayShipmentChildren(shipmentID, prefix string, filters *filterConfig) i
 		// Capture in closure
 		task := t
 		tag := tagName
+		desc := t.Description
 		items = append(items, displayItem{
 			render: func(isLast bool) {
 				childPrefix := prefix + "├── "
@@ -377,6 +408,7 @@ func displayShipmentChildren(shipmentID, prefix string, filters *filterConfig) i
 				} else {
 					fmt.Printf("%s%s - %s%s\n", childPrefix, colorizeID(task.ID), task.Title, tagInfo)
 				}
+				renderContentLines(prefix, desc, filters.headLines, isLast)
 			},
 		})
 	}
@@ -394,6 +426,7 @@ func displayShipmentChildren(shipmentID, prefix string, filters *filterConfig) i
 		// Capture in closure
 		note := n
 		tag := tagName
+		content := n.Content
 		items = append(items, displayItem{
 			render: func(isLast bool) {
 				pinnedEmoji := ""
@@ -409,6 +442,7 @@ func displayShipmentChildren(shipmentID, prefix string, filters *filterConfig) i
 					tagInfo = " " + colorizeTag(tag)
 				}
 				fmt.Printf("%s%s%s - %s%s\n", childPrefix, pinnedEmoji, colorizeID(note.ID), note.Title, tagInfo)
+				renderContentLines(prefix, content, filters.headLines, isLast)
 			},
 		})
 	}
@@ -440,8 +474,10 @@ func displayConclaveChildren(conclaveID, prefix string, filters *filterConfig) i
 
 	// 2. Get tasks via ConclaveService
 	serviceTasks, _ := wire.ConclaveService().GetConclaveTasks(ctx, conclaveID)
+	taskDescriptions := make(map[string]string)
 	var tasks []*models.Task
 	for _, t := range serviceTasks {
+		taskDescriptions[t.ID] = t.Description
 		tasks = append(tasks, &models.Task{
 			ID:     t.ID,
 			Title:  t.Title,
@@ -464,11 +500,13 @@ func displayConclaveChildren(conclaveID, prefix string, filters *filterConfig) i
 
 	// 4. Get unfiled notes (notes with conclave_id but no tome_id - the repo already filters these)
 	serviceNotes, _ := wire.NoteService().GetNotesByContainer(ctx, "conclave", conclaveID)
+	noteContents := make(map[string]string)
 	var notes []*models.Note
 	for _, n := range serviceNotes {
 		if n.Status == "closed" {
 			continue
 		}
+		noteContents[n.ID] = n.Content
 		notes = append(notes, &models.Note{
 			ID:     n.ID,
 			Title:  n.Title,
@@ -516,6 +554,7 @@ func displayConclaveChildren(conclaveID, prefix string, filters *filterConfig) i
 		status  string
 		pinned  bool
 		tagName string
+		content string
 	}
 	var regularChildren []childItem
 	hiddenCount := 0
@@ -526,7 +565,7 @@ func displayConclaveChildren(conclaveID, prefix string, filters *filterConfig) i
 		}
 		show, tagName := shouldShowLeaf(t.ID, filters)
 		if show {
-			regularChildren = append(regularChildren, childItem{t.ID, t.Title, t.Status, t.Pinned, tagName})
+			regularChildren = append(regularChildren, childItem{t.ID, t.Title, t.Status, t.Pinned, tagName, taskDescriptions[t.ID]})
 		} else {
 			hiddenCount++
 		}
@@ -537,7 +576,7 @@ func displayConclaveChildren(conclaveID, prefix string, filters *filterConfig) i
 		}
 		show, tagName := shouldShowLeaf(p.ID, filters)
 		if show {
-			regularChildren = append(regularChildren, childItem{p.ID, p.Title, p.Status, p.Pinned, tagName})
+			regularChildren = append(regularChildren, childItem{p.ID, p.Title, p.Status, p.Pinned, tagName, ""})
 		} else {
 			hiddenCount++
 		}
@@ -545,7 +584,7 @@ func displayConclaveChildren(conclaveID, prefix string, filters *filterConfig) i
 	for _, n := range notes {
 		show, tagName := shouldShowLeaf(n.ID, filters)
 		if show {
-			regularChildren = append(regularChildren, childItem{n.ID, n.Title, "", n.Pinned, tagName})
+			regularChildren = append(regularChildren, childItem{n.ID, n.Title, "", n.Pinned, tagName, noteContents[n.ID]})
 		} else {
 			hiddenCount++
 		}
@@ -577,6 +616,7 @@ func displayConclaveChildren(conclaveID, prefix string, filters *filterConfig) i
 				} else {
 					fmt.Printf("%s%s%s - %s%s\n", childPrefix, pinnedEmoji, colorizeID(c.id), c.title, tagInfo)
 				}
+				renderContentLines(prefix, c.content, filters.headLines, actualIsLast)
 			},
 		})
 	}
@@ -603,12 +643,14 @@ func displayTomeChildren(tomeID, prefix string, filters *filterConfig) int {
 	if err != nil || len(serviceNotes) == 0 {
 		return 0
 	}
-	// Convert to models.Note for the rest of the function (filter out closed notes)
+	// Build content map and convert to models.Note (filter out closed notes)
+	noteContents := make(map[string]string)
 	var notes []*models.Note
 	for _, n := range serviceNotes {
 		if n.Status == "closed" {
 			continue
 		}
+		noteContents[n.ID] = n.Content
 		notes = append(notes, &models.Note{
 			ID:     n.ID,
 			Title:  n.Title,
@@ -622,6 +664,7 @@ func displayTomeChildren(tomeID, prefix string, filters *filterConfig) int {
 		title   string
 		pinned  bool
 		tagName string
+		content string
 	}
 	var visible []childItem
 	hiddenCount := 0
@@ -629,7 +672,7 @@ func displayTomeChildren(tomeID, prefix string, filters *filterConfig) int {
 	for _, n := range notes {
 		show, tagName := shouldShowLeaf(n.ID, filters)
 		if show {
-			visible = append(visible, childItem{n.ID, n.Title, n.Pinned, tagName})
+			visible = append(visible, childItem{n.ID, n.Title, n.Pinned, tagName, noteContents[n.ID]})
 		} else {
 			hiddenCount++
 		}
@@ -650,6 +693,7 @@ func displayTomeChildren(tomeID, prefix string, filters *filterConfig) int {
 			tagInfo = " " + colorizeTag(child.tagName)
 		}
 		fmt.Printf("%s%s%s - %s%s\n", childPrefix, pinnedEmoji, colorizeID(child.id), child.title, tagInfo)
+		renderContentLines(prefix, child.content, filters.headLines, isLast)
 	}
 
 	// Show hidden count if any
@@ -716,6 +760,7 @@ Examples:
 			filterLeaves, _ := cmd.Flags().GetStringSlice("filter-leaves")
 			includeTags, _ := cmd.Flags().GetStringSlice("tags")
 			excludeTags, _ := cmd.Flags().GetStringSlice("not-tags")
+			headLines, _ := cmd.Flags().GetInt("head")
 
 			// Build filter config
 			filters := &filterConfig{
@@ -724,6 +769,7 @@ Examples:
 				includeTags:    make(map[string]bool),
 				excludeTags:    make(map[string]bool),
 				leafTypes:      make(map[string]bool),
+				headLines:      headLines,
 			}
 			for _, s := range filterStatuses {
 				filters.statusMap[s] = true
@@ -994,6 +1040,7 @@ Examples:
 	cmd.Flags().StringSlice("filter-leaves", []string{}, "Hide these leaf types (comma-separated: tasks,notes,questions,plans)")
 	cmd.Flags().StringSlice("tags", []string{}, "Show only leaves with these tags")
 	cmd.Flags().StringSlice("not-tags", []string{}, "Hide leaves with these tags")
+	cmd.Flags().Int("head", 1, "Number of content lines to show (1 = title only)")
 
 	return cmd
 }
