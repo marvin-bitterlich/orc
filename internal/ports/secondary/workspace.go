@@ -6,7 +6,7 @@ import "context"
 // WorkspaceAdapter defines the secondary port for filesystem and git worktree operations.
 type WorkspaceAdapter interface {
 	// Worktree operations
-	CreateWorktree(ctx context.Context, repoName, branchName, targetPath string) error
+	CreateWorktree(ctx context.Context, repoPath, branchName, targetPath string) error
 	RemoveWorktree(ctx context.Context, path string) error
 	WorktreeExists(ctx context.Context, path string) (bool, error)
 

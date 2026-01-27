@@ -39,9 +39,8 @@ func NewWorkspaceAdapter(worktreesBasePath, reposBasePath string) (*WorkspaceAda
 }
 
 // CreateWorktree creates a git worktree for a repository.
-func (a *WorkspaceAdapter) CreateWorktree(ctx context.Context, repoName, branchName, targetPath string) error {
-	repoPath := a.GetRepoPath(repoName)
-
+// repoPath should be the absolute path to the repository (from repo.LocalPath in DB).
+func (a *WorkspaceAdapter) CreateWorktree(ctx context.Context, repoPath, branchName, targetPath string) error {
 	// Check if repo exists
 	if _, err := os.Stat(repoPath); os.IsNotExist(err) {
 		return fmt.Errorf("repo not found at %s", repoPath)

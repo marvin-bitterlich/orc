@@ -348,7 +348,7 @@ func (s *WorkshopServiceImpl) ensureWorktreeExists(ctx context.Context, wb *seco
 			// Create worktree via GitEffect
 			effs = append(effs, effects.GitEffect{
 				Operation: "worktree_add",
-				RepoPath:  repo.Name,
+				RepoPath:  repo.LocalPath,
 				Args:      []string{wb.HomeBranch, wb.WorktreePath},
 			})
 		}
