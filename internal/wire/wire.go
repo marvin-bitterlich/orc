@@ -28,7 +28,6 @@ var (
 	tomeService                    primary.TomeService
 	conclaveService                primary.ConclaveService
 	operationService               primary.OperationService
-	investigationService           primary.InvestigationService
 	planService                    primary.PlanService
 	tagService                     primary.TagService
 	messageService                 primary.MessageService
@@ -93,12 +92,6 @@ func ConclaveService() primary.ConclaveService {
 func OperationService() primary.OperationService {
 	once.Do(initServices)
 	return operationService
-}
-
-// InvestigationService returns the singleton InvestigationService instance.
-func InvestigationService() primary.InvestigationService {
-	once.Do(initServices)
-	return investigationService
 }
 
 // PlanService returns the singleton PlanService instance.
@@ -233,10 +226,8 @@ func initServices() {
 	conclaveService = app.NewConclaveService(conclaveRepo)
 	operationService = app.NewOperationService(operationRepo)
 
-	// Create investigation service (plan service created later after cycleService)
-	investigationRepo := sqlite.NewInvestigationRepository(database)
+	// Create plan repository (plan service created later after cycleService)
 	planRepo := sqlite.NewPlanRepository(database)
-	investigationService = app.NewInvestigationService(investigationRepo)
 
 	// Create tag and message services
 	tagService = app.NewTagService(tagRepo)

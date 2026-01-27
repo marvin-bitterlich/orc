@@ -242,19 +242,6 @@ func buildIMPPrimeOutput(workbenchCtx *ctx.WorkbenchContext, cwd string) string 
 		}
 	}
 
-	// Investigations
-	investigations, _ := wire.InvestigationService().GetInvestigationsByWorkbench(context.Background(), workbenchCtx.WorkbenchID)
-	for i, inv := range investigations {
-		hasAssignments = true
-		output.WriteString(fmt.Sprintf("### Investigation %d: %s\n\n", i+1, inv.ID))
-		output.WriteString(fmt.Sprintf("**%s** [%s] (Research)\n\n", inv.Title, inv.Status))
-
-		if inv.Description != "" {
-			output.WriteString(inv.Description)
-			output.WriteString("\n\n")
-		}
-	}
-
 	if !hasAssignments {
 		output.WriteString("*No containers currently assigned to this workbench.*\n\n")
 		output.WriteString("Run `orc summary` to see the full commission tree.\n\n")
@@ -264,9 +251,9 @@ func buildIMPPrimeOutput(workbenchCtx *ctx.WorkbenchContext, cwd string) string 
 	output.WriteString("## ORC CLI Primer\n\n")
 	output.WriteString("**Core Commands**:\n")
 	output.WriteString("- `orc summary` - View commission tree with all containers\n")
-	output.WriteString("- `orc focus ID` - Set focus to a container (SHIP-*, CON-*, INV-*, TOME-*)\n")
+	output.WriteString("- `orc focus ID` - Set focus to a container (SHIP-*, CON-*, TOME-*)\n")
 	output.WriteString("- `orc task list --shipment SHIP-ID` - List tasks for a shipment\n")
-	output.WriteString("- `orc note list --investigation INV-ID` - List notes for an investigation\n")
+	output.WriteString("- `orc note list --tome TOME-ID` - List notes for a tome\n")
 	output.WriteString("- `orc task complete TASK-ID` - Mark task as completed\n\n")
 
 	// Section 4: Core Rules (shared across all session types)

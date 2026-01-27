@@ -30,7 +30,6 @@ var noteCreateCmd = &cobra.Command{
 		content, _ := cmd.Flags().GetString("content")
 		noteType, _ := cmd.Flags().GetString("type")
 		shipmentID, _ := cmd.Flags().GetString("shipment")
-		investigationID, _ := cmd.Flags().GetString("investigation")
 		conclaveID, _ := cmd.Flags().GetString("conclave")
 		tomeID, _ := cmd.Flags().GetString("tome")
 
@@ -44,15 +43,14 @@ var noteCreateCmd = &cobra.Command{
 
 		// Validate note type if specified
 		validTypes := map[string]bool{
-			"learning":             true,
-			"concern":              true,
-			"finding":              true,
-			"frq":                  true,
-			"bug":                  true,
-			"investigation_report": true,
+			"learning": true,
+			"concern":  true,
+			"finding":  true,
+			"frq":      true,
+			"bug":      true,
 		}
 		if noteType != "" && !validTypes[noteType] {
-			return fmt.Errorf("invalid note type: %s\nValid types: learning, concern, finding, frq, bug, investigation_report", noteType)
+			return fmt.Errorf("invalid note type: %s\nValid types: learning, concern, finding, frq, bug", noteType)
 		}
 
 		// Determine container
@@ -61,9 +59,6 @@ var noteCreateCmd = &cobra.Command{
 		if shipmentID != "" {
 			containerID = shipmentID
 			containerType = "shipment"
-		} else if investigationID != "" {
-			containerID = investigationID
-			containerType = "investigation"
 		} else if conclaveID != "" {
 			containerID = conclaveID
 			containerType = "conclave"
@@ -105,7 +100,6 @@ var noteListCmd = &cobra.Command{
 		commissionID, _ := cmd.Flags().GetString("commission")
 		noteType, _ := cmd.Flags().GetString("type")
 		shipmentID, _ := cmd.Flags().GetString("shipment")
-		investigationID, _ := cmd.Flags().GetString("investigation")
 		tomeID, _ := cmd.Flags().GetString("tome")
 
 		// Get commission from context if not specified
@@ -119,8 +113,6 @@ var noteListCmd = &cobra.Command{
 		// If specific container specified, use container query
 		if shipmentID != "" {
 			notes, err = wire.NoteService().GetNotesByContainer(ctx, "shipment", shipmentID)
-		} else if investigationID != "" {
-			notes, err = wire.NoteService().GetNotesByContainer(ctx, "investigation", investigationID)
 		} else if tomeID != "" {
 			notes, err = wire.NoteService().GetNotesByContainer(ctx, "tome", tomeID)
 		} else {
@@ -158,8 +150,6 @@ var noteListCmd = &cobra.Command{
 			container := "-"
 			if n.ShipmentID != "" {
 				container = n.ShipmentID
-			} else if n.InvestigationID != "" {
-				container = n.InvestigationID
 			} else if n.TomeID != "" {
 				container = n.TomeID
 			} else if n.ConclaveID != "" {
@@ -201,9 +191,6 @@ var noteShowCmd = &cobra.Command{
 		fmt.Printf("Commission: %s\n", note.CommissionID)
 		if note.ShipmentID != "" {
 			fmt.Printf("Shipment: %s\n", note.ShipmentID)
-		}
-		if note.InvestigationID != "" {
-			fmt.Printf("Investigation: %s\n", note.InvestigationID)
 		}
 		if note.TomeID != "" {
 			fmt.Printf("Tome: %s\n", note.TomeID)
@@ -400,9 +387,8 @@ func init() {
 	// note create flags
 	noteCreateCmd.Flags().StringP("commission", "c", "", "Commission ID (defaults to context)")
 	noteCreateCmd.Flags().String("content", "", "Note content")
-	noteCreateCmd.Flags().StringP("type", "t", "", "Note type (learning, concern, finding, frq, bug, investigation_report)")
+	noteCreateCmd.Flags().StringP("type", "t", "", "Note type (learning, concern, finding, frq, bug)")
 	noteCreateCmd.Flags().String("shipment", "", "Shipment ID to attach note to")
-	noteCreateCmd.Flags().String("investigation", "", "Investigation ID to attach note to")
 	noteCreateCmd.Flags().String("conclave", "", "Conclave ID to attach note to")
 	noteCreateCmd.Flags().String("tome", "", "Tome ID to attach note to")
 
@@ -410,7 +396,6 @@ func init() {
 	noteListCmd.Flags().StringP("commission", "c", "", "Filter by commission")
 	noteListCmd.Flags().StringP("type", "t", "", "Filter by type")
 	noteListCmd.Flags().String("shipment", "", "Filter by shipment")
-	noteListCmd.Flags().String("investigation", "", "Filter by investigation")
 	noteListCmd.Flags().String("tome", "", "Filter by tome")
 
 	// note update flags

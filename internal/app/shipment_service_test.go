@@ -209,10 +209,6 @@ func (m *mockTaskRepositoryForShipment) GetByShipment(ctx context.Context, shipm
 	return []*secondary.TaskRecord{}, nil
 }
 
-func (m *mockTaskRepositoryForShipment) GetByInvestigation(ctx context.Context, investigationID string) ([]*secondary.TaskRecord, error) {
-	return []*secondary.TaskRecord{}, nil
-}
-
 func (m *mockTaskRepositoryForShipment) UpdateStatus(ctx context.Context, id, status string, setClaimed, setCompleted bool) error {
 	return nil
 }

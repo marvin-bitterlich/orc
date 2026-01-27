@@ -219,6 +219,11 @@ var migrations = []Migration{
 		Name:    "add_tome_id_and_conclave_id_to_tasks",
 		Up:      migrationV41,
 	},
+	{
+		Version: 42,
+		Name:    "remove_investigation_entity",
+		Up:      migrationV42,
+	},
 }
 
 // RunMigrations executes all pending migrations
@@ -3953,5 +3958,17 @@ func migrationV41(db *sql.DB) error {
 		return fmt.Errorf("failed to create tasks conclave index: %w", err)
 	}
 
+	return nil
+}
+
+// migrationV42 removes the investigation entity entirely.
+// NOTE: This migration was applied via Atlas, not Go code. The function is a no-op
+// to maintain version numbering consistency. Atlas properly removed:
+// - The investigations table
+// - investigation_id columns from tasks and notes tables
+// - All FK constraints referencing investigations
+// See AGENTS.md for Atlas migration workflow.
+func migrationV42(db *sql.DB) error {
+	// Atlas handled this migration - see schema_inspected.hcl
 	return nil
 }

@@ -26,7 +26,6 @@ func scanTask(scanner interface {
 }) (*secondary.TaskRecord, error) {
 	var (
 		shipmentID          sql.NullString
-		investigationID     sql.NullString
 		tomeID              sql.NullString
 		conclaveID          sql.NullString
 		desc                sql.NullString
@@ -42,7 +41,7 @@ func scanTask(scanner interface {
 
 	record := &secondary.TaskRecord{}
 	err := scanner.Scan(
-		&record.ID, &shipmentID, &record.CommissionID, &investigationID, &tomeID, &conclaveID, &record.Title, &desc,
+		&record.ID, &shipmentID, &record.CommissionID, &tomeID, &conclaveID, &record.Title, &desc,
 		&taskType, &record.Status, &priority, &assignedWorkbenchID,
 		&pinned, &createdAt, &updatedAt, &claimedAt, &completedAt,
 	)
@@ -51,7 +50,6 @@ func scanTask(scanner interface {
 	}
 
 	record.ShipmentID = shipmentID.String
-	record.InvestigationID = investigationID.String
 	record.TomeID = tomeID.String
 	record.ConclaveID = conclaveID.String
 	record.Description = desc.String
@@ -72,17 +70,14 @@ func scanTask(scanner interface {
 	return record, nil
 }
 
-const taskSelectCols = "id, shipment_id, commission_id, investigation_id, tome_id, conclave_id, title, description, type, status, priority, assigned_workbench_id, pinned, created_at, updated_at, claimed_at, completed_at"
+const taskSelectCols = "id, shipment_id, commission_id, tome_id, conclave_id, title, description, type, status, priority, assigned_workbench_id, pinned, created_at, updated_at, claimed_at, completed_at"
 
 // Create persists a new task.
 func (r *TaskRepository) Create(ctx context.Context, task *secondary.TaskRecord) error {
-	var shipmentID, investigationID, desc, taskType sql.NullString
+	var shipmentID, desc, taskType sql.NullString
 
 	if task.ShipmentID != "" {
 		shipmentID = sql.NullString{String: task.ShipmentID, Valid: true}
-	}
-	if task.InvestigationID != "" {
-		investigationID = sql.NullString{String: task.InvestigationID, Valid: true}
 	}
 	if task.Description != "" {
 		desc = sql.NullString{String: task.Description, Valid: true}
@@ -92,8 +87,8 @@ func (r *TaskRepository) Create(ctx context.Context, task *secondary.TaskRecord)
 	}
 
 	_, err := r.db.ExecContext(ctx,
-		"INSERT INTO tasks (id, shipment_id, commission_id, investigation_id, title, description, type, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-		task.ID, shipmentID, task.CommissionID, investigationID, task.Title, desc, taskType, "ready",
+		"INSERT INTO tasks (id, shipment_id, commission_id, title, description, type, status) VALUES (?, ?, ?, ?, ?, ?, ?)",
+		task.ID, shipmentID, task.CommissionID, task.Title, desc, taskType, "ready",
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create task: %w", err)
@@ -128,11 +123,6 @@ func (r *TaskRepository) List(ctx context.Context, filters secondary.TaskFilters
 	if filters.ShipmentID != "" {
 		query += " AND shipment_id = ?"
 		args = append(args, filters.ShipmentID)
-	}
-
-	if filters.InvestigationID != "" {
-		query += " AND investigation_id = ?"
-		args = append(args, filters.InvestigationID)
 	}
 
 	if filters.Status != "" {
@@ -183,17 +173,14 @@ func (r *TaskRepository) Update(ctx context.Context, task *secondary.TaskRecord)
 	// Container move: when moving to a new container, clear all other container IDs
 	// to maintain mutual exclusivity (a task can only belong to one container)
 	if task.ShipmentID != "" {
-		query += ", shipment_id = ?, investigation_id = NULL, tome_id = NULL, conclave_id = NULL"
+		query += ", shipment_id = ?, tome_id = NULL, conclave_id = NULL"
 		args = append(args, task.ShipmentID)
 	} else if task.TomeID != "" {
-		query += ", tome_id = ?, shipment_id = NULL, investigation_id = NULL, conclave_id = NULL"
+		query += ", tome_id = ?, shipment_id = NULL, conclave_id = NULL"
 		args = append(args, task.TomeID)
 	} else if task.ConclaveID != "" {
-		query += ", conclave_id = ?, shipment_id = NULL, investigation_id = NULL, tome_id = NULL"
+		query += ", conclave_id = ?, shipment_id = NULL, tome_id = NULL"
 		args = append(args, task.ConclaveID)
-	} else if task.InvestigationID != "" {
-		query += ", investigation_id = ?, shipment_id = NULL, tome_id = NULL, conclave_id = NULL"
-		args = append(args, task.InvestigationID)
 	}
 
 	query += " WHERE id = ?"
@@ -303,27 +290,6 @@ func (r *TaskRepository) GetByShipment(ctx context.Context, shipmentID string) (
 	rows, err := r.db.QueryContext(ctx, query, shipmentID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get tasks by shipment: %w", err)
-	}
-	defer rows.Close()
-
-	var tasks []*secondary.TaskRecord
-	for rows.Next() {
-		record, err := scanTask(rows)
-		if err != nil {
-			return nil, fmt.Errorf("failed to scan task: %w", err)
-		}
-		tasks = append(tasks, record)
-	}
-
-	return tasks, nil
-}
-
-// GetByInvestigation retrieves tasks for an investigation.
-func (r *TaskRepository) GetByInvestigation(ctx context.Context, investigationID string) ([]*secondary.TaskRecord, error) {
-	query := "SELECT " + taskSelectCols + " FROM tasks WHERE investigation_id = ? ORDER BY created_at ASC"
-	rows, err := r.db.QueryContext(ctx, query, investigationID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get tasks by investigation: %w", err)
 	}
 	defer rows.Close()
 
@@ -496,7 +462,7 @@ func (r *TaskRepository) RemoveTag(ctx context.Context, taskID string) error {
 // ListByTag retrieves tasks with a specific tag.
 func (r *TaskRepository) ListByTag(ctx context.Context, tagID string) ([]*secondary.TaskRecord, error) {
 	query := `
-		SELECT t.id, t.shipment_id, t.commission_id, t.investigation_id, t.tome_id, t.conclave_id, t.title, t.description,
+		SELECT t.id, t.shipment_id, t.commission_id, t.tome_id, t.conclave_id, t.title, t.description,
 		       t.type, t.status, t.priority, t.assigned_workbench_id,
 		       t.pinned, t.created_at, t.updated_at, t.claimed_at, t.completed_at
 		FROM tasks t

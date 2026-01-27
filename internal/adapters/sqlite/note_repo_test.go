@@ -334,7 +334,7 @@ func TestNoteRepository_GetByContainer_Shipment(t *testing.T) {
 	// Create notes for different containers
 	_, _ = db.Exec(`INSERT INTO notes (id, commission_id, title, shipment_id) VALUES ('NOTE-001', 'COMM-001', 'Ship Note 1', 'SHIP-001')`)
 	_, _ = db.Exec(`INSERT INTO notes (id, commission_id, title, shipment_id) VALUES ('NOTE-002', 'COMM-001', 'Ship Note 2', 'SHIP-001')`)
-	_, _ = db.Exec(`INSERT INTO notes (id, commission_id, title, investigation_id) VALUES ('NOTE-003', 'COMM-001', 'Inv Note', 'INV-001')`)
+	_, _ = db.Exec(`INSERT INTO notes (id, commission_id, title, conclave_id) VALUES ('NOTE-003', 'COMM-001', 'Conclave Note', 'CON-001')`)
 
 	notes, err := repo.GetByContainer(ctx, "shipment", "SHIP-001")
 	if err != nil {
@@ -343,25 +343,6 @@ func TestNoteRepository_GetByContainer_Shipment(t *testing.T) {
 
 	if len(notes) != 2 {
 		t.Errorf("expected 2 notes for shipment, got %d", len(notes))
-	}
-}
-
-func TestNoteRepository_GetByContainer_Investigation(t *testing.T) {
-	db := setupNoteTestDB(t)
-	repo := sqlite.NewNoteRepository(db)
-	ctx := context.Background()
-
-	_, _ = db.Exec(`INSERT INTO notes (id, commission_id, title, investigation_id) VALUES ('NOTE-001', 'COMM-001', 'Inv Note 1', 'INV-001')`)
-	_, _ = db.Exec(`INSERT INTO notes (id, commission_id, title, investigation_id) VALUES ('NOTE-002', 'COMM-001', 'Inv Note 2', 'INV-001')`)
-	_, _ = db.Exec(`INSERT INTO notes (id, commission_id, title, investigation_id) VALUES ('NOTE-003', 'COMM-001', 'Inv Note 3', 'INV-002')`)
-
-	notes, err := repo.GetByContainer(ctx, "investigation", "INV-001")
-	if err != nil {
-		t.Fatalf("GetByContainer failed: %v", err)
-	}
-
-	if len(notes) != 2 {
-		t.Errorf("expected 2 notes for investigation, got %d", len(notes))
 	}
 }
 

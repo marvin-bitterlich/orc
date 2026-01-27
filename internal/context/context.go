@@ -94,13 +94,6 @@ func getCommissionFromFocus(focusID string) string {
 		}
 		return con.CommissionID
 
-	case strings.HasPrefix(focusID, "INV-"):
-		inv, err := wire.InvestigationService().GetInvestigation(ctx, focusID)
-		if err != nil {
-			return ""
-		}
-		return inv.CommissionID
-
 	case strings.HasPrefix(focusID, "TOME-"):
 		tome, err := wire.TomeService().GetTome(ctx, focusID)
 		if err != nil {

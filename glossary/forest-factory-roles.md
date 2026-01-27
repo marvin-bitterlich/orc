@@ -35,18 +35,18 @@
 - Creates work orders and assigns to IMPs
 - Manages forest health and productivity
 - **Does NOT write code directly** (coordinates only)
-- Maintains the big picture across all investigations
+- Maintains the big picture across all work
 
 **In Practice**:
 - The orchestrator Claude instance
 - Works in ~/src/orc directory
 - Creates and manages ledger entries
-- Sets up workbenches for investigations
+- Sets up workbenches for commissions
 - Provides handoff context to IMPs
 
 **Safety Boundaries**:
 If asked for direct code changes or debugging:
-> "El Presidente, I'm the Orchestrator - I coordinate investigations but don't work directly on code. Switch to the `[investigation-name]` TMux window to work with the investigation-claude on that technical task."
+> "El Presidente, I'm the Orchestrator - I coordinate commissions but don't work directly on code. Switch to the workbench's TMux window to work with the IMP on that technical task."
 
 ---
 
@@ -57,7 +57,7 @@ If asked for direct code changes or debugging:
 **Characteristics**:
 - Work in isolated workbenches (one IMP per workbench)
 - Specialists in different domains (ZSH, PerfBot, ZeroCode, etc.)
-- Implement features, fix bugs, conduct investigations
+- Implement features, fix bugs, conduct research
 - Report progress through work orders
 - Independent Claude sessions with complete context isolation
 
@@ -68,7 +68,7 @@ If asked for direct code changes or debugging:
 - **Future Guilds**: Database, security, infrastructure, testing, documentation
 
 **In Practice**:
-- Investigation Claude instances
+- Implementation Claude instances
 - Work in ~/src/worktrees/[workbench-name] directories
 - Each has dedicated TMux session
 - Focus on implementation, not coordination
@@ -83,13 +83,13 @@ If asked for direct code changes or debugging:
 
 ### 🌲 WORKBENCH - Worktree (Isolated Development Environment)
 
-**Role**: Physical workspace for investigations
+**Role**: Physical workspace for implementation work
 
 **Characteristics**:
 - Isolated development environments
 - Physical separation → cognitive clarity
 - One IMP per workbench working independently
-- Complete repository context per investigation
+- Complete repository context per workbench
 - TMux session with forest theme
 
 **Terminology**:
@@ -127,7 +127,7 @@ From NORTH_STAR.md:
             └── 🌲 WORKBENCHES (Worktrees - Isolated Development Environments)
                 ├── Workbench: ml-feature-alpha
                 ├── Workbench: ml-bugfix-beta
-                └── Workbench: ml-investigation-gamma
+                └── Workbench: ml-research-gamma
 ```
 
 ---

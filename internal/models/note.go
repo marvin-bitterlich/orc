@@ -10,10 +10,9 @@ type Note struct {
 	CommissionID     string
 	Title            string
 	Content          sql.NullString
-	Type             sql.NullString // learning, concern, finding, frq, bug, investigation_report
+	Type             sql.NullString // learning, concern, finding, frq, bug
 	Status           string         // open, closed
 	ShipmentID       sql.NullString
-	InvestigationID  sql.NullString
 	ConclaveID       sql.NullString
 	TomeID           sql.NullString
 	Pinned           bool
@@ -26,12 +25,11 @@ type Note struct {
 
 // Note types
 const (
-	NoteTypeLearning            = "learning"
-	NoteTypeConcern             = "concern"
-	NoteTypeFinding             = "finding"
-	NoteTypeFRQ                 = "frq"
-	NoteTypeBug                 = "bug"
-	NoteTypeInvestigationReport = "investigation_report"
+	NoteTypeLearning = "learning"
+	NoteTypeConcern  = "concern"
+	NoteTypeFinding  = "finding"
+	NoteTypeFRQ      = "frq"
+	NoteTypeBug      = "bug"
 )
 
 // Note statuses

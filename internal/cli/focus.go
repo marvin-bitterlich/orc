@@ -18,7 +18,7 @@ func FocusCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "focus [container-id]",
 		Short: "Set or show the currently focused container",
-		Long: `Focus on a specific container (Commission, Shipment, Conclave, Investigation, or Tome).
+		Long: `Focus on a specific container (Commission, Shipment, Conclave, or Tome).
 
 The focused container appears in 'orc prime' output and can be used as default
 for other commands.
@@ -27,7 +27,6 @@ Container types are auto-detected from ID prefix:
   COMM-*  → Commission (work package)
   SHIP-*  → Shipment (execution work)
   CON-*   → Conclave (ideation session)
-  INV-*   → Investigation (research)
   TOME-*  → Tome (knowledge collection)
 
 When focusing on a Shipment while in a workbench context, the shipment's branch
@@ -104,13 +103,6 @@ func validateAndGetInfo(id string) (containerType string, title string, err erro
 		}
 		return "Conclave", con.Title, nil
 
-	case strings.HasPrefix(id, "INV-"):
-		inv, err := wire.InvestigationService().GetInvestigation(ctx, id)
-		if err != nil {
-			return "", "", fmt.Errorf("investigation %s not found", id)
-		}
-		return "Investigation", inv.Title, nil
-
 	case strings.HasPrefix(id, "TOME-"):
 		tome, err := wire.TomeService().GetTome(ctx, id)
 		if err != nil {
@@ -119,7 +111,7 @@ func validateAndGetInfo(id string) (containerType string, title string, err erro
 		return "Tome", tome.Title, nil
 
 	default:
-		return "", "", fmt.Errorf("unknown container type for ID: %s (expected COMM-*, SHIP-*, CON-*, INV-*, or TOME-*)", id)
+		return "", "", fmt.Errorf("unknown container type for ID: %s (expected COMM-*, SHIP-*, CON-*, or TOME-*)", id)
 	}
 }
 
@@ -229,10 +221,6 @@ func GetFocusInfo(focusID string) (containerType, title, status string) {
 	case strings.HasPrefix(focusID, "CON-"):
 		if con, err := wire.ConclaveService().GetConclave(ctx, focusID); err == nil {
 			return "Conclave", con.Title, con.Status
-		}
-	case strings.HasPrefix(focusID, "INV-"):
-		if inv, err := wire.InvestigationService().GetInvestigation(ctx, focusID); err == nil {
-			return "Investigation", inv.Title, inv.Status
 		}
 	case strings.HasPrefix(focusID, "TOME-"):
 		if tome, err := wire.TomeService().GetTome(ctx, focusID); err == nil {

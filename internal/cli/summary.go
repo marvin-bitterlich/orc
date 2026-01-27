@@ -168,10 +168,6 @@ func resolveContainerCommission(containerID string) string {
 		if shipment, err := wire.ShipmentService().GetShipment(ctx, containerID); err == nil {
 			return shipment.CommissionID
 		}
-	case strings.HasPrefix(containerID, "INV-"):
-		if inv, err := wire.InvestigationService().GetInvestigation(ctx, containerID); err == nil {
-			return inv.CommissionID
-		}
 	case strings.HasPrefix(containerID, "TOME-"):
 		if tome, err := wire.TomeService().GetTome(ctx, containerID); err == nil {
 			return tome.CommissionID
@@ -600,73 +596,6 @@ func displayConclaveChildren(conclaveID, prefix string, filters *filterConfig) i
 	return visibleCount
 }
 
-// displayInvestigationChildren shows notes under an investigation with tag filtering
-// Returns count of visible items
-func displayInvestigationChildren(investigationID, prefix string, filters *filterConfig) int {
-	serviceNotes, _ := wire.NoteService().GetNotesByContainer(context.Background(), "investigation", investigationID)
-	// Convert to models.Note for the rest of the function (filter out closed notes)
-	var notes []*models.Note
-	for _, n := range serviceNotes {
-		if n.Status == "closed" {
-			continue
-		}
-		notes = append(notes, &models.Note{
-			ID:     n.ID,
-			Title:  n.Title,
-			Pinned: n.Pinned,
-		})
-	}
-
-	// Collect all children with tag filtering
-	type childItem struct {
-		id      string
-		title   string
-		status  string
-		pinned  bool
-		tagName string
-	}
-	var visible []childItem
-	hiddenCount := 0
-
-	for _, n := range notes {
-		show, tagName := shouldShowLeaf(n.ID, filters)
-		if show {
-			visible = append(visible, childItem{n.ID, n.Title, "", n.Pinned, tagName})
-		} else {
-			hiddenCount++
-		}
-	}
-
-	for k, child := range visible {
-		pinnedEmoji := ""
-		if child.pinned {
-			pinnedEmoji = "📌 "
-		}
-		isLast := k == len(visible)-1 && hiddenCount == 0
-		childPrefix := prefix + "├── "
-		if isLast {
-			childPrefix = prefix + "└── "
-		}
-		tagInfo := ""
-		if child.tagName != "" {
-			tagInfo = " " + colorizeTag(child.tagName)
-		}
-		statusInfo := colorizeStatus(child.status)
-		if statusInfo != "" {
-			fmt.Printf("%s%s%s - %s - %s%s\n", childPrefix, pinnedEmoji, colorizeID(child.id), statusInfo, child.title, tagInfo)
-		} else {
-			fmt.Printf("%s%s%s - %s%s\n", childPrefix, pinnedEmoji, colorizeID(child.id), child.title, tagInfo)
-		}
-	}
-
-	// Show hidden count if any
-	if hiddenCount > 0 {
-		fmt.Printf("%s└── (%d other items)\n", prefix, hiddenCount)
-	}
-
-	return len(visible)
-}
-
 // displayTomeChildren shows notes under a tome with tag filtering
 // Returns count of visible notes
 func displayTomeChildren(tomeID, prefix string, filters *filterConfig) int {
@@ -738,7 +667,7 @@ type containerInfo struct {
 	status        string
 	pinned        bool
 	workbenchID   string
-	containerType string // "shipment", "conclave", "investigation", "tome"
+	containerType string // "shipment", "conclave", "tome"
 }
 
 // SummaryCmd returns the summary command
@@ -755,8 +684,7 @@ Display modes:
 
 Containers shown:
   - Shipments (SHIP-*) with Tasks
-  - Conclaves (CON-*) with Tasks/Questions/Plans
-  - Investigations (INV-*) with Questions
+  - Conclaves (CON-*) with Tasks/Plans
   - Tomes (TOME-*) with Notes
 
 Filtering:
@@ -927,24 +855,6 @@ Examples:
 					}
 				}
 
-				// Collect investigations
-				if len(filters.containerTypes) == 0 || filters.containerTypes["INV"] {
-					investigations, _ := wire.InvestigationService().ListInvestigations(context.Background(), primary.InvestigationFilters{CommissionID: commission.ID})
-					for _, inv := range investigations {
-						if inv.Status == "complete" || filters.statusMap[inv.Status] {
-							continue
-						}
-						c := containerInfo{
-							id: inv.ID, title: inv.Title, status: inv.Status,
-							pinned: inv.Pinned, workbenchID: "", containerType: "investigation",
-						}
-						if inv.ID == focusID {
-							focusedContainer = &c
-						}
-						allContainers = append(allContainers, c)
-					}
-				}
-
 				// Collect tomes (only those without a conclave_id - conclaved tomes appear nested under conclaves)
 				if len(filters.containerTypes) == 0 || filters.containerTypes["TOME"] {
 					tomes, _ := wire.TomeService().ListTomes(context.Background(), primary.TomeFilters{CommissionID: commission.ID})
@@ -1046,8 +956,6 @@ Examples:
 							displayShipmentChildren(container.id, childPrefix, filters)
 						case "conclave":
 							displayConclaveChildren(container.id, childPrefix, filters)
-						case "investigation":
-							displayInvestigationChildren(container.id, childPrefix, filters)
 						case "tome":
 							displayTomeChildren(container.id, childPrefix, filters)
 						}
@@ -1082,7 +990,7 @@ Examples:
 	cmd.Flags().StringP("commission", "c", "", "Commission filter: commission ID or 'current' for context commission")
 	cmd.Flags().Bool("all", false, "Show all containers (default: only show focused container if set)")
 	cmd.Flags().StringSlice("filter-statuses", []string{}, "Hide items with these statuses (comma-separated: paused,blocked)")
-	cmd.Flags().StringSlice("filter-containers", []string{}, "Show only these container types (comma-separated: SHIP,CON,INV,TOME)")
+	cmd.Flags().StringSlice("filter-containers", []string{}, "Show only these container types (comma-separated: SHIP,CON,TOME)")
 	cmd.Flags().StringSlice("filter-leaves", []string{}, "Hide these leaf types (comma-separated: tasks,notes,questions,plans)")
 	cmd.Flags().StringSlice("tags", []string{}, "Show only leaves with these tags")
 	cmd.Flags().StringSlice("not-tags", []string{}, "Hide leaves with these tags")
@@ -1156,21 +1064,6 @@ func containerHasMatchingLeaves(c containerInfo, filters *filterConfig) bool {
 			if show {
 				return true
 			}
-		}
-		for _, n := range notes {
-			show, _ := shouldShowLeaf(n.ID, filters)
-			if show {
-				return true
-			}
-		}
-	case "investigation":
-		serviceNotes, _ := wire.NoteService().GetNotesByContainer(context.Background(), "investigation", c.id)
-		var notes []*models.Note
-		for _, n := range serviceNotes {
-			if n.Status == "closed" {
-				continue
-			}
-			notes = append(notes, &models.Note{ID: n.ID, Title: n.Title, Pinned: n.Pinned})
 		}
 		for _, n := range notes {
 			show, _ := shouldShowLeaf(n.ID, filters)

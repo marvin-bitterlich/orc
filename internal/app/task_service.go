@@ -55,14 +55,13 @@ func (s *TaskServiceImpl) CreateTask(ctx context.Context, req primary.CreateTask
 
 	// Create record
 	record := &secondary.TaskRecord{
-		ID:              nextID,
-		ShipmentID:      req.ShipmentID,
-		InvestigationID: req.InvestigationID,
-		CommissionID:    req.CommissionID,
-		Title:           req.Title,
-		Description:     req.Description,
-		Type:            req.Type,
-		Status:          "ready",
+		ID:           nextID,
+		ShipmentID:   req.ShipmentID,
+		CommissionID: req.CommissionID,
+		Title:        req.Title,
+		Description:  req.Description,
+		Type:         req.Type,
+		Status:       "ready",
 	}
 
 	if err := s.taskRepo.Create(ctx, record); err != nil {
@@ -108,10 +107,9 @@ func (s *TaskServiceImpl) GetTask(ctx context.Context, taskID string) (*primary.
 // ListTasks lists tasks with optional filters.
 func (s *TaskServiceImpl) ListTasks(ctx context.Context, filters primary.TaskFilters) ([]*primary.Task, error) {
 	records, err := s.taskRepo.List(ctx, secondary.TaskFilters{
-		ShipmentID:      filters.ShipmentID,
-		InvestigationID: filters.InvestigationID,
-		Status:          filters.Status,
-		CommissionID:    filters.CommissionID,
+		ShipmentID:   filters.ShipmentID,
+		Status:       filters.Status,
+		CommissionID: filters.CommissionID,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list tasks: %w", err)

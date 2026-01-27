@@ -58,12 +58,11 @@ type TaskService interface {
 
 // CreateTaskRequest contains parameters for creating a task.
 type CreateTaskRequest struct {
-	ShipmentID      string // Optional
-	InvestigationID string // Optional
-	CommissionID    string
-	Title           string
-	Description     string
-	Type            string // Optional: research, implementation, fix, documentation, maintenance
+	ShipmentID   string // Optional
+	CommissionID string
+	Title        string
+	Description  string
+	Type         string // Optional: research, implementation, fix, documentation, maintenance
 }
 
 // CreateTaskResponse contains the result of creating a task.
@@ -98,7 +97,6 @@ type MoveTaskRequest struct {
 type Task struct {
 	ID                  string
 	ShipmentID          string
-	InvestigationID     string
 	TomeID              string
 	ConclaveID          string
 	CommissionID        string
@@ -124,9 +122,8 @@ type TaskTag struct {
 
 // TaskFilters contains filter options for listing tasks.
 type TaskFilters struct {
-	ShipmentID      string
-	InvestigationID string
-	Status          string
-	CommissionID    string
-	TagName         string
+	ShipmentID   string
+	Status       string
+	CommissionID string
+	TagName      string
 }

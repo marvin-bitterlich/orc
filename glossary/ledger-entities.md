@@ -54,7 +54,7 @@
 - Belongs to Commission
 
 **Work Types**:
-- `research` - Exploratory work, design, investigation
+- `research` - Exploratory work, design
 - `implementation` - Building features, writing code
 - `fix` - Bug fixes
 - `documentation` - Docs, knowledge capture

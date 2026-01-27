@@ -51,8 +51,6 @@ func (s *NoteServiceImpl) CreateNote(ctx context.Context, req primary.CreateNote
 		switch req.ContainerType {
 		case "shipment":
 			record.ShipmentID = req.ContainerID
-		case "investigation":
-			record.InvestigationID = req.ContainerID
 		case "conclave":
 			record.ConclaveID = req.ContainerID
 		case "tome":
@@ -248,7 +246,6 @@ func (s *NoteServiceImpl) recordToNote(r *secondary.NoteRecord) *primary.Note {
 		Type:             r.Type,
 		Status:           r.Status,
 		ShipmentID:       r.ShipmentID,
-		InvestigationID:  r.InvestigationID,
 		ConclaveID:       r.ConclaveID,
 		TomeID:           r.TomeID,
 		Pinned:           r.Pinned,

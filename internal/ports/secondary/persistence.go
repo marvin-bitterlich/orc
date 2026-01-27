@@ -174,9 +174,6 @@ type TaskRepository interface {
 	// GetByShipment retrieves tasks for a shipment.
 	GetByShipment(ctx context.Context, shipmentID string) ([]*TaskRecord, error)
 
-	// GetByInvestigation retrieves tasks for an investigation.
-	GetByInvestigation(ctx context.Context, investigationID string) ([]*TaskRecord, error)
-
 	// UpdateStatus updates the status with optional timestamps.
 	UpdateStatus(ctx context.Context, id, status string, setClaimed, setCompleted bool) error
 
@@ -219,7 +216,6 @@ type TaskRecord struct {
 	ID                  string
 	ShipmentID          string // Empty string means null
 	CommissionID        string
-	InvestigationID     string // Empty string means null
 	TomeID              string // Empty string means null
 	ConclaveID          string // Empty string means null
 	Title               string
@@ -237,10 +233,9 @@ type TaskRecord struct {
 
 // TaskFilters contains filter options for querying tasks.
 type TaskFilters struct {
-	ShipmentID      string
-	InvestigationID string
-	Status          string
-	CommissionID    string
+	ShipmentID   string
+	Status       string
+	CommissionID string
 }
 
 // TagRecord represents a tag as stored in persistence.
@@ -330,7 +325,6 @@ type NoteRecord struct {
 	Type             string // Empty string means null
 	Status           string // "open" or "closed"
 	ShipmentID       string // Empty string means null
-	InvestigationID  string // Empty string means null
 	ConclaveID       string // Empty string means null
 	TomeID           string // Empty string means null
 	Pinned           bool
@@ -579,70 +573,6 @@ type OperationRecord struct {
 // OperationFilters contains filter options for querying operations.
 type OperationFilters struct {
 	CommissionID string
-	Status       string
-}
-
-// InvestigationRepository defines the secondary port for investigation persistence.
-type InvestigationRepository interface {
-	// Create persists a new investigation.
-	Create(ctx context.Context, investigation *InvestigationRecord) error
-
-	// GetByID retrieves an investigation by its ID.
-	GetByID(ctx context.Context, id string) (*InvestigationRecord, error)
-
-	// List retrieves investigations matching the given filters.
-	List(ctx context.Context, filters InvestigationFilters) ([]*InvestigationRecord, error)
-
-	// Update updates an existing investigation.
-	Update(ctx context.Context, investigation *InvestigationRecord) error
-
-	// Delete removes an investigation from persistence.
-	Delete(ctx context.Context, id string) error
-
-	// Pin pins an investigation.
-	Pin(ctx context.Context, id string) error
-
-	// Unpin unpins an investigation.
-	Unpin(ctx context.Context, id string) error
-
-	// GetNextID returns the next available investigation ID.
-	GetNextID(ctx context.Context) (string, error)
-
-	// UpdateStatus updates the status and optionally completed_at timestamp.
-	UpdateStatus(ctx context.Context, id, status string, setCompleted bool) error
-
-	// GetByWorkbench retrieves investigations assigned to a workbench.
-	GetByWorkbench(ctx context.Context, workbenchID string) ([]*InvestigationRecord, error)
-
-	// AssignWorkbench assigns an investigation to a workbench.
-	AssignWorkbench(ctx context.Context, investigationID, workbenchID string) error
-
-	// GetByConclave retrieves investigations for a conclave.
-	GetByConclave(ctx context.Context, conclaveID string) ([]*InvestigationRecord, error)
-
-	// CommissionExists checks if a commission exists (for validation).
-	CommissionExists(ctx context.Context, commissionID string) (bool, error)
-}
-
-// InvestigationRecord represents an investigation as stored in persistence.
-type InvestigationRecord struct {
-	ID                  string
-	CommissionID        string
-	ConclaveID          string // Empty string means null
-	Title               string
-	Description         string // Empty string means null
-	Status              string
-	AssignedWorkbenchID string // Empty string means null
-	Pinned              bool
-	CreatedAt           string
-	UpdatedAt           string
-	CompletedAt         string // Empty string means null
-}
-
-// InvestigationFilters contains filter options for querying investigations.
-type InvestigationFilters struct {
-	CommissionID string
-	ConclaveID   string
 	Status       string
 }
 

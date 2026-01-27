@@ -26,7 +26,6 @@ var taskCreateCmd = &cobra.Command{
 		ctx := context.Background()
 		title := args[0]
 		shipmentID, _ := cmd.Flags().GetString("shipment")
-		investigationID, _ := cmd.Flags().GetString("investigation")
 		commissionID, _ := cmd.Flags().GetString("commission")
 		description, _ := cmd.Flags().GetString("description")
 		taskType, _ := cmd.Flags().GetString("type")
@@ -40,12 +39,11 @@ var taskCreateCmd = &cobra.Command{
 		}
 
 		resp, err := wire.TaskService().CreateTask(ctx, primary.CreateTaskRequest{
-			ShipmentID:      shipmentID,
-			InvestigationID: investigationID,
-			CommissionID:    commissionID,
-			Title:           title,
-			Description:     description,
-			Type:            taskType,
+			ShipmentID:   shipmentID,
+			CommissionID: commissionID,
+			Title:        title,
+			Description:  description,
+			Type:         taskType,
 		})
 		if err != nil {
 			return fmt.Errorf("failed to create task: %w", err)
@@ -55,9 +53,6 @@ var taskCreateCmd = &cobra.Command{
 		fmt.Printf("✓ Created task %s: %s\n", task.ID, task.Title)
 		if task.ShipmentID != "" {
 			fmt.Printf("  Under shipment: %s\n", task.ShipmentID)
-		}
-		if task.InvestigationID != "" {
-			fmt.Printf("  Under investigation: %s\n", task.InvestigationID)
 		}
 		fmt.Printf("  Commission: %s\n", task.CommissionID)
 		return nil
@@ -70,7 +65,6 @@ var taskListCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
 		shipmentID, _ := cmd.Flags().GetString("shipment")
-		investigationID, _ := cmd.Flags().GetString("investigation")
 		status, _ := cmd.Flags().GetString("status")
 		tag, _ := cmd.Flags().GetString("tag")
 
@@ -90,9 +84,6 @@ var taskListCmd = &cobra.Command{
 				if shipmentID != "" && task.ShipmentID != shipmentID {
 					continue
 				}
-				if investigationID != "" && task.InvestigationID != investigationID {
-					continue
-				}
 				if status != "" && task.Status != status {
 					continue
 				}
@@ -102,9 +93,8 @@ var taskListCmd = &cobra.Command{
 		} else {
 			// Use normal list
 			tasks, err = wire.TaskService().ListTasks(ctx, primary.TaskFilters{
-				ShipmentID:      shipmentID,
-				InvestigationID: investigationID,
-				Status:          status,
+				ShipmentID: shipmentID,
+				Status:     status,
 			})
 			if err != nil {
 				return fmt.Errorf("failed to list tasks: %w", err)
@@ -132,9 +122,6 @@ var taskListCmd = &cobra.Command{
 			fmt.Printf("%s %s: %s%s [%s]%s\n", statusIcon, task.ID, task.Title, typeStr, task.Status, pinnedIcon)
 			if task.ShipmentID != "" {
 				fmt.Printf("   Shipment: %s\n", task.ShipmentID)
-			}
-			if task.InvestigationID != "" {
-				fmt.Printf("   Investigation: %s\n", task.InvestigationID)
 			}
 			if task.AssignedWorkbenchID != "" {
 				fmt.Printf("   Workbench: %s\n", task.AssignedWorkbenchID)
@@ -171,9 +158,6 @@ var taskShowCmd = &cobra.Command{
 		fmt.Printf("Commission: %s\n", task.CommissionID)
 		if task.ShipmentID != "" {
 			fmt.Printf("Shipment: %s\n", task.ShipmentID)
-		}
-		if task.InvestigationID != "" {
-			fmt.Printf("Investigation: %s\n", task.InvestigationID)
 		}
 		if task.TomeID != "" {
 			fmt.Printf("Tome: %s\n", task.TomeID)
@@ -523,14 +507,12 @@ var taskMoveCmd = &cobra.Command{
 func init() {
 	// task create flags
 	taskCreateCmd.Flags().String("shipment", "", "Shipment ID")
-	taskCreateCmd.Flags().String("investigation", "", "Investigation ID")
 	taskCreateCmd.Flags().StringP("commission", "c", "", "Commission ID (defaults to context)")
 	taskCreateCmd.Flags().StringP("description", "d", "", "Task description")
 	taskCreateCmd.Flags().String("type", "", "Task type (research, implementation, fix, documentation, maintenance)")
 
 	// task list flags
 	taskListCmd.Flags().String("shipment", "", "Filter by shipment")
-	taskListCmd.Flags().String("investigation", "", "Filter by investigation")
 	taskListCmd.Flags().StringP("status", "s", "", "Filter by status")
 	taskListCmd.Flags().String("tag", "", "Filter by tag")
 

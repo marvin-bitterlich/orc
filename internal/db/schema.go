@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS tags (
 CREATE TABLE IF NOT EXISTS entity_tags (
 	id TEXT PRIMARY KEY,
 	entity_id TEXT NOT NULL,
-	entity_type TEXT NOT NULL CHECK(entity_type IN ('task', 'plan', 'note', 'shipment', 'investigation', 'conclave', 'tome')),
+	entity_type TEXT NOT NULL CHECK(entity_type IN ('task', 'plan', 'note', 'shipment', 'conclave', 'tome')),
 	tag_id TEXT NOT NULL,
 	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 	FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE,
@@ -140,24 +140,6 @@ CREATE TABLE IF NOT EXISTS shipments (
 	FOREIGN KEY (repo_id) REFERENCES repos(id)
 );
 
--- Investigations (Research containers)
-CREATE TABLE IF NOT EXISTS investigations (
-	id TEXT PRIMARY KEY,
-	commission_id TEXT NOT NULL,
-	conclave_id TEXT,
-	title TEXT NOT NULL,
-	description TEXT,
-	status TEXT NOT NULL CHECK(status IN ('active', 'in_progress', 'resolved', 'complete')) DEFAULT 'active',
-	assigned_workbench_id TEXT,
-	pinned INTEGER DEFAULT 0,
-	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-	updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-	completed_at DATETIME,
-	FOREIGN KEY (commission_id) REFERENCES commissions(id),
-	FOREIGN KEY (conclave_id) REFERENCES conclaves(id) ON DELETE SET NULL,
-	FOREIGN KEY (assigned_workbench_id) REFERENCES workbenches(id)
-);
-
 -- Tomes (Knowledge containers)
 CREATE TABLE IF NOT EXISTS tomes (
 	id TEXT PRIMARY KEY,
@@ -181,7 +163,6 @@ CREATE TABLE IF NOT EXISTS tasks (
 	id TEXT PRIMARY KEY,
 	shipment_id TEXT,
 	commission_id TEXT NOT NULL,
-	investigation_id TEXT,
 	tome_id TEXT,
 	conclave_id TEXT,
 	title TEXT NOT NULL,
@@ -198,7 +179,6 @@ CREATE TABLE IF NOT EXISTS tasks (
 	completed_at DATETIME,
 	FOREIGN KEY (shipment_id) REFERENCES shipments(id) ON DELETE CASCADE,
 	FOREIGN KEY (commission_id) REFERENCES commissions(id),
-	FOREIGN KEY (investigation_id) REFERENCES investigations(id) ON DELETE SET NULL,
 	FOREIGN KEY (tome_id) REFERENCES tomes(id) ON DELETE SET NULL,
 	FOREIGN KEY (conclave_id) REFERENCES conclaves(id) ON DELETE SET NULL,
 	FOREIGN KEY (assigned_workbench_id) REFERENCES workbenches(id)
@@ -295,7 +275,6 @@ CREATE TABLE IF NOT EXISTS notes (
 	id TEXT PRIMARY KEY,
 	commission_id TEXT NOT NULL,
 	shipment_id TEXT,
-	investigation_id TEXT,
 	conclave_id TEXT,
 	tome_id TEXT,
 	title TEXT NOT NULL,
@@ -310,7 +289,6 @@ CREATE TABLE IF NOT EXISTS notes (
 	promoted_from_type TEXT,
 	FOREIGN KEY (commission_id) REFERENCES commissions(id),
 	FOREIGN KEY (shipment_id) REFERENCES shipments(id) ON DELETE SET NULL,
-	FOREIGN KEY (investigation_id) REFERENCES investigations(id) ON DELETE SET NULL,
 	FOREIGN KEY (conclave_id) REFERENCES conclaves(id) ON DELETE SET NULL,
 	FOREIGN KEY (tome_id) REFERENCES tomes(id) ON DELETE SET NULL
 );
@@ -337,16 +315,12 @@ CREATE INDEX IF NOT EXISTS idx_messages_timestamp ON messages(timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_shipments_commission ON shipments(commission_id);
 CREATE INDEX IF NOT EXISTS idx_shipments_status ON shipments(status);
 CREATE INDEX IF NOT EXISTS idx_shipments_workbench ON shipments(assigned_workbench_id);
-CREATE INDEX IF NOT EXISTS idx_investigations_commission ON investigations(commission_id);
-CREATE INDEX IF NOT EXISTS idx_investigations_status ON investigations(status);
-CREATE INDEX IF NOT EXISTS idx_investigations_conclave ON investigations(conclave_id);
 CREATE INDEX IF NOT EXISTS idx_tomes_commission ON tomes(commission_id);
 CREATE INDEX IF NOT EXISTS idx_tomes_conclave ON tomes(conclave_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_shipment ON tasks(shipment_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_commission ON tasks(commission_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
 CREATE INDEX IF NOT EXISTS idx_tasks_workbench ON tasks(assigned_workbench_id);
-CREATE INDEX IF NOT EXISTS idx_tasks_investigation ON tasks(investigation_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_tome ON tasks(tome_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_conclave ON tasks(conclave_id);
 CREATE INDEX IF NOT EXISTS idx_operations_commission ON operations(commission_id);
@@ -492,7 +466,7 @@ func InitSchema() error {
 				return err
 			}
 			// Insert all migration versions as applied
-			for i := 1; i <= 41; i++ {
+			for i := 1; i <= 42; i++ {
 				_, err = db.Exec("INSERT INTO schema_version (version) VALUES (?)", i)
 				if err != nil {
 					return err

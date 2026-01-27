@@ -43,9 +43,9 @@ type CreateNoteRequest struct {
 	CommissionID  string
 	Title         string
 	Content       string
-	Type          string // learning, concern, finding, frq, bug, investigation_report
-	ContainerID   string // The container ID (shipment, investigation, conclave, or tome)
-	ContainerType string // "shipment", "investigation", "conclave", or "tome"
+	Type          string // learning, concern, finding, frq, bug
+	ContainerID   string // The container ID (shipment, conclave, or tome)
+	ContainerType string // "shipment", "conclave", or "tome"
 }
 
 // CreateNoteResponse contains the result of creating a note.
@@ -79,7 +79,6 @@ type Note struct {
 	Type             string
 	Status           string // "open" or "closed"
 	ShipmentID       string
-	InvestigationID  string
 	ConclaveID       string
 	TomeID           string
 	Pinned           bool
@@ -98,12 +97,11 @@ type NoteFilters struct {
 
 // Note type constants
 const (
-	NoteTypeLearning            = "learning"
-	NoteTypeConcern             = "concern"
-	NoteTypeFinding             = "finding"
-	NoteTypeFRQ                 = "frq"
-	NoteTypeBug                 = "bug"
-	NoteTypeInvestigationReport = "investigation_report"
+	NoteTypeLearning = "learning"
+	NoteTypeConcern  = "concern"
+	NoteTypeFinding  = "finding"
+	NoteTypeFRQ      = "frq"
+	NoteTypeBug      = "bug"
 )
 
 // Note status constants

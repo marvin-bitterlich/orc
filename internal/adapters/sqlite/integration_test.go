@@ -425,24 +425,20 @@ func TestIntegration_NotesAcrossContainers(t *testing.T) {
 
 	noteRepo := sqlite.NewNoteRepository(db)
 	shipmentRepo := sqlite.NewShipmentRepository(db)
-	investigationRepo := sqlite.NewInvestigationRepository(db)
 	conclaveRepo := sqlite.NewConclaveRepository(db)
 	tomeRepo := sqlite.NewTomeRepository(db)
 
 	// Create containers
 	_ = shipmentRepo.Create(ctx, &secondary.ShipmentRecord{ID: "SHIP-001", CommissionID: "COMM-001", Title: "Shipment"})
-	_ = investigationRepo.Create(ctx, &secondary.InvestigationRecord{ID: "INV-001", CommissionID: "COMM-001", Title: "Investigation"})
 	_ = conclaveRepo.Create(ctx, &secondary.ConclaveRecord{ID: "CON-001", CommissionID: "COMM-001", Title: "Conclave"})
 	_ = tomeRepo.Create(ctx, &secondary.TomeRecord{ID: "TOME-001", CommissionID: "COMM-001", Title: "Tome"})
 
 	// Create notes for each container
 	shipmentNote := &secondary.NoteRecord{ID: "NOTE-001", CommissionID: "COMM-001", Title: "Shipment Note", ShipmentID: "SHIP-001"}
-	invNote := &secondary.NoteRecord{ID: "NOTE-002", CommissionID: "COMM-001", Title: "Investigation Note", InvestigationID: "INV-001"}
-	conclaveNote := &secondary.NoteRecord{ID: "NOTE-003", CommissionID: "COMM-001", Title: "Conclave Note", ConclaveID: "CON-001"}
-	tomeNote := &secondary.NoteRecord{ID: "NOTE-004", CommissionID: "COMM-001", Title: "Tome Note", TomeID: "TOME-001"}
+	conclaveNote := &secondary.NoteRecord{ID: "NOTE-002", CommissionID: "COMM-001", Title: "Conclave Note", ConclaveID: "CON-001"}
+	tomeNote := &secondary.NoteRecord{ID: "NOTE-003", CommissionID: "COMM-001", Title: "Tome Note", TomeID: "TOME-001"}
 
 	_ = noteRepo.Create(ctx, shipmentNote)
-	_ = noteRepo.Create(ctx, invNote)
 	_ = noteRepo.Create(ctx, conclaveNote)
 	_ = noteRepo.Create(ctx, tomeNote)
 
@@ -450,11 +446,6 @@ func TestIntegration_NotesAcrossContainers(t *testing.T) {
 	shipmentNotes, _ := noteRepo.GetByContainer(ctx, "shipment", "SHIP-001")
 	if len(shipmentNotes) != 1 {
 		t.Errorf("expected 1 shipment note, got %d", len(shipmentNotes))
-	}
-
-	invNotes, _ := noteRepo.GetByContainer(ctx, "investigation", "INV-001")
-	if len(invNotes) != 1 {
-		t.Errorf("expected 1 investigation note, got %d", len(invNotes))
 	}
 
 	conclaveNotes, _ := noteRepo.GetByContainer(ctx, "conclave", "CON-001")
@@ -469,8 +460,8 @@ func TestIntegration_NotesAcrossContainers(t *testing.T) {
 
 	// Verify all notes in commission
 	allNotes, _ := noteRepo.List(ctx, secondary.NoteFilters{CommissionID: "COMM-001"})
-	if len(allNotes) != 4 {
-		t.Errorf("expected 4 notes total, got %d", len(allNotes))
+	if len(allNotes) != 3 {
+		t.Errorf("expected 3 notes total, got %d", len(allNotes))
 	}
 }
 
@@ -671,13 +662,11 @@ func TestIntegration_IDGenerationAcrossRepositories(t *testing.T) {
 	shipmentRepo := sqlite.NewShipmentRepository(db)
 	taskRepo := sqlite.NewTaskRepository(db)
 	planRepo := sqlite.NewPlanRepository(db)
-	investigationRepo := sqlite.NewInvestigationRepository(db)
 
 	// Get initial IDs
 	shipID, _ := shipmentRepo.GetNextID(ctx)
 	taskID, _ := taskRepo.GetNextID(ctx)
 	planID, _ := planRepo.GetNextID(ctx)
-	invID, _ := investigationRepo.GetNextID(ctx)
 
 	// Verify expected formats
 	if shipID != "SHIP-001" {
@@ -688,9 +677,6 @@ func TestIntegration_IDGenerationAcrossRepositories(t *testing.T) {
 	}
 	if planID != "PLAN-001" {
 		t.Errorf("expected PLAN-001, got %s", planID)
-	}
-	if invID != "INV-001" {
-		t.Errorf("expected INV-001, got %s", invID)
 	}
 
 	// Create entities

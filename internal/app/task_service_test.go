@@ -138,16 +138,6 @@ func (m *mockTaskRepository) GetByShipment(ctx context.Context, shipmentID strin
 	return result, nil
 }
 
-func (m *mockTaskRepository) GetByInvestigation(ctx context.Context, investigationID string) ([]*secondary.TaskRecord, error) {
-	var result []*secondary.TaskRecord
-	for _, t := range m.tasks {
-		if t.InvestigationID == investigationID {
-			result = append(result, t)
-		}
-	}
-	return result, nil
-}
-
 func (m *mockTaskRepository) UpdateStatus(ctx context.Context, id, status string, setClaimed, setCompleted bool) error {
 	if m.updateStatusErr != nil {
 		return m.updateStatusErr
