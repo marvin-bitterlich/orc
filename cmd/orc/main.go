@@ -4,11 +4,19 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 
 	"github.com/example/orc/internal/cli"
 	"github.com/example/orc/internal/version"
 )
+
+func init() {
+	// Respect CLICOLOR_FORCE for forcing colors when piped (e.g., in tmux popups)
+	if os.Getenv("CLICOLOR_FORCE") == "1" {
+		color.NoColor = false
+	}
+}
 
 func main() {
 	rootCmd := &cobra.Command{
@@ -17,6 +25,10 @@ func main() {
 		Version: version.String(),
 		Long: `ORC is a CLI tool for managing commissions, shipments, and tasks.
 It coordinates IMPs (Implementation Agents) working in isolated workbenches (worktrees).`,
+		PersistentPreRun: func(cmd *cobra.Command, args []string) {
+			// Apply global tmux bindings (idempotent, no-op if tmux not running)
+			cli.ApplyGlobalBindings()
+		},
 	}
 
 	// Add subcommands

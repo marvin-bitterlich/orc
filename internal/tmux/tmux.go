@@ -3,6 +3,7 @@ package tmux
 import (
 	"fmt"
 	"os/exec"
+	"strconv"
 	"strings"
 )
 
@@ -323,6 +324,117 @@ func (s *Session) SendEscape(target string) error {
 func (s *Session) SendEnter(target string) error {
 	cmd := exec.Command("tmux", "send-keys", "-t", target, "Enter")
 	return cmd.Run()
+}
+
+// RenameSession renames a tmux session.
+func RenameSession(oldName, newName string) error {
+	cmd := exec.Command("tmux", "rename-session", "-t", oldName, newName)
+	return cmd.Run()
+}
+
+// GetCurrentSessionName returns the name of the current tmux session.
+// Returns empty string if not in tmux or on error.
+func GetCurrentSessionName() string {
+	cmd := exec.Command("tmux", "display-message", "-p", "#{session_name}")
+	output, err := cmd.Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(output))
+}
+
+// SetOption sets a tmux option for a session.
+func SetOption(session, option, value string) error {
+	cmd := exec.Command("tmux", "set-option", "-t", session, option, value)
+	return cmd.Run()
+}
+
+// DisplayPopup shows a popup window with a command.
+func DisplayPopup(session, command string, width, height int, title string) error {
+	args := []string{"display-popup", "-t", session, "-E"}
+	if width > 0 {
+		args = append(args, "-w", strconv.Itoa(width))
+	}
+	if height > 0 {
+		args = append(args, "-h", strconv.Itoa(height))
+	}
+	if title != "" {
+		args = append(args, "-T", title)
+	}
+	args = append(args, command)
+	cmd := exec.Command("tmux", args...)
+	return cmd.Run()
+}
+
+// BindKey binds a key to a command for a session.
+func BindKey(session, key, command string) error {
+	// Use bind-key with -T root for global bindings (like mouse events)
+	cmd := exec.Command("tmux", "bind-key", "-T", "root", key, "run-shell", command)
+	return cmd.Run()
+}
+
+// BindKeyPopup binds a key to display a command in a popup.
+func BindKeyPopup(session, key, command string, width, height int, title, workingDir string) error {
+	args := []string{"bind-key", "-T", "root", key, "display-popup", "-E"}
+	if workingDir != "" {
+		args = append(args, "-d", workingDir)
+	}
+	if width > 0 {
+		args = append(args, "-w", strconv.Itoa(width))
+	}
+	if height > 0 {
+		args = append(args, "-h", strconv.Itoa(height))
+	}
+	if title != "" {
+		args = append(args, "-T", title)
+	}
+	args = append(args, command)
+	cmd := exec.Command("tmux", args...)
+	return cmd.Run()
+}
+
+// MenuItem represents an item in a tmux context menu.
+type MenuItem struct {
+	Label   string // Display text
+	Key     string // Shortcut key (single char, or "" for none)
+	Command string // tmux command to execute
+}
+
+// BindContextMenu binds a key to display a context menu.
+// Uses -x M -y M to position at mouse coordinates, -O to keep menu open.
+func BindContextMenu(key, title string, items []MenuItem) error {
+	args := []string{"bind-key", "-T", "root", key, "display-menu", "-O", "-T", title, "-x", "M", "-y", "M"}
+	for _, item := range items {
+		args = append(args, item.Label, item.Key, item.Command)
+	}
+	cmd := exec.Command("tmux", args...)
+	return cmd.Run()
+}
+
+// ApplyGlobalBindings sets up ORC's global tmux key bindings.
+// Safe to call repeatedly (idempotent). Silently ignores errors (tmux may not be running).
+func ApplyGlobalBindings() {
+	// Double-click status bar → orc summary popup
+	_ = BindKeyPopup("", "DoubleClick1Status",
+		"CLICOLOR_FORCE=1 orc summary | less -R",
+		100, 30, "ORC Summary", "#{pane_current_path}")
+
+	// Right-click status bar → context menu
+	_ = BindContextMenu("MouseDown3Status", " ORC ", []MenuItem{
+		// ORC custom options
+		{Label: "New Workbench Like This", Key: "n", Command: "run-shell 'cd #{pane_current_path} && orc workbench like'"},
+		{Label: "Show Summary", Key: "s", Command: "display-popup -E -w 100 -h 30 -T 'ORC Summary' 'cd #{pane_current_path} && CLICOLOR_FORCE=1 orc summary | less -R'"},
+		// Separator
+		{Label: "", Key: "", Command: ""},
+		// Default tmux window options
+		{Label: "Swap Left", Key: "<", Command: "swap-window -t :-1"},
+		{Label: "Swap Right", Key: ">", Command: "swap-window -t :+1"},
+		{Label: "#{?pane_marked,Unmark,Mark}", Key: "m", Command: "select-pane -m"},
+		{Label: "Kill", Key: "X", Command: "kill-window"},
+		{Label: "Respawn", Key: "R", Command: "respawn-window -k"},
+		{Label: "Rename", Key: "r", Command: "command-prompt -I \"#W\" \"rename-window -- '%%'\""},
+		{Label: "New Window", Key: "c", Command: "new-window"},
+	})
 }
 
 // NudgeSession sends a message to a running Claude session using the Gastown pattern

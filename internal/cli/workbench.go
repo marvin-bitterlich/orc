@@ -25,6 +25,7 @@ func WorkbenchCmd() *cobra.Command {
 	}
 
 	cmd.AddCommand(workbenchCreateCmd())
+	cmd.AddCommand(workbenchLikeCmd())
 	cmd.AddCommand(workbenchListCmd())
 	cmd.AddCommand(workbenchShowCmd())
 	cmd.AddCommand(workbenchRenameCmd())
@@ -110,6 +111,106 @@ Examples:
 	cmd.Flags().StringVar(&repoID, "repo-id", "", "Link to a repo entity (optional)")
 
 	return cmd
+}
+
+func workbenchLikeCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "like [name]",
+		Short: "Create a new workbench based on the current one",
+		Long: `Create a new workbench with the same workshop as the current workbench.
+
+Detects the current workbench from the working directory and creates a sibling
+workbench in the same workshop.
+
+Examples:
+  orc workbench like                    # Auto-generate name
+  orc workbench like auth-refactor-v2   # Specify name`,
+		Args: cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			ctx := context.Background()
+
+			// Get current directory
+			cwd, err := os.Getwd()
+			if err != nil {
+				return fmt.Errorf("failed to get working directory: %w", err)
+			}
+
+			// Detect source workbench from path
+			source, err := wire.WorkbenchService().GetWorkbenchByPath(ctx, cwd)
+			if err != nil {
+				return fmt.Errorf("not in a workbench directory: %w", err)
+			}
+
+			// Determine new name
+			newName := ""
+			if len(args) > 0 {
+				newName = args[0]
+			} else {
+				newName = generateSiblingName(source.Name)
+			}
+
+			// Create new workbench with same workshop
+			resp, err := wire.WorkbenchService().CreateWorkbench(ctx, primary.CreateWorkbenchRequest{
+				Name:       newName,
+				WorkshopID: source.WorkshopID,
+				RepoID:     source.RepoID,
+			})
+			if err != nil {
+				return fmt.Errorf("failed to create workbench: %w", err)
+			}
+
+			fmt.Printf("✓ Created workbench %s: %s\n", resp.WorkbenchID, resp.Workbench.Name)
+			fmt.Printf("  Based on: %s (%s)\n", source.ID, source.Name)
+			fmt.Printf("  Workshop: %s\n", resp.Workbench.WorkshopID)
+			fmt.Printf("  Path: %s\n", resp.Workbench.Path)
+
+			// Open in new tmux window if in tmux
+			if os.Getenv("TMUX") != "" {
+				// Get current TMux session name
+				sessionNameBytes, err := exec.Command("tmux", "display-message", "-p", "#S").Output()
+				if err == nil {
+					sessionName := strings.TrimSpace(string(sessionNameBytes))
+
+					// Get next window index
+					windowsOutput, err := exec.Command("tmux", "list-windows", "-t", sessionName, "-F", "#{window_index}").Output()
+					if err == nil {
+						var maxIndex int
+						lines := strings.Split(strings.TrimSpace(string(windowsOutput)), "\n")
+						for _, line := range lines {
+							if idx, err := strconv.Atoi(strings.TrimSpace(line)); err == nil && idx > maxIndex {
+								maxIndex = idx
+							}
+						}
+						nextIndex := maxIndex + 1
+
+						// Create workbench window
+						tmuxAdapter := wire.TMuxAdapter()
+						if err := tmuxAdapter.CreateWorkbenchWindow(ctx, sessionName, nextIndex, resp.Workbench.Name, resp.Workbench.Path); err == nil {
+							fmt.Printf("\n  Opened in tmux window: %s:%s\n", sessionName, resp.Workbench.Name)
+						}
+					}
+				}
+			}
+
+			return nil
+		},
+	}
+
+	return cmd
+}
+
+// generateSiblingName creates a sibling name like "auth-2", "auth-3"
+func generateSiblingName(baseName string) string {
+	// Strip trailing -N suffix if present
+	base := baseName
+	suffix := 2
+	if idx := strings.LastIndex(baseName, "-"); idx > 0 {
+		if n, err := strconv.Atoi(baseName[idx+1:]); err == nil {
+			base = baseName[:idx]
+			suffix = n + 1
+		}
+	}
+	return fmt.Sprintf("%s-%d", base, suffix)
 }
 
 func workbenchListCmd() *cobra.Command {

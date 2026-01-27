@@ -116,5 +116,61 @@ func (a *Adapter) RespawnPane(ctx context.Context, target string, command ...str
 	return tmuxpkg.RespawnPane(target, command...)
 }
 
+// RenameSession renames a TMux session.
+func (a *Adapter) RenameSession(ctx context.Context, session, newName string) error {
+	return tmuxpkg.RenameSession(session, newName)
+}
+
+// ConfigureStatusBar configures the TMux status bar.
+func (a *Adapter) ConfigureStatusBar(ctx context.Context, session string, config secondary.StatusBarConfig) error {
+	if config.StatusLeft != "" {
+		if err := tmuxpkg.SetOption(session, "status-left", config.StatusLeft); err != nil {
+			return err
+		}
+	}
+	if config.StatusRight != "" {
+		if err := tmuxpkg.SetOption(session, "status-right", config.StatusRight); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// DisplayPopup displays a popup in a TMux session.
+func (a *Adapter) DisplayPopup(ctx context.Context, session, command string, config secondary.PopupConfig) error {
+	return tmuxpkg.DisplayPopup(session, command, config.Width, config.Height, config.Title)
+}
+
+// ConfigureSessionBindings sets up key bindings for a session.
+func (a *Adapter) ConfigureSessionBindings(ctx context.Context, session string, bindings []secondary.KeyBinding) error {
+	for _, b := range bindings {
+		if err := tmuxpkg.BindKey(session, b.Key, b.Command); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// ConfigureSessionPopupBindings sets up key bindings that display popups.
+func (a *Adapter) ConfigureSessionPopupBindings(ctx context.Context, session string, bindings []secondary.PopupKeyBinding) error {
+	for _, b := range bindings {
+		if err := tmuxpkg.BindKeyPopup(session, b.Key, b.Command, b.Config.Width, b.Config.Height, b.Config.Title, b.Config.WorkingDir); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// GetCurrentSessionName returns the name of the current tmux session.
+func (a *Adapter) GetCurrentSessionName(ctx context.Context) string {
+	return tmuxpkg.GetCurrentSessionName()
+}
+
+// ApplyGlobalBindings sets up ORC's global tmux key bindings.
+// Safe to call repeatedly (idempotent). Silently ignores errors (tmux may not be running).
+func ApplyGlobalBindings() {
+	tmuxpkg.ApplyGlobalBindings()
+}
+
 // Ensure Adapter implements the interface
 var _ secondary.TMuxAdapter = (*Adapter)(nil)

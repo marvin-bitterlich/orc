@@ -274,6 +274,13 @@ func initServices() {
 	commissionOrchestrationService = app.NewCommissionOrchestrationService(commissionService, agentProvider)
 }
 
+// ApplyGlobalTMuxBindings sets up ORC's global tmux key bindings.
+// Safe to call repeatedly (idempotent). Silently ignores errors (tmux may not be running).
+// This is called on every orc command invocation to ensure bindings are always current.
+func ApplyGlobalTMuxBindings() {
+	tmuxadapter.ApplyGlobalBindings()
+}
+
 // CommissionAdapter returns a new CommissionAdapter writing to stdout.
 // Each call creates a new adapter (adapters are stateless translators).
 func CommissionAdapter() *cliadapter.CommissionAdapter {
