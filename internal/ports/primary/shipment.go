@@ -46,11 +46,13 @@ type ShipmentService interface {
 
 // CreateShipmentRequest contains parameters for creating a shipment.
 type CreateShipmentRequest struct {
-	CommissionID string
-	Title        string
-	Description  string
-	RepoID       string // Optional - link shipment to a repository for branch ownership
-	Branch       string // Optional - override auto-generated branch name
+	CommissionID  string
+	Title         string
+	Description   string
+	RepoID        string // Optional - link shipment to a repository for branch ownership
+	Branch        string // Optional - override auto-generated branch name
+	ContainerID   string // Required: CON-xxx or YARD-xxx
+	ContainerType string // Required: "conclave" or "shipyard"
 }
 
 // CreateShipmentResponse contains the result of creating a shipment.
@@ -77,6 +79,8 @@ type Shipment struct {
 	RepoID              string // Linked repository for branch ownership
 	Branch              string // Owned branch (e.g., ml/SHIP-001-feature-name)
 	Pinned              bool
+	ContainerID         string // CON-xxx or YARD-xxx
+	ContainerType       string // "conclave" or "shipyard"
 	CreatedAt           string
 	UpdatedAt           string
 	CompletedAt         string

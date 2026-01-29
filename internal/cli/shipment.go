@@ -27,6 +27,8 @@ var shipmentCreateCmd = &cobra.Command{
 		ctx := context.Background()
 		title := args[0]
 		commissionID, _ := cmd.Flags().GetString("commission")
+		conclaveID, _ := cmd.Flags().GetString("conclave")
+		useShipyard, _ := cmd.Flags().GetBool("shipyard")
 		description, _ := cmd.Flags().GetString("description")
 		repoID, _ := cmd.Flags().GetString("repo")
 		branch, _ := cmd.Flags().GetString("branch")
@@ -39,12 +41,37 @@ var shipmentCreateCmd = &cobra.Command{
 			}
 		}
 
+		// Validate container assignment - must specify one of --conclave or --shipyard
+		if conclaveID == "" && !useShipyard {
+			return fmt.Errorf("container assignment required: specify --conclave CON-xxx or --shipyard")
+		}
+		if conclaveID != "" && useShipyard {
+			return fmt.Errorf("specify either --conclave or --shipyard, not both")
+		}
+
+		// Resolve container
+		var containerID, containerType string
+		if useShipyard {
+			// Look up shipyard for this commission
+			yard, err := wire.ShipyardRepository().GetByCommissionID(ctx, commissionID)
+			if err != nil {
+				return fmt.Errorf("failed to get shipyard for commission: %w", err)
+			}
+			containerID = yard.ID
+			containerType = "shipyard"
+		} else {
+			containerID = conclaveID
+			containerType = "conclave"
+		}
+
 		resp, err := wire.ShipmentService().CreateShipment(ctx, primary.CreateShipmentRequest{
-			CommissionID: commissionID,
-			Title:        title,
-			Description:  description,
-			RepoID:       repoID,
-			Branch:       branch,
+			CommissionID:  commissionID,
+			Title:         title,
+			Description:   description,
+			RepoID:        repoID,
+			Branch:        branch,
+			ContainerID:   containerID,
+			ContainerType: containerType,
 		})
 		if err != nil {
 			return fmt.Errorf("failed to create shipment: %w", err)
@@ -52,6 +79,11 @@ var shipmentCreateCmd = &cobra.Command{
 
 		fmt.Printf("✓ Created shipment %s: %s\n", resp.Shipment.ID, resp.Shipment.Title)
 		fmt.Printf("  Under commission: %s\n", resp.Shipment.CommissionID)
+		if resp.Shipment.ContainerType == "conclave" {
+			fmt.Printf("  Conclave: %s\n", resp.Shipment.ContainerID)
+		} else if resp.Shipment.ContainerType == "shipyard" {
+			fmt.Printf("  Shipyard: %s\n", resp.Shipment.ContainerID)
+		}
 		if resp.Shipment.Branch != "" {
 			fmt.Printf("  Branch: %s\n", resp.Shipment.Branch)
 		}
@@ -298,6 +330,8 @@ var shipmentAssignCmd = &cobra.Command{
 func init() {
 	// shipment create flags
 	shipmentCreateCmd.Flags().StringP("commission", "c", "", "Commission ID (defaults to context)")
+	shipmentCreateCmd.Flags().String("conclave", "", "Parent conclave ID (CON-xxx)")
+	shipmentCreateCmd.Flags().Bool("shipyard", false, "Create in commission's shipyard")
 	shipmentCreateCmd.Flags().StringP("description", "d", "", "Shipment description")
 	shipmentCreateCmd.Flags().StringP("repo", "r", "", "Repository ID to link for branch ownership")
 	shipmentCreateCmd.Flags().String("branch", "", "Override auto-generated branch name")

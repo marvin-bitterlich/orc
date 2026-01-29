@@ -32,9 +32,17 @@ func (r *TomeRepository) Create(ctx context.Context, tome *secondary.TomeRecord)
 		conclaveID = sql.NullString{String: tome.ConclaveID, Valid: true}
 	}
 
+	var containerID, containerType sql.NullString
+	if tome.ContainerID != "" {
+		containerID = sql.NullString{String: tome.ContainerID, Valid: true}
+	}
+	if tome.ContainerType != "" {
+		containerType = sql.NullString{String: tome.ContainerType, Valid: true}
+	}
+
 	_, err := r.db.ExecContext(ctx,
-		"INSERT INTO tomes (id, commission_id, conclave_id, title, description, status) VALUES (?, ?, ?, ?, ?, ?)",
-		tome.ID, tome.CommissionID, conclaveID, tome.Title, desc, "open",
+		"INSERT INTO tomes (id, commission_id, conclave_id, title, description, status, container_id, container_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+		tome.ID, tome.CommissionID, conclaveID, tome.Title, desc, "open", containerID, containerType,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create tome: %w", err)
@@ -49,6 +57,8 @@ func (r *TomeRepository) GetByID(ctx context.Context, id string) (*secondary.Tom
 		desc                sql.NullString
 		conclaveID          sql.NullString
 		assignedWorkbenchID sql.NullString
+		containerID         sql.NullString
+		containerType       sql.NullString
 		pinned              bool
 		createdAt           time.Time
 		updatedAt           time.Time
@@ -57,9 +67,9 @@ func (r *TomeRepository) GetByID(ctx context.Context, id string) (*secondary.Tom
 
 	record := &secondary.TomeRecord{}
 	err := r.db.QueryRowContext(ctx,
-		"SELECT id, commission_id, conclave_id, title, description, status, assigned_workbench_id, pinned, created_at, updated_at, closed_at FROM tomes WHERE id = ?",
+		"SELECT id, commission_id, conclave_id, title, description, status, assigned_workbench_id, pinned, created_at, updated_at, closed_at, container_id, container_type FROM tomes WHERE id = ?",
 		id,
-	).Scan(&record.ID, &record.CommissionID, &conclaveID, &record.Title, &desc, &record.Status, &assignedWorkbenchID, &pinned, &createdAt, &updatedAt, &closedAt)
+	).Scan(&record.ID, &record.CommissionID, &conclaveID, &record.Title, &desc, &record.Status, &assignedWorkbenchID, &pinned, &createdAt, &updatedAt, &closedAt, &containerID, &containerType)
 
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("tome %s not found", id)
@@ -71,6 +81,8 @@ func (r *TomeRepository) GetByID(ctx context.Context, id string) (*secondary.Tom
 	record.Description = desc.String
 	record.ConclaveID = conclaveID.String
 	record.AssignedWorkbenchID = assignedWorkbenchID.String
+	record.ContainerID = containerID.String
+	record.ContainerType = containerType.String
 	record.Pinned = pinned
 	record.CreatedAt = createdAt.Format(time.RFC3339)
 	record.UpdatedAt = updatedAt.Format(time.RFC3339)
@@ -83,7 +95,7 @@ func (r *TomeRepository) GetByID(ctx context.Context, id string) (*secondary.Tom
 
 // List retrieves tomes matching the given filters.
 func (r *TomeRepository) List(ctx context.Context, filters secondary.TomeFilters) ([]*secondary.TomeRecord, error) {
-	query := "SELECT id, commission_id, conclave_id, title, description, status, assigned_workbench_id, pinned, created_at, updated_at, closed_at FROM tomes WHERE 1=1"
+	query := "SELECT id, commission_id, conclave_id, title, description, status, assigned_workbench_id, pinned, created_at, updated_at, closed_at, container_id, container_type FROM tomes WHERE 1=1"
 	args := []any{}
 
 	if filters.CommissionID != "" {
@@ -115,6 +127,8 @@ func (r *TomeRepository) List(ctx context.Context, filters secondary.TomeFilters
 			desc                sql.NullString
 			conclaveID          sql.NullString
 			assignedWorkbenchID sql.NullString
+			containerID         sql.NullString
+			containerType       sql.NullString
 			pinned              bool
 			createdAt           time.Time
 			updatedAt           time.Time
@@ -122,7 +136,7 @@ func (r *TomeRepository) List(ctx context.Context, filters secondary.TomeFilters
 		)
 
 		record := &secondary.TomeRecord{}
-		err := rows.Scan(&record.ID, &record.CommissionID, &conclaveID, &record.Title, &desc, &record.Status, &assignedWorkbenchID, &pinned, &createdAt, &updatedAt, &closedAt)
+		err := rows.Scan(&record.ID, &record.CommissionID, &conclaveID, &record.Title, &desc, &record.Status, &assignedWorkbenchID, &pinned, &createdAt, &updatedAt, &closedAt, &containerID, &containerType)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan tome: %w", err)
 		}
@@ -130,6 +144,8 @@ func (r *TomeRepository) List(ctx context.Context, filters secondary.TomeFilters
 		record.Description = desc.String
 		record.ConclaveID = conclaveID.String
 		record.AssignedWorkbenchID = assignedWorkbenchID.String
+		record.ContainerID = containerID.String
+		record.ContainerType = containerType.String
 		record.Pinned = pinned
 		record.CreatedAt = createdAt.Format(time.RFC3339)
 		record.UpdatedAt = updatedAt.Format(time.RFC3339)
@@ -266,7 +282,7 @@ func (r *TomeRepository) UpdateStatus(ctx context.Context, id, status string, se
 
 // GetByWorkbench retrieves tomes assigned to a workbench.
 func (r *TomeRepository) GetByWorkbench(ctx context.Context, workbenchID string) ([]*secondary.TomeRecord, error) {
-	query := "SELECT id, commission_id, conclave_id, title, description, status, assigned_workbench_id, pinned, created_at, updated_at, closed_at FROM tomes WHERE assigned_workbench_id = ?"
+	query := "SELECT id, commission_id, conclave_id, title, description, status, assigned_workbench_id, pinned, created_at, updated_at, closed_at, container_id, container_type FROM tomes WHERE assigned_workbench_id = ?"
 	rows, err := r.db.QueryContext(ctx, query, workbenchID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get tomes by workbench: %w", err)
@@ -279,6 +295,8 @@ func (r *TomeRepository) GetByWorkbench(ctx context.Context, workbenchID string)
 			desc                sql.NullString
 			conclaveID          sql.NullString
 			assignedWorkbenchID sql.NullString
+			containerID         sql.NullString
+			containerType       sql.NullString
 			pinned              bool
 			createdAt           time.Time
 			updatedAt           time.Time
@@ -286,7 +304,7 @@ func (r *TomeRepository) GetByWorkbench(ctx context.Context, workbenchID string)
 		)
 
 		record := &secondary.TomeRecord{}
-		err := rows.Scan(&record.ID, &record.CommissionID, &conclaveID, &record.Title, &desc, &record.Status, &assignedWorkbenchID, &pinned, &createdAt, &updatedAt, &closedAt)
+		err := rows.Scan(&record.ID, &record.CommissionID, &conclaveID, &record.Title, &desc, &record.Status, &assignedWorkbenchID, &pinned, &createdAt, &updatedAt, &closedAt, &containerID, &containerType)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan tome: %w", err)
 		}
@@ -294,6 +312,8 @@ func (r *TomeRepository) GetByWorkbench(ctx context.Context, workbenchID string)
 		record.Description = desc.String
 		record.ConclaveID = conclaveID.String
 		record.AssignedWorkbenchID = assignedWorkbenchID.String
+		record.ContainerID = containerID.String
+		record.ContainerType = containerType.String
 		record.Pinned = pinned
 		record.CreatedAt = createdAt.Format(time.RFC3339)
 		record.UpdatedAt = updatedAt.Format(time.RFC3339)
@@ -309,7 +329,7 @@ func (r *TomeRepository) GetByWorkbench(ctx context.Context, workbenchID string)
 
 // GetByConclave retrieves tomes belonging to a conclave.
 func (r *TomeRepository) GetByConclave(ctx context.Context, conclaveID string) ([]*secondary.TomeRecord, error) {
-	query := "SELECT id, commission_id, conclave_id, title, description, status, assigned_workbench_id, pinned, created_at, updated_at, closed_at FROM tomes WHERE conclave_id = ? ORDER BY created_at DESC"
+	query := "SELECT id, commission_id, conclave_id, title, description, status, assigned_workbench_id, pinned, created_at, updated_at, closed_at, container_id, container_type FROM tomes WHERE conclave_id = ? ORDER BY created_at DESC"
 	rows, err := r.db.QueryContext(ctx, query, conclaveID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get tomes by conclave: %w", err)
@@ -322,6 +342,8 @@ func (r *TomeRepository) GetByConclave(ctx context.Context, conclaveID string) (
 			desc                sql.NullString
 			conclaveIDVal       sql.NullString
 			assignedWorkbenchID sql.NullString
+			containerID         sql.NullString
+			containerType       sql.NullString
 			pinned              bool
 			createdAt           time.Time
 			updatedAt           time.Time
@@ -329,7 +351,7 @@ func (r *TomeRepository) GetByConclave(ctx context.Context, conclaveID string) (
 		)
 
 		record := &secondary.TomeRecord{}
-		err := rows.Scan(&record.ID, &record.CommissionID, &conclaveIDVal, &record.Title, &desc, &record.Status, &assignedWorkbenchID, &pinned, &createdAt, &updatedAt, &closedAt)
+		err := rows.Scan(&record.ID, &record.CommissionID, &conclaveIDVal, &record.Title, &desc, &record.Status, &assignedWorkbenchID, &pinned, &createdAt, &updatedAt, &closedAt, &containerID, &containerType)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan tome: %w", err)
 		}
@@ -337,6 +359,8 @@ func (r *TomeRepository) GetByConclave(ctx context.Context, conclaveID string) (
 		record.Description = desc.String
 		record.ConclaveID = conclaveIDVal.String
 		record.AssignedWorkbenchID = assignedWorkbenchID.String
+		record.ContainerID = containerID.String
+		record.ContainerType = containerType.String
 		record.Pinned = pinned
 		record.CreatedAt = createdAt.Format(time.RFC3339)
 		record.UpdatedAt = updatedAt.Format(time.RFC3339)

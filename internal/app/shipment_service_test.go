@@ -277,9 +277,11 @@ func TestCreateShipment_Success(t *testing.T) {
 	ctx := context.Background()
 
 	resp, err := service.CreateShipment(ctx, primary.CreateShipmentRequest{
-		CommissionID: "COMM-001",
-		Title:        "Test Shipment",
-		Description:  "A test shipment",
+		CommissionID:  "COMM-001",
+		Title:         "Test Shipment",
+		Description:   "A test shipment",
+		ContainerID:   "YARD-001",
+		ContainerType: "shipyard",
 	})
 
 	if err != nil {
@@ -294,6 +296,27 @@ func TestCreateShipment_Success(t *testing.T) {
 	if resp.Shipment.Status != "active" {
 		t.Errorf("expected status 'active', got '%s'", resp.Shipment.Status)
 	}
+	if resp.Shipment.ContainerID != "YARD-001" {
+		t.Errorf("expected container ID 'YARD-001', got '%s'", resp.Shipment.ContainerID)
+	}
+	if resp.Shipment.ContainerType != "shipyard" {
+		t.Errorf("expected container type 'shipyard', got '%s'", resp.Shipment.ContainerType)
+	}
+}
+
+func TestCreateShipment_MissingContainer(t *testing.T) {
+	service, _, _ := newTestShipmentService()
+	ctx := context.Background()
+
+	_, err := service.CreateShipment(ctx, primary.CreateShipmentRequest{
+		CommissionID: "COMM-001",
+		Title:        "Test Shipment",
+		Description:  "A test shipment",
+	})
+
+	if err == nil {
+		t.Fatal("expected error for missing container, got nil")
+	}
 }
 
 func TestCreateShipment_CommissionNotFound(t *testing.T) {
@@ -303,9 +326,11 @@ func TestCreateShipment_CommissionNotFound(t *testing.T) {
 	shipmentRepo.commissionExistsResult = false
 
 	_, err := service.CreateShipment(ctx, primary.CreateShipmentRequest{
-		CommissionID: "COMM-NONEXISTENT",
-		Title:        "Test Shipment",
-		Description:  "A test shipment",
+		CommissionID:  "COMM-NONEXISTENT",
+		Title:         "Test Shipment",
+		Description:   "A test shipment",
+		ContainerID:   "YARD-001",
+		ContainerType: "shipyard",
 	})
 
 	if err == nil {
@@ -320,9 +345,11 @@ func TestCreateShipment_CommissionValidationError(t *testing.T) {
 	shipmentRepo.commissionExistsErr = errors.New("database error")
 
 	_, err := service.CreateShipment(ctx, primary.CreateShipmentRequest{
-		CommissionID: "COMM-001",
-		Title:        "Test Shipment",
-		Description:  "A test shipment",
+		CommissionID:  "COMM-001",
+		Title:         "Test Shipment",
+		Description:   "A test shipment",
+		ContainerID:   "YARD-001",
+		ContainerType: "shipyard",
 	})
 
 	if err == nil {

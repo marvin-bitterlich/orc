@@ -18,6 +18,8 @@ type Shipment struct {
 	Status              string
 	AssignedWorkbenchID sql.NullString
 	Pinned              bool
+	ContainerID         sql.NullString // CON-xxx or YARD-xxx
+	ContainerType       sql.NullString // "conclave" or "shipyard"
 	CreatedAt           time.Time
 	UpdatedAt           time.Time
 	CompletedAt         sql.NullTime

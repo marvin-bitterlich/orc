@@ -28,6 +28,7 @@ var tomeCreateCmd = &cobra.Command{
 		title := args[0]
 		commissionID, _ := cmd.Flags().GetString("commission")
 		conclaveID, _ := cmd.Flags().GetString("conclave")
+		useLibrary, _ := cmd.Flags().GetBool("library")
 		description, _ := cmd.Flags().GetString("description")
 
 		// Get commission from context or require explicit flag
@@ -38,11 +39,36 @@ var tomeCreateCmd = &cobra.Command{
 			}
 		}
 
+		// Validate container assignment - must specify one of --conclave or --library
+		if conclaveID == "" && !useLibrary {
+			return fmt.Errorf("container assignment required: specify --conclave CON-xxx or --library")
+		}
+		if conclaveID != "" && useLibrary {
+			return fmt.Errorf("specify either --conclave or --library, not both")
+		}
+
+		// Resolve container
+		var containerID, containerType string
+		if useLibrary {
+			// Look up library for this commission
+			lib, err := wire.LibraryRepository().GetByCommissionID(ctx, commissionID)
+			if err != nil {
+				return fmt.Errorf("failed to get library for commission: %w", err)
+			}
+			containerID = lib.ID
+			containerType = "library"
+		} else {
+			containerID = conclaveID
+			containerType = "conclave"
+		}
+
 		resp, err := wire.TomeService().CreateTome(ctx, primary.CreateTomeRequest{
-			CommissionID: commissionID,
-			ConclaveID:   conclaveID,
-			Title:        title,
-			Description:  description,
+			CommissionID:  commissionID,
+			ConclaveID:    conclaveID,
+			Title:         title,
+			Description:   description,
+			ContainerID:   containerID,
+			ContainerType: containerType,
 		})
 		if err != nil {
 			return fmt.Errorf("failed to create tome: %w", err)
@@ -51,8 +77,10 @@ var tomeCreateCmd = &cobra.Command{
 		tome := resp.Tome
 		fmt.Printf("✓ Created tome %s: %s\n", tome.ID, tome.Title)
 		fmt.Printf("  Commission: %s\n", tome.CommissionID)
-		if tome.ConclaveID != "" {
-			fmt.Printf("  Conclave: %s\n", tome.ConclaveID)
+		if tome.ContainerType == "conclave" {
+			fmt.Printf("  Conclave: %s\n", tome.ContainerID)
+		} else if tome.ContainerType == "library" {
+			fmt.Printf("  Library: %s\n", tome.ContainerID)
 		}
 		fmt.Printf("  Status: %s\n", tome.Status)
 		fmt.Println()
@@ -259,7 +287,8 @@ var tomeDeleteCmd = &cobra.Command{
 func init() {
 	// tome create flags
 	tomeCreateCmd.Flags().StringP("commission", "c", "", "Commission ID (defaults to context)")
-	tomeCreateCmd.Flags().String("conclave", "", "Parent conclave ID (tome appears nested under this conclave in summary)")
+	tomeCreateCmd.Flags().String("conclave", "", "Parent conclave ID (CON-xxx)")
+	tomeCreateCmd.Flags().Bool("library", false, "Create in commission's library")
 	tomeCreateCmd.Flags().StringP("description", "d", "", "Tome description")
 
 	// tome list flags

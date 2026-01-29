@@ -40,10 +40,12 @@ type TomeService interface {
 
 // CreateTomeRequest contains parameters for creating a tome.
 type CreateTomeRequest struct {
-	CommissionID string
-	ConclaveID   string // Optional parent conclave
-	Title        string
-	Description  string
+	CommissionID  string
+	ConclaveID    string // DEPRECATED: use ContainerID/ContainerType instead
+	Title         string
+	Description   string
+	ContainerID   string // Required: CON-xxx or LIB-xxx
+	ContainerType string // Required: "conclave" or "library"
 }
 
 // CreateTomeResponse contains the result of creating a tome.
@@ -63,12 +65,14 @@ type UpdateTomeRequest struct {
 type Tome struct {
 	ID                  string
 	CommissionID        string
-	ConclaveID          string // Optional parent conclave
+	ConclaveID          string // DEPRECATED: use ContainerID/ContainerType instead
 	Title               string
 	Description         string
 	Status              string
 	AssignedWorkbenchID string
 	Pinned              bool
+	ContainerID         string // CON-xxx or LIB-xxx
+	ContainerType       string // "conclave" or "library"
 	CreatedAt           string
 	UpdatedAt           string
 	ClosedAt            string

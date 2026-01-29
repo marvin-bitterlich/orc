@@ -8,12 +8,14 @@ import (
 type Tome struct {
 	ID                  string
 	CommissionID        string
-	ConclaveID          sql.NullString // Optional parent conclave
+	ConclaveID          sql.NullString // Optional parent conclave (legacy, use ContainerID)
 	Title               string
 	Description         sql.NullString
 	Status              string
 	AssignedWorkbenchID sql.NullString
 	Pinned              bool
+	ContainerID         sql.NullString // CON-xxx or LIB-xxx
+	ContainerType       sql.NullString // "conclave" or "library"
 	CreatedAt           time.Time
 	UpdatedAt           time.Time
 	ClosedAt            sql.NullTime

@@ -28,6 +28,16 @@ func NewShipmentService(
 
 // CreateShipment creates a new shipment for a commission.
 func (s *ShipmentServiceImpl) CreateShipment(ctx context.Context, req primary.CreateShipmentRequest) (*primary.CreateShipmentResponse, error) {
+	// Validate container assignment is provided
+	if req.ContainerID == "" || req.ContainerType == "" {
+		return nil, fmt.Errorf("container assignment required: specify --conclave CON-xxx or --shipyard")
+	}
+
+	// Validate container type
+	if req.ContainerType != "conclave" && req.ContainerType != "shipyard" {
+		return nil, fmt.Errorf("invalid container type %q: must be 'conclave' or 'shipyard'", req.ContainerType)
+	}
+
 	// Validate commission exists
 	exists, err := s.shipmentRepo.CommissionExists(ctx, req.CommissionID)
 	if err != nil {
@@ -56,13 +66,15 @@ func (s *ShipmentServiceImpl) CreateShipment(ctx context.Context, req primary.Cr
 
 	// Create record
 	record := &secondary.ShipmentRecord{
-		ID:           nextID,
-		CommissionID: req.CommissionID,
-		Title:        req.Title,
-		Description:  req.Description,
-		RepoID:       req.RepoID,
-		Branch:       branch,
-		Status:       "active",
+		ID:            nextID,
+		CommissionID:  req.CommissionID,
+		Title:         req.Title,
+		Description:   req.Description,
+		RepoID:        req.RepoID,
+		Branch:        branch,
+		Status:        "active",
+		ContainerID:   req.ContainerID,
+		ContainerType: req.ContainerType,
 	}
 
 	if err := s.shipmentRepo.Create(ctx, record); err != nil {
@@ -244,6 +256,8 @@ func (s *ShipmentServiceImpl) recordToShipment(r *secondary.ShipmentRecord) *pri
 		RepoID:              r.RepoID,
 		Branch:              r.Branch,
 		Pinned:              r.Pinned,
+		ContainerID:         r.ContainerID,
+		ContainerType:       r.ContainerType,
 		CreatedAt:           r.CreatedAt,
 		UpdatedAt:           r.UpdatedAt,
 		CompletedAt:         r.CompletedAt,

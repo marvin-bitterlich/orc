@@ -27,6 +27,16 @@ func NewTomeService(
 
 // CreateTome creates a new tome (knowledge container).
 func (s *TomeServiceImpl) CreateTome(ctx context.Context, req primary.CreateTomeRequest) (*primary.CreateTomeResponse, error) {
+	// Validate container assignment is provided
+	if req.ContainerID == "" || req.ContainerType == "" {
+		return nil, fmt.Errorf("container assignment required: specify --conclave CON-xxx or --library")
+	}
+
+	// Validate container type
+	if req.ContainerType != "conclave" && req.ContainerType != "library" {
+		return nil, fmt.Errorf("invalid container type %q: must be 'conclave' or 'library'", req.ContainerType)
+	}
+
 	// Validate commission exists
 	exists, err := s.tomeRepo.CommissionExists(ctx, req.CommissionID)
 	if err != nil {
@@ -42,14 +52,22 @@ func (s *TomeServiceImpl) CreateTome(ctx context.Context, req primary.CreateTome
 		return nil, fmt.Errorf("failed to generate tome ID: %w", err)
 	}
 
+	// Set ConclaveID for backwards compatibility if container is a conclave
+	conclaveID := req.ConclaveID
+	if req.ContainerType == "conclave" && conclaveID == "" {
+		conclaveID = req.ContainerID
+	}
+
 	// Create record
 	record := &secondary.TomeRecord{
-		ID:           nextID,
-		CommissionID: req.CommissionID,
-		ConclaveID:   req.ConclaveID,
-		Title:        req.Title,
-		Description:  req.Description,
-		Status:       "open",
+		ID:            nextID,
+		CommissionID:  req.CommissionID,
+		ConclaveID:    conclaveID,
+		Title:         req.Title,
+		Description:   req.Description,
+		Status:        "open",
+		ContainerID:   req.ContainerID,
+		ContainerType: req.ContainerType,
 	}
 
 	if err := s.tomeRepo.Create(ctx, record); err != nil {
@@ -178,6 +196,8 @@ func (s *TomeServiceImpl) recordToTome(r *secondary.TomeRecord) *primary.Tome {
 		Status:              r.Status,
 		AssignedWorkbenchID: r.AssignedWorkbenchID,
 		Pinned:              r.Pinned,
+		ContainerID:         r.ContainerID,
+		ContainerType:       r.ContainerType,
 		CreatedAt:           r.CreatedAt,
 		UpdatedAt:           r.UpdatedAt,
 		ClosedAt:            r.ClosedAt,

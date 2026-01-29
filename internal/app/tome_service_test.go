@@ -241,9 +241,11 @@ func TestCreateTome_Success(t *testing.T) {
 	ctx := context.Background()
 
 	resp, err := service.CreateTome(ctx, primary.CreateTomeRequest{
-		CommissionID: "COMM-001",
-		Title:        "Test Tome",
-		Description:  "A test tome",
+		CommissionID:  "COMM-001",
+		Title:         "Test Tome",
+		Description:   "A test tome",
+		ContainerID:   "LIB-001",
+		ContainerType: "library",
 	})
 
 	if err != nil {
@@ -258,6 +260,27 @@ func TestCreateTome_Success(t *testing.T) {
 	if resp.Tome.Status != "open" {
 		t.Errorf("expected status 'active', got '%s'", resp.Tome.Status)
 	}
+	if resp.Tome.ContainerID != "LIB-001" {
+		t.Errorf("expected container ID 'LIB-001', got '%s'", resp.Tome.ContainerID)
+	}
+	if resp.Tome.ContainerType != "library" {
+		t.Errorf("expected container type 'library', got '%s'", resp.Tome.ContainerType)
+	}
+}
+
+func TestCreateTome_MissingContainer(t *testing.T) {
+	service, _, _ := newTestTomeService()
+	ctx := context.Background()
+
+	_, err := service.CreateTome(ctx, primary.CreateTomeRequest{
+		CommissionID: "COMM-001",
+		Title:        "Test Tome",
+		Description:  "A test tome",
+	})
+
+	if err == nil {
+		t.Fatal("expected error for missing container, got nil")
+	}
 }
 
 func TestCreateTome_CommissionNotFound(t *testing.T) {
@@ -267,9 +290,11 @@ func TestCreateTome_CommissionNotFound(t *testing.T) {
 	tomeRepo.commissionExistsResult = false
 
 	_, err := service.CreateTome(ctx, primary.CreateTomeRequest{
-		CommissionID: "COMM-NONEXISTENT",
-		Title:        "Test Tome",
-		Description:  "A test tome",
+		CommissionID:  "COMM-NONEXISTENT",
+		Title:         "Test Tome",
+		Description:   "A test tome",
+		ContainerID:   "LIB-001",
+		ContainerType: "library",
 	})
 
 	if err == nil {

@@ -43,6 +43,8 @@ var (
 	receiptService                 primary.ReceiptService
 	commissionOrchestrationService *app.CommissionOrchestrationService
 	tmuxService                    secondary.TMuxAdapter
+	libraryRepo                    secondary.LibraryRepository
+	shipyardRepo                   secondary.ShipyardRepository
 	once                           sync.Once
 )
 
@@ -184,6 +186,18 @@ func TMuxAdapter() secondary.TMuxAdapter {
 	return tmuxService
 }
 
+// LibraryRepository returns the singleton LibraryRepository instance.
+func LibraryRepository() secondary.LibraryRepository {
+	once.Do(initServices)
+	return libraryRepo
+}
+
+// ShipyardRepository returns the singleton ShipyardRepository instance.
+func ShipyardRepository() secondary.ShipyardRepository {
+	once.Do(initServices)
+	return shipyardRepo
+}
+
 // initServices initializes all services and their dependencies.
 // This is called once via sync.Once.
 func initServices() {
@@ -274,6 +288,10 @@ func initServices() {
 
 	// Create orchestration services
 	commissionOrchestrationService = app.NewCommissionOrchestrationService(commissionService, agentProvider)
+
+	// Create library and shipyard repositories (used by CLI for container lookup)
+	libraryRepo = sqlite.NewLibraryRepository(database)
+	shipyardRepo = sqlite.NewShipyardRepository(database)
 }
 
 // ApplyGlobalTMuxBindings sets up ORC's global tmux key bindings.
