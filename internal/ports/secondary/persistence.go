@@ -681,19 +681,12 @@ type PlanRepository interface {
 
 	// ShipmentExists checks if a shipment exists (for validation).
 	ShipmentExists(ctx context.Context, shipmentID string) (bool, error)
-
-	// CycleExists checks if a cycle exists (for validation).
-	CycleExists(ctx context.Context, cycleID string) (bool, error)
-
-	// GetByCycle retrieves plans for a cycle.
-	GetByCycle(ctx context.Context, cycleID string) ([]*PlanRecord, error)
 }
 
 // PlanRecord represents a plan as stored in persistence.
 type PlanRecord struct {
 	ID               string
 	ShipmentID       string // Empty string means null
-	CycleID          string // Empty string means null
 	CommissionID     string
 	Title            string
 	Description      string // Empty string means null
@@ -711,7 +704,6 @@ type PlanRecord struct {
 // PlanFilters contains filter options for querying plans.
 type PlanFilters struct {
 	ShipmentID   string
-	CycleID      string
 	CommissionID string
 	Status       string
 }
@@ -1034,237 +1026,6 @@ type WorkbenchRecord struct {
 	UpdatedAt     string
 }
 
-// WorkOrderRepository defines the secondary port for workOrder persistence.
-type WorkOrderRepository interface {
-	// Create persists a new workOrder.
-	Create(ctx context.Context, workOrder *WorkOrderRecord) error
-
-	// GetByID retrieves a workOrder by its ID.
-	GetByID(ctx context.Context, id string) (*WorkOrderRecord, error)
-
-	// List retrieves work_orders matching the given filters.
-	List(ctx context.Context, filters WorkOrderFilters) ([]*WorkOrderRecord, error)
-
-	// Update updates an existing workOrder.
-	Update(ctx context.Context, workOrder *WorkOrderRecord) error
-
-	// Delete removes a workOrder from persistence.
-	Delete(ctx context.Context, id string) error
-
-	// GetNextID returns the next available workOrder ID.
-	GetNextID(ctx context.Context) (string, error)
-
-	// ShipmentExists checks if a shipment exists.
-	ShipmentExists(ctx context.Context, shipmentID string) (bool, error)
-
-	// ShipmentHasWorkOrder checks if a shipment already has a workOrder (for 1:1 relationships).
-	ShipmentHasWorkOrder(ctx context.Context, shipmentID string) (bool, error)
-
-	// GetByShipment retrieves a work order by its shipment ID.
-	GetByShipment(ctx context.Context, shipmentID string) (*WorkOrderRecord, error)
-
-	// UpdateStatus updates the status of a work order.
-	UpdateStatus(ctx context.Context, id, status string) error
-}
-
-// WorkOrderRecord represents a workOrder as stored in persistence.
-type WorkOrderRecord struct {
-	ID                 string
-	ShipmentID         string
-	Outcome            string
-	AcceptanceCriteria string // JSON array, empty string means null
-	Status             string
-	CreatedAt          string
-	UpdatedAt          string
-}
-
-// WorkOrderFilters contains filter options for querying work_orders.
-type WorkOrderFilters struct {
-	ShipmentID string
-	Status     string
-}
-
-// CycleRepository defines the secondary port for cycle persistence.
-type CycleRepository interface {
-	// Create persists a new cycle.
-	Create(ctx context.Context, cycle *CycleRecord) error
-
-	// GetByID retrieves a cycle by its ID.
-	GetByID(ctx context.Context, id string) (*CycleRecord, error)
-
-	// List retrieves cycles matching the given filters.
-	List(ctx context.Context, filters CycleFilters) ([]*CycleRecord, error)
-
-	// Update updates an existing cycle.
-	Update(ctx context.Context, cycle *CycleRecord) error
-
-	// Delete removes a cycle from persistence.
-	Delete(ctx context.Context, id string) error
-
-	// GetNextID returns the next available cycle ID.
-	GetNextID(ctx context.Context) (string, error)
-
-	// ShipmentExists checks if a shipment exists.
-	ShipmentExists(ctx context.Context, shipmentID string) (bool, error)
-
-	// GetNextSequenceNumber returns the next sequence number for a shipment.
-	GetNextSequenceNumber(ctx context.Context, shipmentID string) (int64, error)
-
-	// GetActiveCycle returns the active cycle for a shipment (if any).
-	GetActiveCycle(ctx context.Context, shipmentID string) (*CycleRecord, error)
-
-	// GetByShipmentAndSequence returns a specific cycle by shipment and sequence number.
-	GetByShipmentAndSequence(ctx context.Context, shipmentID string, seq int64) (*CycleRecord, error)
-
-	// UpdateStatus updates cycle status and optional timestamps.
-	UpdateStatus(ctx context.Context, id, status string, setStarted, setCompleted bool) error
-}
-
-// CycleRecord represents a cycle as stored in persistence.
-type CycleRecord struct {
-	ID             string
-	ShipmentID     string
-	SequenceNumber int64
-	Status         string
-	CreatedAt      string
-	UpdatedAt      string
-	StartedAt      string // Empty string means null
-	CompletedAt    string // Empty string means null
-}
-
-// CycleFilters contains filter options for querying cycles.
-type CycleFilters struct {
-	ShipmentID string
-	Status     string
-}
-
-// CycleWorkOrderRepository defines the secondary port for cycle work order persistence.
-type CycleWorkOrderRepository interface {
-	// Create persists a new cycle work order.
-	Create(ctx context.Context, cwo *CycleWorkOrderRecord) error
-
-	// GetByID retrieves a cycle work order by its ID.
-	GetByID(ctx context.Context, id string) (*CycleWorkOrderRecord, error)
-
-	// GetByCycle retrieves a cycle work order by its cycle ID.
-	GetByCycle(ctx context.Context, cycleID string) (*CycleWorkOrderRecord, error)
-
-	// List retrieves cycle work orders matching the given filters.
-	List(ctx context.Context, filters CycleWorkOrderFilters) ([]*CycleWorkOrderRecord, error)
-
-	// Update updates an existing cycle work order.
-	Update(ctx context.Context, cwo *CycleWorkOrderRecord) error
-
-	// Delete removes a cycle work order from persistence.
-	Delete(ctx context.Context, id string) error
-
-	// GetNextID returns the next available cycle work order ID.
-	GetNextID(ctx context.Context) (string, error)
-
-	// UpdateStatus updates the status of a cycle work order.
-	UpdateStatus(ctx context.Context, id, status string) error
-
-	// Validation helpers (for guards to query)
-
-	// CycleExists checks if a cycle exists.
-	CycleExists(ctx context.Context, cycleID string) (bool, error)
-
-	// ShipmentExists checks if a shipment exists.
-	ShipmentExists(ctx context.Context, shipmentID string) (bool, error)
-
-	// CycleHasCWO checks if a cycle already has a CWO (for 1:1 constraint).
-	CycleHasCWO(ctx context.Context, cycleID string) (bool, error)
-
-	// GetCycleStatus retrieves the status of a cycle.
-	GetCycleStatus(ctx context.Context, cycleID string) (string, error)
-
-	// GetCycleShipmentID retrieves the shipment ID for a cycle.
-	GetCycleShipmentID(ctx context.Context, cycleID string) (string, error)
-}
-
-// CycleWorkOrderRecord represents a cycle work order as stored in persistence.
-type CycleWorkOrderRecord struct {
-	ID                 string
-	CycleID            string
-	ShipmentID         string
-	Outcome            string
-	AcceptanceCriteria string // JSON array, empty string means null
-	Status             string
-	CreatedAt          string
-	UpdatedAt          string
-}
-
-// CycleWorkOrderFilters contains filter options for querying cycle work orders.
-type CycleWorkOrderFilters struct {
-	CycleID    string
-	ShipmentID string
-	Status     string
-}
-
-// CycleReceiptRepository defines the secondary port for cycle receipt persistence.
-type CycleReceiptRepository interface {
-	// Create persists a new cycle receipt.
-	Create(ctx context.Context, crec *CycleReceiptRecord) error
-
-	// GetByID retrieves a cycle receipt by its ID.
-	GetByID(ctx context.Context, id string) (*CycleReceiptRecord, error)
-
-	// GetByCWO retrieves a cycle receipt by its CWO ID.
-	GetByCWO(ctx context.Context, cwoID string) (*CycleReceiptRecord, error)
-
-	// List retrieves cycle receipts matching the given filters.
-	List(ctx context.Context, filters CycleReceiptFilters) ([]*CycleReceiptRecord, error)
-
-	// Update updates an existing cycle receipt.
-	Update(ctx context.Context, crec *CycleReceiptRecord) error
-
-	// Delete removes a cycle receipt from persistence.
-	Delete(ctx context.Context, id string) error
-
-	// GetNextID returns the next available cycle receipt ID.
-	GetNextID(ctx context.Context) (string, error)
-
-	// UpdateStatus updates the status of a cycle receipt.
-	UpdateStatus(ctx context.Context, id, status string) error
-
-	// Validation helpers (for guards to query)
-
-	// CWOExists checks if a CWO exists.
-	CWOExists(ctx context.Context, cwoID string) (bool, error)
-
-	// CWOHasCREC checks if a CWO already has a CREC (for 1:1 constraint).
-	CWOHasCREC(ctx context.Context, cwoID string) (bool, error)
-
-	// GetCWOStatus retrieves the status of a CWO.
-	GetCWOStatus(ctx context.Context, cwoID string) (string, error)
-
-	// GetCWOShipmentID retrieves the shipment ID for a CWO.
-	GetCWOShipmentID(ctx context.Context, cwoID string) (string, error)
-
-	// GetCWOCycleID retrieves the cycle ID for a CWO.
-	GetCWOCycleID(ctx context.Context, cwoID string) (string, error)
-}
-
-// CycleReceiptRecord represents a cycle receipt as stored in persistence.
-type CycleReceiptRecord struct {
-	ID                string
-	CWOID             string
-	ShipmentID        string
-	DeliveredOutcome  string
-	Evidence          string // Empty string means null
-	VerificationNotes string // Empty string means null
-	Status            string
-	CreatedAt         string
-	UpdatedAt         string
-}
-
-// CycleReceiptFilters contains filter options for querying cycle receipts.
-type CycleReceiptFilters struct {
-	CWOID      string
-	ShipmentID string
-	Status     string
-}
-
 // ReceiptRepository defines the secondary port for receipt persistence.
 type ReceiptRepository interface {
 	// Create persists a new receipt.
@@ -1298,12 +1059,6 @@ type ReceiptRepository interface {
 
 	// ShipmentHasREC checks if a shipment already has a REC (for 1:1 constraint).
 	ShipmentHasREC(ctx context.Context, shipmentID string) (bool, error)
-
-	// GetWOStatus retrieves the status of a shipment's Work Order.
-	GetWOStatus(ctx context.Context, shipmentID string) (string, error)
-
-	// AllCRECsVerified checks if all CRECs for a shipment are verified.
-	AllCRECsVerified(ctx context.Context, shipmentID string) (bool, error)
 }
 
 // ReceiptRecord represents a receipt as stored in persistence.

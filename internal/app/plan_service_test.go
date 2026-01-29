@@ -177,28 +177,13 @@ func (m *mockPlanRepository) ShipmentExists(ctx context.Context, shipmentID stri
 	return m.shipmentExistsResult, nil
 }
 
-func (m *mockPlanRepository) CycleExists(ctx context.Context, cycleID string) (bool, error) {
-	// Default to true for backwards compatibility with existing tests
-	return true, nil
-}
-
-func (m *mockPlanRepository) GetByCycle(ctx context.Context, cycleID string) ([]*secondary.PlanRecord, error) {
-	var result []*secondary.PlanRecord
-	for _, p := range m.plans {
-		if p.CycleID == cycleID {
-			result = append(result, p)
-		}
-	}
-	return result, nil
-}
-
 // ============================================================================
 // Test Helper
 // ============================================================================
 
 func newTestPlanService() (*PlanServiceImpl, *mockPlanRepository) {
 	planRepo := newMockPlanRepository()
-	service := NewPlanService(planRepo, nil) // nil cycleService for basic tests
+	service := NewPlanService(planRepo)
 	return service, planRepo
 }
 

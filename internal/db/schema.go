@@ -261,7 +261,6 @@ CREATE TABLE IF NOT EXISTS plans (
 	id TEXT PRIMARY KEY,
 	commission_id TEXT NOT NULL,
 	shipment_id TEXT,
-	cycle_id TEXT,
 	title TEXT NOT NULL,
 	description TEXT,
 	content TEXT,
@@ -275,7 +274,6 @@ CREATE TABLE IF NOT EXISTS plans (
 	promoted_from_type TEXT,
 	FOREIGN KEY (commission_id) REFERENCES commissions(id),
 	FOREIGN KEY (shipment_id) REFERENCES shipments(id) ON DELETE SET NULL,
-	FOREIGN KEY (cycle_id) REFERENCES cycles(id) ON DELETE SET NULL,
 	FOREIGN KEY (conclave_id) REFERENCES conclaves(id) ON DELETE SET NULL
 );
 
@@ -358,7 +356,6 @@ CREATE INDEX IF NOT EXISTS idx_prs_commission ON prs(commission_id);
 CREATE INDEX IF NOT EXISTS idx_prs_status ON prs(status);
 CREATE INDEX IF NOT EXISTS idx_plans_commission ON plans(commission_id);
 CREATE INDEX IF NOT EXISTS idx_plans_status ON plans(status);
-CREATE INDEX IF NOT EXISTS idx_plans_cycle ON plans(cycle_id);
 CREATE INDEX IF NOT EXISTS idx_conclaves_commission ON conclaves(commission_id);
 CREATE INDEX IF NOT EXISTS idx_conclaves_status ON conclaves(status);
 CREATE INDEX IF NOT EXISTS idx_notes_commission ON notes(commission_id);
@@ -367,75 +364,6 @@ CREATE INDEX IF NOT EXISTS idx_libraries_commission ON libraries(commission_id);
 CREATE INDEX IF NOT EXISTS idx_shipyards_commission ON shipyards(commission_id);
 CREATE INDEX IF NOT EXISTS idx_tomes_container ON tomes(container_id);
 CREATE INDEX IF NOT EXISTS idx_shipments_container ON shipments(container_id);
-
--- Work Orders (1:1 with Shipment)
-CREATE TABLE IF NOT EXISTS work_orders (
-	id TEXT PRIMARY KEY,
-	shipment_id TEXT NOT NULL UNIQUE,
-	outcome TEXT NOT NULL,
-	acceptance_criteria TEXT,  -- JSON array of criteria
-	status TEXT NOT NULL CHECK(status IN ('draft', 'active', 'complete')) DEFAULT 'draft',
-	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-	updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-	FOREIGN KEY (shipment_id) REFERENCES shipments(id) ON DELETE CASCADE
-);
-
--- Cycles (n:1 with Shipment, ordered)
-CREATE TABLE IF NOT EXISTS cycles (
-	id TEXT PRIMARY KEY,
-	shipment_id TEXT NOT NULL,
-	sequence_number INTEGER NOT NULL,
-	status TEXT NOT NULL CHECK(status IN ('draft', 'approved', 'implementing', 'review', 'complete', 'blocked', 'closed', 'failed')) DEFAULT 'draft',
-	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-	updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-	started_at DATETIME,
-	completed_at DATETIME,
-	FOREIGN KEY (shipment_id) REFERENCES shipments(id) ON DELETE CASCADE,
-	UNIQUE(shipment_id, sequence_number)
-);
-
-CREATE INDEX IF NOT EXISTS idx_work_orders_shipment ON work_orders(shipment_id);
-CREATE INDEX IF NOT EXISTS idx_work_orders_status ON work_orders(status);
-CREATE INDEX IF NOT EXISTS idx_cycles_shipment ON cycles(shipment_id);
-CREATE INDEX IF NOT EXISTS idx_cycles_status ON cycles(status);
-CREATE INDEX IF NOT EXISTS idx_cycles_sequence ON cycles(shipment_id, sequence_number);
-
--- Cycle Work Orders (1:1 with Cycle)
-CREATE TABLE IF NOT EXISTS cycle_work_orders (
-	id TEXT PRIMARY KEY,
-	cycle_id TEXT NOT NULL UNIQUE,
-	shipment_id TEXT NOT NULL,
-	outcome TEXT NOT NULL,
-	acceptance_criteria TEXT,  -- JSON array of criteria
-	status TEXT NOT NULL CHECK(status IN ('draft', 'active', 'complete')) DEFAULT 'draft',
-	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-	updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-	FOREIGN KEY (cycle_id) REFERENCES cycles(id) ON DELETE CASCADE,
-	FOREIGN KEY (shipment_id) REFERENCES shipments(id) ON DELETE CASCADE
-);
-
-CREATE INDEX IF NOT EXISTS idx_cycle_work_orders_cycle ON cycle_work_orders(cycle_id);
-CREATE INDEX IF NOT EXISTS idx_cycle_work_orders_shipment ON cycle_work_orders(shipment_id);
-CREATE INDEX IF NOT EXISTS idx_cycle_work_orders_status ON cycle_work_orders(status);
-
--- Cycle Receipts (1:1 with CWO)
-CREATE TABLE IF NOT EXISTS cycle_receipts (
-	id TEXT PRIMARY KEY,
-	cwo_id TEXT NOT NULL UNIQUE,
-	shipment_id TEXT NOT NULL,
-	delivered_outcome TEXT NOT NULL,
-	evidence TEXT,
-	verification_notes TEXT,
-	status TEXT NOT NULL CHECK(status IN ('draft', 'submitted', 'verified')) DEFAULT 'draft',
-	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-	updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-	FOREIGN KEY (cwo_id) REFERENCES cycle_work_orders(id) ON DELETE CASCADE,
-	FOREIGN KEY (shipment_id) REFERENCES shipments(id) ON DELETE CASCADE
-);
-
-CREATE INDEX IF NOT EXISTS idx_cycle_receipts_cwo ON cycle_receipts(cwo_id);
-CREATE INDEX IF NOT EXISTS idx_cycle_receipts_shipment ON cycle_receipts(shipment_id);
-CREATE INDEX IF NOT EXISTS idx_cycle_receipts_status ON cycle_receipts(status);
 
 -- Receipts (1:1 with Shipment)
 CREATE TABLE IF NOT EXISTS receipts (
@@ -497,7 +425,7 @@ func InitSchema() error {
 				return err
 			}
 			// Insert all migration versions as applied
-			for i := 1; i <= 44; i++ {
+			for i := 1; i <= 45; i++ {
 				_, err = db.Exec("INSERT INTO schema_version (version) VALUES (?)", i)
 				if err != nil {
 					return err

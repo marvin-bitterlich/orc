@@ -31,11 +31,8 @@ type CreateRECContext struct {
 
 // StatusTransitionContext provides context for status transition guards.
 type StatusTransitionContext struct {
-	RECID            string
-	CurrentStatus    string
-	WOStatus         string
-	WOExists         bool
-	AllCRECsVerified bool
+	RECID         string
+	CurrentStatus string
 }
 
 // CanCreateREC evaluates whether a REC can be created.
@@ -74,38 +71,12 @@ func CanCreateREC(ctx CreateRECContext) GuardResult {
 // CanSubmit evaluates whether a REC can be submitted.
 // Rules:
 // - REC must be in draft status
-// - WO must be complete
-// - All CRECs must be verified
 func CanSubmit(ctx StatusTransitionContext) GuardResult {
 	// Rule 1: Must be in draft status
 	if ctx.CurrentStatus != "draft" {
 		return GuardResult{
 			Allowed: false,
 			Reason:  fmt.Sprintf("can only submit draft RECs (current status: %s)", ctx.CurrentStatus),
-		}
-	}
-
-	// Rule 2: WO must exist
-	if !ctx.WOExists {
-		return GuardResult{
-			Allowed: false,
-			Reason:  "cannot submit REC: Work Order not found",
-		}
-	}
-
-	// Rule 3: WO must be complete
-	if ctx.WOStatus != "complete" {
-		return GuardResult{
-			Allowed: false,
-			Reason:  fmt.Sprintf("cannot submit REC: Work Order is not complete (status: %s)", ctx.WOStatus),
-		}
-	}
-
-	// Rule 4: All CRECs must be verified
-	if !ctx.AllCRECsVerified {
-		return GuardResult{
-			Allowed: false,
-			Reason:  "cannot submit REC: not all CRECs are verified",
 		}
 	}
 

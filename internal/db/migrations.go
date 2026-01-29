@@ -234,6 +234,11 @@ var migrations = []Migration{
 		Name:    "add_active_commission_id_to_workshops",
 		Up:      migrationV44,
 	},
+	{
+		Version: 45,
+		Name:    "drop_cycle_machinery",
+		Up:      migrationV45,
+	},
 }
 
 // RunMigrations executes all pending migrations
@@ -4054,6 +4059,92 @@ func migrationV44(db *sql.DB) error {
 	_, err = db.Exec(`CREATE INDEX IF NOT EXISTS idx_workshops_commission ON workshops(active_commission_id)`)
 	if err != nil {
 		return fmt.Errorf("failed to create workshops commission index: %w", err)
+	}
+
+	return nil
+}
+
+func migrationV45(db *sql.DB) error {
+	// Drop cycle machinery tables in reverse dependency order
+	// 1. cycle_receipts (depends on cycle_work_orders)
+	// 2. cycle_work_orders (depends on cycles)
+	// 3. cycles (depends on shipments)
+	// 4. work_orders (depends on shipments)
+
+	_, err := db.Exec(`DROP TABLE IF EXISTS cycle_receipts`)
+	if err != nil {
+		return fmt.Errorf("failed to drop cycle_receipts table: %w", err)
+	}
+
+	_, err = db.Exec(`DROP TABLE IF EXISTS cycle_work_orders`)
+	if err != nil {
+		return fmt.Errorf("failed to drop cycle_work_orders table: %w", err)
+	}
+
+	_, err = db.Exec(`DROP TABLE IF EXISTS cycles`)
+	if err != nil {
+		return fmt.Errorf("failed to drop cycles table: %w", err)
+	}
+
+	_, err = db.Exec(`DROP TABLE IF EXISTS work_orders`)
+	if err != nil {
+		return fmt.Errorf("failed to drop work_orders table: %w", err)
+	}
+
+	// Remove cycle_id column from plans table
+	// SQLite doesn't support DROP COLUMN directly, so we need to recreate the table
+	_, err = db.Exec(`
+		CREATE TABLE plans_new (
+			id TEXT PRIMARY KEY,
+			commission_id TEXT NOT NULL,
+			shipment_id TEXT,
+			title TEXT NOT NULL,
+			description TEXT,
+			content TEXT,
+			status TEXT NOT NULL CHECK(status IN ('draft', 'approved', 'superseded')) DEFAULT 'draft',
+			pinned INTEGER DEFAULT 0,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			approved_at DATETIME,
+			conclave_id TEXT,
+			promoted_from_id TEXT,
+			promoted_from_type TEXT,
+			FOREIGN KEY (commission_id) REFERENCES commissions(id),
+			FOREIGN KEY (shipment_id) REFERENCES shipments(id) ON DELETE SET NULL,
+			FOREIGN KEY (conclave_id) REFERENCES conclaves(id) ON DELETE SET NULL
+		)
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to create plans_new table: %w", err)
+	}
+
+	_, err = db.Exec(`
+		INSERT INTO plans_new (id, commission_id, shipment_id, title, description, content, status, pinned, created_at, updated_at, approved_at, conclave_id, promoted_from_id, promoted_from_type)
+		SELECT id, commission_id, shipment_id, title, description, content, status, pinned, created_at, updated_at, approved_at, conclave_id, promoted_from_id, promoted_from_type FROM plans
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to copy data to plans_new: %w", err)
+	}
+
+	_, err = db.Exec(`DROP TABLE plans`)
+	if err != nil {
+		return fmt.Errorf("failed to drop old plans table: %w", err)
+	}
+
+	_, err = db.Exec(`ALTER TABLE plans_new RENAME TO plans`)
+	if err != nil {
+		return fmt.Errorf("failed to rename plans_new to plans: %w", err)
+	}
+
+	// Recreate indexes on plans table
+	_, err = db.Exec(`CREATE INDEX IF NOT EXISTS idx_plans_commission ON plans(commission_id)`)
+	if err != nil {
+		return fmt.Errorf("failed to create plans commission index: %w", err)
+	}
+
+	_, err = db.Exec(`CREATE INDEX IF NOT EXISTS idx_plans_status ON plans(status)`)
+	if err != nil {
+		return fmt.Errorf("failed to create plans status index: %w", err)
 	}
 
 	return nil

@@ -271,41 +271,5 @@ func (r *ReceiptRepository) ShipmentHasREC(ctx context.Context, shipmentID strin
 	return count > 0, nil
 }
 
-// GetWOStatus retrieves the status of a shipment's Work Order.
-func (r *ReceiptRepository) GetWOStatus(ctx context.Context, shipmentID string) (string, error) {
-	var status string
-	err := r.db.QueryRowContext(ctx, "SELECT status FROM work_orders WHERE shipment_id = ?", shipmentID).Scan(&status)
-	if err == sql.ErrNoRows {
-		return "", fmt.Errorf("Work Order for shipment %s not found", shipmentID)
-	}
-	if err != nil {
-		return "", fmt.Errorf("failed to get Work Order status: %w", err)
-	}
-	return status, nil
-}
-
-// AllCRECsVerified checks if all CRECs for a shipment are verified.
-// Returns true if there are no CRECs (vacuously true) or all CRECs are verified.
-func (r *ReceiptRepository) AllCRECsVerified(ctx context.Context, shipmentID string) (bool, error) {
-	// Count total CRECs and non-verified CRECs for the shipment
-	// Use COALESCE to handle NULL when no rows match
-	var total, nonVerified int
-	err := r.db.QueryRowContext(ctx,
-		`SELECT COUNT(*), COALESCE(SUM(CASE WHEN status != 'verified' THEN 1 ELSE 0 END), 0) FROM cycle_receipts WHERE shipment_id = ?`,
-		shipmentID,
-	).Scan(&total, &nonVerified)
-	if err != nil {
-		return false, fmt.Errorf("failed to check CREC verification status: %w", err)
-	}
-
-	// If no CRECs exist, they are vacuously all verified
-	if total == 0 {
-		return true, nil
-	}
-
-	// All verified if none are non-verified
-	return nonVerified == 0, nil
-}
-
 // Ensure ReceiptRepository implements the interface
 var _ secondary.ReceiptRepository = (*ReceiptRepository)(nil)

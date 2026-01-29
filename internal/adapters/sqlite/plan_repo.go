@@ -37,14 +37,9 @@ func (r *PlanRepository) Create(ctx context.Context, plan *secondary.PlanRecord)
 		shipmentID = sql.NullString{String: plan.ShipmentID, Valid: true}
 	}
 
-	var cycleID sql.NullString
-	if plan.CycleID != "" {
-		cycleID = sql.NullString{String: plan.CycleID, Valid: true}
-	}
-
 	_, err := r.db.ExecContext(ctx,
-		"INSERT INTO plans (id, shipment_id, cycle_id, commission_id, title, description, content, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-		plan.ID, shipmentID, cycleID, plan.CommissionID, plan.Title, desc, content, "draft",
+		"INSERT INTO plans (id, shipment_id, commission_id, title, description, content, status) VALUES (?, ?, ?, ?, ?, ?, ?)",
+		plan.ID, shipmentID, plan.CommissionID, plan.Title, desc, content, "draft",
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create plan: %w", err)
@@ -57,7 +52,6 @@ func (r *PlanRepository) Create(ctx context.Context, plan *secondary.PlanRecord)
 func (r *PlanRepository) GetByID(ctx context.Context, id string) (*secondary.PlanRecord, error) {
 	var (
 		shipmentID       sql.NullString
-		cycleID          sql.NullString
 		desc             sql.NullString
 		content          sql.NullString
 		pinned           bool
@@ -71,11 +65,11 @@ func (r *PlanRepository) GetByID(ctx context.Context, id string) (*secondary.Pla
 
 	record := &secondary.PlanRecord{}
 	err := r.db.QueryRowContext(ctx,
-		`SELECT id, shipment_id, cycle_id, commission_id, title, description, status, content, pinned,
+		`SELECT id, shipment_id, commission_id, title, description, status, content, pinned,
 			created_at, updated_at, approved_at, conclave_id, promoted_from_id, promoted_from_type
 		FROM plans WHERE id = ?`,
 		id,
-	).Scan(&record.ID, &shipmentID, &cycleID, &record.CommissionID, &record.Title, &desc, &record.Status, &content, &pinned,
+	).Scan(&record.ID, &shipmentID, &record.CommissionID, &record.Title, &desc, &record.Status, &content, &pinned,
 		&createdAt, &updatedAt, &approvedAt, &conclaveID, &promotedFromID, &promotedFromType)
 
 	if err == sql.ErrNoRows {
@@ -86,7 +80,6 @@ func (r *PlanRepository) GetByID(ctx context.Context, id string) (*secondary.Pla
 	}
 
 	record.ShipmentID = shipmentID.String
-	record.CycleID = cycleID.String
 	record.Description = desc.String
 	record.Content = content.String
 	record.Pinned = pinned
@@ -104,7 +97,7 @@ func (r *PlanRepository) GetByID(ctx context.Context, id string) (*secondary.Pla
 
 // List retrieves plans matching the given filters.
 func (r *PlanRepository) List(ctx context.Context, filters secondary.PlanFilters) ([]*secondary.PlanRecord, error) {
-	query := `SELECT id, shipment_id, cycle_id, commission_id, title, description, status, content, pinned,
+	query := `SELECT id, shipment_id, commission_id, title, description, status, content, pinned,
 		created_at, updated_at, approved_at, conclave_id, promoted_from_id, promoted_from_type
 		FROM plans WHERE 1=1`
 	args := []any{}
@@ -112,11 +105,6 @@ func (r *PlanRepository) List(ctx context.Context, filters secondary.PlanFilters
 	if filters.ShipmentID != "" {
 		query += " AND shipment_id = ?"
 		args = append(args, filters.ShipmentID)
-	}
-
-	if filters.CycleID != "" {
-		query += " AND cycle_id = ?"
-		args = append(args, filters.CycleID)
 	}
 
 	if filters.CommissionID != "" {
@@ -141,7 +129,6 @@ func (r *PlanRepository) List(ctx context.Context, filters secondary.PlanFilters
 	for rows.Next() {
 		var (
 			shipmentID       sql.NullString
-			cycleID          sql.NullString
 			desc             sql.NullString
 			content          sql.NullString
 			pinned           bool
@@ -154,14 +141,13 @@ func (r *PlanRepository) List(ctx context.Context, filters secondary.PlanFilters
 		)
 
 		record := &secondary.PlanRecord{}
-		err := rows.Scan(&record.ID, &shipmentID, &cycleID, &record.CommissionID, &record.Title, &desc, &record.Status, &content, &pinned,
+		err := rows.Scan(&record.ID, &shipmentID, &record.CommissionID, &record.Title, &desc, &record.Status, &content, &pinned,
 			&createdAt, &updatedAt, &approvedAt, &conclaveID, &promotedFromID, &promotedFromType)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan plan: %w", err)
 		}
 
 		record.ShipmentID = shipmentID.String
-		record.CycleID = cycleID.String
 		record.Description = desc.String
 		record.Content = content.String
 		record.Pinned = pinned
@@ -302,7 +288,6 @@ func (r *PlanRepository) Approve(ctx context.Context, id string) error {
 func (r *PlanRepository) GetActivePlanForShipment(ctx context.Context, shipmentID string) (*secondary.PlanRecord, error) {
 	var (
 		shipmentIDCol    sql.NullString
-		cycleIDCol       sql.NullString
 		desc             sql.NullString
 		content          sql.NullString
 		pinned           bool
@@ -316,11 +301,11 @@ func (r *PlanRepository) GetActivePlanForShipment(ctx context.Context, shipmentI
 
 	record := &secondary.PlanRecord{}
 	err := r.db.QueryRowContext(ctx,
-		`SELECT id, shipment_id, cycle_id, commission_id, title, description, status, content, pinned,
+		`SELECT id, shipment_id, commission_id, title, description, status, content, pinned,
 			created_at, updated_at, approved_at, conclave_id, promoted_from_id, promoted_from_type
 		FROM plans WHERE shipment_id = ? AND status = 'draft' LIMIT 1`,
 		shipmentID,
-	).Scan(&record.ID, &shipmentIDCol, &cycleIDCol, &record.CommissionID, &record.Title, &desc, &record.Status, &content, &pinned,
+	).Scan(&record.ID, &shipmentIDCol, &record.CommissionID, &record.Title, &desc, &record.Status, &content, &pinned,
 		&createdAt, &updatedAt, &approvedAt, &conclaveID, &promotedFromID, &promotedFromType)
 
 	if err == sql.ErrNoRows {
@@ -331,7 +316,6 @@ func (r *PlanRepository) GetActivePlanForShipment(ctx context.Context, shipmentI
 	}
 
 	record.ShipmentID = shipmentIDCol.String
-	record.CycleID = cycleIDCol.String
 	record.Description = desc.String
 	record.Content = content.String
 	record.Pinned = pinned
@@ -378,71 +362,6 @@ func (r *PlanRepository) ShipmentExists(ctx context.Context, shipmentID string) 
 		return false, fmt.Errorf("failed to check shipment existence: %w", err)
 	}
 	return count > 0, nil
-}
-
-// CycleExists checks if a cycle exists.
-func (r *PlanRepository) CycleExists(ctx context.Context, cycleID string) (bool, error) {
-	var count int
-	err := r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM cycles WHERE id = ?", cycleID).Scan(&count)
-	if err != nil {
-		return false, fmt.Errorf("failed to check cycle existence: %w", err)
-	}
-	return count > 0, nil
-}
-
-// GetByCycle retrieves plans for a cycle.
-func (r *PlanRepository) GetByCycle(ctx context.Context, cycleID string) ([]*secondary.PlanRecord, error) {
-	query := `SELECT id, shipment_id, cycle_id, commission_id, title, description, status, content, pinned,
-		created_at, updated_at, approved_at, conclave_id, promoted_from_id, promoted_from_type
-		FROM plans WHERE cycle_id = ? ORDER BY created_at DESC`
-
-	rows, err := r.db.QueryContext(ctx, query, cycleID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get plans by cycle: %w", err)
-	}
-	defer rows.Close()
-
-	var plans []*secondary.PlanRecord
-	for rows.Next() {
-		var (
-			shipmentID       sql.NullString
-			cycleIDCol       sql.NullString
-			desc             sql.NullString
-			content          sql.NullString
-			pinned           bool
-			createdAt        time.Time
-			updatedAt        time.Time
-			approvedAt       sql.NullTime
-			conclaveID       sql.NullString
-			promotedFromID   sql.NullString
-			promotedFromType sql.NullString
-		)
-
-		record := &secondary.PlanRecord{}
-		err := rows.Scan(&record.ID, &shipmentID, &cycleIDCol, &record.CommissionID, &record.Title, &desc, &record.Status, &content, &pinned,
-			&createdAt, &updatedAt, &approvedAt, &conclaveID, &promotedFromID, &promotedFromType)
-		if err != nil {
-			return nil, fmt.Errorf("failed to scan plan: %w", err)
-		}
-
-		record.ShipmentID = shipmentID.String
-		record.CycleID = cycleIDCol.String
-		record.Description = desc.String
-		record.Content = content.String
-		record.Pinned = pinned
-		record.CreatedAt = createdAt.Format(time.RFC3339)
-		record.UpdatedAt = updatedAt.Format(time.RFC3339)
-		if approvedAt.Valid {
-			record.ApprovedAt = approvedAt.Time.Format(time.RFC3339)
-		}
-		record.ConclaveID = conclaveID.String
-		record.PromotedFromID = promotedFromID.String
-		record.PromotedFromType = promotedFromType.String
-
-		plans = append(plans, record)
-	}
-
-	return plans, nil
 }
 
 // Ensure PlanRepository implements the interface

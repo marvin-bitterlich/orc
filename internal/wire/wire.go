@@ -36,10 +36,6 @@ var (
 	factoryService                 primary.FactoryService
 	workshopService                primary.WorkshopService
 	workbenchService               primary.WorkbenchService
-	workOrderService               primary.WorkOrderService
-	cycleService                   primary.CycleService
-	cycleWorkOrderService          primary.CycleWorkOrderService
-	cycleReceiptService            primary.CycleReceiptService
 	receiptService                 primary.ReceiptService
 	summaryService                 primary.SummaryService
 	commissionOrchestrationService *app.CommissionOrchestrationService
@@ -145,30 +141,6 @@ func WorkbenchService() primary.WorkbenchService {
 	return workbenchService
 }
 
-// WorkOrderService returns the singleton WorkOrderService instance.
-func WorkOrderService() primary.WorkOrderService {
-	once.Do(initServices)
-	return workOrderService
-}
-
-// CycleService returns the singleton CycleService instance.
-func CycleService() primary.CycleService {
-	once.Do(initServices)
-	return cycleService
-}
-
-// CycleWorkOrderService returns the singleton CycleWorkOrderService instance.
-func CycleWorkOrderService() primary.CycleWorkOrderService {
-	once.Do(initServices)
-	return cycleWorkOrderService
-}
-
-// CycleReceiptService returns the singleton CycleReceiptService instance.
-func CycleReceiptService() primary.CycleReceiptService {
-	once.Do(initServices)
-	return cycleReceiptService
-}
-
 // ReceiptService returns the singleton ReceiptService instance.
 func ReceiptService() primary.ReceiptService {
 	once.Do(initServices)
@@ -260,7 +232,7 @@ func initServices() {
 	conclaveService = app.NewConclaveService(conclaveRepo)
 	operationService = app.NewOperationService(operationRepo)
 
-	// Create plan repository (plan service created later after cycleService)
+	// Create plan repository
 	planRepo := sqlite.NewPlanRepository(database)
 
 	// Create tag and message services
@@ -282,21 +254,11 @@ func initServices() {
 	workshopService = app.NewWorkshopService(factoryRepo, workshopRepo, workbenchRepo, repoRepo, tmuxService, workspaceAdapter, executor)
 	workbenchService = app.NewWorkbenchService(workbenchRepo, workshopRepo, agentProvider, executor)
 
-	// Create work order, cycle, and cycle work order services
-	workOrderRepo := sqlite.NewWorkOrderRepository(database)
-	cycleRepo := sqlite.NewCycleRepository(database)
-	cycleWorkOrderRepo := sqlite.NewCycleWorkOrderRepository(database)
-	workOrderService = app.NewWorkOrderService(workOrderRepo)
-	cycleService = app.NewCycleService(cycleRepo)
-	cycleWorkOrderService = app.NewCycleWorkOrderService(cycleWorkOrderRepo, cycleService)
+	// Create plan service
+	planService = app.NewPlanService(planRepo)
 
-	// Create plan service (depends on cycleService for cascade)
-	planService = app.NewPlanService(planRepo, cycleService)
-
-	// Create receipt services (depends on cycleService for cascade)
-	cycleReceiptRepo := sqlite.NewCycleReceiptRepository(database)
+	// Create receipt service
 	receiptRepo := sqlite.NewReceiptRepository(database)
-	cycleReceiptService = app.NewCycleReceiptService(cycleReceiptRepo, cycleService)
 	receiptService = app.NewReceiptService(receiptRepo)
 
 	// Create orchestration services

@@ -10,18 +10,13 @@ import (
 
 // PlanServiceImpl implements the PlanService interface.
 type PlanServiceImpl struct {
-	planRepo     secondary.PlanRepository
-	cycleService primary.CycleService
+	planRepo secondary.PlanRepository
 }
 
 // NewPlanService creates a new PlanService with injected dependencies.
-func NewPlanService(
-	planRepo secondary.PlanRepository,
-	cycleService primary.CycleService,
-) *PlanServiceImpl {
+func NewPlanService(planRepo secondary.PlanRepository) *PlanServiceImpl {
 	return &PlanServiceImpl{
-		planRepo:     planRepo,
-		cycleService: cycleService,
+		planRepo: planRepo,
 	}
 }
 
@@ -56,17 +51,6 @@ func (s *PlanServiceImpl) CreatePlan(ctx context.Context, req primary.CreatePlan
 		}
 	}
 
-	// Validate cycle exists if provided
-	if req.CycleID != "" {
-		cycleExists, err := s.planRepo.CycleExists(ctx, req.CycleID)
-		if err != nil {
-			return nil, fmt.Errorf("failed to validate cycle: %w", err)
-		}
-		if !cycleExists {
-			return nil, fmt.Errorf("cycle %s not found", req.CycleID)
-		}
-	}
-
 	// Get next ID
 	nextID, err := s.planRepo.GetNextID(ctx)
 	if err != nil {
@@ -78,7 +62,6 @@ func (s *PlanServiceImpl) CreatePlan(ctx context.Context, req primary.CreatePlan
 		ID:           nextID,
 		CommissionID: req.CommissionID,
 		ShipmentID:   req.ShipmentID,
-		CycleID:      req.CycleID,
 		Title:        req.Title,
 		Description:  req.Description,
 		Content:      req.Content,
@@ -114,7 +97,6 @@ func (s *PlanServiceImpl) GetPlan(ctx context.Context, planID string) (*primary.
 func (s *PlanServiceImpl) ListPlans(ctx context.Context, filters primary.PlanFilters) ([]*primary.Plan, error) {
 	records, err := s.planRepo.List(ctx, secondary.PlanFilters{
 		ShipmentID:   filters.ShipmentID,
-		CycleID:      filters.CycleID,
 		CommissionID: filters.CommissionID,
 		Status:       filters.Status,
 	})
@@ -130,27 +112,8 @@ func (s *PlanServiceImpl) ListPlans(ctx context.Context, filters primary.PlanFil
 }
 
 // ApprovePlan approves a plan (marks it as approved).
-// Also cascades: updates parent Cycle status to "implementing" if the plan has a CycleID.
 func (s *PlanServiceImpl) ApprovePlan(ctx context.Context, planID string) error {
-	// Get the plan to check for CycleID
-	plan, err := s.planRepo.GetByID(ctx, planID)
-	if err != nil {
-		return fmt.Errorf("failed to get plan: %w", err)
-	}
-
-	// Approve the plan
-	if err := s.planRepo.Approve(ctx, planID); err != nil {
-		return err
-	}
-
-	// CASCADE: Update parent Cycle status to "implementing"
-	if plan.CycleID != "" && s.cycleService != nil {
-		if err := s.cycleService.UpdateCycleStatus(ctx, plan.CycleID, "implementing"); err != nil {
-			return fmt.Errorf("failed to cascade cycle status update: %w", err)
-		}
-	}
-
-	return nil
+	return s.planRepo.Approve(ctx, planID)
 }
 
 // UpdatePlan updates a plan's title, description, and/or content.
@@ -197,7 +160,6 @@ func (s *PlanServiceImpl) recordToPlan(r *secondary.PlanRecord) *primary.Plan {
 	return &primary.Plan{
 		ID:               r.ID,
 		ShipmentID:       r.ShipmentID,
-		CycleID:          r.CycleID,
 		CommissionID:     r.CommissionID,
 		Title:            r.Title,
 		Description:      r.Description,

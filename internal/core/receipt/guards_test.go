@@ -86,24 +86,18 @@ func TestCanSubmit(t *testing.T) {
 		wantReason  string
 	}{
 		{
-			name: "can submit draft REC when WO is complete and all CRECs verified",
+			name: "can submit draft REC",
 			ctx: StatusTransitionContext{
-				RECID:            "REC-001",
-				CurrentStatus:    "draft",
-				WOExists:         true,
-				WOStatus:         "complete",
-				AllCRECsVerified: true,
+				RECID:         "REC-001",
+				CurrentStatus: "draft",
 			},
 			wantAllowed: true,
 		},
 		{
 			name: "cannot submit submitted REC",
 			ctx: StatusTransitionContext{
-				RECID:            "REC-001",
-				CurrentStatus:    "submitted",
-				WOExists:         true,
-				WOStatus:         "complete",
-				AllCRECsVerified: true,
+				RECID:         "REC-001",
+				CurrentStatus: "submitted",
 			},
 			wantAllowed: false,
 			wantReason:  "can only submit draft RECs (current status: submitted)",
@@ -111,62 +105,11 @@ func TestCanSubmit(t *testing.T) {
 		{
 			name: "cannot submit verified REC",
 			ctx: StatusTransitionContext{
-				RECID:            "REC-001",
-				CurrentStatus:    "verified",
-				WOExists:         true,
-				WOStatus:         "complete",
-				AllCRECsVerified: true,
+				RECID:         "REC-001",
+				CurrentStatus: "verified",
 			},
 			wantAllowed: false,
 			wantReason:  "can only submit draft RECs (current status: verified)",
-		},
-		{
-			name: "cannot submit REC when WO is active",
-			ctx: StatusTransitionContext{
-				RECID:            "REC-001",
-				CurrentStatus:    "draft",
-				WOExists:         true,
-				WOStatus:         "active",
-				AllCRECsVerified: true,
-			},
-			wantAllowed: false,
-			wantReason:  "cannot submit REC: Work Order is not complete (status: active)",
-		},
-		{
-			name: "cannot submit REC when WO is draft",
-			ctx: StatusTransitionContext{
-				RECID:            "REC-001",
-				CurrentStatus:    "draft",
-				WOExists:         true,
-				WOStatus:         "draft",
-				AllCRECsVerified: true,
-			},
-			wantAllowed: false,
-			wantReason:  "cannot submit REC: Work Order is not complete (status: draft)",
-		},
-		{
-			name: "cannot submit REC when WO does not exist",
-			ctx: StatusTransitionContext{
-				RECID:            "REC-001",
-				CurrentStatus:    "draft",
-				WOExists:         false,
-				WOStatus:         "",
-				AllCRECsVerified: true,
-			},
-			wantAllowed: false,
-			wantReason:  "cannot submit REC: Work Order not found",
-		},
-		{
-			name: "cannot submit REC when some CRECs not verified",
-			ctx: StatusTransitionContext{
-				RECID:            "REC-001",
-				CurrentStatus:    "draft",
-				WOExists:         true,
-				WOStatus:         "complete",
-				AllCRECsVerified: false,
-			},
-			wantAllowed: false,
-			wantReason:  "cannot submit REC: not all CRECs are verified",
 		},
 	}
 

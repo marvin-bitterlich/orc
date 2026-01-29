@@ -36,7 +36,6 @@ type PlanService interface {
 type CreatePlanRequest struct {
 	CommissionID string
 	ShipmentID   string // Optional
-	CycleID      string // Optional
 	Title        string
 	Description  string
 	Content      string
@@ -60,7 +59,6 @@ type UpdatePlanRequest struct {
 type Plan struct {
 	ID               string
 	ShipmentID       string
-	CycleID          string
 	CommissionID     string
 	Title            string
 	Description      string
@@ -78,7 +76,6 @@ type Plan struct {
 // PlanFilters contains filter options for listing plans.
 type PlanFilters struct {
 	ShipmentID   string
-	CycleID      string
 	CommissionID string
 	Status       string
 }

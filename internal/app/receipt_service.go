@@ -149,26 +149,10 @@ func (s *ReceiptServiceImpl) SubmitReceipt(ctx context.Context, recID string) er
 		return err
 	}
 
-	// Check WO exists and get its status
-	woStatus, err := s.recRepo.GetWOStatus(ctx, record.ShipmentID)
-	woExists := err == nil
-	if err != nil && err.Error() != fmt.Sprintf("Work Order for shipment %s not found", record.ShipmentID) {
-		return fmt.Errorf("failed to get WO status: %w", err)
-	}
-
-	// Check if all CRECs are verified
-	allCRECsVerified, err := s.recRepo.AllCRECsVerified(ctx, record.ShipmentID)
-	if err != nil {
-		return fmt.Errorf("failed to check CREC verification status: %w", err)
-	}
-
 	// Build guard context and evaluate
 	guardCtx := receipt.StatusTransitionContext{
-		RECID:            recID,
-		CurrentStatus:    record.Status,
-		WOExists:         woExists,
-		WOStatus:         woStatus,
-		AllCRECsVerified: allCRECsVerified,
+		RECID:         recID,
+		CurrentStatus: record.Status,
 	}
 
 	result := receipt.CanSubmit(guardCtx)
