@@ -218,6 +218,14 @@ func (m *mockWorkshopRepositoryForWorkbench) UpdateFocusedConclaveID(ctx context
 	return errors.New("workshop not found")
 }
 
+func (m *mockWorkshopRepositoryForWorkbench) SetActiveCommissionID(ctx context.Context, workshopID, commissionID string) error {
+	if ws, ok := m.workshops[workshopID]; ok {
+		ws.ActiveCommissionID = commissionID
+		return nil
+	}
+	return errors.New("workshop not found")
+}
+
 // ============================================================================
 // Test Helper
 // ============================================================================

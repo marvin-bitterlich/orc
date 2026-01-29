@@ -11,6 +11,7 @@ import (
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 
+	"github.com/example/orc/internal/config"
 	"github.com/example/orc/internal/ports/primary"
 	"github.com/example/orc/internal/wire"
 )
@@ -29,6 +30,7 @@ func WorkshopCmd() *cobra.Command {
 	cmd.AddCommand(workshopDeleteCmd())
 	cmd.AddCommand(workshopOpenCmd())
 	cmd.AddCommand(workshopCloseCmd())
+	cmd.AddCommand(workshopSetCommissionCmd())
 
 	return cmd
 }
@@ -376,4 +378,81 @@ Examples:
 			return nil
 		},
 	}
+}
+
+func workshopSetCommissionCmd() *cobra.Command {
+	var clearFlag bool
+
+	cmd := &cobra.Command{
+		Use:   "set-commission [commission-id]",
+		Short: "Set the active commission for this workshop",
+		Long: `Set which commission the workshop is actively working on.
+
+Only one commission can be active per workshop at a time.
+Focus commands are scoped to the active commission.
+
+Examples:
+  orc workshop set-commission COMM-001
+  orc workshop set-commission --clear`,
+		Args: cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runSetCommission(args, clearFlag)
+		},
+	}
+
+	cmd.Flags().BoolVar(&clearFlag, "clear", false, "Clear the active commission")
+
+	return cmd
+}
+
+func runSetCommission(args []string, clearFlag bool) error {
+	ctx := context.Background()
+
+	// Get workshop ID from config (Goblin context)
+	cwd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("failed to get working directory: %w", err)
+	}
+
+	cfg, err := config.LoadConfig(cwd)
+	if err != nil {
+		return fmt.Errorf("no ORC config found in current directory")
+	}
+
+	// Must be Goblin context
+	if !config.IsGoblinRole(cfg.Role) || cfg.WorkshopID == "" {
+		return fmt.Errorf("set-commission requires Goblin context (workshop directory)")
+	}
+
+	workshopID := cfg.WorkshopID
+
+	if clearFlag {
+		if err := wire.WorkshopService().SetActiveCommission(ctx, workshopID, ""); err != nil {
+			return fmt.Errorf("failed to clear commission: %w", err)
+		}
+		fmt.Printf("✓ Workshop %s commission cleared\n", workshopID)
+		return nil
+	}
+
+	if len(args) == 0 {
+		return fmt.Errorf("Usage: orc workshop set-commission <COMM-xxx> or orc workshop set-commission --clear")
+	}
+
+	commissionID := args[0]
+	if !strings.HasPrefix(commissionID, "COMM-") {
+		return fmt.Errorf("invalid commission ID: %s (expected COMM-xxx)", commissionID)
+	}
+
+	// Validate commission exists
+	commission, err := wire.CommissionService().GetCommission(ctx, commissionID)
+	if err != nil {
+		return fmt.Errorf("commission %s not found", commissionID)
+	}
+
+	if err := wire.WorkshopService().SetActiveCommission(ctx, workshopID, commissionID); err != nil {
+		return fmt.Errorf("failed to set commission: %w", err)
+	}
+
+	fmt.Printf("✓ Workshop %s now active on %s: %s\n", workshopID, commissionID, commission.Title)
+	return nil
 }

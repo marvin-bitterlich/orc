@@ -38,6 +38,13 @@ type WorkshopService interface {
 
 	// GetFocusedConclaveID returns the currently focused conclave ID for a workshop.
 	GetFocusedConclaveID(ctx context.Context, workshopID string) (string, error)
+
+	// SetActiveCommission sets the active commission for a workshop (Goblin context).
+	// Pass empty string to clear.
+	SetActiveCommission(ctx context.Context, workshopID, commissionID string) error
+
+	// GetActiveCommission returns the active commission ID for a workshop.
+	GetActiveCommission(ctx context.Context, workshopID string) (string, error)
 }
 
 // CreateWorkshopRequest contains parameters for creating a workshop.
@@ -55,12 +62,13 @@ type CreateWorkshopResponse struct {
 // Workshop represents a workshop entity at the port boundary.
 // A Workshop is a persistent place within a Factory.
 type Workshop struct {
-	ID        string
-	FactoryID string
-	Name      string
-	Status    string
-	CreatedAt string
-	UpdatedAt string
+	ID                 string
+	FactoryID          string
+	Name               string
+	Status             string
+	ActiveCommissionID string
+	CreatedAt          string
+	UpdatedAt          string
 }
 
 // WorkshopFilters contains filter options for listing workshops.

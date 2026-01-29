@@ -945,17 +945,22 @@ type WorkshopRepository interface {
 	// UpdateFocusedConclaveID updates the focused conclave ID for a workshop (Goblin focus).
 	// Pass empty string to clear focus.
 	UpdateFocusedConclaveID(ctx context.Context, id, conclaveID string) error
+
+	// SetActiveCommissionID updates the active commission for a workshop (Goblin context).
+	// Pass empty string to clear.
+	SetActiveCommissionID(ctx context.Context, workshopID, commissionID string) error
 }
 
 // WorkshopRecord represents a workshop as stored in persistence.
 type WorkshopRecord struct {
-	ID                string
-	FactoryID         string
-	Name              string
-	Status            string
-	FocusedConclaveID string // Empty string means null - Goblin focus
-	CreatedAt         string
-	UpdatedAt         string
+	ID                 string
+	FactoryID          string
+	Name               string
+	Status             string
+	FocusedConclaveID  string // Empty string means null - Goblin focus
+	ActiveCommissionID string // Empty string means null - Goblin commission context
+	CreatedAt          string
+	UpdatedAt          string
 }
 
 // WorkshopFilters contains filter options for querying workshops.

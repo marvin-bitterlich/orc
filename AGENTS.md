@@ -47,6 +47,20 @@ ORC uses `.orc/config.json` for identity only (not state).
 
 ---
 
+## Workshop Commands
+
+### set-commission
+Sets the active commission for Goblin context. Must be run from a workshop gatehouse directory.
+
+```bash
+orc workshop set-commission COMM-001   # Set active commission
+orc workshop set-commission --clear    # Clear active commission
+```
+
+The active commission is stored in `workshops.active_commission_id` and scopes Goblin's focus and operations.
+
+---
+
 ## Build & Development
 
 **ALWAYS use the Makefile for building and installing ORC:**

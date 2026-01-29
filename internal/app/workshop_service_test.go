@@ -130,6 +130,14 @@ func (m *mockWorkshopRepository) UpdateFocusedConclaveID(ctx context.Context, id
 	return errors.New("workshop not found")
 }
 
+func (m *mockWorkshopRepository) SetActiveCommissionID(ctx context.Context, workshopID, commissionID string) error {
+	if ws, ok := m.workshops[workshopID]; ok {
+		ws.ActiveCommissionID = commissionID
+		return nil
+	}
+	return errors.New("workshop not found")
+}
+
 // mockFactoryRepository implements secondary.FactoryRepository for testing.
 type mockFactoryRepository struct {
 	factories    map[string]*secondary.FactoryRecord

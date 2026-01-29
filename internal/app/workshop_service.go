@@ -586,5 +586,20 @@ func (s *WorkshopServiceImpl) GetFocusedConclaveID(ctx context.Context, workshop
 	return record.FocusedConclaveID, nil
 }
 
+// SetActiveCommission sets the active commission for a workshop (Goblin context).
+// Pass empty string to clear.
+func (s *WorkshopServiceImpl) SetActiveCommission(ctx context.Context, workshopID, commissionID string) error {
+	return s.workshopRepo.SetActiveCommissionID(ctx, workshopID, commissionID)
+}
+
+// GetActiveCommission returns the active commission ID for a workshop.
+func (s *WorkshopServiceImpl) GetActiveCommission(ctx context.Context, workshopID string) (string, error) {
+	record, err := s.workshopRepo.GetByID(ctx, workshopID)
+	if err != nil {
+		return "", fmt.Errorf("workshop not found: %w", err)
+	}
+	return record.ActiveCommissionID, nil
+}
+
 // Ensure WorkshopServiceImpl implements the interface
 var _ primary.WorkshopService = (*WorkshopServiceImpl)(nil)

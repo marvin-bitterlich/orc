@@ -224,6 +224,16 @@ var migrations = []Migration{
 		Name:    "remove_investigation_entity",
 		Up:      migrationV42,
 	},
+	{
+		Version: 43,
+		Name:    "add_library_shipyard_tables_and_container_refs",
+		Up:      migrationV43,
+	},
+	{
+		Version: 44,
+		Name:    "add_active_commission_id_to_workshops",
+		Up:      migrationV44,
+	},
 }
 
 // RunMigrations executes all pending migrations
@@ -3970,5 +3980,81 @@ func migrationV41(db *sql.DB) error {
 // See AGENTS.md for Atlas migration workflow.
 func migrationV42(db *sql.DB) error {
 	// Atlas handled this migration - see schema_inspected.hcl
+	return nil
+}
+
+// migrationV43 adds Library/Shipyard tables and container references.
+// NOTE: Atlas handles the schema changes (tables, columns, indexes).
+// This function performs data backfilling only. Atlas adds:
+// - libraries table (one per commission)
+// - shipyards table (one per commission)
+// - container_id and container_type columns to tomes and shipments
+// - focused_conclave_id column to workshops
+// - focused_id column to workbenches
+// See AGENTS.md for Atlas migration workflow.
+func migrationV43(db *sql.DB) error {
+	// Step 1: Auto-create Library for each commission that doesn't have one
+	_, err := db.Exec(`
+		INSERT INTO libraries (id, commission_id, created_at, updated_at)
+		SELECT 'LIB-' || SUBSTR('000' || (ROW_NUMBER() OVER (ORDER BY id)), -3),
+		       id, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+		FROM commissions
+		WHERE id NOT IN (SELECT commission_id FROM libraries)
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to create libraries: %w", err)
+	}
+
+	// Step 2: Auto-create Shipyard for each commission that doesn't have one
+	_, err = db.Exec(`
+		INSERT INTO shipyards (id, commission_id, created_at, updated_at)
+		SELECT 'YARD-' || SUBSTR('000' || (ROW_NUMBER() OVER (ORDER BY id)), -3),
+		       id, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+		FROM commissions
+		WHERE id NOT IN (SELECT commission_id FROM shipyards)
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to create shipyards: %w", err)
+	}
+
+	// Step 3: Backfill tomes - link to Library (where not already set)
+	_, err = db.Exec(`
+		UPDATE tomes SET
+		    container_id = (SELECT id FROM libraries WHERE commission_id = tomes.commission_id),
+		    container_type = 'library'
+		WHERE container_id IS NULL OR container_id = ''
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to backfill tomes: %w", err)
+	}
+
+	// Step 4: Backfill shipments - link to Shipyard (where not already set)
+	_, err = db.Exec(`
+		UPDATE shipments SET
+		    container_id = (SELECT id FROM shipyards WHERE commission_id = shipments.commission_id),
+		    container_type = 'shipyard'
+		WHERE container_id IS NULL OR container_id = ''
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to backfill shipments: %w", err)
+	}
+
+	return nil
+}
+
+// migrationV44 adds active_commission_id to workshops for Goblin commission context.
+func migrationV44(db *sql.DB) error {
+	// Add active_commission_id column to workshops table
+	_, err := db.Exec(`ALTER TABLE workshops ADD COLUMN active_commission_id TEXT REFERENCES commissions(id)`)
+	if err != nil {
+		return fmt.Errorf("failed to add active_commission_id column to workshops: %w", err)
+	}
+
+	// Add index for commission lookups
+	_, err = db.Exec(`CREATE INDEX IF NOT EXISTS idx_workshops_commission ON workshops(active_commission_id)`)
+	if err != nil {
+		return fmt.Errorf("failed to create workshops commission index: %w", err)
+	}
+
 	return nil
 }

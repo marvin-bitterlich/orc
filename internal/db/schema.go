@@ -72,9 +72,12 @@ CREATE TABLE IF NOT EXISTS workshops (
 	factory_id TEXT NOT NULL,
 	name TEXT NOT NULL,
 	status TEXT NOT NULL CHECK(status IN ('active', 'archived')) DEFAULT 'active',
+	focused_conclave_id TEXT,
+	active_commission_id TEXT,
 	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 	updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-	FOREIGN KEY (factory_id) REFERENCES factories(id)
+	FOREIGN KEY (factory_id) REFERENCES factories(id),
+	FOREIGN KEY (active_commission_id) REFERENCES commissions(id)
 );
 
 -- Workbenches (Git worktrees within a workshop)
@@ -87,10 +90,29 @@ CREATE TABLE IF NOT EXISTS workbenches (
 	status TEXT NOT NULL CHECK(status IN ('active', 'archived')) DEFAULT 'active',
 	home_branch TEXT,
 	current_branch TEXT,
+	focused_id TEXT,
 	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 	updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 	FOREIGN KEY (workshop_id) REFERENCES workshops(id),
 	FOREIGN KEY (repo_id) REFERENCES repos(id)
+);
+
+-- Libraries (one per commission, auto-created)
+CREATE TABLE IF NOT EXISTS libraries (
+	id TEXT PRIMARY KEY,
+	commission_id TEXT NOT NULL UNIQUE,
+	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+	FOREIGN KEY (commission_id) REFERENCES commissions(id)
+);
+
+-- Shipyards (one per commission, auto-created)
+CREATE TABLE IF NOT EXISTS shipyards (
+	id TEXT PRIMARY KEY,
+	commission_id TEXT NOT NULL UNIQUE,
+	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+	FOREIGN KEY (commission_id) REFERENCES commissions(id)
 );
 
 -- Commissions (Tracks of work - what you're working on)
@@ -132,6 +154,8 @@ CREATE TABLE IF NOT EXISTS shipments (
 	repo_id TEXT,
 	branch TEXT,
 	pinned INTEGER DEFAULT 0,
+	container_id TEXT,
+	container_type TEXT CHECK(container_type IN ('conclave', 'shipyard')),
 	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 	updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 	completed_at DATETIME,
@@ -150,6 +174,8 @@ CREATE TABLE IF NOT EXISTS tomes (
 	status TEXT NOT NULL CHECK(status IN ('open', 'closed')) DEFAULT 'open',
 	assigned_workbench_id TEXT,
 	pinned INTEGER DEFAULT 0,
+	container_id TEXT,
+	container_type TEXT CHECK(container_type IN ('conclave', 'library')),
 	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 	updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 	closed_at DATETIME,
@@ -304,6 +330,7 @@ CREATE INDEX IF NOT EXISTS idx_factories_name ON factories(name);
 CREATE INDEX IF NOT EXISTS idx_factories_status ON factories(status);
 CREATE INDEX IF NOT EXISTS idx_workshops_factory ON workshops(factory_id);
 CREATE INDEX IF NOT EXISTS idx_workshops_status ON workshops(status);
+CREATE INDEX IF NOT EXISTS idx_workshops_commission ON workshops(active_commission_id);
 CREATE INDEX IF NOT EXISTS idx_workbenches_workshop ON workbenches(workshop_id);
 CREATE INDEX IF NOT EXISTS idx_workbenches_status ON workbenches(status);
 CREATE INDEX IF NOT EXISTS idx_workbenches_repo ON workbenches(repo_id);
@@ -336,6 +363,10 @@ CREATE INDEX IF NOT EXISTS idx_conclaves_commission ON conclaves(commission_id);
 CREATE INDEX IF NOT EXISTS idx_conclaves_status ON conclaves(status);
 CREATE INDEX IF NOT EXISTS idx_notes_commission ON notes(commission_id);
 CREATE INDEX IF NOT EXISTS idx_notes_shipment ON notes(shipment_id);
+CREATE INDEX IF NOT EXISTS idx_libraries_commission ON libraries(commission_id);
+CREATE INDEX IF NOT EXISTS idx_shipyards_commission ON shipyards(commission_id);
+CREATE INDEX IF NOT EXISTS idx_tomes_container ON tomes(container_id);
+CREATE INDEX IF NOT EXISTS idx_shipments_container ON shipments(container_id);
 
 -- Work Orders (1:1 with Shipment)
 CREATE TABLE IF NOT EXISTS work_orders (
@@ -466,7 +497,7 @@ func InitSchema() error {
 				return err
 			}
 			// Insert all migration versions as applied
-			for i := 1; i <= 42; i++ {
+			for i := 1; i <= 44; i++ {
 				_, err = db.Exec("INSERT INTO schema_version (version) VALUES (?)", i)
 				if err != nil {
 					return err
