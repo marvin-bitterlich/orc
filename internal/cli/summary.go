@@ -261,10 +261,23 @@ func renderGoblinSummary(summary *primary.CommissionSummary, _ string) {
 			pinnedMarker = " *"
 		}
 
-		fmt.Printf("%s%s%s%s - %s\n", prefix, colorizeID(con.ID), focusMarker, pinnedMarker, con.Title)
-
 		// Tomes under conclave
 		totalChildren := len(con.Tomes) + len(con.Shipments)
+
+		// Build counts suffix for conclave
+		countParts := []string{}
+		if len(con.Tomes) > 0 {
+			countParts = append(countParts, pluralize(len(con.Tomes), "tome", "tomes"))
+		}
+		if len(con.Shipments) > 0 {
+			countParts = append(countParts, pluralize(len(con.Shipments), "shipment", "shipments"))
+		}
+		countSuffix := ""
+		if len(countParts) > 0 {
+			countSuffix = fmt.Sprintf(" (%s)", strings.Join(countParts, ", "))
+		}
+
+		fmt.Printf("%s%s%s%s - %s%s\n", prefix, colorizeID(con.ID), focusMarker, pinnedMarker, con.Title, countSuffix)
 		childIdx := 0
 
 		for _, tome := range con.Tomes {
@@ -345,7 +358,7 @@ func renderGoblinSummary(summary *primary.CommissionSummary, _ string) {
 		libPrefix = "└── "
 		libChildPrefix = "    "
 	}
-	fmt.Printf("%s%s (%d tomes)\n", libPrefix, colorizeLabel("LIBRARY"), summary.Library.TomeCount)
+	fmt.Printf("%s%s (%s)\n", libPrefix, colorizeLabel("LIBRARY"), pluralize(summary.Library.TomeCount, "tome", "tomes"))
 
 	// Expanded library tomes
 	if len(summary.Library.Tomes) > 0 {
@@ -372,7 +385,7 @@ func renderGoblinSummary(summary *primary.CommissionSummary, _ string) {
 	}
 
 	// Shipyard (always shown)
-	fmt.Printf("└── %s (%d shipments)\n", colorizeLabel("SHIPYARD"), summary.Shipyard.ShipmentCount)
+	fmt.Printf("└── %s (%s)\n", colorizeLabel("SHIPYARD"), pluralize(summary.Shipyard.ShipmentCount, "shipment", "shipments"))
 
 	// Expanded shipyard shipments
 	if len(summary.Shipyard.Shipments) > 0 {
@@ -426,10 +439,23 @@ func renderIMPSummary(summary *primary.CommissionSummary, _ string, showAll bool
 			pinnedMarker = " *"
 		}
 
-		fmt.Printf("%s%s%s%s - %s\n", prefix, colorizeID(con.ID), focusMarker, pinnedMarker, con.Title)
-
 		// Tomes under conclave (no note counts for IMP - simpler view)
 		totalChildren := len(con.Tomes) + len(con.Shipments)
+
+		// Build counts suffix for conclave
+		countParts := []string{}
+		if len(con.Tomes) > 0 {
+			countParts = append(countParts, pluralize(len(con.Tomes), "tome", "tomes"))
+		}
+		if len(con.Shipments) > 0 {
+			countParts = append(countParts, pluralize(len(con.Shipments), "shipment", "shipments"))
+		}
+		countSuffix := ""
+		if len(countParts) > 0 {
+			countSuffix = fmt.Sprintf(" (%s)", strings.Join(countParts, ", "))
+		}
+
+		fmt.Printf("%s%s%s%s - %s%s\n", prefix, colorizeID(con.ID), focusMarker, pinnedMarker, con.Title, countSuffix)
 		childIdx := 0
 
 		for _, tome := range con.Tomes {
@@ -503,7 +529,7 @@ func renderIMPSummary(summary *primary.CommissionSummary, _ string, showAll bool
 		libPrefix = "└── "
 		libChildPrefix = "    "
 	}
-	fmt.Printf("%s%s (%d tomes)\n", libPrefix, colorizeLabel("LIBRARY"), summary.Library.TomeCount)
+	fmt.Printf("%s%s (%s)\n", libPrefix, colorizeLabel("LIBRARY"), pluralize(summary.Library.TomeCount, "tome", "tomes"))
 
 	// Expanded library tomes
 	if len(summary.Library.Tomes) > 0 {
@@ -532,7 +558,7 @@ func renderIMPSummary(summary *primary.CommissionSummary, _ string, showAll bool
 		shipyardPrefix = "├── "
 		shipyardChildPrefix = "│   "
 	}
-	fmt.Printf("%s%s (%d shipments)\n", shipyardPrefix, colorizeLabel("SHIPYARD"), summary.Shipyard.ShipmentCount)
+	fmt.Printf("%s%s (%s)\n", shipyardPrefix, colorizeLabel("SHIPYARD"), pluralize(summary.Shipyard.ShipmentCount, "shipment", "shipments"))
 
 	// Expanded shipyard shipments
 	if len(summary.Shipyard.Shipments) > 0 {
@@ -559,6 +585,14 @@ func renderIMPSummary(summary *primary.CommissionSummary, _ string, showAll bool
 	if summary.HiddenShipmentCount > 0 && !showAll {
 		fmt.Printf("└── (%d other shipments hidden - use --all-shipments to show)\n", summary.HiddenShipmentCount)
 	}
+}
+
+// pluralize returns "N singular" or "N plural" based on count
+func pluralize(count int, singular, plural string) string {
+	if count == 1 {
+		return fmt.Sprintf("%d %s", count, singular)
+	}
+	return fmt.Sprintf("%d %s", count, plural)
 }
 
 // colorizeID applies deterministic color to an ID based on its prefix
