@@ -82,15 +82,16 @@ func (r *WorkshopRepository) Create(ctx context.Context, workshop *secondary.Wor
 // GetByID retrieves a workshop by its ID.
 func (r *WorkshopRepository) GetByID(ctx context.Context, id string) (*secondary.WorkshopRecord, error) {
 	var (
-		createdAt time.Time
-		updatedAt time.Time
+		focusedConclaveID sql.NullString
+		createdAt         time.Time
+		updatedAt         time.Time
 	)
 
 	record := &secondary.WorkshopRecord{}
 	err := r.db.QueryRowContext(ctx,
-		"SELECT id, factory_id, name, status, created_at, updated_at FROM workshops WHERE id = ?",
+		"SELECT id, factory_id, name, status, focused_conclave_id, created_at, updated_at FROM workshops WHERE id = ?",
 		id,
-	).Scan(&record.ID, &record.FactoryID, &record.Name, &record.Status, &createdAt, &updatedAt)
+	).Scan(&record.ID, &record.FactoryID, &record.Name, &record.Status, &focusedConclaveID, &createdAt, &updatedAt)
 
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("workshop %s not found", id)
@@ -99,6 +100,7 @@ func (r *WorkshopRepository) GetByID(ctx context.Context, id string) (*secondary
 		return nil, fmt.Errorf("failed to get workshop: %w", err)
 	}
 
+	record.FocusedConclaveID = focusedConclaveID.String
 	record.CreatedAt = createdAt.Format(time.RFC3339)
 	record.UpdatedAt = updatedAt.Format(time.RFC3339)
 	return record, nil
@@ -106,7 +108,7 @@ func (r *WorkshopRepository) GetByID(ctx context.Context, id string) (*secondary
 
 // List retrieves workshops matching the given filters.
 func (r *WorkshopRepository) List(ctx context.Context, filters secondary.WorkshopFilters) ([]*secondary.WorkshopRecord, error) {
-	query := "SELECT id, factory_id, name, status, created_at, updated_at FROM workshops WHERE 1=1"
+	query := "SELECT id, factory_id, name, status, focused_conclave_id, created_at, updated_at FROM workshops WHERE 1=1"
 	args := []any{}
 
 	if filters.FactoryID != "" {
@@ -135,16 +137,18 @@ func (r *WorkshopRepository) List(ctx context.Context, filters secondary.Worksho
 	var workshops []*secondary.WorkshopRecord
 	for rows.Next() {
 		var (
-			createdAt time.Time
-			updatedAt time.Time
+			focusedConclaveID sql.NullString
+			createdAt         time.Time
+			updatedAt         time.Time
 		)
 
 		record := &secondary.WorkshopRecord{}
-		err := rows.Scan(&record.ID, &record.FactoryID, &record.Name, &record.Status, &createdAt, &updatedAt)
+		err := rows.Scan(&record.ID, &record.FactoryID, &record.Name, &record.Status, &focusedConclaveID, &createdAt, &updatedAt)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan workshop: %w", err)
 		}
 
+		record.FocusedConclaveID = focusedConclaveID.String
 		record.CreatedAt = createdAt.Format(time.RFC3339)
 		record.UpdatedAt = updatedAt.Format(time.RFC3339)
 		workshops = append(workshops, record)
@@ -252,6 +256,32 @@ func (r *WorkshopRepository) FactoryExists(ctx context.Context, factoryID string
 	}
 
 	return count > 0, nil
+}
+
+// UpdateFocusedConclaveID updates the focused conclave ID for a workshop (Goblin focus).
+// Pass empty string to clear focus.
+func (r *WorkshopRepository) UpdateFocusedConclaveID(ctx context.Context, id, conclaveID string) error {
+	var focusedValue any
+	if conclaveID == "" {
+		focusedValue = nil
+	} else {
+		focusedValue = conclaveID
+	}
+
+	result, err := r.db.ExecContext(ctx,
+		"UPDATE workshops SET focused_conclave_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+		focusedValue, id,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to update workshop focus: %w", err)
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		return fmt.Errorf("workshop %s not found", id)
+	}
+
+	return nil
 }
 
 // Ensure WorkshopRepository implements the interface

@@ -210,6 +210,14 @@ func (m *mockWorkshopRepositoryForWorkbench) FactoryExists(ctx context.Context, 
 	return true, nil
 }
 
+func (m *mockWorkshopRepositoryForWorkbench) UpdateFocusedConclaveID(ctx context.Context, id, conclaveID string) error {
+	if ws, ok := m.workshops[id]; ok {
+		ws.FocusedConclaveID = conclaveID
+		return nil
+	}
+	return errors.New("workshop not found")
+}
+
 // ============================================================================
 // Test Helper
 // ============================================================================

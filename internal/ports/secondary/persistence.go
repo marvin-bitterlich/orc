@@ -941,6 +941,10 @@ type WorkshopRepository interface {
 
 	// FactoryExists checks if a factory exists (for validation).
 	FactoryExists(ctx context.Context, factoryID string) (bool, error)
+
+	// UpdateFocusedConclaveID updates the focused conclave ID for a workshop (Goblin focus).
+	// Pass empty string to clear focus.
+	UpdateFocusedConclaveID(ctx context.Context, id, conclaveID string) error
 }
 
 // WorkshopRecord represents a workshop as stored in persistence.

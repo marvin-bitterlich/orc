@@ -572,5 +572,19 @@ func boolToOpStatus(exists bool) primary.OpStatus {
 	return primary.OpCreate
 }
 
+// UpdateFocusedConclaveID sets or clears the focused conclave for a workshop (Goblin focus).
+func (s *WorkshopServiceImpl) UpdateFocusedConclaveID(ctx context.Context, workshopID, conclaveID string) error {
+	return s.workshopRepo.UpdateFocusedConclaveID(ctx, workshopID, conclaveID)
+}
+
+// GetFocusedConclaveID returns the currently focused conclave ID for a workshop.
+func (s *WorkshopServiceImpl) GetFocusedConclaveID(ctx context.Context, workshopID string) (string, error) {
+	record, err := s.workshopRepo.GetByID(ctx, workshopID)
+	if err != nil {
+		return "", fmt.Errorf("workshop not found: %w", err)
+	}
+	return record.FocusedConclaveID, nil
+}
+
 // Ensure WorkshopServiceImpl implements the interface
 var _ primary.WorkshopService = (*WorkshopServiceImpl)(nil)

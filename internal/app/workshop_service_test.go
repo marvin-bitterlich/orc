@@ -122,6 +122,14 @@ func (m *mockWorkshopRepository) FactoryExists(ctx context.Context, factoryID st
 	return m.factoryExists[factoryID], nil
 }
 
+func (m *mockWorkshopRepository) UpdateFocusedConclaveID(ctx context.Context, id, conclaveID string) error {
+	if ws, ok := m.workshops[id]; ok {
+		ws.FocusedConclaveID = conclaveID
+		return nil
+	}
+	return errors.New("workshop not found")
+}
+
 // mockFactoryRepository implements secondary.FactoryRepository for testing.
 type mockFactoryRepository struct {
 	factories    map[string]*secondary.FactoryRecord
