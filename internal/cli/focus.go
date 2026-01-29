@@ -41,11 +41,13 @@ Examples:
 		RunE: runFocus,
 	}
 	cmd.Flags().Bool("show", false, "Show current focus without changing it")
+	cmd.Flags().Bool("clear", false, "Clear the current focus")
 	return cmd
 }
 
 func runFocus(cmd *cobra.Command, args []string) error {
 	showOnly, _ := cmd.Flags().GetBool("show")
+	clearFlag, _ := cmd.Flags().GetBool("clear")
 
 	// Get current working directory
 	cwd, err := os.Getwd()
@@ -59,13 +61,18 @@ func runFocus(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("no ORC config found in current directory")
 	}
 
-	if showOnly {
-		return showCurrentFocus(cfg)
+	// Focus is only supported for IMP contexts with a workbench
+	if cfg.Role != config.RoleIMP || cfg.WorkbenchID == "" {
+		return fmt.Errorf("focus is only available in workbench contexts (IMP role)")
 	}
 
-	if len(args) == 0 {
+	if showOnly {
+		return showCurrentFocus(cfg.WorkbenchID)
+	}
+
+	if clearFlag || len(args) == 0 {
 		// Clear focus
-		return clearFocus(cfg, cwd)
+		return clearFocus(cfg.WorkbenchID)
 	}
 
 	// Set focus
@@ -75,7 +82,7 @@ func runFocus(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	return setFocus(cfg, cwd, containerID, containerType, title)
+	return setFocus(cfg, containerID, containerType, title)
 }
 
 // validateAndGetInfo validates the container ID exists and returns its type and title
@@ -115,32 +122,40 @@ func validateAndGetInfo(id string) (containerType string, title string, err erro
 	}
 }
 
-// showCurrentFocus displays the current focus
-func showCurrentFocus(cfg *config.Config) error {
-	if cfg.CurrentFocus == "" {
+// showCurrentFocus displays the current focus from DB
+func showCurrentFocus(workbenchID string) error {
+	ctx := context.Background()
+
+	focusID, err := wire.WorkbenchService().GetFocusedID(ctx, workbenchID)
+	if err != nil {
+		return fmt.Errorf("failed to get focus: %w", err)
+	}
+
+	if focusID == "" {
 		fmt.Println("No focus set")
 		fmt.Println("\nSet focus with: orc focus <container-id>")
 		return nil
 	}
 
-	containerType, title, err := validateAndGetInfo(cfg.CurrentFocus)
+	containerType, title, err := validateAndGetInfo(focusID)
 	if err != nil {
 		// Focus is set but container no longer exists - graceful degradation
-		fmt.Printf("Focus: %s (container not found - may have been deleted)\n", cfg.CurrentFocus)
+		fmt.Printf("Focus: %s (container not found - may have been deleted)\n", focusID)
 		return nil //nolint:nilerr // intentional: show info even if container deleted
 	}
 
-	fmt.Printf("Focus: %s\n", cfg.CurrentFocus)
+	fmt.Printf("Focus: %s\n", focusID)
 	fmt.Printf("  %s: %s\n", containerType, title)
 	return nil
 }
 
-// setFocus sets the focus in the config
-func setFocus(cfg *config.Config, configDir, containerID, containerType, title string) error {
-	cfg.CurrentFocus = containerID
+// setFocus sets the focus in the DB
+func setFocus(cfg *config.Config, containerID, containerType, title string) error {
+	ctx := context.Background()
 
-	if err := config.SaveConfig(configDir, cfg); err != nil {
-		return fmt.Errorf("failed to save config: %w", err)
+	// Update focus in DB
+	if err := wire.WorkbenchService().UpdateFocusedID(ctx, cfg.WorkbenchID, containerID); err != nil {
+		return fmt.Errorf("failed to set focus: %w", err)
 	}
 
 	fmt.Printf("Focused on %s: %s\n", containerType, containerID)
@@ -238,12 +253,12 @@ func autoCheckoutShipmentBranch(workbenchID, shipmentID string) error {
 	return err
 }
 
-// clearFocus clears the current focus
-func clearFocus(cfg *config.Config, configDir string) error {
-	cfg.CurrentFocus = ""
+// clearFocus clears the current focus in DB
+func clearFocus(workbenchID string) error {
+	ctx := context.Background()
 
-	if err := config.SaveConfig(configDir, cfg); err != nil {
-		return fmt.Errorf("failed to save config: %w", err)
+	if err := wire.WorkbenchService().UpdateFocusedID(ctx, workbenchID, ""); err != nil {
+		return fmt.Errorf("failed to clear focus: %w", err)
 	}
 
 	fmt.Println("Focus cleared")
@@ -251,11 +266,18 @@ func clearFocus(cfg *config.Config, configDir string) error {
 }
 
 // GetCurrentFocus is exported for use by other commands (e.g., prime)
+// Returns the focused ID from DB if in workbench context, empty string otherwise
 func GetCurrentFocus(cfg *config.Config) string {
-	if cfg == nil {
+	if cfg == nil || cfg.WorkbenchID == "" {
 		return ""
 	}
-	return cfg.CurrentFocus
+
+	ctx := context.Background()
+	focusID, err := wire.WorkbenchService().GetFocusedID(ctx, cfg.WorkbenchID)
+	if err != nil {
+		return ""
+	}
+	return focusID
 }
 
 // GetFocusInfo returns the type and title for a focus ID, or empty strings if invalid

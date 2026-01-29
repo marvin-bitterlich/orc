@@ -62,10 +62,9 @@ type AgentIdentityProvider interface {
 
 // AgentIdentity represents an agent's identity as provided by the secondary port.
 type AgentIdentity struct {
-	Type         AgentType
-	ID           string // "ORC" for orchestrator, Workbench ID for IMP
-	FullID       string // Complete ID like "ORC" or "IMP-BENCH-001"
-	CommissionID string // Commission ID (empty for ORC outside commission)
+	Type   AgentType
+	ID     string // "ORC" for orchestrator, Workbench ID for IMP
+	FullID string // Complete ID like "ORC" or "IMP-BENCH-001"
 }
 
 // AgentType represents the type of agent.
@@ -131,6 +130,8 @@ type ShipmentRecord struct {
 	RepoID              string // Empty string means null - FK to repos table
 	Branch              string // Empty string means null - owned branch (e.g., ml/SHIP-001-feature-name)
 	Pinned              bool
+	ContainerID         string // Empty string means null - CON-xxx or YARD-xxx
+	ContainerType       string // Empty string means null - "conclave" or "shipyard"
 	CreatedAt           string
 	UpdatedAt           string
 	CompletedAt         string // Empty string means null
@@ -419,12 +420,14 @@ type TomeRepository interface {
 type TomeRecord struct {
 	ID                  string
 	CommissionID        string
-	ConclaveID          string // Empty string means null - optional parent conclave
+	ConclaveID          string // Empty string means null - optional parent conclave (legacy, use ContainerID)
 	Title               string
 	Description         string // Empty string means null
 	Status              string
 	AssignedWorkbenchID string // Empty string means null
 	Pinned              bool
+	ContainerID         string // Empty string means null - CON-xxx or LIB-xxx
+	ContainerType       string // Empty string means null - "conclave" or "library"
 	CreatedAt           string
 	UpdatedAt           string
 	ClosedAt            string // Empty string means null
@@ -435,6 +438,60 @@ type TomeFilters struct {
 	CommissionID string
 	ConclaveID   string
 	Status       string
+}
+
+// LibraryRecord represents a library as stored in persistence.
+// One library per commission, auto-created.
+type LibraryRecord struct {
+	ID           string
+	CommissionID string
+	CreatedAt    string
+	UpdatedAt    string
+}
+
+// ShipyardRecord represents a shipyard as stored in persistence.
+// One shipyard per commission, auto-created.
+type ShipyardRecord struct {
+	ID           string
+	CommissionID string
+	CreatedAt    string
+	UpdatedAt    string
+}
+
+// LibraryRepository defines the secondary port for library persistence.
+type LibraryRepository interface {
+	// Create persists a new library.
+	Create(ctx context.Context, library *LibraryRecord) error
+
+	// GetByID retrieves a library by its ID.
+	GetByID(ctx context.Context, id string) (*LibraryRecord, error)
+
+	// GetByCommissionID retrieves the library for a commission.
+	GetByCommissionID(ctx context.Context, commissionID string) (*LibraryRecord, error)
+
+	// GetNextID returns the next available library ID.
+	GetNextID(ctx context.Context) (string, error)
+
+	// CommissionExists checks if a commission exists (for validation).
+	CommissionExists(ctx context.Context, commissionID string) (bool, error)
+}
+
+// ShipyardRepository defines the secondary port for shipyard persistence.
+type ShipyardRepository interface {
+	// Create persists a new shipyard.
+	Create(ctx context.Context, shipyard *ShipyardRecord) error
+
+	// GetByID retrieves a shipyard by its ID.
+	GetByID(ctx context.Context, id string) (*ShipyardRecord, error)
+
+	// GetByCommissionID retrieves the shipyard for a commission.
+	GetByCommissionID(ctx context.Context, commissionID string) (*ShipyardRecord, error)
+
+	// GetNextID returns the next available shipyard ID.
+	GetNextID(ctx context.Context) (string, error)
+
+	// CommissionExists checks if a commission exists (for validation).
+	CommissionExists(ctx context.Context, commissionID string) (bool, error)
 }
 
 // ConclaveRepository defines the secondary port for conclave persistence.
@@ -888,12 +945,13 @@ type WorkshopRepository interface {
 
 // WorkshopRecord represents a workshop as stored in persistence.
 type WorkshopRecord struct {
-	ID        string
-	FactoryID string
-	Name      string
-	Status    string
-	CreatedAt string
-	UpdatedAt string
+	ID                string
+	FactoryID         string
+	Name              string
+	Status            string
+	FocusedConclaveID string // Empty string means null - Goblin focus
+	CreatedAt         string
+	UpdatedAt         string
 }
 
 // WorkshopFilters contains filter options for querying workshops.
@@ -933,6 +991,10 @@ type WorkbenchRepository interface {
 	// UpdatePath updates the path of a workbench.
 	UpdatePath(ctx context.Context, id, newPath string) error
 
+	// UpdateFocusedID updates the focused container ID for a workbench.
+	// Pass empty string to clear focus.
+	UpdateFocusedID(ctx context.Context, id, focusedID string) error
+
 	// GetNextID returns the next available workbench ID.
 	GetNextID(ctx context.Context) (string, error)
 
@@ -950,6 +1012,7 @@ type WorkbenchRecord struct {
 	Status        string
 	HomeBranch    string // Git home branch for this workbench (e.g., ml/BENCH-name)
 	CurrentBranch string // Currently checked out branch
+	FocusedID     string // Empty string means null - IMP focus (CON-xxx or SHIP-xxx)
 	CreatedAt     string
 	UpdatedAt     string
 }

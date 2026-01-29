@@ -263,6 +263,14 @@ func (m *mockWorkbenchRepositoryForWorkshop) WorkshopExists(ctx context.Context,
 	return true, nil
 }
 
+func (m *mockWorkbenchRepositoryForWorkshop) UpdateFocusedID(ctx context.Context, id, focusedID string) error {
+	if wb, ok := m.workbenches[id]; ok {
+		wb.FocusedID = focusedID
+		return nil
+	}
+	return errors.New("workbench not found")
+}
+
 // mockRepoRepositoryForWorkshop implements secondary.RepoRepository minimally.
 type mockRepoRepositoryForWorkshop struct{}
 

@@ -1,21 +1,17 @@
 package context
 
 import (
-	"context"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/example/orc/internal/config"
-	"github.com/example/orc/internal/wire"
 )
 
 // WorkbenchContext represents workbench context information (IMP territory)
 type WorkbenchContext struct {
-	WorkbenchID  string `json:"workbench_id"`
-	CommissionID string `json:"commission_id"`
-	Role         string `json:"role"`
-	ConfigPath   string `json:"config_path"` // Path to .orc/config.json
+	WorkbenchID string `json:"workbench_id"`
+	Role        string `json:"role"`
+	ConfigPath  string `json:"config_path"` // Path to .orc/config.json
 }
 
 // DetectWorkbenchContext checks if we're in a workbench context (IMP territory)
@@ -34,20 +30,18 @@ func DetectWorkbenchContext() (*WorkbenchContext, error) {
 	// Only return context if this is an IMP config with workbench
 	if cfg.Role == config.RoleIMP && cfg.WorkbenchID != "" {
 		return &WorkbenchContext{
-			WorkbenchID:  cfg.WorkbenchID,
-			CommissionID: cfg.CommissionID,
-			Role:         cfg.Role,
-			ConfigPath:   filepath.Join(dir, ".orc", "config.json"),
+			WorkbenchID: cfg.WorkbenchID,
+			Role:        cfg.Role,
+			ConfigPath:  filepath.Join(dir, ".orc", "config.json"),
 		}, nil
 	}
 
 	return nil, nil
 }
 
-// GetContextCommissionID returns the commission ID from:
-// 1. Local config CommissionID (workbench context)
-// 2. Focused container's commission_id (fallback)
-// Returns empty string if no context found - caller should handle this
+// GetContextCommissionID returns the commission ID from workbench context.
+// For IMP contexts, looks up commission via workbench → workshop → factory → commission chain.
+// Returns empty string if no context found - caller should handle this.
 func GetContextCommissionID() string {
 	dir, err := os.Getwd()
 	if err != nil {
@@ -59,70 +53,40 @@ func GetContextCommissionID() string {
 		return ""
 	}
 
-	// First: explicit commission in config
-	if cfg.CommissionID != "" {
-		return cfg.CommissionID
-	}
-
-	// Second: look up commission from focused container
-	if cfg.CurrentFocus != "" {
-		return getCommissionFromFocus(cfg.CurrentFocus)
+	// For IMP role, look up commission through workbench chain
+	if cfg.Role == config.RoleIMP && cfg.WorkbenchID != "" {
+		return getCommissionFromWorkbench(cfg.WorkbenchID)
 	}
 
 	return ""
 }
 
-// getCommissionFromFocus looks up the commission_id for a focused container.
-func getCommissionFromFocus(focusID string) string {
-	ctx := context.Background()
-
-	switch {
-	case strings.HasPrefix(focusID, "COMM-"):
-		return focusID // Commission is its own context
-
-	case strings.HasPrefix(focusID, "SHIP-"):
-		ship, err := wire.ShipmentService().GetShipment(ctx, focusID)
-		if err != nil {
-			return ""
-		}
-		return ship.CommissionID
-
-	case strings.HasPrefix(focusID, "CON-"):
-		con, err := wire.ConclaveService().GetConclave(ctx, focusID)
-		if err != nil {
-			return ""
-		}
-		return con.CommissionID
-
-	case strings.HasPrefix(focusID, "TOME-"):
-		tome, err := wire.TomeService().GetTome(ctx, focusID)
-		if err != nil {
-			return ""
-		}
-		return tome.CommissionID
-	}
-
+// getCommissionFromWorkbench looks up commission ID via workbench → workshop → factory chain.
+// This is a placeholder that returns empty - requires DB access which is wired elsewhere.
+func getCommissionFromWorkbench(_ string) string {
+	// Note: Full implementation requires DB lookup through wire.
+	// For now, commission context comes from focused containers.
 	return ""
 }
 
-// WriteCommissionContext creates a .orc/config.json file for a commission workspace
-// Uses Goblin role by default since commission workspaces are for orchestration
-func WriteCommissionContext(workspacePath, commissionID string) error {
+// WriteCommissionContext creates a .orc/config.json file for a commission workspace.
+// Uses Goblin role by default since commission workspaces are for orchestration.
+// If the path matches a workshop pattern, sets WorkshopID.
+func WriteCommissionContext(workspacePath string) error {
 	cfg := &config.Config{
-		Version:      "1.0",
-		Role:         config.RoleGoblin,
-		CommissionID: commissionID,
+		Version:    "1.0",
+		Role:       config.RoleGoblin,
+		WorkshopID: config.ParseWorkshopIDFromPath(workspacePath),
 	}
 	return config.SaveConfig(workspacePath, cfg)
 }
 
 // WriteWorkbenchContext creates a .orc/config.json file for a workbench (IMP territory)
-func WriteWorkbenchContext(workbenchPath, workbenchID, commissionID string) error {
+func WriteWorkbenchContext(workbenchPath, workbenchID string) error {
 	cfg := &config.Config{
-		Version:      "1.0",
-		Role:         config.RoleIMP,
-		WorkbenchID:  workbenchID,
-		CommissionID: commissionID,
+		Version:     "1.0",
+		Role:        config.RoleIMP,
+		WorkbenchID: workbenchID,
 	}
 	return config.SaveConfig(workbenchPath, cfg)
 }

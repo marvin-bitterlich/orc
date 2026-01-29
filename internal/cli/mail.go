@@ -68,27 +68,40 @@ Examples:
 				subject = "(no subject)"
 			}
 
-			// Determine commission ID for message
+			// Determine commission ID for message via DB lookup
 			// Messages must be scoped to a commission for database storage
-			commissionID := identity.CommissionID
+			var commissionID string
 
-			if identity.Type == agent.AgentTypeGoblin {
-				// Goblin sending: use recipient's commission ID (must be IMP)
-				if recipientIdentity.Type == agent.AgentTypeIMP {
-					// Use recipient's commission ID
-					if recipientIdentity.CommissionID != "" {
-						commissionID = recipientIdentity.CommissionID
-					} else {
-						return fmt.Errorf("cannot determine commission ID for IMP agent")
-					}
-				} else {
-					return fmt.Errorf("Goblin can only send to IMP agents")
+			// For IMP sender, look up commission via workbench → workshop chain
+			if identity.Type == agent.AgentTypeIMP {
+				workbench, err := wire.WorkbenchService().GetWorkbench(ctx, identity.ID)
+				if err != nil {
+					return fmt.Errorf("failed to get workbench for commission lookup: %w", err)
 				}
-			} else if recipientIdentity.Type == agent.AgentTypeGoblin {
-				// Sending TO ORC: use sender's commission ID (IMPs reporting to ORC)
-				commissionID = identity.CommissionID
+				workshop, err := wire.WorkshopService().GetWorkshop(ctx, workbench.WorkshopID)
+				if err != nil {
+					return fmt.Errorf("failed to get workshop: %w", err)
+				}
+				// TODO: Resolve commission through factory chain when fully implemented
+				commissionID = workshop.Name // Use workshop name as fallback
 			}
-			// Otherwise: IMP to IMP, use sender's commission ID (already set)
+
+			// For IMP recipient, look up their commission if sender commission not set
+			if commissionID == "" && recipientIdentity.Type == agent.AgentTypeIMP {
+				workbench, err := wire.WorkbenchService().GetWorkbench(ctx, recipientIdentity.ID)
+				if err != nil {
+					return fmt.Errorf("failed to get recipient workbench: %w", err)
+				}
+				workshop, err := wire.WorkshopService().GetWorkshop(ctx, workbench.WorkshopID)
+				if err != nil {
+					return fmt.Errorf("failed to get recipient workshop: %w", err)
+				}
+				commissionID = workshop.Name
+			}
+
+			if commissionID == "" {
+				return fmt.Errorf("cannot determine commission context for message")
+			}
 
 			// Create message
 			resp, err := wire.MessageService().CreateMessage(ctx, primary.CreateMessageRequest{

@@ -34,6 +34,13 @@ type WorkbenchService interface {
 
 	// GetWorkbenchStatus returns the current git status of a workbench.
 	GetWorkbenchStatus(ctx context.Context, workbenchID string) (*WorkbenchGitStatus, error)
+
+	// UpdateFocusedID sets or clears the focused container ID for a workbench.
+	// Pass empty string to clear focus.
+	UpdateFocusedID(ctx context.Context, workbenchID, focusedID string) error
+
+	// GetFocusedID returns the currently focused container ID for a workbench.
+	GetFocusedID(ctx context.Context, workbenchID string) (string, error)
 }
 
 // CreateWorkbenchRequest contains parameters for creating a workbench.

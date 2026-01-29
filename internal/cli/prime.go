@@ -124,51 +124,12 @@ func buildGoblinPrimeOutput(cwd string, cfg *config.Config) string {
 	// Git context
 	output.WriteString(getGitInstructions())
 
-	// Current focus (if set)
-	if cfg != nil && cfg.CurrentFocus != "" {
-		containerType, title, status := GetFocusInfo(cfg.CurrentFocus)
-		if containerType != "" {
-			output.WriteString("## Current Focus\n\n")
-			output.WriteString(fmt.Sprintf("**%s**: %s - %s [%s]\n\n", containerType, cfg.CurrentFocus, title, status))
-		}
-	}
-
-	// Commission context (if set)
-	if cfg != nil && cfg.CommissionID != "" {
-		output.WriteString(fmt.Sprintf("**Commission**: %s\n\n", cfg.CommissionID))
-
-		// Get commission details
-		commission, err := wire.CommissionService().GetCommission(context.Background(), cfg.CommissionID)
-		if err == nil {
-			output.WriteString(fmt.Sprintf("## %s\n\n", commission.Title))
-			if commission.Description != "" {
-				descLines := strings.Split(commission.Description, "\n")
-				if len(descLines) > 3 {
-					output.WriteString(strings.Join(descLines[:3], "\n"))
-					output.WriteString("\n...\n\n")
-				} else {
-					output.WriteString(commission.Description)
-					output.WriteString("\n\n")
-				}
-			}
-		}
-	} else {
-		output.WriteString("**Context**: Master orchestrator (global)\n\n")
-		output.WriteString("Run `orc commission list` to see available commissions.\n\n")
-	}
+	// Goblin context (global orchestrator)
+	output.WriteString("**Context**: Master orchestrator (global)\n\n")
+	output.WriteString("Run `orc commission list` to see available commissions.\n\n")
 
 	// Cross-workshop summary
 	output.WriteString(getCrossWorkshopSummary())
-
-	// Spec-Kit workflow (when shipment focused)
-	if cfg != nil && strings.HasPrefix(cfg.CurrentFocus, "SHIP-") {
-		output.WriteString(getSpecKitWorkflow())
-	}
-
-	// Refinement mode (when CWO is draft)
-	if cfg != nil && strings.HasPrefix(cfg.CurrentFocus, "SHIP-") {
-		output.WriteString(getRefinementModeContext(cfg.CurrentFocus))
-	}
 
 	// Core rules (shared)
 	output.WriteString(getCoreRules())
@@ -194,7 +155,6 @@ func buildIMPPrimeOutput(workbenchCtx *ctx.WorkbenchContext, cwd string) string 
 	output.WriteString("## Identity\n\n")
 	output.WriteString("**Role**: Implementation Agent (IMP)\n")
 	output.WriteString(fmt.Sprintf("**Workbench**: `%s`\n", workbenchCtx.WorkbenchID))
-	output.WriteString(fmt.Sprintf("**Commission**: `%s`\n", workbenchCtx.CommissionID))
 	output.WriteString(fmt.Sprintf("**Location**: `%s`\n\n", cwd))
 
 	// Git context
@@ -335,45 +295,5 @@ func getCrossWorkshopSummary() string {
 	}
 
 	output.WriteString("\n")
-	return output.String()
-}
-
-// getSpecKitWorkflow returns the Spec-Kit ceremony workflow guide
-func getSpecKitWorkflow() string {
-	return `## Spec-Kit Workflow
-
-When working on a shipment, follow this ceremony:
-
-` + "```" + `
-/orc-cycle  → Scope WHAT (create CWO)
-/orc-plan   → Plan HOW (design implementation)
-/orc-deliver → Close cycle (create CREC)
-` + "```" + `
-
-**Current cycle status:** Run ` + "`./orc cycle list --shipment-id SHIP-XXX`" + ` to see.
-
-`
-}
-
-// getRefinementModeContext checks for draft CWOs and returns context about refinement mode
-func getRefinementModeContext(shipmentID string) string {
-	cwos, err := wire.CycleWorkOrderService().ListCycleWorkOrders(
-		context.Background(),
-		primary.CycleWorkOrderFilters{
-			ShipmentID: shipmentID,
-			Status:     "draft",
-		},
-	)
-	if err != nil || len(cwos) == 0 {
-		return ""
-	}
-
-	var output strings.Builder
-	output.WriteString("## Refinement Mode\n\n")
-	for _, cwo := range cwos {
-		output.WriteString(fmt.Sprintf("**%s** is in DRAFT status.\n", cwo.ID))
-		output.WriteString("- Review/refine the scope before approving\n")
-		output.WriteString(fmt.Sprintf("- Run `./orc cwo approve %s` when ready\n\n", cwo.ID))
-	}
 	return output.String()
 }

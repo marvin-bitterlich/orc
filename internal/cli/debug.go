@@ -64,11 +64,8 @@ Examples:
 				if cfg.WorkbenchID != "" {
 					fmt.Printf("  Workbench ID: %s\n", cfg.WorkbenchID)
 				}
-				if cfg.CommissionID != "" {
-					fmt.Printf("  Commission ID: %s\n", cfg.CommissionID)
-				}
-				if cfg.CurrentFocus != "" {
-					fmt.Printf("  Current Focus: %s\n", cfg.CurrentFocus)
+				if cfg.WorkshopID != "" {
+					fmt.Printf("  Workshop ID: %s\n", cfg.WorkshopID)
 				}
 				fmt.Println()
 
@@ -94,7 +91,6 @@ Examples:
 			if err == nil && workbenchCtx != nil {
 				fmt.Printf("  Detected IMP context\n")
 				fmt.Printf("  Workbench ID: %s\n", workbenchCtx.WorkbenchID)
-				fmt.Printf("  Commission ID: %s\n", workbenchCtx.CommissionID)
 				fmt.Printf("  Config Path: %s\n\n", workbenchCtx.ConfigPath)
 			} else {
 				fmt.Printf("  Not in a workbench (Goblin context)\n\n")
@@ -113,11 +109,10 @@ Examples:
 			if workbenchCtx != nil {
 				fmt.Printf("  Context: IMP (workbench-specific)\n")
 				fmt.Printf("  Workbench: %s\n", workbenchCtx.WorkbenchID)
-				fmt.Printf("  Commission: %s\n", workbenchCtx.CommissionID)
 			} else {
 				fmt.Printf("  Context: Goblin (orchestrator)\n")
-				if cfg != nil && cfg.CommissionID != "" {
-					fmt.Printf("  Commission: %s\n", cfg.CommissionID)
+				if cfg != nil && cfg.WorkshopID != "" {
+					fmt.Printf("  Workshop: %s\n", cfg.WorkshopID)
 				}
 			}
 
@@ -198,19 +193,18 @@ Examples:
 						fmt.Printf("   INFO: No role set (defaults to Goblin)\n")
 					}
 
-					// Check commission_id
-					if cfg.CommissionID != "" {
-						fmt.Printf("   OK: Commission ID: %s\n", cfg.CommissionID)
-					} else {
-						fmt.Printf("   INFO: No commission_id set\n")
-					}
-
-					// Check workbench_id for IMP
+					// Check identity fields based on role
 					if cfg.Role == config.RoleIMP {
 						if cfg.WorkbenchID != "" {
 							fmt.Printf("   OK: Workbench ID: %s\n", cfg.WorkbenchID)
 						} else {
 							fmt.Printf("   WARN: IMP role but no workbench_id set\n")
+						}
+					} else if config.IsGoblinRole(cfg.Role) {
+						if cfg.WorkshopID != "" {
+							fmt.Printf("   OK: Workshop ID: %s\n", cfg.WorkshopID)
+						} else {
+							fmt.Printf("   INFO: No workshop_id set (global Goblin context)\n")
 						}
 					}
 				} else {

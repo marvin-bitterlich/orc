@@ -129,7 +129,7 @@ Examples:
 		}
 
 		// Write .orc/config.json for commission context
-		if err := orccontext.WriteCommissionContext(workspacePath, commissionID); err != nil {
+		if err := orccontext.WriteCommissionContext(workspacePath); err != nil {
 			return fmt.Errorf("failed to write commission config: %w", err)
 		}
 

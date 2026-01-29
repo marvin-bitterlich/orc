@@ -55,30 +55,15 @@ This provides a focused view of "where am I right now?"`,
 			}
 			fmt.Println()
 
-			// Display commission
-			if cfg.CommissionID != "" {
-				commission, err := wire.CommissionService().GetCommission(context.Background(), cfg.CommissionID)
-				if err != nil {
-					fmt.Printf("Commission: %s (error loading: %v)\n", cfg.CommissionID, err)
-				} else {
-					fmt.Printf("Commission: %s - %s [%s]\n", commission.ID, commission.Title, commission.Status)
-					if commission.Description != "" {
-						fmt.Printf("   %s\n", commission.Description)
-					}
-				}
-			} else {
-				fmt.Println("Commission: (none active)")
-			}
-			fmt.Println()
-
-			// Display current focus if set
-			if cfg.CurrentFocus != "" {
-				containerType, title, status := GetFocusInfo(cfg.CurrentFocus)
+			// Display current focus if set (read from DB for IMP context)
+			focusID := GetCurrentFocus(cfg)
+			if focusID != "" {
+				containerType, title, status := GetFocusInfo(focusID)
 				if containerType != "" {
-					fmt.Printf("Focus: %s - %s [%s]\n", cfg.CurrentFocus, title, status)
+					fmt.Printf("Focus: %s - %s [%s]\n", focusID, title, status)
 					fmt.Printf("   (%s)\n", containerType)
 				} else {
-					fmt.Printf("Focus: %s (container not found)\n", cfg.CurrentFocus)
+					fmt.Printf("Focus: %s (container not found)\n", focusID)
 				}
 				fmt.Println()
 			}

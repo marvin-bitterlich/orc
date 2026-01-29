@@ -40,9 +40,9 @@ func (s *CommissionServiceImpl) CreateCommission(ctx context.Context, req primar
 
 	// 2. Check guard
 	guardCtx := corecommission.GuardContext{
-		AgentType:    corecommission.AgentType(identity.Type),
-		AgentID:      identity.FullID,
-		CommissionID: identity.CommissionID,
+		AgentType: corecommission.AgentType(identity.Type),
+		AgentID:   identity.FullID,
+		// CommissionID resolved via DB when needed, not from identity
 	}
 	if result := corecommission.CanCreateCommission(guardCtx); !result.Allowed {
 		return nil, result.Error()
@@ -82,9 +82,9 @@ func (s *CommissionServiceImpl) StartCommission(ctx context.Context, req primary
 	}
 
 	guardCtx := corecommission.GuardContext{
-		AgentType:    corecommission.AgentType(identity.Type),
-		AgentID:      identity.FullID,
-		CommissionID: identity.CommissionID,
+		AgentType: corecommission.AgentType(identity.Type),
+		AgentID:   identity.FullID,
+		// CommissionID resolved via DB when needed, not from identity
 	}
 	if result := corecommission.CanStartCommission(guardCtx); !result.Allowed {
 		return nil, result.Error()
@@ -110,9 +110,9 @@ func (s *CommissionServiceImpl) LaunchCommission(ctx context.Context, req primar
 	}
 
 	guardCtx := corecommission.GuardContext{
-		AgentType:    corecommission.AgentType(identity.Type),
-		AgentID:      identity.FullID,
-		CommissionID: identity.CommissionID,
+		AgentType: corecommission.AgentType(identity.Type),
+		AgentID:   identity.FullID,
+		// CommissionID resolved via DB when needed, not from identity
 	}
 	if result := corecommission.CanLaunchCommission(guardCtx); !result.Allowed {
 		return nil, result.Error()

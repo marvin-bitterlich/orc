@@ -34,9 +34,9 @@ func (s *CommissionOrchestrationService) CheckLaunchPermission(ctx context.Conte
 	}
 
 	guardCtx := corecommission.GuardContext{
-		AgentType:    corecommission.AgentType(identity.Type),
-		AgentID:      identity.FullID,
-		CommissionID: identity.CommissionID,
+		AgentType: corecommission.AgentType(identity.Type),
+		AgentID:   identity.FullID,
+		// CommissionID resolved via DB when needed, not from identity
 	}
 	if result := corecommission.CanLaunchCommission(guardCtx); !result.Allowed {
 		return result.Error()

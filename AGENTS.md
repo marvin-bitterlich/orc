@@ -19,6 +19,34 @@ To bypass in emergencies: `git commit --no-verify` (will be audited)
 
 ---
 
+## Config Files
+
+ORC uses `.orc/config.json` for identity only (not state).
+
+### IMP Config (workbench)
+```json
+{
+  "version": "1.0",
+  "role": "IMP",
+  "workbench_id": "BENCH-014"
+}
+```
+
+### Goblin Config (workshop gatehouse)
+```json
+{
+  "version": "1.0",
+  "role": "GOBLIN",
+  "workshop_id": "WORK-003"
+}
+```
+
+### What NOT to store
+- ❌ `commission_id` - Trust the DB (workbench → workshop → factory → commission)
+- ❌ `current_focus` - Stored in DB (`workbenches.focused_id`)
+
+---
+
 ## Build & Development
 
 **ALWAYS use the Makefile for building and installing ORC:**

@@ -34,32 +34,47 @@ Examples:
 				return fmt.Errorf("invalid agent ID: %w", err)
 			}
 
-			// For IMP agents, we need to look up workbench info
+			// For IMP agents, we need to look up workbench info and commission
 			var target string
+			var commissionID string
+			ctx := context.Background()
+
 			if identity.Type == agent.AgentTypeIMP {
-				// Extract workbench ID
-				workbench, err := wire.WorkbenchService().GetWorkbench(context.Background(), identity.ID)
+				// Extract workbench ID and resolve commission via workshop chain
+				workbench, err := wire.WorkbenchService().GetWorkbench(ctx, identity.ID)
 				if err != nil {
 					return fmt.Errorf("failed to get workbench info: %w", err)
 				}
 
+				// Get workshop to find factory/commission context
+				workshop, err := wire.WorkshopService().GetWorkshop(ctx, workbench.WorkshopID)
+				if err != nil {
+					return fmt.Errorf("failed to get workshop info: %w", err)
+				}
+
+				// For now, use workshop name as part of session name
+				// TODO: Resolve commission through factory if needed
+				commissionID = workshop.Name
+
 				// Resolve tmux target
-				target, err = agent.ResolveTMuxTarget(agentID, workbench.Name)
+				target, err = agent.ResolveTMuxTarget(agentID, workbench.Name, commissionID)
 				if err != nil {
 					return fmt.Errorf("failed to resolve target: %w", err)
 				}
 			} else {
-				// ORC
-				target, err = agent.ResolveTMuxTarget(agentID, "")
+				// Goblin
+				target, err = agent.ResolveTMuxTarget(agentID, "", "")
 				if err != nil {
 					return fmt.Errorf("failed to resolve target: %w", err)
 				}
 			}
 
 			// Check if session exists
-			ctx := context.Background()
 			tmuxAdapter := wire.TMuxAdapter()
-			sessionName := fmt.Sprintf("orc-%s", identity.CommissionID)
+			sessionName := fmt.Sprintf("orc-%s", commissionID)
+			if commissionID == "" {
+				sessionName = "ORC" // Goblin session
+			}
 			if !tmuxAdapter.SessionExists(ctx, sessionName) {
 				return fmt.Errorf("tmux session %s not running - agent may not be active", sessionName)
 			}

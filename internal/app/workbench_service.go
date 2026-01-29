@@ -356,5 +356,19 @@ func (s *WorkbenchServiceImpl) GetWorkbenchStatus(ctx context.Context, workbench
 	return status, nil
 }
 
+// UpdateFocusedID sets or clears the focused container ID for a workbench.
+func (s *WorkbenchServiceImpl) UpdateFocusedID(ctx context.Context, workbenchID, focusedID string) error {
+	return s.workbenchRepo.UpdateFocusedID(ctx, workbenchID, focusedID)
+}
+
+// GetFocusedID returns the currently focused container ID for a workbench.
+func (s *WorkbenchServiceImpl) GetFocusedID(ctx context.Context, workbenchID string) (string, error) {
+	record, err := s.workbenchRepo.GetByID(ctx, workbenchID)
+	if err != nil {
+		return "", fmt.Errorf("workbench not found: %w", err)
+	}
+	return record.FocusedID, nil
+}
+
 // Ensure WorkbenchServiceImpl implements the interface
 var _ primary.WorkbenchService = (*WorkbenchServiceImpl)(nil)

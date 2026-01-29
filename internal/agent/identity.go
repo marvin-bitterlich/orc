@@ -18,10 +18,9 @@ const (
 
 // AgentIdentity represents a parsed agent ID
 type AgentIdentity struct {
-	Type         AgentType
-	ID           string // "GOBLIN" for orchestrator, Workbench ID for IMP
-	FullID       string // Complete ID like "GOBLIN" or "IMP-BENCH-001"
-	CommissionID string // Commission ID (empty for Goblin outside commission, populated for IMP)
+	Type   AgentType
+	ID     string // "GOBLIN" for orchestrator, Workbench ID for IMP
+	FullID string // Complete ID like "GOBLIN" or "IMP-BENCH-001"
 }
 
 // GetCurrentAgentID detects the current agent identity based on working directory context
@@ -37,25 +36,18 @@ func GetCurrentAgentID() (*AgentIdentity, error) {
 	if err == nil && cfg.Role == config.RoleIMP && cfg.WorkbenchID != "" {
 		// We're in a workbench - this is an IMP
 		return &AgentIdentity{
-			Type:         AgentTypeIMP,
-			ID:           cfg.WorkbenchID,
-			FullID:       fmt.Sprintf("IMP-%s", cfg.WorkbenchID),
-			CommissionID: cfg.CommissionID,
+			Type:   AgentTypeIMP,
+			ID:     cfg.WorkbenchID,
+			FullID: fmt.Sprintf("IMP-%s", cfg.WorkbenchID),
 		}, nil
 	}
 
 	// Not in a workbench with IMP role - we're a Goblin (orchestrator)
 	// Goblin can work anywhere: commission workspaces, ORC repo, anywhere
-	commissionID := ""
-	if cfg != nil {
-		commissionID = cfg.CommissionID
-	}
-
 	return &AgentIdentity{
-		Type:         AgentTypeGoblin,
-		ID:           "GOBLIN",
-		FullID:       "GOBLIN",
-		CommissionID: commissionID, // Populated if in commission context, empty otherwise
+		Type:   AgentTypeGoblin,
+		ID:     "GOBLIN",
+		FullID: "GOBLIN",
 	}, nil
 }
 
@@ -64,10 +56,9 @@ func ParseAgentID(agentID string) (*AgentIdentity, error) {
 	// Special case: GOBLIN or ORC (backwards compat) has no parts
 	if agentID == "GOBLIN" || agentID == "ORC" {
 		return &AgentIdentity{
-			Type:         AgentTypeGoblin,
-			ID:           "GOBLIN",
-			FullID:       "GOBLIN",
-			CommissionID: "", // Goblin can work across commissions
+			Type:   AgentTypeGoblin,
+			ID:     "GOBLIN",
+			FullID: "GOBLIN",
 		}, nil
 	}
 
@@ -81,9 +72,8 @@ func ParseAgentID(agentID string) (*AgentIdentity, error) {
 
 	switch agentType {
 	case AgentTypeIMP:
-		// For IMP, we need to extract commission ID from workbench ID
-		// Workbench IDs are like BENCH-001, we need to look up the commission
-		// For now, return partial identity (caller must resolve commission)
+		// For IMP, workbench IDs are like BENCH-001
+		// Commission context is resolved via DB lookup when needed
 		return &AgentIdentity{
 			Type:   AgentTypeIMP,
 			ID:     id,
@@ -94,8 +84,9 @@ func ParseAgentID(agentID string) (*AgentIdentity, error) {
 	}
 }
 
-// ResolveTMuxTarget converts an agent ID to a tmux target string
-func ResolveTMuxTarget(agentID string, workbenchName string) (string, error) {
+// ResolveTMuxTarget converts an agent ID to a tmux target string.
+// For IMP targets, commissionID must be provided (looked up via DB by caller).
+func ResolveTMuxTarget(agentID string, workbenchName string, commissionID string) (string, error) {
 	identity, err := ParseAgentID(agentID)
 	if err != nil {
 		return "", err
@@ -107,10 +98,10 @@ func ResolveTMuxTarget(agentID string, workbenchName string) (string, error) {
 	}
 
 	// For IMP, need workbench name and commission ID
-	if identity.CommissionID == "" || workbenchName == "" {
+	if commissionID == "" || workbenchName == "" {
 		return "", fmt.Errorf("IMP target requires commission ID and workbench name")
 	}
 
 	// Window named by workbench, pane 2 is Claude
-	return fmt.Sprintf("orc-%s:%s.2", identity.CommissionID, workbenchName), nil
+	return fmt.Sprintf("orc-%s:%s.2", commissionID, workbenchName), nil
 }

@@ -111,10 +111,9 @@ type mockAgentProvider struct {
 func newMockAgentProvider(agentType secondary.AgentType) *mockAgentProvider {
 	return &mockAgentProvider{
 		identity: &secondary.AgentIdentity{
-			Type:         agentType,
-			ID:           "001",
-			FullID:       string(agentType) + "-001",
-			CommissionID: "",
+			Type:   agentType,
+			ID:     "001",
+			FullID: string(agentType) + "-001",
 		},
 	}
 }
