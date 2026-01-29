@@ -94,6 +94,7 @@ Examples:
 			commissionFilter, _ := cmd.Flags().GetString("commission")
 			expandAll, _ := cmd.Flags().GetBool("all")
 			allShipments, _ := cmd.Flags().GetBool("all-shipments")
+			expandLibrary, _ := cmd.Flags().GetBool("expand")
 
 			// Load config for role detection
 			cfg, _ := config.LoadConfig(cwd)
@@ -179,6 +180,7 @@ Examples:
 					WorkshopID:       workshopID,
 					FocusID:          focusID,
 					ShowAllShipments: allShipments,
+					ExpandLibrary:    expandLibrary,
 				}
 
 				summary, err := wire.SummaryService().GetCommissionSummary(context.Background(), req)
@@ -206,6 +208,7 @@ Examples:
 	cmd.Flags().StringP("commission", "c", "", "Commission filter: commission ID or 'current' for context commission")
 	cmd.Flags().Bool("all", false, "Show all containers (default: only show focused container if set)")
 	cmd.Flags().Bool("all-shipments", false, "Show all shipments including those assigned to other workbenches (IMP only)")
+	cmd.Flags().Bool("expand", false, "Expand LIBRARY and SHIPYARD to show individual contents")
 
 	return cmd
 }
@@ -337,13 +340,64 @@ func renderGoblinSummary(summary *primary.CommissionSummary, _ string) {
 
 	// Library (always shown)
 	libPrefix := "├── "
+	libChildPrefix := "│   "
 	if summary.Shipyard.ShipmentCount == 0 {
 		libPrefix = "└── "
+		libChildPrefix = "    "
 	}
 	fmt.Printf("%s%s (%d tomes)\n", libPrefix, colorizeLabel("LIBRARY"), summary.Library.TomeCount)
 
+	// Expanded library tomes
+	if len(summary.Library.Tomes) > 0 {
+		for i, tome := range summary.Library.Tomes {
+			isLast := i == len(summary.Library.Tomes)-1
+			tomePrefix := libChildPrefix + "├── "
+			if isLast {
+				tomePrefix = libChildPrefix + "└── "
+			}
+			noteInfo := ""
+			if tome.NoteCount > 0 {
+				noteInfo = fmt.Sprintf(" (%d notes)", tome.NoteCount)
+			}
+			pinnedMark := ""
+			if tome.Pinned {
+				pinnedMark = " *"
+			}
+			focusMark := ""
+			if tome.IsFocused {
+				focusMark = color.New(color.FgHiMagenta).Sprint(" [FOCUSED]")
+			}
+			fmt.Printf("%s%s%s%s - %s%s\n", tomePrefix, colorizeID(tome.ID), focusMark, pinnedMark, tome.Title, noteInfo)
+		}
+	}
+
 	// Shipyard (always shown)
 	fmt.Printf("└── %s (%d shipments)\n", colorizeLabel("SHIPYARD"), summary.Shipyard.ShipmentCount)
+
+	// Expanded shipyard shipments
+	if len(summary.Shipyard.Shipments) > 0 {
+		for i, ship := range summary.Shipyard.Shipments {
+			isLast := i == len(summary.Shipyard.Shipments)-1
+			shipPrefix := "    ├── "
+			if isLast {
+				shipPrefix = "    └── "
+			}
+			benchMarker := ""
+			if ship.BenchID != "" {
+				benchMarker = color.New(color.FgCyan).Sprintf(" [%s]", ship.BenchID)
+			}
+			taskInfo := fmt.Sprintf(" (%d/%d done)", ship.TasksDone, ship.TasksTotal)
+			pinnedMark := ""
+			if ship.Pinned {
+				pinnedMark = " *"
+			}
+			focusMark := ""
+			if ship.IsFocused {
+				focusMark = color.New(color.FgHiMagenta).Sprint(" [FOCUSED]")
+			}
+			fmt.Printf("%s%s%s%s%s - %s%s\n", shipPrefix, colorizeID(ship.ID), benchMarker, focusMark, pinnedMark, ship.Title, taskInfo)
+		}
+	}
 }
 
 // renderIMPSummary renders the filtered tree view for IMP role
@@ -444,17 +498,62 @@ func renderIMPSummary(summary *primary.CommissionSummary, _ string, showAll bool
 
 	// Library (always shown)
 	libPrefix := "├── "
+	libChildPrefix := "│   "
 	if summary.Shipyard.ShipmentCount == 0 && summary.HiddenShipmentCount == 0 {
 		libPrefix = "└── "
+		libChildPrefix = "    "
 	}
 	fmt.Printf("%s%s (%d tomes)\n", libPrefix, colorizeLabel("LIBRARY"), summary.Library.TomeCount)
 
+	// Expanded library tomes
+	if len(summary.Library.Tomes) > 0 {
+		for i, tome := range summary.Library.Tomes {
+			isLast := i == len(summary.Library.Tomes)-1
+			tomePrefix := libChildPrefix + "├── "
+			if isLast {
+				tomePrefix = libChildPrefix + "└── "
+			}
+			pinnedMark := ""
+			if tome.Pinned {
+				pinnedMark = " *"
+			}
+			focusMark := ""
+			if tome.IsFocused {
+				focusMark = color.New(color.FgHiMagenta).Sprint(" [FOCUSED]")
+			}
+			fmt.Printf("%s%s%s%s - %s\n", tomePrefix, colorizeID(tome.ID), focusMark, pinnedMark, tome.Title)
+		}
+	}
+
 	// Shipyard (always shown)
 	shipyardPrefix := "└── "
+	shipyardChildPrefix := "    "
 	if summary.HiddenShipmentCount > 0 {
 		shipyardPrefix = "├── "
+		shipyardChildPrefix = "│   "
 	}
 	fmt.Printf("%s%s (%d shipments)\n", shipyardPrefix, colorizeLabel("SHIPYARD"), summary.Shipyard.ShipmentCount)
+
+	// Expanded shipyard shipments
+	if len(summary.Shipyard.Shipments) > 0 {
+		for i, ship := range summary.Shipyard.Shipments {
+			isLast := i == len(summary.Shipyard.Shipments)-1 && summary.HiddenShipmentCount == 0
+			shipPrefix := shipyardChildPrefix + "├── "
+			if isLast {
+				shipPrefix = shipyardChildPrefix + "└── "
+			}
+			focusMark := ""
+			if ship.IsFocused {
+				focusMark = color.New(color.FgHiMagenta).Sprint(" [FOCUSED]")
+			}
+			taskInfo := fmt.Sprintf(" (%d/%d done)", ship.TasksDone, ship.TasksTotal)
+			pinnedMark := ""
+			if ship.Pinned {
+				pinnedMark = " *"
+			}
+			fmt.Printf("%s%s%s%s - %s%s\n", shipPrefix, colorizeID(ship.ID), focusMark, pinnedMark, ship.Title, taskInfo)
+		}
+	}
 
 	// Hidden shipments message for IMP
 	if summary.HiddenShipmentCount > 0 && !showAll {

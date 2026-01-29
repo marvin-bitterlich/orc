@@ -17,6 +17,7 @@ type SummaryRequest struct {
 	WorkshopID       string // For GOBLIN: the workshop making the request
 	FocusID          string // Currently focused container
 	ShowAllShipments bool   // IMP flag: show shipments not assigned to this workbench
+	ExpandLibrary    bool   // Show individual tomes in LIBRARY and shipments in SHIPYARD
 }
 
 // CommissionSummary represents the hierarchical summary of a commission.
@@ -74,9 +75,11 @@ type TaskSummary struct {
 // LibrarySummary represents the Library section with parked tomes.
 type LibrarySummary struct {
 	TomeCount int
+	Tomes     []TomeSummary // Populated when ExpandLibrary is true
 }
 
 // ShipyardSummary represents the Shipyard section with parked shipments.
 type ShipyardSummary struct {
 	ShipmentCount int
+	Shipments     []ShipmentSummary // Populated when ExpandLibrary is true
 }

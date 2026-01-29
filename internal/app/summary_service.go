@@ -131,10 +131,10 @@ func (s *SummaryServiceImpl) GetCommissionSummary(ctx context.Context, req prima
 	}
 
 	// Build library summary (tomes with container_type="library")
-	librarySummary := s.buildLibrarySummary(allTomes)
+	librarySummary := s.buildLibrarySummary(ctx, allTomes, req.ExpandLibrary, req.FocusID)
 
 	// Build shipyard summary (shipments with container_type="shipyard")
-	shipyardSummary := s.buildShipyardSummary(allShipments, isIMP, req.ShowAllShipments, req.WorkbenchID, &hiddenShipmentCount)
+	shipyardSummary := s.buildShipyardSummary(ctx, allShipments, isIMP, req.ShowAllShipments, req.WorkbenchID, &hiddenShipmentCount, req.ExpandLibrary, req.FocusID)
 
 	return &primary.CommissionSummary{
 		ID:                  commission.ID,
@@ -246,19 +246,27 @@ func (s *SummaryServiceImpl) buildShipmentSummary(ctx context.Context, ship *pri
 	}, nil
 }
 
-// buildLibrarySummary counts tomes in the Library.
-func (s *SummaryServiceImpl) buildLibrarySummary(tomes []*primary.Tome) primary.LibrarySummary {
+// buildLibrarySummary counts tomes in the Library and optionally includes details.
+func (s *SummaryServiceImpl) buildLibrarySummary(ctx context.Context, tomes []*primary.Tome, expand bool, focusID string) primary.LibrarySummary {
+	var libTomes []primary.TomeSummary
 	count := 0
 	for _, t := range tomes {
 		if t.ContainerType == "library" && t.Status != "closed" {
 			count++
+			if expand {
+				tomeSummary, err := s.buildTomeSummary(ctx, t, focusID)
+				if err == nil {
+					libTomes = append(libTomes, *tomeSummary)
+				}
+			}
 		}
 	}
-	return primary.LibrarySummary{TomeCount: count}
+	return primary.LibrarySummary{TomeCount: count, Tomes: libTomes}
 }
 
-// buildShipyardSummary counts shipments in the Shipyard.
-func (s *SummaryServiceImpl) buildShipyardSummary(shipments []*primary.Shipment, isIMP, showAll bool, workbenchID string, hiddenCount *int) primary.ShipyardSummary {
+// buildShipyardSummary counts shipments in the Shipyard and optionally includes details.
+func (s *SummaryServiceImpl) buildShipyardSummary(ctx context.Context, shipments []*primary.Shipment, isIMP, showAll bool, workbenchID string, hiddenCount *int, expand bool, focusID string) primary.ShipyardSummary {
+	var yardShipments []primary.ShipmentSummary
 	count := 0
 	for _, ship := range shipments {
 		if ship.ContainerType == "shipyard" && ship.Status != "complete" {
@@ -270,9 +278,15 @@ func (s *SummaryServiceImpl) buildShipyardSummary(shipments []*primary.Shipment,
 				}
 			}
 			count++
+			if expand {
+				shipSummary, err := s.buildShipmentSummary(ctx, ship, focusID)
+				if err == nil {
+					yardShipments = append(yardShipments, *shipSummary)
+				}
+			}
 		}
 	}
-	return primary.ShipyardSummary{ShipmentCount: count}
+	return primary.ShipyardSummary{ShipmentCount: count, Shipments: yardShipments}
 }
 
 // Ensure SummaryServiceImpl implements the interface
