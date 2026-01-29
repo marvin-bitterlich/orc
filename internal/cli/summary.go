@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"fmt"
+	"hash/fnv"
 	"os"
 	"strings"
 
@@ -339,10 +340,10 @@ func renderGoblinSummary(summary *primary.CommissionSummary, _ string) {
 	if summary.Shipyard.ShipmentCount == 0 {
 		libPrefix = "└── "
 	}
-	fmt.Printf("%sLIBRARY (%d tomes)\n", libPrefix, summary.Library.TomeCount)
+	fmt.Printf("%s%s (%d tomes)\n", libPrefix, colorizeLabel("LIBRARY"), summary.Library.TomeCount)
 
 	// Shipyard (always shown)
-	fmt.Printf("└── SHIPYARD (%d shipments)\n", summary.Shipyard.ShipmentCount)
+	fmt.Printf("└── %s (%d shipments)\n", colorizeLabel("SHIPYARD"), summary.Shipyard.ShipmentCount)
 }
 
 // renderIMPSummary renders the filtered tree view for IMP role
@@ -446,14 +447,14 @@ func renderIMPSummary(summary *primary.CommissionSummary, _ string, showAll bool
 	if summary.Shipyard.ShipmentCount == 0 && summary.HiddenShipmentCount == 0 {
 		libPrefix = "└── "
 	}
-	fmt.Printf("%sLIBRARY (%d tomes)\n", libPrefix, summary.Library.TomeCount)
+	fmt.Printf("%s%s (%d tomes)\n", libPrefix, colorizeLabel("LIBRARY"), summary.Library.TomeCount)
 
 	// Shipyard (always shown)
 	shipyardPrefix := "└── "
 	if summary.HiddenShipmentCount > 0 {
 		shipyardPrefix = "├── "
 	}
-	fmt.Printf("%sSHIPYARD (%d shipments)\n", shipyardPrefix, summary.Shipyard.ShipmentCount)
+	fmt.Printf("%s%s (%d shipments)\n", shipyardPrefix, colorizeLabel("SHIPYARD"), summary.Shipyard.ShipmentCount)
 
 	// Hidden shipments message for IMP
 	if summary.HiddenShipmentCount > 0 && !showAll {
@@ -474,23 +475,27 @@ func colorizeID(id string) string {
 	return c.Sprint(id)
 }
 
-// getIDColor returns a deterministic color for an ID type
+// getIDColor returns a deterministic color for an ID type (TASK, SHIP, COMM, etc.)
+// Uses FNV-1a hash on the ID prefix to ensure all IDs of same type have same color
 func getIDColor(idType string) *color.Color {
-	// Use predefined colors for common types
-	switch idType {
-	case "COMM":
-		return color.New(color.FgHiGreen)
-	case "CON":
-		return color.New(color.FgHiYellow)
-	case "SHIP":
-		return color.New(color.FgHiCyan)
-	case "TOME":
-		return color.New(color.FgHiMagenta)
-	case "TASK":
-		return color.New(color.FgHiWhite)
-	default:
-		return color.New(color.FgWhite)
-	}
+	h := fnv.New32a()
+	h.Write([]byte(idType))
+	hash := h.Sum32()
+
+	// Map to 256-color range (16-231 are the color cube)
+	colorCode := 16 + (hash % 216)
+
+	return color.New(color.Attribute(38), color.Attribute(5), color.Attribute(colorCode))
+}
+
+// colorizeLabel applies deterministic color to a label string (e.g., "LIBRARY", "SHIPYARD")
+func colorizeLabel(label string) string {
+	h := fnv.New32a()
+	h.Write([]byte(label))
+	hash := h.Sum32()
+	colorCode := 16 + (hash % 216)
+	c := color.New(color.Attribute(38), color.Attribute(5), color.Attribute(colorCode))
+	return c.Sprint(label)
 }
 
 // colorizeStatus formats status with semantic color
