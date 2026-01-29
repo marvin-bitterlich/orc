@@ -91,12 +91,15 @@ func (s *SummaryServiceImpl) GetCommissionSummary(ctx context.Context, req prima
 		}
 
 		// Get tomes for this conclave
+		conclaveIsFocused := con.ID == req.FocusID
 		if tomes, ok := tomesByContainer[con.ID]; ok {
 			for _, tome := range tomes {
 				if tome.Status == "closed" {
 					continue
 				}
-				tomeSummary, err := s.buildTomeSummary(ctx, tome, req.FocusID)
+				// Expand notes if conclave is focused or tome itself is focused
+				expandNotes := conclaveIsFocused || tome.ID == req.FocusID
+				tomeSummary, err := s.buildTomeSummary(ctx, tome, req.FocusID, expandNotes)
 				if err != nil {
 					continue // Skip on error
 				}
@@ -174,14 +177,24 @@ func (s *SummaryServiceImpl) groupShipmentsByContainer(shipments []*primary.Ship
 }
 
 // buildTomeSummary creates a TomeSummary with note count.
-func (s *SummaryServiceImpl) buildTomeSummary(ctx context.Context, tome *primary.Tome, focusID string) (*primary.TomeSummary, error) {
-	// Count notes for this tome
+// When expandNotes is true, includes the full Notes slice (for focused tomes/conclaves).
+func (s *SummaryServiceImpl) buildTomeSummary(ctx context.Context, tome *primary.Tome, focusID string, expandNotes bool) (*primary.TomeSummary, error) {
+	// Get notes for this tome
 	notes, err := s.tomeService.GetTomeNotes(ctx, tome.ID)
 	noteCount := 0
+	var noteSummaries []primary.NoteSummary
+
 	if err == nil {
 		for _, n := range notes {
 			if n.Status != "closed" {
 				noteCount++
+				if expandNotes {
+					noteSummaries = append(noteSummaries, primary.NoteSummary{
+						ID:    n.ID,
+						Title: n.Title,
+						Type:  n.Type,
+					})
+				}
 			}
 		}
 	}
@@ -193,6 +206,7 @@ func (s *SummaryServiceImpl) buildTomeSummary(ctx context.Context, tome *primary
 		NoteCount: noteCount,
 		IsFocused: tome.ID == focusID,
 		Pinned:    tome.Pinned,
+		Notes:     noteSummaries,
 	}, nil
 }
 
@@ -254,7 +268,9 @@ func (s *SummaryServiceImpl) buildLibrarySummary(ctx context.Context, tomes []*p
 		if t.ContainerType == "library" && t.Status != "closed" {
 			count++
 			if expand {
-				tomeSummary, err := s.buildTomeSummary(ctx, t, focusID)
+				// Expand notes if the tome itself is focused
+				expandNotes := t.ID == focusID
+				tomeSummary, err := s.buildTomeSummary(ctx, t, focusID, expandNotes)
 				if err == nil {
 					libTomes = append(libTomes, *tomeSummary)
 				}

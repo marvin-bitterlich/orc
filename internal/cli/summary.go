@@ -283,20 +283,44 @@ func renderGoblinSummary(summary *primary.CommissionSummary, _ string) {
 		for _, tome := range con.Tomes {
 			isLast := childIdx == totalChildren-1
 			tomePrefix := childPrefix + "├── "
+			tomeChildPrefix := childPrefix + "│   "
 			if isLast {
 				tomePrefix = childPrefix + "└── "
+				tomeChildPrefix = childPrefix + "    "
 			}
 
 			noteInfo := ""
-			if tome.NoteCount > 0 {
-				noteInfo = fmt.Sprintf(" (%d notes)", tome.NoteCount)
+			if tome.NoteCount > 0 && len(tome.Notes) == 0 {
+				// Show count only if notes aren't expanded
+				noteInfo = fmt.Sprintf(" (%s)", pluralize(tome.NoteCount, "note", "notes"))
 			}
 			pinnedMark := ""
 			if tome.Pinned {
 				pinnedMark = " *"
 			}
+			focusMark := ""
+			if tome.IsFocused {
+				focusMark = color.New(color.FgHiMagenta).Sprint(" [FOCUSED]")
+			}
 
-			fmt.Printf("%s%s%s - %s%s\n", tomePrefix, colorizeID(tome.ID), pinnedMark, tome.Title, noteInfo)
+			fmt.Printf("%s%s%s%s - %s%s\n", tomePrefix, colorizeID(tome.ID), focusMark, pinnedMark, tome.Title, noteInfo)
+
+			// Expand notes for focused tome/conclave
+			if len(tome.Notes) > 0 {
+				for j, note := range tome.Notes {
+					isLastNote := j == len(tome.Notes)-1
+					notePrefix := tomeChildPrefix + "├── "
+					if isLastNote {
+						notePrefix = tomeChildPrefix + "└── "
+					}
+					typeMarker := ""
+					if note.Type != "" {
+						typeMarker = color.New(color.FgYellow).Sprintf("[%s] ", note.Type)
+					}
+					fmt.Printf("%s%s %s- %s\n", notePrefix, colorizeID(note.ID), typeMarker, note.Title)
+				}
+			}
+
 			childIdx++
 		}
 
@@ -461,16 +485,44 @@ func renderIMPSummary(summary *primary.CommissionSummary, _ string, showAll bool
 		for _, tome := range con.Tomes {
 			isLast := childIdx == totalChildren-1
 			tomePrefix := childPrefix + "├── "
+			tomeChildPrefix := childPrefix + "│   "
 			if isLast {
 				tomePrefix = childPrefix + "└── "
+				tomeChildPrefix = childPrefix + "    "
 			}
 
+			noteInfo := ""
+			if tome.NoteCount > 0 && len(tome.Notes) == 0 {
+				// Show count only if notes aren't expanded
+				noteInfo = fmt.Sprintf(" (%s)", pluralize(tome.NoteCount, "note", "notes"))
+			}
 			pinnedMark := ""
 			if tome.Pinned {
 				pinnedMark = " *"
 			}
+			focusMark := ""
+			if tome.IsFocused {
+				focusMark = color.New(color.FgHiMagenta).Sprint(" [FOCUSED]")
+			}
 
-			fmt.Printf("%s%s%s - %s\n", tomePrefix, colorizeID(tome.ID), pinnedMark, tome.Title)
+			fmt.Printf("%s%s%s%s - %s%s\n", tomePrefix, colorizeID(tome.ID), focusMark, pinnedMark, tome.Title, noteInfo)
+
+			// Expand notes for focused tome/conclave
+			if len(tome.Notes) > 0 {
+				for j, note := range tome.Notes {
+					isLastNote := j == len(tome.Notes)-1
+					notePrefix := tomeChildPrefix + "├── "
+					if isLastNote {
+						notePrefix = tomeChildPrefix + "└── "
+					}
+					typeMarker := ""
+					if note.Type != "" {
+						typeMarker = color.New(color.FgYellow).Sprintf("[%s] ", note.Type)
+					}
+					fmt.Printf("%s%s %s- %s\n", notePrefix, colorizeID(note.ID), typeMarker, note.Title)
+				}
+			}
+
 			childIdx++
 		}
 

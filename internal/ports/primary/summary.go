@@ -49,6 +49,14 @@ type TomeSummary struct {
 	NoteCount int
 	IsFocused bool
 	Pinned    bool
+	Notes     []NoteSummary // Populated when tome or parent conclave is focused
+}
+
+// NoteSummary represents a note in the summary view.
+type NoteSummary struct {
+	ID    string
+	Title string
+	Type  string // learning, decision, spec, etc.
 }
 
 // ShipmentSummary represents a shipment with task progress.
