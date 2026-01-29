@@ -163,6 +163,19 @@ func (m *mockTomeRepository) CommissionExists(ctx context.Context, commissionID 
 	return m.commissionExistsResult, nil
 }
 
+func (m *mockTomeRepository) UpdateContainer(ctx context.Context, id, containerID, containerType string) error {
+	if tome, ok := m.tomes[id]; ok {
+		tome.ContainerID = containerID
+		tome.ContainerType = containerType
+		if containerType == "conclave" {
+			tome.ConclaveID = containerID
+		} else {
+			tome.ConclaveID = ""
+		}
+	}
+	return nil
+}
+
 // mockNoteServiceForTome implements minimal NoteService for tome tests.
 type mockNoteServiceForTome struct {
 	notes map[string][]*primary.Note // containerID -> notes
@@ -221,6 +234,48 @@ func (m *mockNoteServiceForTome) MoveNote(ctx context.Context, req primary.MoveN
 	return nil
 }
 
+// mockLibraryRepository implements secondary.LibraryRepository for testing.
+type mockLibraryRepository struct {
+	libraries map[string]*secondary.LibraryRecord
+}
+
+func newMockLibraryRepository() *mockLibraryRepository {
+	return &mockLibraryRepository{
+		libraries: map[string]*secondary.LibraryRecord{
+			"LIB-001": {ID: "LIB-001", CommissionID: "COMM-001"},
+		},
+	}
+}
+
+func (m *mockLibraryRepository) Create(ctx context.Context, library *secondary.LibraryRecord) error {
+	m.libraries[library.ID] = library
+	return nil
+}
+
+func (m *mockLibraryRepository) GetByID(ctx context.Context, id string) (*secondary.LibraryRecord, error) {
+	if lib, ok := m.libraries[id]; ok {
+		return lib, nil
+	}
+	return nil, errors.New("library not found")
+}
+
+func (m *mockLibraryRepository) GetByCommissionID(ctx context.Context, commissionID string) (*secondary.LibraryRecord, error) {
+	for _, lib := range m.libraries {
+		if lib.CommissionID == commissionID {
+			return lib, nil
+		}
+	}
+	return nil, errors.New("library not found for commission")
+}
+
+func (m *mockLibraryRepository) GetNextID(ctx context.Context) (string, error) {
+	return "LIB-002", nil
+}
+
+func (m *mockLibraryRepository) CommissionExists(ctx context.Context, commissionID string) (bool, error) {
+	return true, nil
+}
+
 // ============================================================================
 // Test Helper
 // ============================================================================
@@ -228,7 +283,8 @@ func (m *mockNoteServiceForTome) MoveNote(ctx context.Context, req primary.MoveN
 func newTestTomeService() (*TomeServiceImpl, *mockTomeRepository, *mockNoteServiceForTome) {
 	tomeRepo := newMockTomeRepository()
 	noteService := newMockNoteServiceForTome()
-	service := NewTomeService(tomeRepo, noteService)
+	libraryRepo := newMockLibraryRepository()
+	service := NewTomeService(tomeRepo, noteService, libraryRepo)
 	return service, tomeRepo, noteService
 }
 

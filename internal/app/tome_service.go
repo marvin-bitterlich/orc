@@ -12,16 +12,19 @@ import (
 type TomeServiceImpl struct {
 	tomeRepo    secondary.TomeRepository
 	noteService primary.NoteService
+	libraryRepo secondary.LibraryRepository
 }
 
 // NewTomeService creates a new TomeService with injected dependencies.
 func NewTomeService(
 	tomeRepo secondary.TomeRepository,
 	noteService primary.NoteService,
+	libraryRepo secondary.LibraryRepository,
 ) *TomeServiceImpl {
 	return &TomeServiceImpl{
 		tomeRepo:    tomeRepo,
 		noteService: noteService,
+		libraryRepo: libraryRepo,
 	}
 }
 
@@ -182,6 +185,41 @@ func (s *TomeServiceImpl) GetTomesByWorkbench(ctx context.Context, workbenchID s
 // Delegates to NoteService.GetNotesByContainer.
 func (s *TomeServiceImpl) GetTomeNotes(ctx context.Context, tomeID string) ([]*primary.Note, error) {
 	return s.noteService.GetNotesByContainer(ctx, "tome", tomeID)
+}
+
+// ParkTome moves a tome to the commission's Library.
+func (s *TomeServiceImpl) ParkTome(ctx context.Context, tomeID string) error {
+	// Get tome to find commission and check current container
+	tome, err := s.tomeRepo.GetByID(ctx, tomeID)
+	if err != nil {
+		return err
+	}
+
+	// If already in library, return early (no-op, CLI handles message)
+	if tome.ContainerType == "library" {
+		return nil
+	}
+
+	// Look up library for commission
+	lib, err := s.libraryRepo.GetByCommissionID(ctx, tome.CommissionID)
+	if err != nil {
+		return fmt.Errorf("failed to get library: %w", err)
+	}
+
+	// Update container
+	return s.tomeRepo.UpdateContainer(ctx, tomeID, lib.ID, "library")
+}
+
+// UnparkTome moves a tome from Library to a specific Conclave.
+func (s *TomeServiceImpl) UnparkTome(ctx context.Context, tomeID, conclaveID string) error {
+	// Get tome to verify it exists
+	_, err := s.tomeRepo.GetByID(ctx, tomeID)
+	if err != nil {
+		return err
+	}
+
+	// Update container
+	return s.tomeRepo.UpdateContainer(ctx, tomeID, conclaveID, "conclave")
 }
 
 // Helper methods

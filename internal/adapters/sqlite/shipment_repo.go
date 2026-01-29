@@ -390,5 +390,23 @@ func (r *ShipmentRepository) WorkbenchAssignedToOther(ctx context.Context, workb
 	return shipmentID, nil
 }
 
+// UpdateContainer updates the container assignment for a shipment.
+func (r *ShipmentRepository) UpdateContainer(ctx context.Context, id, containerID, containerType string) error {
+	result, err := r.db.ExecContext(ctx,
+		"UPDATE shipments SET container_id = ?, container_type = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+		containerID, containerType, id,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to update shipment container: %w", err)
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		return fmt.Errorf("shipment %s not found", id)
+	}
+
+	return nil
+}
+
 // Ensure ShipmentRepository implements the interface
 var _ secondary.ShipmentRepository = (*ShipmentRepository)(nil)

@@ -327,6 +327,56 @@ var shipmentAssignCmd = &cobra.Command{
 	},
 }
 
+var shipmentParkCmd = &cobra.Command{
+	Use:   "park [shipment-id]",
+	Short: "Move shipment to Shipyard",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx := context.Background()
+		shipmentID := args[0]
+
+		// Get current state to check if already parked
+		shipment, err := wire.ShipmentService().GetShipment(ctx, shipmentID)
+		if err != nil {
+			return fmt.Errorf("shipment not found: %w", err)
+		}
+
+		if shipment.ContainerType == "shipyard" {
+			fmt.Printf("%s is already in Shipyard\n", shipmentID)
+			return nil
+		}
+
+		if err := wire.ShipmentService().ParkShipment(ctx, shipmentID); err != nil {
+			return fmt.Errorf("failed to park shipment: %w", err)
+		}
+
+		fmt.Printf("Moved %s to Shipyard\n", shipmentID)
+		return nil
+	},
+}
+
+var shipmentUnparkCmd = &cobra.Command{
+	Use:   "unpark [shipment-id]",
+	Short: "Move shipment to Conclave",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx := context.Background()
+		shipmentID := args[0]
+		conclaveID, _ := cmd.Flags().GetString("conclave")
+
+		if conclaveID == "" {
+			return fmt.Errorf("specify --conclave CON-xxx")
+		}
+
+		if err := wire.ShipmentService().UnparkShipment(ctx, shipmentID, conclaveID); err != nil {
+			return fmt.Errorf("failed to unpark shipment: %w", err)
+		}
+
+		fmt.Printf("Moved %s to %s\n", shipmentID, conclaveID)
+		return nil
+	},
+}
+
 func init() {
 	// shipment create flags
 	shipmentCreateCmd.Flags().StringP("commission", "c", "", "Commission ID (defaults to context)")
@@ -344,6 +394,9 @@ func init() {
 	shipmentUpdateCmd.Flags().String("title", "", "New title")
 	shipmentUpdateCmd.Flags().StringP("description", "d", "", "New description")
 
+	// shipment unpark flags
+	shipmentUnparkCmd.Flags().String("conclave", "", "Target conclave ID (CON-xxx)")
+
 	// Register subcommands
 	shipmentCmd.AddCommand(shipmentCreateCmd)
 	shipmentCmd.AddCommand(shipmentListCmd)
@@ -355,6 +408,8 @@ func init() {
 	shipmentCmd.AddCommand(shipmentPinCmd)
 	shipmentCmd.AddCommand(shipmentUnpinCmd)
 	shipmentCmd.AddCommand(shipmentAssignCmd)
+	shipmentCmd.AddCommand(shipmentParkCmd)
+	shipmentCmd.AddCommand(shipmentUnparkCmd)
 }
 
 // ShipmentCmd returns the shipment command

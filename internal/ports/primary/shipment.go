@@ -42,6 +42,12 @@ type ShipmentService interface {
 
 	// DeleteShipment deletes a shipment.
 	DeleteShipment(ctx context.Context, shipmentID string) error
+
+	// ParkShipment moves a shipment to the commission's Shipyard.
+	ParkShipment(ctx context.Context, shipmentID string) error
+
+	// UnparkShipment moves a shipment from Shipyard to a specific Conclave.
+	UnparkShipment(ctx context.Context, shipmentID, conclaveID string) error
 }
 
 // CreateShipmentRequest contains parameters for creating a shipment.

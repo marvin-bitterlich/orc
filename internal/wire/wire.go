@@ -230,7 +230,6 @@ func initServices() {
 	shipmentRepo := sqlite.NewShipmentRepository(database)
 	taskRepo := sqlite.NewTaskRepository(database)
 	tagRepo := sqlite.NewTagRepository(database)
-	shipmentService = app.NewShipmentService(shipmentRepo, taskRepo)
 	taskService = app.NewTaskService(taskRepo, tagRepo)
 
 	// Create note, handoff, and tome services
@@ -239,7 +238,14 @@ func initServices() {
 	tomeRepo := sqlite.NewTomeRepository(database)
 	noteService = app.NewNoteService(noteRepo)
 	handoffService = app.NewHandoffService(handoffRepo)
-	tomeService = app.NewTomeService(tomeRepo, noteService) // Tome needs NoteService for GetTomeNotes
+
+	// Create library and shipyard repositories (used by services for park/unpark)
+	libraryRepo = sqlite.NewLibraryRepository(database)
+	shipyardRepo = sqlite.NewShipyardRepository(database)
+
+	// Create tome and shipment services (need library/shipyard repos for park/unpark)
+	tomeService = app.NewTomeService(tomeRepo, noteService, libraryRepo)
+	shipmentService = app.NewShipmentService(shipmentRepo, taskRepo, shipyardRepo)
 
 	// Create conclave and operation services
 	conclaveRepo := sqlite.NewConclaveRepository(database)
@@ -288,10 +294,6 @@ func initServices() {
 
 	// Create orchestration services
 	commissionOrchestrationService = app.NewCommissionOrchestrationService(commissionService, agentProvider)
-
-	// Create library and shipyard repositories (used by CLI for container lookup)
-	libraryRepo = sqlite.NewLibraryRepository(database)
-	shipyardRepo = sqlite.NewShipyardRepository(database)
 }
 
 // ApplyGlobalTMuxBindings sets up ORC's global tmux key bindings.

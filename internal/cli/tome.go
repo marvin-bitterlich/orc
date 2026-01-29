@@ -284,6 +284,56 @@ var tomeDeleteCmd = &cobra.Command{
 	},
 }
 
+var tomeParkCmd = &cobra.Command{
+	Use:   "park [tome-id]",
+	Short: "Move tome to Library",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx := context.Background()
+		tomeID := args[0]
+
+		// Get current state to check if already parked
+		tome, err := wire.TomeService().GetTome(ctx, tomeID)
+		if err != nil {
+			return fmt.Errorf("tome not found: %w", err)
+		}
+
+		if tome.ContainerType == "library" {
+			fmt.Printf("%s is already in Library\n", tomeID)
+			return nil
+		}
+
+		if err := wire.TomeService().ParkTome(ctx, tomeID); err != nil {
+			return fmt.Errorf("failed to park tome: %w", err)
+		}
+
+		fmt.Printf("Moved %s to Library\n", tomeID)
+		return nil
+	},
+}
+
+var tomeUnparkCmd = &cobra.Command{
+	Use:   "unpark [tome-id]",
+	Short: "Move tome to Conclave",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx := context.Background()
+		tomeID := args[0]
+		conclaveID, _ := cmd.Flags().GetString("conclave")
+
+		if conclaveID == "" {
+			return fmt.Errorf("specify --conclave CON-xxx")
+		}
+
+		if err := wire.TomeService().UnparkTome(ctx, tomeID, conclaveID); err != nil {
+			return fmt.Errorf("failed to unpark tome: %w", err)
+		}
+
+		fmt.Printf("Moved %s to %s\n", tomeID, conclaveID)
+		return nil
+	},
+}
+
 func init() {
 	// tome create flags
 	tomeCreateCmd.Flags().StringP("commission", "c", "", "Commission ID (defaults to context)")
@@ -299,6 +349,9 @@ func init() {
 	tomeUpdateCmd.Flags().String("title", "", "New title")
 	tomeUpdateCmd.Flags().StringP("description", "d", "", "New description")
 
+	// tome unpark flags
+	tomeUnparkCmd.Flags().String("conclave", "", "Target conclave ID (CON-xxx)")
+
 	// Register subcommands
 	tomeCmd.AddCommand(tomeCreateCmd)
 	tomeCmd.AddCommand(tomeListCmd)
@@ -308,6 +361,8 @@ func init() {
 	tomeCmd.AddCommand(tomePinCmd)
 	tomeCmd.AddCommand(tomeUnpinCmd)
 	tomeCmd.AddCommand(tomeDeleteCmd)
+	tomeCmd.AddCommand(tomeParkCmd)
+	tomeCmd.AddCommand(tomeUnparkCmd)
 }
 
 // TomeCmd returns the tome command

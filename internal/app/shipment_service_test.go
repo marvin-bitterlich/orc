@@ -160,6 +160,14 @@ func (m *mockShipmentRepository) WorkbenchAssignedToOther(ctx context.Context, w
 	return "", nil
 }
 
+func (m *mockShipmentRepository) UpdateContainer(ctx context.Context, id, containerID, containerType string) error {
+	if shipment, ok := m.shipments[id]; ok {
+		shipment.ContainerID = containerID
+		shipment.ContainerType = containerType
+	}
+	return nil
+}
+
 // mockTaskRepositoryForShipment implements minimal TaskRepository for shipment tests.
 type mockTaskRepositoryForShipment struct {
 	assignErr error
@@ -257,6 +265,48 @@ func (m *mockTaskRepositoryForShipment) GetNextEntityTagID(ctx context.Context) 
 	return "ENTITY-TAG-001", nil
 }
 
+// mockShipyardRepository implements secondary.ShipyardRepository for testing.
+type mockShipyardRepository struct {
+	shipyards map[string]*secondary.ShipyardRecord
+}
+
+func newMockShipyardRepository() *mockShipyardRepository {
+	return &mockShipyardRepository{
+		shipyards: map[string]*secondary.ShipyardRecord{
+			"YARD-001": {ID: "YARD-001", CommissionID: "COMM-001"},
+		},
+	}
+}
+
+func (m *mockShipyardRepository) Create(ctx context.Context, shipyard *secondary.ShipyardRecord) error {
+	m.shipyards[shipyard.ID] = shipyard
+	return nil
+}
+
+func (m *mockShipyardRepository) GetByID(ctx context.Context, id string) (*secondary.ShipyardRecord, error) {
+	if yard, ok := m.shipyards[id]; ok {
+		return yard, nil
+	}
+	return nil, errors.New("shipyard not found")
+}
+
+func (m *mockShipyardRepository) GetByCommissionID(ctx context.Context, commissionID string) (*secondary.ShipyardRecord, error) {
+	for _, yard := range m.shipyards {
+		if yard.CommissionID == commissionID {
+			return yard, nil
+		}
+	}
+	return nil, errors.New("shipyard not found for commission")
+}
+
+func (m *mockShipyardRepository) GetNextID(ctx context.Context) (string, error) {
+	return "YARD-002", nil
+}
+
+func (m *mockShipyardRepository) CommissionExists(ctx context.Context, commissionID string) (bool, error) {
+	return true, nil
+}
+
 // ============================================================================
 // Test Helper
 // ============================================================================
@@ -264,7 +314,8 @@ func (m *mockTaskRepositoryForShipment) GetNextEntityTagID(ctx context.Context) 
 func newTestShipmentService() (*ShipmentServiceImpl, *mockShipmentRepository, *mockTaskRepositoryForShipment) {
 	shipmentRepo := newMockShipmentRepository()
 	taskRepo := newMockTaskRepositoryForShipment()
-	service := NewShipmentService(shipmentRepo, taskRepo)
+	shipyardRepo := newMockShipyardRepository()
+	service := NewShipmentService(shipmentRepo, taskRepo, shipyardRepo)
 	return service, shipmentRepo, taskRepo
 }
 

@@ -405,6 +405,22 @@ You just declare the end state. Atlas figures out the migration path.
 
 ---
 
+## Creating Containers
+
+### Tomes
+- Use `--conclave CON-xxx` to create in a specific conclave
+- Use `--library` to create in the commission's Library
+- `orc tome park TOME-xxx` moves to Library
+- `orc tome unpark TOME-xxx --conclave CON-xxx` moves to Conclave
+
+### Shipments
+- Use `--conclave CON-xxx` to create in a specific conclave
+- Use `--shipyard` to create in the commission's Shipyard
+- `orc shipment park SHIP-xxx` moves to Shipyard
+- `orc shipment unpark SHIP-xxx --conclave CON-xxx` moves to Conclave
+
+---
+
 ## Common Mistakes to Avoid
 
 ❌ Writing business logic in adapters

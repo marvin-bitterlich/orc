@@ -402,5 +402,29 @@ func (r *TomeRepository) CommissionExists(ctx context.Context, commissionID stri
 	return count > 0, nil
 }
 
+// UpdateContainer updates the container assignment for a tome.
+func (r *TomeRepository) UpdateContainer(ctx context.Context, id, containerID, containerType string) error {
+	// For backwards compatibility, also update conclave_id when moving to a conclave
+	var conclaveID sql.NullString
+	if containerType == "conclave" {
+		conclaveID = sql.NullString{String: containerID, Valid: true}
+	}
+
+	result, err := r.db.ExecContext(ctx,
+		"UPDATE tomes SET container_id = ?, container_type = ?, conclave_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+		containerID, containerType, conclaveID, id,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to update tome container: %w", err)
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		return fmt.Errorf("tome %s not found", id)
+	}
+
+	return nil
+}
+
 // Ensure TomeRepository implements the interface
 var _ secondary.TomeRepository = (*TomeRepository)(nil)

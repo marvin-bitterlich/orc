@@ -13,16 +13,19 @@ import (
 type ShipmentServiceImpl struct {
 	shipmentRepo secondary.ShipmentRepository
 	taskRepo     secondary.TaskRepository
+	shipyardRepo secondary.ShipyardRepository
 }
 
 // NewShipmentService creates a new ShipmentService with injected dependencies.
 func NewShipmentService(
 	shipmentRepo secondary.ShipmentRepository,
 	taskRepo secondary.TaskRepository,
+	shipyardRepo secondary.ShipyardRepository,
 ) *ShipmentServiceImpl {
 	return &ShipmentServiceImpl{
 		shipmentRepo: shipmentRepo,
 		taskRepo:     taskRepo,
+		shipyardRepo: shipyardRepo,
 	}
 }
 
@@ -241,6 +244,41 @@ func (s *ShipmentServiceImpl) GetShipmentTasks(ctx context.Context, shipmentID s
 // DeleteShipment deletes a shipment.
 func (s *ShipmentServiceImpl) DeleteShipment(ctx context.Context, shipmentID string) error {
 	return s.shipmentRepo.Delete(ctx, shipmentID)
+}
+
+// ParkShipment moves a shipment to the commission's Shipyard.
+func (s *ShipmentServiceImpl) ParkShipment(ctx context.Context, shipmentID string) error {
+	// Get shipment to find commission and check current container
+	shipment, err := s.shipmentRepo.GetByID(ctx, shipmentID)
+	if err != nil {
+		return err
+	}
+
+	// If already in shipyard, return early (no-op, CLI handles message)
+	if shipment.ContainerType == "shipyard" {
+		return nil
+	}
+
+	// Look up shipyard for commission
+	yard, err := s.shipyardRepo.GetByCommissionID(ctx, shipment.CommissionID)
+	if err != nil {
+		return fmt.Errorf("failed to get shipyard: %w", err)
+	}
+
+	// Update container
+	return s.shipmentRepo.UpdateContainer(ctx, shipmentID, yard.ID, "shipyard")
+}
+
+// UnparkShipment moves a shipment from Shipyard to a specific Conclave.
+func (s *ShipmentServiceImpl) UnparkShipment(ctx context.Context, shipmentID, conclaveID string) error {
+	// Get shipment to verify it exists
+	_, err := s.shipmentRepo.GetByID(ctx, shipmentID)
+	if err != nil {
+		return err
+	}
+
+	// Update container
+	return s.shipmentRepo.UpdateContainer(ctx, shipmentID, conclaveID, "conclave")
 }
 
 // Helper methods

@@ -36,6 +36,12 @@ type TomeService interface {
 
 	// GetTomeNotes retrieves all notes in a tome.
 	GetTomeNotes(ctx context.Context, tomeID string) ([]*Note, error)
+
+	// ParkTome moves a tome to the commission's Library.
+	ParkTome(ctx context.Context, tomeID string) error
+
+	// UnparkTome moves a tome from Library to a specific Conclave.
+	UnparkTome(ctx context.Context, tomeID, conclaveID string) error
 }
 
 // CreateTomeRequest contains parameters for creating a tome.

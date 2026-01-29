@@ -198,6 +198,14 @@ func (m *mockShipmentServiceForPR) GetShipmentTasks(ctx context.Context, shipmen
 	return nil, nil
 }
 
+func (m *mockShipmentServiceForPR) ParkShipment(ctx context.Context, shipmentID string) error {
+	return nil
+}
+
+func (m *mockShipmentServiceForPR) UnparkShipment(ctx context.Context, shipmentID, conclaveID string) error {
+	return nil
+}
+
 func TestPRService_CreatePR(t *testing.T) {
 	ctx := context.Background()
 

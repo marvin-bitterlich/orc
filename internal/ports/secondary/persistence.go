@@ -112,6 +112,10 @@ type ShipmentRepository interface {
 	// UpdateStatus updates the status and optionally completed_at timestamp.
 	UpdateStatus(ctx context.Context, id, status string, setCompleted bool) error
 
+	// UpdateContainer updates the container assignment for a shipment.
+	// Used for park (→ shipyard) and unpark (→ conclave) operations.
+	UpdateContainer(ctx context.Context, id, containerID, containerType string) error
+
 	// CommissionExists checks if a commission exists (for validation).
 	CommissionExists(ctx context.Context, commissionID string) (bool, error)
 
@@ -411,6 +415,10 @@ type TomeRepository interface {
 
 	// AssignWorkbench assigns a tome to a workbench.
 	AssignWorkbench(ctx context.Context, tomeID, workbenchID string) error
+
+	// UpdateContainer updates the container assignment for a tome.
+	// Used for park (→ library) and unpark (→ conclave) operations.
+	UpdateContainer(ctx context.Context, id, containerID, containerType string) error
 
 	// CommissionExists checks if a commission exists (for validation).
 	CommissionExists(ctx context.Context, commissionID string) (bool, error)
