@@ -39,6 +39,16 @@ func DetectWorkbenchContext() (*WorkbenchContext, error) {
 	return nil, nil
 }
 
+// GetContextWorkbenchID returns the workbench ID (BENCH-xxx) if we're in a workbench context.
+// Returns empty string if not in a workbench context.
+func GetContextWorkbenchID() string {
+	ctx, err := DetectWorkbenchContext()
+	if err != nil || ctx == nil {
+		return ""
+	}
+	return ctx.WorkbenchID
+}
+
 // GetContextCommissionID returns the commission ID from workbench context.
 // For IMP contexts, looks up commission via workbench → workshop → factory → commission chain.
 // Returns empty string if no context found - caller should handle this.

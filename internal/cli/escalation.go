@@ -8,6 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	orcctx "github.com/example/orc/internal/context"
 	"github.com/example/orc/internal/ports/primary"
 	"github.com/example/orc/internal/wire"
 )
@@ -101,13 +102,64 @@ var escalationShowCmd = &cobra.Command{
 	},
 }
 
+var escalationResolveCmd = &cobra.Command{
+	Use:   "resolve [escalation-id]",
+	Short: "Resolve an escalation",
+	Long:  "Resolve an escalation with an outcome (approved or rejected) and optional feedback",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		escalationID := args[0]
+		outcome, _ := cmd.Flags().GetString("outcome")
+		resolution, _ := cmd.Flags().GetString("resolution")
+
+		if outcome == "" {
+			return fmt.Errorf("--outcome is required (approved or rejected)")
+		}
+
+		if outcome != "approved" && outcome != "rejected" {
+			return fmt.Errorf("--outcome must be 'approved' or 'rejected'")
+		}
+
+		// Get resolver actor from gatehouse context
+		resolvedBy := orcctx.GetContextWorkbenchID()
+		// Note: Gatehouses use GATE-xxx IDs, but they're detected same way as workbenches
+		// If no context, allow resolution without resolver ID (for admin use)
+
+		ctx := context.Background()
+		err := wire.EscalationService().ResolveEscalation(ctx, primary.ResolveEscalationRequest{
+			EscalationID: escalationID,
+			Outcome:      outcome,
+			Resolution:   resolution,
+			ResolvedBy:   resolvedBy,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to resolve escalation: %w", err)
+		}
+
+		status := "resolved"
+		if outcome == "rejected" {
+			status = "dismissed"
+		}
+		fmt.Printf("✓ Escalation %s %s\n", escalationID, status)
+		if resolution != "" {
+			fmt.Printf("  Resolution: %s\n", resolution)
+		}
+		return nil
+	},
+}
+
 func init() {
 	// escalation list flags
 	escalationListCmd.Flags().StringP("status", "s", "", "Filter by status (pending|resolved|dismissed)")
 
+	// escalation resolve flags
+	escalationResolveCmd.Flags().StringP("outcome", "o", "", "Resolution outcome: approved or rejected (required)")
+	escalationResolveCmd.Flags().StringP("resolution", "r", "", "Optional resolution feedback/explanation")
+
 	// Register subcommands
 	escalationCmd.AddCommand(escalationListCmd)
 	escalationCmd.AddCommand(escalationShowCmd)
+	escalationCmd.AddCommand(escalationResolveCmd)
 }
 
 // EscalationCmd returns the escalation command

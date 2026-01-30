@@ -9,6 +9,9 @@ type EscalationService interface {
 
 	// ListEscalations lists escalations with optional filters.
 	ListEscalations(ctx context.Context, filters EscalationFilters) ([]*Escalation, error)
+
+	// ResolveEscalation resolves an escalation with an outcome (approved/rejected) and optional feedback.
+	ResolveEscalation(ctx context.Context, req ResolveEscalationRequest) error
 }
 
 // Escalation represents an escalation entity at the port boundary.
@@ -33,6 +36,14 @@ type EscalationFilters struct {
 	TaskID        string
 	Status        string
 	TargetActorID string
+}
+
+// ResolveEscalationRequest contains parameters for resolving an escalation.
+type ResolveEscalationRequest struct {
+	EscalationID string
+	Outcome      string // "approved" or "rejected"
+	Resolution   string // Optional feedback/explanation
+	ResolvedBy   string // Actor ID of resolver (GATE-xxx)
 }
 
 // Escalation status constants

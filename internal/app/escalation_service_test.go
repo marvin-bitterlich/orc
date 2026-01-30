@@ -176,3 +176,126 @@ func TestEscalationService_ListEscalations_FilterByStatus(t *testing.T) {
 		t.Errorf("expected 1 escalation, got %d", len(escalations))
 	}
 }
+
+func TestEscalationService_ResolveEscalation_Approved(t *testing.T) {
+	service, repo := newTestEscalationService()
+	ctx := context.Background()
+
+	repo.escalations["ESC-001"] = &secondary.EscalationRecord{
+		ID:            "ESC-001",
+		PlanID:        "PLAN-001",
+		TaskID:        "TASK-001",
+		Reason:        "Complexity exceeded",
+		Status:        "pending",
+		RoutingRule:   "workshop_gatehouse",
+		OriginActorID: "BENCH-001",
+	}
+
+	err := service.ResolveEscalation(ctx, primary.ResolveEscalationRequest{
+		EscalationID: "ESC-001",
+		Outcome:      "approved",
+		Resolution:   "Looks good, proceed",
+		ResolvedBy:   "GATE-001",
+	})
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if repo.escalations["ESC-001"].Status != "resolved" {
+		t.Errorf("expected status 'resolved', got %q", repo.escalations["ESC-001"].Status)
+	}
+	if repo.escalations["ESC-001"].Resolution != "Looks good, proceed" {
+		t.Errorf("expected resolution to be set")
+	}
+}
+
+func TestEscalationService_ResolveEscalation_Rejected(t *testing.T) {
+	service, repo := newTestEscalationService()
+	ctx := context.Background()
+
+	repo.escalations["ESC-001"] = &secondary.EscalationRecord{
+		ID:            "ESC-001",
+		PlanID:        "PLAN-001",
+		TaskID:        "TASK-001",
+		Reason:        "Uncertain approach",
+		Status:        "pending",
+		RoutingRule:   "workshop_gatehouse",
+		OriginActorID: "BENCH-001",
+	}
+
+	err := service.ResolveEscalation(ctx, primary.ResolveEscalationRequest{
+		EscalationID: "ESC-001",
+		Outcome:      "rejected",
+		Resolution:   "Please reconsider the approach",
+		ResolvedBy:   "GATE-001",
+	})
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if repo.escalations["ESC-001"].Status != "dismissed" {
+		t.Errorf("expected status 'dismissed', got %q", repo.escalations["ESC-001"].Status)
+	}
+}
+
+func TestEscalationService_ResolveEscalation_NotPending(t *testing.T) {
+	service, repo := newTestEscalationService()
+	ctx := context.Background()
+
+	repo.escalations["ESC-001"] = &secondary.EscalationRecord{
+		ID:            "ESC-001",
+		PlanID:        "PLAN-001",
+		TaskID:        "TASK-001",
+		Reason:        "Already resolved",
+		Status:        "resolved",
+		RoutingRule:   "workshop_gatehouse",
+		OriginActorID: "BENCH-001",
+	}
+
+	err := service.ResolveEscalation(ctx, primary.ResolveEscalationRequest{
+		EscalationID: "ESC-001",
+		Outcome:      "approved",
+	})
+
+	if err == nil {
+		t.Fatal("expected error for non-pending escalation")
+	}
+}
+
+func TestEscalationService_ResolveEscalation_InvalidOutcome(t *testing.T) {
+	service, repo := newTestEscalationService()
+	ctx := context.Background()
+
+	repo.escalations["ESC-001"] = &secondary.EscalationRecord{
+		ID:            "ESC-001",
+		PlanID:        "PLAN-001",
+		TaskID:        "TASK-001",
+		Reason:        "Test",
+		Status:        "pending",
+		RoutingRule:   "workshop_gatehouse",
+		OriginActorID: "BENCH-001",
+	}
+
+	err := service.ResolveEscalation(ctx, primary.ResolveEscalationRequest{
+		EscalationID: "ESC-001",
+		Outcome:      "invalid",
+	})
+
+	if err == nil {
+		t.Fatal("expected error for invalid outcome")
+	}
+}
+
+func TestEscalationService_ResolveEscalation_NotFound(t *testing.T) {
+	service, _ := newTestEscalationService()
+	ctx := context.Background()
+
+	err := service.ResolveEscalation(ctx, primary.ResolveEscalationRequest{
+		EscalationID: "ESC-999",
+		Outcome:      "approved",
+	})
+
+	if err == nil {
+		t.Fatal("expected error for non-existent escalation")
+	}
+}

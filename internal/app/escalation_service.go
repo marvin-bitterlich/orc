@@ -46,6 +46,42 @@ func (s *EscalationServiceImpl) ListEscalations(ctx context.Context, filters pri
 	return escalations, nil
 }
 
+// ResolveEscalation resolves an escalation with an outcome.
+func (s *EscalationServiceImpl) ResolveEscalation(ctx context.Context, req primary.ResolveEscalationRequest) error {
+	// Validate escalation exists and is pending
+	escalation, err := s.escalationRepo.GetByID(ctx, req.EscalationID)
+	if err != nil {
+		return fmt.Errorf("escalation not found: %w", err)
+	}
+
+	if escalation.Status != primary.EscalationStatusPending {
+		return fmt.Errorf("escalation %s is not pending (current status: %s)", req.EscalationID, escalation.Status)
+	}
+
+	// Validate outcome
+	if req.Outcome != "approved" && req.Outcome != "rejected" {
+		return fmt.Errorf("invalid outcome: %s (must be 'approved' or 'rejected')", req.Outcome)
+	}
+
+	// Determine final status based on outcome
+	status := primary.EscalationStatusResolved
+	if req.Outcome == "rejected" {
+		status = primary.EscalationStatusDismissed
+	}
+
+	// Resolve in repository
+	if err := s.escalationRepo.Resolve(ctx, req.EscalationID, req.Resolution, req.ResolvedBy); err != nil {
+		return fmt.Errorf("failed to resolve escalation: %w", err)
+	}
+
+	// Update status
+	if err := s.escalationRepo.UpdateStatus(ctx, req.EscalationID, status, true); err != nil {
+		return fmt.Errorf("failed to update escalation status: %w", err)
+	}
+
+	return nil
+}
+
 // Helper methods
 
 func (s *EscalationServiceImpl) recordToEscalation(r *secondary.EscalationRecord) *primary.Escalation {

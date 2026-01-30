@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/example/orc/internal/ports/primary"
@@ -185,13 +186,325 @@ func (m *mockPlanRepository) TaskExists(ctx context.Context, taskID string) (boo
 }
 
 // ============================================================================
+// Additional Mock Implementations for PlanService Dependencies
+// ============================================================================
+
+// mockEscalationRepoForPlan is a minimal mock for testing PlanService.
+type mockEscalationRepoForPlan struct {
+	escalations map[string]*secondary.EscalationRecord
+	nextID      int
+}
+
+func newMockEscalationRepoForPlan() *mockEscalationRepoForPlan {
+	return &mockEscalationRepoForPlan{
+		escalations: make(map[string]*secondary.EscalationRecord),
+		nextID:      1,
+	}
+}
+
+func (m *mockEscalationRepoForPlan) Create(ctx context.Context, e *secondary.EscalationRecord) error {
+	m.escalations[e.ID] = e
+	return nil
+}
+
+func (m *mockEscalationRepoForPlan) GetByID(ctx context.Context, id string) (*secondary.EscalationRecord, error) {
+	if e, ok := m.escalations[id]; ok {
+		return e, nil
+	}
+	return nil, errors.New("not found")
+}
+
+func (m *mockEscalationRepoForPlan) List(ctx context.Context, filters secondary.EscalationFilters) ([]*secondary.EscalationRecord, error) {
+	return nil, nil
+}
+
+func (m *mockEscalationRepoForPlan) Update(ctx context.Context, e *secondary.EscalationRecord) error {
+	return nil
+}
+
+func (m *mockEscalationRepoForPlan) Delete(ctx context.Context, id string) error {
+	return nil
+}
+
+func (m *mockEscalationRepoForPlan) GetNextID(ctx context.Context) (string, error) {
+	id := m.nextID
+	m.nextID++
+	return fmt.Sprintf("ESC-%03d", id), nil
+}
+
+func (m *mockEscalationRepoForPlan) UpdateStatus(ctx context.Context, id, status string, setResolved bool) error {
+	return nil
+}
+
+func (m *mockEscalationRepoForPlan) Resolve(ctx context.Context, id, resolution, resolvedBy string) error {
+	return nil
+}
+
+func (m *mockEscalationRepoForPlan) PlanExists(ctx context.Context, planID string) (bool, error) {
+	return true, nil
+}
+
+func (m *mockEscalationRepoForPlan) TaskExists(ctx context.Context, taskID string) (bool, error) {
+	return true, nil
+}
+
+func (m *mockEscalationRepoForPlan) ApprovalExists(ctx context.Context, approvalID string) (bool, error) {
+	return true, nil
+}
+
+// mockWorkbenchRepoForPlan is a minimal mock for testing PlanService.
+type mockWorkbenchRepoForPlan struct {
+	workbenches map[string]*secondary.WorkbenchRecord
+}
+
+func newMockWorkbenchRepoForPlan() *mockWorkbenchRepoForPlan {
+	return &mockWorkbenchRepoForPlan{
+		workbenches: make(map[string]*secondary.WorkbenchRecord),
+	}
+}
+
+func (m *mockWorkbenchRepoForPlan) Create(ctx context.Context, w *secondary.WorkbenchRecord) error {
+	return nil
+}
+
+func (m *mockWorkbenchRepoForPlan) GetByID(ctx context.Context, id string) (*secondary.WorkbenchRecord, error) {
+	if w, ok := m.workbenches[id]; ok {
+		return w, nil
+	}
+	return nil, errors.New("not found")
+}
+
+func (m *mockWorkbenchRepoForPlan) GetByPath(ctx context.Context, path string) (*secondary.WorkbenchRecord, error) {
+	return nil, errors.New("not found")
+}
+
+func (m *mockWorkbenchRepoForPlan) GetByWorkshop(ctx context.Context, workshopID string) ([]*secondary.WorkbenchRecord, error) {
+	return nil, nil
+}
+
+func (m *mockWorkbenchRepoForPlan) List(ctx context.Context, workshopID string) ([]*secondary.WorkbenchRecord, error) {
+	return nil, nil
+}
+
+func (m *mockWorkbenchRepoForPlan) Update(ctx context.Context, w *secondary.WorkbenchRecord) error {
+	return nil
+}
+
+func (m *mockWorkbenchRepoForPlan) Delete(ctx context.Context, id string) error {
+	return nil
+}
+
+func (m *mockWorkbenchRepoForPlan) GetNextID(ctx context.Context) (string, error) {
+	return "BENCH-001", nil
+}
+
+func (m *mockWorkbenchRepoForPlan) UpdateStatus(ctx context.Context, id, status string) error {
+	return nil
+}
+
+func (m *mockWorkbenchRepoForPlan) Rename(ctx context.Context, id, name string) error {
+	return nil
+}
+
+func (m *mockWorkbenchRepoForPlan) UpdatePath(ctx context.Context, id, path string) error {
+	return nil
+}
+
+func (m *mockWorkbenchRepoForPlan) UpdateFocusedID(ctx context.Context, id, focusedID string) error {
+	return nil
+}
+
+func (m *mockWorkbenchRepoForPlan) WorkshopExists(ctx context.Context, workshopID string) (bool, error) {
+	return true, nil
+}
+
+// mockGatehouseRepoForPlan is a minimal mock for testing PlanService.
+type mockGatehouseRepoForPlan struct {
+	gatehousesByWorkshop map[string]*secondary.GatehouseRecord
+}
+
+func newMockGatehouseRepoForPlan() *mockGatehouseRepoForPlan {
+	return &mockGatehouseRepoForPlan{
+		gatehousesByWorkshop: make(map[string]*secondary.GatehouseRecord),
+	}
+}
+
+func (m *mockGatehouseRepoForPlan) Create(ctx context.Context, g *secondary.GatehouseRecord) error {
+	return nil
+}
+
+func (m *mockGatehouseRepoForPlan) GetByID(ctx context.Context, id string) (*secondary.GatehouseRecord, error) {
+	return nil, errors.New("not found")
+}
+
+func (m *mockGatehouseRepoForPlan) GetByWorkshop(ctx context.Context, workshopID string) (*secondary.GatehouseRecord, error) {
+	if g, ok := m.gatehousesByWorkshop[workshopID]; ok {
+		return g, nil
+	}
+	return nil, errors.New("not found")
+}
+
+func (m *mockGatehouseRepoForPlan) List(ctx context.Context, filters secondary.GatehouseFilters) ([]*secondary.GatehouseRecord, error) {
+	return nil, nil
+}
+
+func (m *mockGatehouseRepoForPlan) Update(ctx context.Context, g *secondary.GatehouseRecord) error {
+	return nil
+}
+
+func (m *mockGatehouseRepoForPlan) Delete(ctx context.Context, id string) error {
+	return nil
+}
+
+func (m *mockGatehouseRepoForPlan) GetNextID(ctx context.Context) (string, error) {
+	return "GATE-001", nil
+}
+
+func (m *mockGatehouseRepoForPlan) UpdateStatus(ctx context.Context, id, status string) error {
+	return nil
+}
+
+func (m *mockGatehouseRepoForPlan) WorkshopExists(ctx context.Context, workshopID string) (bool, error) {
+	return true, nil
+}
+
+func (m *mockGatehouseRepoForPlan) WorkshopHasGatehouse(ctx context.Context, workshopID string) (bool, error) {
+	_, ok := m.gatehousesByWorkshop[workshopID]
+	return ok, nil
+}
+
+// mockMessageServiceForPlan is a minimal mock for testing PlanService.
+type mockMessageServiceForPlan struct {
+	messages []*primary.CreateMessageRequest
+}
+
+func newMockMessageServiceForPlan() *mockMessageServiceForPlan {
+	return &mockMessageServiceForPlan{
+		messages: make([]*primary.CreateMessageRequest, 0),
+	}
+}
+
+func (m *mockMessageServiceForPlan) CreateMessage(ctx context.Context, req primary.CreateMessageRequest) (*primary.CreateMessageResponse, error) {
+	m.messages = append(m.messages, &req)
+	return &primary.CreateMessageResponse{MessageID: "MSG-001"}, nil
+}
+
+func (m *mockMessageServiceForPlan) GetMessage(ctx context.Context, messageID string) (*primary.Message, error) {
+	return nil, errors.New("not found")
+}
+
+func (m *mockMessageServiceForPlan) ListMessages(ctx context.Context, recipient string, unreadOnly bool) ([]*primary.Message, error) {
+	return nil, nil
+}
+
+func (m *mockMessageServiceForPlan) MarkRead(ctx context.Context, messageID string) error {
+	return nil
+}
+
+func (m *mockMessageServiceForPlan) GetConversation(ctx context.Context, actor1, actor2 string) ([]*primary.Message, error) {
+	return nil, nil
+}
+
+func (m *mockMessageServiceForPlan) GetUnreadCount(ctx context.Context, recipient string) (int, error) {
+	return 0, nil
+}
+
+// mockTMuxAdapterForPlan is a minimal mock for testing PlanService.
+type mockTMuxAdapterForPlan struct{}
+
+func newMockTMuxAdapterForPlan() *mockTMuxAdapterForPlan {
+	return &mockTMuxAdapterForPlan{}
+}
+
+func (m *mockTMuxAdapterForPlan) CreateSession(ctx context.Context, name, workingDir string) error {
+	return nil
+}
+func (m *mockTMuxAdapterForPlan) SessionExists(ctx context.Context, name string) bool { return false }
+func (m *mockTMuxAdapterForPlan) KillSession(ctx context.Context, name string) error  { return nil }
+func (m *mockTMuxAdapterForPlan) GetSessionInfo(ctx context.Context, name string) (string, error) {
+	return "", nil
+}
+func (m *mockTMuxAdapterForPlan) CreateOrcWindow(ctx context.Context, sessionName string, workingDir string) error {
+	return nil
+}
+func (m *mockTMuxAdapterForPlan) CreateWorkbenchWindow(ctx context.Context, sessionName string, windowIndex int, windowName string, workingDir string) error {
+	return nil
+}
+func (m *mockTMuxAdapterForPlan) CreateWorkbenchWindowShell(ctx context.Context, sessionName string, windowIndex int, windowName string, workingDir string) error {
+	return nil
+}
+func (m *mockTMuxAdapterForPlan) WindowExists(ctx context.Context, sessionName string, windowName string) bool {
+	return false
+}
+func (m *mockTMuxAdapterForPlan) SendKeys(ctx context.Context, target, keys string) error { return nil }
+func (m *mockTMuxAdapterForPlan) GetPaneCount(ctx context.Context, sessionName, windowName string) int {
+	return 0
+}
+func (m *mockTMuxAdapterForPlan) GetPaneCommand(ctx context.Context, sessionName, windowName string, paneNum int) string {
+	return ""
+}
+func (m *mockTMuxAdapterForPlan) SplitVertical(ctx context.Context, target, workingDir string) error {
+	return nil
+}
+func (m *mockTMuxAdapterForPlan) SplitHorizontal(ctx context.Context, target, workingDir string) error {
+	return nil
+}
+func (m *mockTMuxAdapterForPlan) NudgeSession(ctx context.Context, target, message string) error {
+	return nil
+}
+func (m *mockTMuxAdapterForPlan) AttachInstructions(sessionName string) string { return "" }
+func (m *mockTMuxAdapterForPlan) SelectWindow(ctx context.Context, sessionName string, index int) error {
+	return nil
+}
+func (m *mockTMuxAdapterForPlan) RenameWindow(ctx context.Context, target, newName string) error {
+	return nil
+}
+func (m *mockTMuxAdapterForPlan) RespawnPane(ctx context.Context, target string, command ...string) error {
+	return nil
+}
+func (m *mockTMuxAdapterForPlan) RenameSession(ctx context.Context, session, newName string) error {
+	return nil
+}
+func (m *mockTMuxAdapterForPlan) ConfigureStatusBar(ctx context.Context, session string, config secondary.StatusBarConfig) error {
+	return nil
+}
+func (m *mockTMuxAdapterForPlan) DisplayPopup(ctx context.Context, session, command string, config secondary.PopupConfig) error {
+	return nil
+}
+func (m *mockTMuxAdapterForPlan) ConfigureSessionBindings(ctx context.Context, session string, bindings []secondary.KeyBinding) error {
+	return nil
+}
+func (m *mockTMuxAdapterForPlan) ConfigureSessionPopupBindings(ctx context.Context, session string, bindings []secondary.PopupKeyBinding) error {
+	return nil
+}
+func (m *mockTMuxAdapterForPlan) GetCurrentSessionName(ctx context.Context) string { return "" }
+func (m *mockTMuxAdapterForPlan) SetEnvironment(ctx context.Context, sessionName, key, value string) error {
+	return nil
+}
+func (m *mockTMuxAdapterForPlan) GetEnvironment(ctx context.Context, sessionName, key string) (string, error) {
+	return "", nil
+}
+func (m *mockTMuxAdapterForPlan) ListSessions(ctx context.Context) ([]string, error) { return nil, nil }
+func (m *mockTMuxAdapterForPlan) FindSessionByWorkshopID(ctx context.Context, workshopID string) string {
+	return ""
+}
+func (m *mockTMuxAdapterForPlan) ListWindows(ctx context.Context, sessionName string) ([]string, error) {
+	return nil, nil
+}
+
+// ============================================================================
 // Test Helper
 // ============================================================================
 
 func newTestPlanService() (*PlanServiceImpl, *mockPlanRepository, *mockApprovalRepository) {
 	planRepo := newMockPlanRepository()
 	approvalRepo := newMockApprovalRepository()
-	service := NewPlanService(planRepo, approvalRepo)
+	escalationRepo := newMockEscalationRepoForPlan()
+	workbenchRepo := newMockWorkbenchRepoForPlan()
+	gatehouseRepo := newMockGatehouseRepoForPlan()
+	messageService := newMockMessageServiceForPlan()
+	tmuxAdapter := newMockTMuxAdapterForPlan()
+	service := NewPlanService(planRepo, approvalRepo, escalationRepo, workbenchRepo, gatehouseRepo, messageService, tmuxAdapter)
 	return service, planRepo, approvalRepo
 }
 

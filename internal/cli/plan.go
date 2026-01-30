@@ -287,6 +287,43 @@ var planDeleteCmd = &cobra.Command{
 	},
 }
 
+var planEscalateCmd = &cobra.Command{
+	Use:   "escalate [plan-id]",
+	Short: "Escalate a plan for human review",
+	Long:  "Submit a plan for escalation to the workshop gatehouse for human review",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		planID := args[0]
+		reason, _ := cmd.Flags().GetString("reason")
+
+		if reason == "" {
+			return fmt.Errorf("--reason is required for escalation")
+		}
+
+		// Get origin actor from workbench context
+		originActorID := orcctx.GetContextWorkbenchID()
+		if originActorID == "" {
+			return fmt.Errorf("no workbench context detected\nHint: Run this command from a workbench directory")
+		}
+
+		ctx := context.Background()
+		resp, err := wire.PlanService().EscalatePlan(ctx, primary.EscalatePlanRequest{
+			PlanID:        planID,
+			Reason:        reason,
+			OriginActorID: originActorID,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to escalate plan: %w", err)
+		}
+
+		fmt.Printf("✓ Plan %s escalated to %s\n", planID, resp.TargetActor)
+		fmt.Printf("  Escalation: %s\n", resp.EscalationID)
+		fmt.Printf("  Approval: %s\n", resp.ApprovalID)
+		fmt.Printf("\nThe gatehouse has been notified via mail and nudge.\n")
+		return nil
+	},
+}
+
 func init() {
 	// plan create flags
 	planCreateCmd.Flags().StringP("commission", "c", "", "Commission ID (defaults to context)")
@@ -305,6 +342,9 @@ func init() {
 	planUpdateCmd.Flags().StringP("description", "d", "", "New description")
 	planUpdateCmd.Flags().String("content", "", "New content")
 
+	// plan escalate flags
+	planEscalateCmd.Flags().StringP("reason", "r", "", "Reason for escalation (required)")
+
 	// Register subcommands
 	planCmd.AddCommand(planCreateCmd)
 	planCmd.AddCommand(planListCmd)
@@ -315,6 +355,7 @@ func init() {
 	planCmd.AddCommand(planPinCmd)
 	planCmd.AddCommand(planUnpinCmd)
 	planCmd.AddCommand(planDeleteCmd)
+	planCmd.AddCommand(planEscalateCmd)
 }
 
 // PlanCmd returns the plan command

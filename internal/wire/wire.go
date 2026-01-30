@@ -290,11 +290,20 @@ func initServices() {
 	workshopService = app.NewWorkshopService(factoryRepo, workshopRepo, workbenchRepo, repoRepo, gatehouseRepo, tmuxService, workspaceAdapter, executor)
 	workbenchService = app.NewWorkbenchService(workbenchRepo, workshopRepo, agentProvider, executor)
 
-	// Create approval repository early (needed by plan service)
+	// Create approval and escalation repositories early (needed by plan service)
 	approvalRepo := sqlite.NewApprovalRepository(database)
+	escalationRepo := sqlite.NewEscalationRepository(database)
 
-	// Create plan service
-	planService = app.NewPlanService(planRepo, approvalRepo)
+	// Create plan service (needs multiple dependencies for escalation workflow)
+	planService = app.NewPlanService(
+		planRepo,
+		approvalRepo,
+		escalationRepo,
+		workbenchRepo,
+		gatehouseRepo,
+		messageService,
+		tmuxAdapter,
+	)
 
 	// Create receipt service
 	receiptRepo := sqlite.NewReceiptRepository(database)
@@ -309,7 +318,6 @@ func initServices() {
 
 	approvalService = app.NewApprovalService(approvalRepo)
 
-	escalationRepo := sqlite.NewEscalationRepository(database)
 	escalationService = app.NewEscalationService(escalationRepo)
 
 	manifestRepo := sqlite.NewManifestRepository(database)

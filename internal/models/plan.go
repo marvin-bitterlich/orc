@@ -29,4 +29,5 @@ const (
 	PlanStatusDraft         = "draft"
 	PlanStatusPendingReview = "pending_review"
 	PlanStatusApproved      = "approved"
+	PlanStatusEscalated     = "escalated"
 )

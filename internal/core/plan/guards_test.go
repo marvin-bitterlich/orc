@@ -255,6 +255,81 @@ func TestCanDeletePlan(t *testing.T) {
 	}
 }
 
+func TestCanEscalatePlan(t *testing.T) {
+	tests := []struct {
+		name        string
+		ctx         EscalatePlanContext
+		wantAllowed bool
+		wantReason  string
+	}{
+		{
+			name: "can escalate draft plan with content and reason",
+			ctx: EscalatePlanContext{
+				PlanID:     "PLAN-001",
+				Status:     "draft",
+				HasContent: true,
+				HasReason:  true,
+			},
+			wantAllowed: true,
+		},
+		{
+			name: "can escalate pending_review plan with content and reason",
+			ctx: EscalatePlanContext{
+				PlanID:     "PLAN-001",
+				Status:     "pending_review",
+				HasContent: true,
+				HasReason:  true,
+			},
+			wantAllowed: true,
+		},
+		{
+			name: "cannot escalate approved plan",
+			ctx: EscalatePlanContext{
+				PlanID:     "PLAN-001",
+				Status:     "approved",
+				HasContent: true,
+				HasReason:  true,
+			},
+			wantAllowed: false,
+			wantReason:  "can only escalate draft or pending_review plans (current status: approved)",
+		},
+		{
+			name: "cannot escalate plan without content",
+			ctx: EscalatePlanContext{
+				PlanID:     "PLAN-001",
+				Status:     "draft",
+				HasContent: false,
+				HasReason:  true,
+			},
+			wantAllowed: false,
+			wantReason:  "cannot escalate plan without content",
+		},
+		{
+			name: "cannot escalate plan without reason",
+			ctx: EscalatePlanContext{
+				PlanID:     "PLAN-001",
+				Status:     "draft",
+				HasContent: true,
+				HasReason:  false,
+			},
+			wantAllowed: false,
+			wantReason:  "escalation reason is required",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := CanEscalatePlan(tt.ctx)
+			if result.Allowed != tt.wantAllowed {
+				t.Errorf("Allowed = %v, want %v", result.Allowed, tt.wantAllowed)
+			}
+			if !tt.wantAllowed && result.Reason != tt.wantReason {
+				t.Errorf("Reason = %q, want %q", result.Reason, tt.wantReason)
+			}
+		})
+	}
+}
+
 func TestGuardResult_Error(t *testing.T) {
 	t.Run("allowed result returns nil error", func(t *testing.T) {
 		result := GuardResult{Allowed: true}

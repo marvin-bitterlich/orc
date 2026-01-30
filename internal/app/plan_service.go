@@ -12,15 +12,33 @@ import (
 
 // PlanServiceImpl implements the PlanService interface.
 type PlanServiceImpl struct {
-	planRepo     secondary.PlanRepository
-	approvalRepo secondary.ApprovalRepository
+	planRepo       secondary.PlanRepository
+	approvalRepo   secondary.ApprovalRepository
+	escalationRepo secondary.EscalationRepository
+	workbenchRepo  secondary.WorkbenchRepository
+	gatehouseRepo  secondary.GatehouseRepository
+	messageService primary.MessageService
+	tmuxAdapter    secondary.TMuxAdapter
 }
 
 // NewPlanService creates a new PlanService with injected dependencies.
-func NewPlanService(planRepo secondary.PlanRepository, approvalRepo secondary.ApprovalRepository) *PlanServiceImpl {
+func NewPlanService(
+	planRepo secondary.PlanRepository,
+	approvalRepo secondary.ApprovalRepository,
+	escalationRepo secondary.EscalationRepository,
+	workbenchRepo secondary.WorkbenchRepository,
+	gatehouseRepo secondary.GatehouseRepository,
+	messageService primary.MessageService,
+	tmuxAdapter secondary.TMuxAdapter,
+) *PlanServiceImpl {
 	return &PlanServiceImpl{
-		planRepo:     planRepo,
-		approvalRepo: approvalRepo,
+		planRepo:       planRepo,
+		approvalRepo:   approvalRepo,
+		escalationRepo: escalationRepo,
+		workbenchRepo:  workbenchRepo,
+		gatehouseRepo:  gatehouseRepo,
+		messageService: messageService,
+		tmuxAdapter:    tmuxAdapter,
 	}
 }
 
@@ -177,6 +195,107 @@ func (s *PlanServiceImpl) ApprovePlan(ctx context.Context, planID string) (*prim
 		TaskID:    plan.TaskID,
 		Mechanism: primary.ApprovalMechanismManual,
 		Outcome:   primary.ApprovalOutcomeApproved,
+	}, nil
+}
+
+// EscalatePlan escalates a plan for human review, creating approval and escalation records.
+func (s *PlanServiceImpl) EscalatePlan(ctx context.Context, req primary.EscalatePlanRequest) (*primary.EscalatePlanResponse, error) {
+	plan, err := s.planRepo.GetByID(ctx, req.PlanID)
+	if err != nil {
+		return nil, err
+	}
+
+	guardResult := plancore.CanEscalatePlan(plancore.EscalatePlanContext{
+		PlanID:     req.PlanID,
+		Status:     plan.Status,
+		HasContent: plan.Content != "",
+		HasReason:  req.Reason != "",
+	})
+	if err := guardResult.Error(); err != nil {
+		return nil, err
+	}
+
+	// Get workbench to find workshop
+	workbench, err := s.workbenchRepo.GetByID(ctx, req.OriginActorID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get workbench: %w", err)
+	}
+
+	// Get gatehouse for the workshop
+	gatehouse, err := s.gatehouseRepo.GetByWorkshop(ctx, workbench.WorkshopID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get gatehouse for workshop: %w", err)
+	}
+
+	// Create approval record (outcome=escalated)
+	approvalID, err := s.approvalRepo.GetNextID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate approval ID: %w", err)
+	}
+
+	approvalRecord := &secondary.ApprovalRecord{
+		ID:        approvalID,
+		PlanID:    req.PlanID,
+		TaskID:    plan.TaskID,
+		Mechanism: primary.ApprovalMechanismManual,
+		Outcome:   primary.ApprovalOutcomeEscalated,
+	}
+	if err := s.approvalRepo.Create(ctx, approvalRecord); err != nil {
+		return nil, fmt.Errorf("failed to create approval: %w", err)
+	}
+
+	// Create escalation record
+	escalationID, err := s.escalationRepo.GetNextID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate escalation ID: %w", err)
+	}
+
+	escalationRecord := &secondary.EscalationRecord{
+		ID:            escalationID,
+		ApprovalID:    approvalID,
+		PlanID:        req.PlanID,
+		TaskID:        plan.TaskID,
+		Reason:        req.Reason,
+		Status:        primary.EscalationStatusPending,
+		RoutingRule:   "workshop_gatehouse",
+		OriginActorID: req.OriginActorID,
+		TargetActorID: gatehouse.ID,
+	}
+	if err := s.escalationRepo.Create(ctx, escalationRecord); err != nil {
+		return nil, fmt.Errorf("failed to create escalation: %w", err)
+	}
+
+	// Update plan status to escalated
+	if err := s.planRepo.UpdateStatus(ctx, req.PlanID, models.PlanStatusEscalated); err != nil {
+		return nil, fmt.Errorf("failed to update plan status: %w", err)
+	}
+
+	// Send mail to gatehouse
+	mailBody := fmt.Sprintf("Plan %s has been escalated.\n\nReason: %s\n\nTask: %s\nFrom: %s\n\nUse 'orc plan show %s' to review.",
+		req.PlanID, req.Reason, plan.TaskID, req.OriginActorID, req.PlanID)
+	_, err = s.messageService.CreateMessage(ctx, primary.CreateMessageRequest{
+		Sender:    req.OriginActorID,
+		Recipient: gatehouse.ID,
+		Subject:   fmt.Sprintf("Escalation: %s", req.PlanID),
+		Body:      mailBody,
+	})
+	if err != nil {
+		// Log but don't fail - escalation is already created
+		fmt.Printf("Warning: failed to send escalation mail: %v\n", err)
+	}
+
+	// Nudge gatehouse (best effort - don't fail if tmux not running)
+	nudgeMsg := fmt.Sprintf("New escalation: %s - %s", escalationID, req.Reason)
+	sessionName := s.tmuxAdapter.FindSessionByWorkshopID(ctx, workbench.WorkshopID)
+	if sessionName != "" {
+		target := fmt.Sprintf("%s:1.1", sessionName) // Gatehouse is window 1, pane 1
+		_ = s.tmuxAdapter.NudgeSession(ctx, target, nudgeMsg)
+	}
+
+	return &primary.EscalatePlanResponse{
+		ApprovalID:   approvalID,
+		EscalationID: escalationID,
+		TargetActor:  gatehouse.ID,
 	}, nil
 }
 

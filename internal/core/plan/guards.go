@@ -47,6 +47,14 @@ type DeletePlanContext struct {
 	IsPinned bool
 }
 
+// EscalatePlanContext provides context for plan escalation guards.
+type EscalatePlanContext struct {
+	PlanID     string
+	Status     string
+	HasContent bool
+	HasReason  bool
+}
+
 // CanCreatePlan evaluates whether a plan can be created.
 // Rules:
 // - Commission must exist
@@ -135,5 +143,32 @@ func CanDeletePlan(ctx DeletePlanContext) GuardResult {
 		}
 	}
 
+	return GuardResult{Allowed: true}
+}
+
+// CanEscalatePlan evaluates whether a plan can be escalated.
+// Rules:
+// - Status must be "draft" or "pending_review"
+// - Plan must have content
+// - Reason must be provided
+func CanEscalatePlan(ctx EscalatePlanContext) GuardResult {
+	if ctx.Status != "draft" && ctx.Status != "pending_review" {
+		return GuardResult{
+			Allowed: false,
+			Reason:  fmt.Sprintf("can only escalate draft or pending_review plans (current status: %s)", ctx.Status),
+		}
+	}
+	if !ctx.HasContent {
+		return GuardResult{
+			Allowed: false,
+			Reason:  "cannot escalate plan without content",
+		}
+	}
+	if !ctx.HasReason {
+		return GuardResult{
+			Allowed: false,
+			Reason:  "escalation reason is required",
+		}
+	}
 	return GuardResult{Allowed: true}
 }
