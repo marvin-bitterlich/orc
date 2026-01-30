@@ -13,12 +13,11 @@
   ],
   "Stop": [
     {
-      "matcher": "*",
       "hooks": [
         {
           "type": "prompt",
           "prompt": "You are evaluating if an IMP agent should stop working.\n\nContext: $ARGUMENTS\n\nIMPORTANT: First check stop_hook_active in the input. If true, respond {\"ok\": true} to prevent infinite loops.\n\nOtherwise, determine the IMP's current state:\n1. Is there an in_progress task with approved plan? → IMP should implement or run /imp-rec\n2. Is there an in_progress task with draft plan? → IMP should run /imp-plan-submit\n3. Is there an in_progress task with no plan? → IMP should run /imp-plan-create\n4. Are there ready tasks in the shipment? → IMP should claim next and run /imp-plan-create\n5. Is there a pending escalation? → IMP should wait (allow stop)\n6. Is shipment complete? → Allow stop\n\nIf work remains (cases 1-4), respond:\n{\"ok\": false, \"reason\": \"Continue working: [specific next action with skill name]\"}\n\nIf complete or waiting (cases 5-6), respond:\n{\"ok\": true}",
-          "timeout": 30000
+          "timeout": 30
         }
       ]
     }
