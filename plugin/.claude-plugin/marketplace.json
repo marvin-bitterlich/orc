@@ -7,7 +7,11 @@
     {
       "name": "orc",
       "source": "./orc",
-      "description": "ORC workflow skills"
+      "description": "ORC workflow skills",
+      "strict": false,
+      "skills": [
+        "./skills/orc-ping"
+      ]
     }
   ]
 }
