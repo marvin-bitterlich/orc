@@ -9,6 +9,7 @@ if [[ "$BRANCH" == "master" || "$BRANCH" == "main" ]]; then
     echo "Post-merge on $BRANCH: rebuilding and installing..."
     make init
     make install
+    make deploy-glue
     make clean
     echo "✓ Post-merge rebuild complete"
 fi
