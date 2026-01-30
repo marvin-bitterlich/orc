@@ -41,12 +41,28 @@ Examples:
 			var target string
 
 			if identity.Type == agent.AgentTypeGoblin {
-				// Goblin always in ORC session, window 1, pane 1
-				sessionName = "ORC"
-				if !tmuxAdapter.SessionExists(ctx, sessionName) {
-					return fmt.Errorf("tmux session %s not running - agent may not be active", sessionName)
+				if identity.ID == "GOBLIN" {
+					// Legacy generic GOBLIN address - check for ORC session
+					sessionName = "ORC"
+					if !tmuxAdapter.SessionExists(ctx, sessionName) {
+						return fmt.Errorf("tmux session %s not running - agent may not be active", sessionName)
+					}
+					target = "ORC:1.1"
+				} else {
+					// GOBLIN-GATE-XXX: lookup gatehouse → workshop → session
+					gatehouse, err := wire.GatehouseService().GetGatehouse(ctx, identity.ID)
+					if err != nil {
+						return fmt.Errorf("failed to get gatehouse info: %w", err)
+					}
+
+					sessionName = tmuxAdapter.FindSessionByWorkshopID(ctx, gatehouse.WorkshopID)
+					if sessionName == "" {
+						return fmt.Errorf("no tmux session found for workshop %s - agent may not be active", gatehouse.WorkshopID)
+					}
+
+					// Gatehouse is window 1, pane 1 (Claude)
+					target = fmt.Sprintf("%s:1.1", sessionName)
 				}
-				target = "ORC:1.1"
 			} else {
 				// IMP: lookup workbench and find session by workshop ID
 				workbench, err := wire.WorkbenchService().GetWorkbench(ctx, identity.ID)
