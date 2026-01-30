@@ -75,9 +75,38 @@ type ShipmentSummary struct {
 
 // TaskSummary represents a task in the summary view.
 type TaskSummary struct {
+	ID          string
+	Title       string
+	Status      string
+	Plans       []PlanSummary
+	Approvals   []ApprovalSummary
+	Escalations []EscalationSummary
+	Receipts    []ReceiptSummary
+}
+
+// PlanSummary represents a plan in the summary view.
+type PlanSummary struct {
 	ID     string
-	Title  string
-	Status string
+	Status string // draft, pending_review, approved, escalated, superseded
+}
+
+// ApprovalSummary represents an approval in the summary view.
+type ApprovalSummary struct {
+	ID      string
+	Outcome string // approved, escalated
+}
+
+// EscalationSummary represents an escalation in the summary view.
+type EscalationSummary struct {
+	ID            string
+	Status        string // pending, resolved, dismissed
+	TargetActorID string // GATE-xxx
+}
+
+// ReceiptSummary represents a receipt in the summary view.
+type ReceiptSummary struct {
+	ID     string
+	Status string // draft, submitted, verified
 }
 
 // LibrarySummary represents the Library section with parked tomes.

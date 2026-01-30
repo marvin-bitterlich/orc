@@ -23,27 +23,81 @@ To bypass in emergencies: `git commit --no-verify` (will be audited)
 
 ORC uses `.orc/config.json` for identity only (not state).
 
-### IMP Config (workbench)
+### Config Format (place_id model)
+
+The config identifies "where you are" via a single `place_id`:
+
 ```json
 {
   "version": "1.0",
-  "role": "IMP",
-  "workbench_id": "BENCH-014"
+  "place_id": "BENCH-014"
 }
 ```
 
-### Goblin Config (workshop gatehouse)
+Or for Goblins:
 ```json
 {
   "version": "1.0",
-  "role": "GOBLIN",
-  "workshop_id": "WORK-003"
+  "place_id": "GATE-003"
 }
 ```
+
+### Place ID Prefixes
+
+| Prefix | Actor Type | Role | Description |
+|--------|------------|------|-------------|
+| `BENCH-` | Workbench | IMP | Implementation agent workspace (git worktree) |
+| `GATE-` | Gatehouse | Goblin | Workshop gatekeeper (1:1 with workshop) |
+| `WATCH-` | Watchdog | - | IMP monitor (1:1 with workbench) |
 
 ### What NOT to store
+- ❌ `role` - Derived from place_id prefix (`BENCH-` → IMP, `GATE-` → Goblin)
 - ❌ `commission_id` - Trust the DB (workbench → workshop → factory → commission)
 - ❌ `current_focus` - Stored in DB (`workbenches.focused_id`)
+
+---
+
+## Actor Model
+
+ORC uses a place-based actor model where identity is tied to "where you are":
+
+### Actors
+
+| Actor | Place | Role | Purpose |
+|-------|-------|------|---------|
+| IMP | Workbench (`BENCH-xxx`) | Implementation | Executes tasks, writes code |
+| Goblin | Gatehouse (`GATE-xxx`) | Review | Reviews plans, handles escalations |
+| Watchdog | Watchdog (`WATCH-xxx`) | Monitor | Monitors IMP progress |
+
+### Key Relationships
+
+- **Workshop → Gatehouse**: 1:1 (every workshop has exactly one gatehouse)
+- **Workbench → Watchdog**: 1:1 (every workbench has exactly one watchdog)
+- **Workshop → Workbenches**: 1:many (a workshop contains multiple workbenches)
+
+### Connect Command
+
+`orc connect` establishes agent identity. It validates role against place:
+
+```bash
+# From a workbench directory (has .orc/config.json with place_id=BENCH-xxx)
+orc connect                # Auto-detects IMP role
+orc connect --role imp     # Explicit IMP role (validates against place)
+orc connect --role goblin  # ERROR: Goblin role not allowed from workbench
+
+# From a gatehouse directory (has .orc/config.json with place_id=GATE-xxx)
+orc connect                # Auto-detects Goblin role
+orc connect --role goblin  # Explicit Goblin role
+orc connect --role imp     # ERROR: IMP role not allowed from gatehouse
+```
+
+### Summary as Shared Bus
+
+The `orc summary` command serves as a shared information bus:
+- Both IMPs and Goblins see the same data structure
+- Filtering varies by role (IMP sees their shipments, Goblin sees all)
+- Task children (plans, approvals, escalations, receipts) visible to both
+- Status indicators: ✓ (approved/complete), ⚠ (escalated/pending)
 
 ---
 

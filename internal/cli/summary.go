@@ -360,14 +360,18 @@ func renderGoblinSummary(summary *primary.CommissionSummary, _ string) {
 				for j, task := range ship.Tasks {
 					isLastTask := j == len(ship.Tasks)-1
 					tPrefix := taskPrefix + "├── "
+					taskChildPrefix := taskPrefix + "│   "
 					if isLastTask {
 						tPrefix = taskPrefix + "└── "
+						taskChildPrefix = taskPrefix + "    "
 					}
 					statusMark := ""
 					if task.Status != "" && task.Status != "ready" {
 						statusMark = colorizeStatus(task.Status) + " - "
 					}
 					fmt.Printf("%s%s - %s%s\n", tPrefix, colorizeID(task.ID), statusMark, task.Title)
+					// Render task children (plans, approvals, escalations, receipts)
+					renderTaskChildren(task, taskChildPrefix)
 				}
 			}
 
@@ -559,14 +563,18 @@ func renderIMPSummary(summary *primary.CommissionSummary, _ string, showAll bool
 				for j, task := range ship.Tasks {
 					isLastTask := j == len(ship.Tasks)-1
 					tPrefix := taskPrefix + "├── "
+					taskChildPrefix := taskPrefix + "│   "
 					if isLastTask {
 						tPrefix = taskPrefix + "└── "
+						taskChildPrefix = taskPrefix + "    "
 					}
 					statusMark := ""
 					if task.Status != "" && task.Status != "ready" {
 						statusMark = colorizeStatus(task.Status) + " - "
 					}
 					fmt.Printf("%s%s - %s%s\n", tPrefix, colorizeID(task.ID), statusMark, task.Title)
+					// Render task children (plans, approvals, escalations, receipts)
+					renderTaskChildren(task, taskChildPrefix)
 				}
 			}
 
@@ -706,5 +714,118 @@ func colorizeStatus(status string) string {
 		return color.New(color.FgHiGreen).Sprint(upper)
 	default:
 		return color.New(color.FgWhite).Sprint(upper)
+	}
+}
+
+// colorizePlanStatus formats plan status with semantic color and marker
+func colorizePlanStatus(status string) string {
+	upper := strings.ToUpper(status)
+	switch status {
+	case "approved":
+		return color.New(color.FgHiGreen).Sprintf("✓ %s", upper)
+	case "escalated":
+		return color.New(color.FgYellow).Sprintf("⚠ %s", upper)
+	case "pending_review":
+		return color.New(color.FgCyan).Sprint(upper)
+	default:
+		return upper // draft, superseded
+	}
+}
+
+// colorizeApprovalOutcome formats approval outcome with semantic color and marker
+func colorizeApprovalOutcome(outcome string) string {
+	upper := strings.ToUpper(outcome)
+	switch outcome {
+	case "approved":
+		return color.New(color.FgHiGreen).Sprintf("✓ %s", upper)
+	case "escalated":
+		return color.New(color.FgYellow).Sprintf("⚠ %s", upper)
+	default:
+		return upper
+	}
+}
+
+// colorizeEscalationStatus formats escalation status with semantic color and marker
+func colorizeEscalationStatus(status string, targetActorID string) string {
+	upper := strings.ToUpper(status)
+	targetInfo := ""
+	if targetActorID != "" {
+		targetInfo = fmt.Sprintf(" (%s)", targetActorID)
+	}
+	switch status {
+	case "pending":
+		return color.New(color.FgYellow).Sprintf("⚠ %s%s", upper, targetInfo)
+	case "resolved":
+		return color.New(color.FgHiGreen).Sprintf("✓ %s%s", upper, targetInfo)
+	default:
+		return fmt.Sprintf("%s%s", upper, targetInfo)
+	}
+}
+
+// colorizeReceiptStatus formats receipt status with semantic color and marker
+func colorizeReceiptStatus(status string) string {
+	upper := strings.ToUpper(status)
+	switch status {
+	case "verified":
+		return color.New(color.FgHiGreen).Sprintf("✓ %s", upper)
+	case "submitted":
+		return color.New(color.FgCyan).Sprint(upper)
+	default:
+		return upper // draft
+	}
+}
+
+// renderTaskChildren renders the child entities (plans, approvals, escalations, receipts) under a task
+func renderTaskChildren(task primary.TaskSummary, prefix string) {
+	// Count total children
+	totalChildren := len(task.Plans) + len(task.Approvals) + len(task.Escalations) + len(task.Receipts)
+	if totalChildren == 0 {
+		return
+	}
+
+	childIdx := 0
+
+	// Render plans
+	for _, plan := range task.Plans {
+		isLast := childIdx == totalChildren-1
+		childPrefix := prefix + "├── "
+		if isLast {
+			childPrefix = prefix + "└── "
+		}
+		fmt.Printf("%s%s %s\n", childPrefix, colorizeID(plan.ID), colorizePlanStatus(plan.Status))
+		childIdx++
+	}
+
+	// Render approvals
+	for _, approval := range task.Approvals {
+		isLast := childIdx == totalChildren-1
+		childPrefix := prefix + "├── "
+		if isLast {
+			childPrefix = prefix + "└── "
+		}
+		fmt.Printf("%s%s %s\n", childPrefix, colorizeID(approval.ID), colorizeApprovalOutcome(approval.Outcome))
+		childIdx++
+	}
+
+	// Render escalations
+	for _, esc := range task.Escalations {
+		isLast := childIdx == totalChildren-1
+		childPrefix := prefix + "├── "
+		if isLast {
+			childPrefix = prefix + "└── "
+		}
+		fmt.Printf("%s%s %s\n", childPrefix, colorizeID(esc.ID), colorizeEscalationStatus(esc.Status, esc.TargetActorID))
+		childIdx++
+	}
+
+	// Render receipts
+	for _, receipt := range task.Receipts {
+		isLast := childIdx == totalChildren-1
+		childPrefix := prefix + "├── "
+		if isLast {
+			childPrefix = prefix + "└── "
+		}
+		fmt.Printf("%s%s %s\n", childPrefix, colorizeID(receipt.ID), colorizeReceiptStatus(receipt.Status))
+		childIdx++
 	}
 }

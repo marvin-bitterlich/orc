@@ -30,6 +30,7 @@ type Escalation struct {
 
 // EscalationFilters contains filter options for listing escalations.
 type EscalationFilters struct {
+	TaskID        string
 	Status        string
 	TargetActorID string
 }

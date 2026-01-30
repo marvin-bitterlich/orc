@@ -325,6 +325,10 @@ func initServices() {
 		taskService,
 		noteService,
 		workbenchService,
+		planService,
+		approvalService,
+		escalationService,
+		receiptService,
 	)
 }
 

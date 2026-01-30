@@ -89,6 +89,11 @@ func (r *EscalationRepository) List(ctx context.Context, filters secondary.Escal
 	query := `SELECT id, approval_id, plan_id, task_id, reason, status, routing_rule, origin_actor_id, target_actor_id, resolution, resolved_by, created_at, resolved_at FROM escalations WHERE 1=1`
 	args := []any{}
 
+	if filters.TaskID != "" {
+		query += " AND task_id = ?"
+		args = append(args, filters.TaskID)
+	}
+
 	if filters.Status != "" {
 		query += " AND status = ?"
 		args = append(args, filters.Status)

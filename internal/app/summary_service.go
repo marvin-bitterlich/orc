@@ -17,6 +17,10 @@ type SummaryServiceImpl struct {
 	taskService       primary.TaskService
 	noteService       primary.NoteService
 	workbenchService  primary.WorkbenchService
+	planService       primary.PlanService
+	approvalService   primary.ApprovalService
+	escalationService primary.EscalationService
+	receiptService    primary.ReceiptService
 }
 
 // NewSummaryService creates a new SummaryService with injected dependencies.
@@ -28,6 +32,10 @@ func NewSummaryService(
 	taskService primary.TaskService,
 	noteService primary.NoteService,
 	workbenchService primary.WorkbenchService,
+	planService primary.PlanService,
+	approvalService primary.ApprovalService,
+	escalationService primary.EscalationService,
+	receiptService primary.ReceiptService,
 ) *SummaryServiceImpl {
 	return &SummaryServiceImpl{
 		commissionService: commissionService,
@@ -37,6 +45,10 @@ func NewSummaryService(
 		taskService:       taskService,
 		noteService:       noteService,
 		workbenchService:  workbenchService,
+		planService:       planService,
+		approvalService:   approvalService,
+		escalationService: escalationService,
+		receiptService:    receiptService,
 	}
 }
 
@@ -228,11 +240,14 @@ func (s *SummaryServiceImpl) buildShipmentSummary(ctx context.Context, ship *pri
 			}
 			// Include non-complete tasks for focused shipment
 			if isFocused && t.Status != "complete" {
-				taskSummaries = append(taskSummaries, primary.TaskSummary{
+				taskSummary := primary.TaskSummary{
 					ID:     t.ID,
 					Title:  t.Title,
 					Status: t.Status,
-				})
+				}
+				// Fetch children for focused shipment tasks
+				s.fetchTaskChildren(ctx, &taskSummary)
+				taskSummaries = append(taskSummaries, taskSummary)
 			}
 		}
 	}
@@ -303,6 +318,62 @@ func (s *SummaryServiceImpl) buildShipyardSummary(ctx context.Context, shipments
 		}
 	}
 	return primary.ShipyardSummary{ShipmentCount: count, Shipments: yardShipments}
+}
+
+// fetchTaskChildren populates the Plans, Approvals, Escalations, and Receipts for a task.
+func (s *SummaryServiceImpl) fetchTaskChildren(ctx context.Context, task *primary.TaskSummary) {
+	// Fetch plans for this task
+	if s.planService != nil {
+		plans, err := s.planService.ListPlans(ctx, primary.PlanFilters{TaskID: task.ID})
+		if err == nil {
+			for _, p := range plans {
+				task.Plans = append(task.Plans, primary.PlanSummary{
+					ID:     p.ID,
+					Status: p.Status,
+				})
+			}
+		}
+	}
+
+	// Fetch approvals for this task
+	if s.approvalService != nil {
+		approvals, err := s.approvalService.ListApprovals(ctx, primary.ApprovalFilters{TaskID: task.ID})
+		if err == nil {
+			for _, a := range approvals {
+				task.Approvals = append(task.Approvals, primary.ApprovalSummary{
+					ID:      a.ID,
+					Outcome: a.Outcome,
+				})
+			}
+		}
+	}
+
+	// Fetch escalations for this task
+	if s.escalationService != nil {
+		escalations, err := s.escalationService.ListEscalations(ctx, primary.EscalationFilters{TaskID: task.ID})
+		if err == nil {
+			for _, e := range escalations {
+				task.Escalations = append(task.Escalations, primary.EscalationSummary{
+					ID:            e.ID,
+					Status:        e.Status,
+					TargetActorID: e.TargetActorID,
+				})
+			}
+		}
+	}
+
+	// Fetch receipts for this task
+	if s.receiptService != nil {
+		receipts, err := s.receiptService.ListReceipts(ctx, primary.ReceiptFilters{TaskID: task.ID})
+		if err == nil {
+			for _, r := range receipts {
+				task.Receipts = append(task.Receipts, primary.ReceiptSummary{
+					ID:     r.ID,
+					Status: r.Status,
+				})
+			}
+		}
+	}
 }
 
 // Ensure SummaryServiceImpl implements the interface

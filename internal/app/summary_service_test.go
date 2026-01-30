@@ -584,7 +584,7 @@ func TestSummaryService_GetCommissionSummary_GoblinFullTree(t *testing.T) {
 	}
 
 	// Create service
-	svc := NewSummaryService(commissionSvc, conclaveSvc, tomeSvc, shipmentSvc, taskSvc, noteSvc, workbenchSvc)
+	svc := NewSummaryService(commissionSvc, conclaveSvc, tomeSvc, shipmentSvc, taskSvc, noteSvc, workbenchSvc, nil, nil, nil, nil)
 
 	// Request summary as Goblin
 	req := primary.SummaryRequest{
@@ -708,7 +708,7 @@ func TestSummaryService_GetCommissionSummary_IMPHidesOtherWorkbenchShipments(t *
 	}
 
 	// Create service
-	svc := NewSummaryService(commissionSvc, conclaveSvc, tomeSvc, shipmentSvc, taskSvc, noteSvc, workbenchSvc)
+	svc := NewSummaryService(commissionSvc, conclaveSvc, tomeSvc, shipmentSvc, taskSvc, noteSvc, workbenchSvc, nil, nil, nil, nil)
 
 	// Request summary as IMP (without --all-shipments)
 	req := primary.SummaryRequest{
@@ -796,7 +796,7 @@ func TestSummaryService_GetCommissionSummary_TaskCounting(t *testing.T) {
 		{ID: "TASK-008", Status: "ready"},
 	}
 
-	svc := NewSummaryService(commissionSvc, conclaveSvc, tomeSvc, shipmentSvc, taskSvc, noteSvc, workbenchSvc)
+	svc := NewSummaryService(commissionSvc, conclaveSvc, tomeSvc, shipmentSvc, taskSvc, noteSvc, workbenchSvc, nil, nil, nil, nil)
 
 	req := primary.SummaryRequest{
 		CommissionID: "COMM-001",
@@ -877,7 +877,7 @@ func TestSummaryService_GetCommissionSummary_LibraryAndShipyard(t *testing.T) {
 		Status:        "complete",
 	}
 
-	svc := NewSummaryService(commissionSvc, conclaveSvc, tomeSvc, shipmentSvc, taskSvc, noteSvc, workbenchSvc)
+	svc := NewSummaryService(commissionSvc, conclaveSvc, tomeSvc, shipmentSvc, taskSvc, noteSvc, workbenchSvc, nil, nil, nil, nil)
 
 	req := primary.SummaryRequest{
 		CommissionID: "COMM-001",
