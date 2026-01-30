@@ -382,6 +382,24 @@ When adding a new entity that requires persistence (e.g., CycleWorkOrder, Receip
 
 ---
 
+## Data & Config Changes
+
+**Don't overload "migration"** — these are distinct operations:
+
+| Term | When | Where | Runs |
+|------|------|-------|------|
+| **Schema migration** | Deploy | `internal/db/schema.go` | Once, centralized |
+| **Backfill** | Post-deploy task | `cmd/backfill/` or task | Once, batch |
+| **Config upgrade** | Command execution | CLI layer (`cli/`) | Per-machine, lazy |
+
+**Config upgrades** are local file format changes (`.orc/config.json`). They:
+- Run lazily on first command needing the config
+- Live in CLI layer (may need DB access via wire)
+- Must be idempotent and fail gracefully
+- Cannot live in `config` package (no DB access)
+
+---
+
 ## Database Migrations (Atlas)
 
 ORC uses [Atlas](https://atlasgo.io/) for declarative schema migrations. Atlas prevents FK reference corruption by validating the entire schema graph before applying changes.
