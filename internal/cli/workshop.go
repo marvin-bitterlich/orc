@@ -13,6 +13,7 @@ import (
 
 	"github.com/example/orc/internal/config"
 	"github.com/example/orc/internal/ports/primary"
+	"github.com/example/orc/internal/ports/secondary"
 	"github.com/example/orc/internal/wire"
 )
 
@@ -435,6 +436,21 @@ func runSetCommission(args []string, clearFlag bool) error {
 		if err := wire.WorkshopService().SetActiveCommission(ctx, workshopID, ""); err != nil {
 			return fmt.Errorf("failed to clear commission: %w", err)
 		}
+
+		// Rename session to workshop name only
+		if os.Getenv("TMUX") != "" {
+			workshop, _ := wire.WorkshopService().GetWorkshop(ctx, workshopID)
+			if workshop != nil {
+				sessionName := wire.TMuxAdapter().FindSessionByWorkshopID(ctx, workshopID)
+				if sessionName != "" {
+					_ = wire.TMuxAdapter().RenameSession(ctx, sessionName, workshop.Name)
+					_ = wire.TMuxAdapter().ConfigureStatusBar(ctx, workshop.Name, secondary.StatusBarConfig{
+						StatusLeft: fmt.Sprintf(" %s ", workshop.Name),
+					})
+				}
+			}
+		}
+
 		fmt.Printf("✓ Workshop %s commission cleared\n", workshopID)
 		return nil
 	}
@@ -458,6 +474,43 @@ func runSetCommission(args []string, clearFlag bool) error {
 		return fmt.Errorf("failed to set commission: %w", err)
 	}
 
+	// Rename tmux session if inside one
+	if os.Getenv("TMUX") != "" {
+		if err := renameSessionForCommission(ctx, workshopID, commission); err != nil {
+			fmt.Printf("  (tmux session rename skipped: %v)\n", err)
+		}
+	}
+
 	fmt.Printf("✓ Workshop %s now active on %s: %s\n", workshopID, commissionID, commission.Title)
 	return nil
+}
+
+// renameSessionForCommission renames the tmux session to reflect the active commission.
+// Format: "Workshop Name - COMM-XXX - Commission Title"
+// Status bar shows workshop name only.
+func renameSessionForCommission(ctx context.Context, workshopID string, commission *primary.Commission) error {
+	// Get workshop name
+	workshop, err := wire.WorkshopService().GetWorkshop(ctx, workshopID)
+	if err != nil {
+		return err
+	}
+
+	// Find current session by workshop ID
+	sessionName := wire.TMuxAdapter().FindSessionByWorkshopID(ctx, workshopID)
+	if sessionName == "" {
+		return fmt.Errorf("no session found for workshop")
+	}
+
+	// Build new name: "Workshop Name - COMM-XXX - Commission Title"
+	newName := fmt.Sprintf("%s - %s - %s", workshop.Name, commission.ID, commission.Title)
+
+	// Rename session
+	if err := wire.TMuxAdapter().RenameSession(ctx, sessionName, newName); err != nil {
+		return err
+	}
+
+	// Configure status bar to show workshop name only
+	return wire.TMuxAdapter().ConfigureStatusBar(ctx, newName, secondary.StatusBarConfig{
+		StatusLeft: fmt.Sprintf(" %s ", workshop.Name),
+	})
 }

@@ -246,13 +246,6 @@ func setIMPFocus(workbenchID, containerID, containerType, title string) error {
 		}
 	}
 
-	// Auto-rename tmux session for any focused container
-	if os.Getenv("TMUX") != "" {
-		if err := autoRenameTmuxSession(workbenchID, containerID, title); err != nil {
-			fmt.Printf("  (tmux session rename skipped: %v)\n", err)
-		}
-	}
-
 	fmt.Println("\nRun 'orc prime' to see updated context.")
 	return nil
 }
@@ -271,48 +264,6 @@ func setGoblinFocus(workshopID, containerID, containerType, title string) error 
 
 	fmt.Println("\nRun 'orc prime' to see updated context.")
 	return nil
-}
-
-// autoRenameTmuxSession renames the tmux session to reflect the focused container.
-// Format: "Workshop Name - COMM-XXX/SHIP-XXX - Title" (includes commission context)
-func autoRenameTmuxSession(workbenchID, containerID, title string) error {
-	ctx := context.Background()
-
-	// Get current session name
-	currentSession := wire.TMuxAdapter().GetCurrentSessionName(ctx)
-	if currentSession == "" {
-		return fmt.Errorf("could not determine current session")
-	}
-
-	// Get workshop name from workbench context if available
-	workshopName := "Workshop"
-	if workbenchID != "" {
-		wb, err := wire.WorkbenchService().GetWorkbench(ctx, workbenchID)
-		if err == nil && wb.WorkshopID != "" {
-			ws, err := wire.WorkshopService().GetWorkshop(ctx, wb.WorkshopID)
-			if err == nil {
-				workshopName = ws.Name
-			}
-		}
-	}
-
-	// Resolve commission context for non-commission containers
-	contextPart := containerID
-	switch {
-	case strings.HasPrefix(containerID, "SHIP-"):
-		if ship, err := wire.ShipmentService().GetShipment(ctx, containerID); err == nil && ship.CommissionID != "" {
-			contextPart = ship.CommissionID + "/" + containerID
-		}
-	case strings.HasPrefix(containerID, "CON-"):
-		if con, err := wire.ConclaveService().GetConclave(ctx, containerID); err == nil && con.CommissionID != "" {
-			contextPart = con.CommissionID + "/" + containerID
-		}
-	}
-
-	// Build new name: "Workshop Name - COMM-XXX/SHIP-XXX - Title"
-	newName := fmt.Sprintf("%s - %s - %s", workshopName, contextPart, title)
-
-	return wire.TMuxAdapter().RenameSession(ctx, currentSession, newName)
 }
 
 // autoCheckoutShipmentBranch checks out the shipment's branch in the workbench
