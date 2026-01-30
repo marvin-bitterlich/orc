@@ -63,8 +63,8 @@ func runPrime(cmd *cobra.Command, args []string) error {
 	// Detect workbench context (IMP territory)
 	workbenchCtx, _ := ctx.DetectWorkbenchContext()
 
-	// Load config to determine role from place_id
-	cfg, _ := config.LoadConfig(cwd)
+	// Load config to determine role from place_id (with Goblin migration if needed)
+	cfg, _ := MigrateGoblinConfigIfNeeded(cmd.Context(), cwd)
 
 	// Determine role from place_id
 	var role string

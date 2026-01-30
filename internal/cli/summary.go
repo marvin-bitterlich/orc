@@ -96,8 +96,8 @@ Examples:
 			allShipments, _ := cmd.Flags().GetBool("all-shipments")
 			expandLibrary, _ := cmd.Flags().GetBool("expand")
 
-			// Load config for role detection
-			cfg, _ := config.LoadConfig(cwd)
+			// Load config for role detection (with Goblin migration if needed)
+			cfg, _ := MigrateGoblinConfigIfNeeded(cmd.Context(), cwd)
 			role := config.RoleGoblin // Default to Goblin
 			workbenchID := ""
 			workshopID := ""

@@ -54,8 +54,8 @@ func runFocus(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to get working directory: %w", err)
 	}
 
-	// Load config from cwd only
-	cfg, err := config.LoadConfig(cwd)
+	// Load config from cwd only (with Goblin migration if needed)
+	cfg, err := MigrateGoblinConfigIfNeeded(cmd.Context(), cwd)
 	if err != nil {
 		return fmt.Errorf("no ORC config found in current directory")
 	}

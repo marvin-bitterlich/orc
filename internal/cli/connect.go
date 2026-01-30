@@ -56,9 +56,9 @@ func runConnect(cmd *cobra.Command, args []string) error {
 	dryRun, _ := cmd.Flags().GetBool("dry-run")
 	role, _ := cmd.Flags().GetString("role")
 
-	// Load config to get place_id
+	// Load config to get place_id (with Goblin migration if needed)
 	cwd, _ := os.Getwd()
-	cfg, _ := config.LoadConfig(cwd)
+	cfg, _ := MigrateGoblinConfigIfNeeded(cmd.Context(), cwd)
 
 	// Validate role against place_id
 	if err := validateRoleForPlace(role, cfg); err != nil {

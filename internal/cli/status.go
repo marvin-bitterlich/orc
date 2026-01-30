@@ -31,7 +31,7 @@ This provides a focused view of "where am I right now?"`,
 				return fmt.Errorf("failed to get working directory: %w", err)
 			}
 
-			cfg, cfgErr := config.LoadConfig(cwd)
+			cfg, cfgErr := MigrateGoblinConfigIfNeeded(cmd.Context(), cwd)
 			if cfgErr != nil {
 				// No config - show minimal status
 				fmt.Println("ORC Status - No Context")
