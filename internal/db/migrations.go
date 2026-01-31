@@ -239,6 +239,11 @@ var migrations = []Migration{
 		Name:    "drop_cycle_machinery",
 		Up:      migrationV45,
 	},
+	{
+		Version: 46,
+		Name:    "drop_unused_watchdogs_and_work_orders_new_tables",
+		Up:      migrationV46,
+	},
 }
 
 // RunMigrations executes all pending migrations
@@ -4145,6 +4150,29 @@ func migrationV45(db *sql.DB) error {
 	_, err = db.Exec(`CREATE INDEX IF NOT EXISTS idx_plans_status ON plans(status)`)
 	if err != nil {
 		return fmt.Errorf("failed to create plans status index: %w", err)
+	}
+
+	return nil
+}
+
+// migrationV46 drops unused watchdogs and work_orders_new tables.
+// - watchdogs: superseded by skill-based approach (TOME-023)
+// - work_orders_new: leftover from migration V1, never cleaned up
+func migrationV46(db *sql.DB) error {
+	// Drop indexes first (SQLite requires this before dropping table)
+	_, _ = db.Exec(`DROP INDEX IF EXISTS idx_watchdogs_workbench`)
+	_, _ = db.Exec(`DROP INDEX IF EXISTS idx_watchdogs_status`)
+
+	// Drop watchdogs table
+	_, err := db.Exec(`DROP TABLE IF EXISTS watchdogs`)
+	if err != nil {
+		return fmt.Errorf("failed to drop watchdogs table: %w", err)
+	}
+
+	// Drop work_orders_new table (leftover from migration V1)
+	_, err = db.Exec(`DROP TABLE IF EXISTS work_orders_new`)
+	if err != nil {
+		return fmt.Errorf("failed to drop work_orders_new table: %w", err)
 	}
 
 	return nil

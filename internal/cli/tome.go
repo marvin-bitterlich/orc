@@ -39,6 +39,11 @@ var tomeCreateCmd = &cobra.Command{
 			}
 		}
 
+		// Validate entity IDs
+		if err := validateEntityID(conclaveID, "conclave"); err != nil {
+			return err
+		}
+
 		// Validate container assignment - must specify one of --conclave or --library
 		if conclaveID == "" && !useLibrary {
 			return fmt.Errorf("container assignment required: specify --conclave CON-xxx or --library")
@@ -320,6 +325,11 @@ var tomeUnparkCmd = &cobra.Command{
 		ctx := context.Background()
 		tomeID := args[0]
 		conclaveID, _ := cmd.Flags().GetString("conclave")
+
+		// Validate entity IDs
+		if err := validateEntityID(conclaveID, "conclave"); err != nil {
+			return err
+		}
 
 		if conclaveID == "" {
 			return fmt.Errorf("specify --conclave CON-xxx")

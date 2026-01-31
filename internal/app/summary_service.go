@@ -54,6 +54,14 @@ func NewSummaryService(
 
 // GetCommissionSummary returns a hierarchical summary with role-based filtering.
 func (s *SummaryServiceImpl) GetCommissionSummary(ctx context.Context, req primary.SummaryRequest) (*primary.CommissionSummary, error) {
+	// Debug helper
+	var debugMsgs []string
+	addDebug := func(msg string) {
+		if req.DebugMode {
+			debugMsgs = append(debugMsgs, msg)
+		}
+	}
+
 	// Validate commission exists
 	commission, err := s.commissionService.GetCommission(ctx, req.CommissionID)
 	if err != nil {
@@ -78,6 +86,8 @@ func (s *SummaryServiceImpl) GetCommissionSummary(ctx context.Context, req prima
 		return nil, fmt.Errorf("failed to list shipments: %w", err)
 	}
 
+	addDebug(fmt.Sprintf("Fetched %d conclaves, %d tomes, %d shipments", len(conclaves), len(allTomes), len(allShipments)))
+
 	// Build lookup maps for grouping
 	tomesByContainer := s.groupTomesByContainer(allTomes)
 	shipsByContainer := s.groupShipmentsByContainer(allShipments)
@@ -91,6 +101,7 @@ func (s *SummaryServiceImpl) GetCommissionSummary(ctx context.Context, req prima
 	for _, con := range conclaves {
 		// Skip closed conclaves
 		if con.Status == "closed" {
+			addDebug(fmt.Sprintf("Hidden: %s (%s) - status is closed", con.ID, con.Title))
 			continue
 		}
 
@@ -107,6 +118,7 @@ func (s *SummaryServiceImpl) GetCommissionSummary(ctx context.Context, req prima
 		if tomes, ok := tomesByContainer[con.ID]; ok {
 			for _, tome := range tomes {
 				if tome.Status == "closed" {
+					addDebug(fmt.Sprintf("Hidden: %s (%s) - status is closed", tome.ID, tome.Title))
 					continue
 				}
 				// Expand notes if conclave is focused or tome itself is focused
@@ -123,12 +135,14 @@ func (s *SummaryServiceImpl) GetCommissionSummary(ctx context.Context, req prima
 		if ships, ok := shipsByContainer[con.ID]; ok {
 			for _, ship := range ships {
 				if ship.Status == "complete" {
+					addDebug(fmt.Sprintf("Hidden: %s (%s) - status is complete", ship.ID, ship.Title))
 					continue
 				}
 
 				// IMP filtering: hide shipments not assigned to this workbench
 				if isIMP && !req.ShowAllShipments {
 					if ship.AssignedWorkbenchID != "" && ship.AssignedWorkbenchID != req.WorkbenchID {
+						addDebug(fmt.Sprintf("Hidden: %s (%s) - assigned to %s (not this workbench)", ship.ID, ship.Title, ship.AssignedWorkbenchID))
 						hiddenShipmentCount++
 						continue
 					}
@@ -146,10 +160,16 @@ func (s *SummaryServiceImpl) GetCommissionSummary(ctx context.Context, req prima
 	}
 
 	// Build library summary (tomes with container_type="library")
-	librarySummary := s.buildLibrarySummary(ctx, allTomes, req.ExpandLibrary, req.FocusID)
+	librarySummary := s.buildLibrarySummaryWithDebug(ctx, allTomes, req.ExpandLibrary, req.FocusID, addDebug)
 
 	// Build shipyard summary (shipments with container_type="shipyard")
-	shipyardSummary := s.buildShipyardSummary(ctx, allShipments, isIMP, req.ShowAllShipments, req.WorkbenchID, &hiddenShipmentCount, req.ExpandLibrary, req.FocusID)
+	shipyardSummary := s.buildShipyardSummaryWithDebug(ctx, allShipments, isIMP, req.ShowAllShipments, req.WorkbenchID, &hiddenShipmentCount, req.ExpandLibrary, req.FocusID, addDebug)
+
+	// Build debug info if in debug mode
+	var debugInfo *primary.DebugInfo
+	if req.DebugMode && len(debugMsgs) > 0 {
+		debugInfo = &primary.DebugInfo{Messages: debugMsgs}
+	}
 
 	return &primary.CommissionSummary{
 		ID:                  commission.ID,
@@ -158,6 +178,7 @@ func (s *SummaryServiceImpl) GetCommissionSummary(ctx context.Context, req prima
 		Library:             librarySummary,
 		Shipyard:            shipyardSummary,
 		HiddenShipmentCount: hiddenShipmentCount,
+		DebugInfo:           debugInfo,
 	}, nil
 }
 
@@ -275,12 +296,16 @@ func (s *SummaryServiceImpl) buildShipmentSummary(ctx context.Context, ship *pri
 	}, nil
 }
 
-// buildLibrarySummary counts tomes in the Library and optionally includes details.
-func (s *SummaryServiceImpl) buildLibrarySummary(ctx context.Context, tomes []*primary.Tome, expand bool, focusID string) primary.LibrarySummary {
+// buildLibrarySummaryWithDebug counts tomes in the Library with debug tracking.
+func (s *SummaryServiceImpl) buildLibrarySummaryWithDebug(ctx context.Context, tomes []*primary.Tome, expand bool, focusID string, addDebug func(string)) primary.LibrarySummary {
 	var libTomes []primary.TomeSummary
 	count := 0
 	for _, t := range tomes {
-		if t.ContainerType == "library" && t.Status != "closed" {
+		if t.ContainerType == "library" {
+			if t.Status == "closed" {
+				addDebug(fmt.Sprintf("Hidden: %s (%s) - status is closed", t.ID, t.Title))
+				continue
+			}
 			count++
 			if expand {
 				// Expand notes if the tome itself is focused
@@ -295,15 +320,20 @@ func (s *SummaryServiceImpl) buildLibrarySummary(ctx context.Context, tomes []*p
 	return primary.LibrarySummary{TomeCount: count, Tomes: libTomes}
 }
 
-// buildShipyardSummary counts shipments in the Shipyard and optionally includes details.
-func (s *SummaryServiceImpl) buildShipyardSummary(ctx context.Context, shipments []*primary.Shipment, isIMP, showAll bool, workbenchID string, hiddenCount *int, expand bool, focusID string) primary.ShipyardSummary {
+// buildShipyardSummaryWithDebug counts shipments in the Shipyard with debug tracking.
+func (s *SummaryServiceImpl) buildShipyardSummaryWithDebug(ctx context.Context, shipments []*primary.Shipment, isIMP, showAll bool, workbenchID string, hiddenCount *int, expand bool, focusID string, addDebug func(string)) primary.ShipyardSummary {
 	var yardShipments []primary.ShipmentSummary
 	count := 0
 	for _, ship := range shipments {
-		if ship.ContainerType == "shipyard" && ship.Status != "complete" {
+		if ship.ContainerType == "shipyard" {
+			if ship.Status == "complete" {
+				addDebug(fmt.Sprintf("Hidden: %s (%s) - status is complete", ship.ID, ship.Title))
+				continue
+			}
 			// For IMP, check visibility
 			if isIMP && !showAll {
 				if ship.AssignedWorkbenchID != "" && ship.AssignedWorkbenchID != workbenchID {
+					addDebug(fmt.Sprintf("Hidden: %s (%s) - assigned to %s (not this workbench)", ship.ID, ship.Title, ship.AssignedWorkbenchID))
 					*hiddenCount++
 					continue
 				}

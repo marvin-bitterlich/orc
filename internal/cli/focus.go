@@ -18,14 +18,14 @@ func FocusCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "focus [container-id]",
 		Short: "Set or show the currently focused container",
-		Long: `Focus on a specific container (Conclave or Shipment).
+		Long: `Focus on a specific container (Conclave, Shipment, or Tome).
 
 For Goblin (workshop context):
   - Can only focus on Conclaves (CON-xxx)
   - Focus stored in workshops.focused_conclave_id
 
 For IMP (workbench context):
-  - Can focus on Conclaves (CON-xxx) or Shipments (SHIP-xxx)
+  - Can focus on Conclaves (CON-xxx), Shipments (SHIP-xxx), or Tomes (TOME-xxx)
   - Focus stored in workbenches.focused_id
 
 The focused container appears in 'orc prime' output and can be used as default
@@ -34,6 +34,7 @@ for other commands.
 Examples:
   orc focus CON-007     # Focus on a conclave (works for both roles)
   orc focus SHIP-178    # Focus on a shipment (IMP only)
+  orc focus TOME-028    # Focus on a tome (IMP only)
   orc focus --show      # Show current focus
   orc focus --clear     # Clear the current focus`,
 		Args: cobra.MaximumNArgs(1),
@@ -94,9 +95,9 @@ func runIMPFocus(_ *cobra.Command, args []string, cfg *config.Config, showOnly, 
 	// Set focus
 	containerID := args[0]
 
-	// IMP can focus on CON-xxx or SHIP-xxx
-	if !strings.HasPrefix(containerID, "CON-") && !strings.HasPrefix(containerID, "SHIP-") {
-		return fmt.Errorf("IMP can only focus on Conclaves (CON-xxx) or Shipments (SHIP-xxx), got: %s", containerID)
+	// IMP can focus on CON-xxx, SHIP-xxx, or TOME-xxx
+	if !strings.HasPrefix(containerID, "CON-") && !strings.HasPrefix(containerID, "SHIP-") && !strings.HasPrefix(containerID, "TOME-") {
+		return fmt.Errorf("IMP can only focus on Conclaves (CON-xxx), Shipments (SHIP-xxx), or Tomes (TOME-xxx), got: %s", containerID)
 	}
 
 	containerType, title, err := validateAndGetInfo(containerID)
@@ -166,8 +167,15 @@ func validateAndGetInfo(id string) (containerType string, title string, err erro
 		}
 		return "Conclave", con.Title, nil
 
+	case strings.HasPrefix(id, "TOME-"):
+		tome, err := wire.TomeService().GetTome(ctx, id)
+		if err != nil {
+			return "", "", fmt.Errorf("tome %s not found", id)
+		}
+		return "Tome", tome.Title, nil
+
 	default:
-		return "", "", fmt.Errorf("unknown container type for ID: %s (expected CON-* or SHIP-*)", id)
+		return "", "", fmt.Errorf("unknown container type for ID: %s (expected CON-*, SHIP-*, or TOME-*)", id)
 	}
 }
 
@@ -182,7 +190,7 @@ func showIMPFocus(workbenchID string) error {
 
 	if focusID == "" {
 		fmt.Println("No focus set")
-		fmt.Println("\nSet focus with: orc focus <CON-xxx> or orc focus <SHIP-xxx>")
+		fmt.Println("\nSet focus with: orc focus <CON-xxx>, orc focus <SHIP-xxx>, or orc focus <TOME-xxx>")
 		return nil
 	}
 
@@ -362,6 +370,10 @@ func GetFocusInfo(focusID string) (containerType, title, status string) {
 	case strings.HasPrefix(focusID, "CON-"):
 		if con, err := wire.ConclaveService().GetConclave(ctx, focusID); err == nil {
 			return "Conclave", con.Title, con.Status
+		}
+	case strings.HasPrefix(focusID, "TOME-"):
+		if tome, err := wire.TomeService().GetTome(ctx, focusID); err == nil {
+			return "Tome", tome.Title, tome.Status
 		}
 	}
 	return "", "", ""

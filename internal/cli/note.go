@@ -33,6 +33,17 @@ var noteCreateCmd = &cobra.Command{
 		conclaveID, _ := cmd.Flags().GetString("conclave")
 		tomeID, _ := cmd.Flags().GetString("tome")
 
+		// Validate entity IDs
+		if err := validateEntityID(shipmentID, "shipment"); err != nil {
+			return err
+		}
+		if err := validateEntityID(conclaveID, "conclave"); err != nil {
+			return err
+		}
+		if err := validateEntityID(tomeID, "tome"); err != nil {
+			return err
+		}
+
 		// Get commission from context or require explicit flag
 		if commissionID == "" {
 			commissionID = orccontext.GetContextCommissionID()
@@ -101,6 +112,14 @@ var noteListCmd = &cobra.Command{
 		noteType, _ := cmd.Flags().GetString("type")
 		shipmentID, _ := cmd.Flags().GetString("shipment")
 		tomeID, _ := cmd.Flags().GetString("tome")
+
+		// Validate entity IDs
+		if err := validateEntityID(shipmentID, "shipment"); err != nil {
+			return err
+		}
+		if err := validateEntityID(tomeID, "tome"); err != nil {
+			return err
+		}
 
 		// Get commission from context if not specified
 		if commissionID == "" {

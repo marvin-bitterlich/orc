@@ -95,6 +95,7 @@ Examples:
 			expandAll, _ := cmd.Flags().GetBool("all")
 			allShipments, _ := cmd.Flags().GetBool("all-shipments")
 			expandLibrary, _ := cmd.Flags().GetBool("expand")
+			debugMode, _ := cmd.Flags().GetBool("debug")
 
 			// Load config for role detection (with Goblin migration if needed)
 			cfg, _ := MigrateGoblinConfigIfNeeded(cmd.Context(), cwd)
@@ -186,6 +187,7 @@ Examples:
 					FocusID:          focusID,
 					ShowAllShipments: allShipments,
 					ExpandLibrary:    expandLibrary,
+					DebugMode:        debugMode,
 				}
 
 				summary, err := wire.SummaryService().GetCommissionSummary(context.Background(), req)
@@ -201,6 +203,12 @@ Examples:
 					renderIMPSummary(summary, focusID, allShipments)
 				}
 
+				// Render debug info if present
+				if summary.DebugInfo != nil && len(summary.DebugInfo.Messages) > 0 {
+					fmt.Println()
+					renderDebugInfo(summary.DebugInfo)
+				}
+
 				if i < len(openCommissions)-1 {
 					fmt.Println()
 				}
@@ -214,6 +222,7 @@ Examples:
 	cmd.Flags().Bool("all", false, "Show all containers (default: only show focused container if set)")
 	cmd.Flags().Bool("all-shipments", false, "Show all shipments including those assigned to other workbenches (IMP only)")
 	cmd.Flags().Bool("expand", false, "Expand LIBRARY and SHIPYARD to show individual contents")
+	cmd.Flags().Bool("debug", false, "Show debug info about hidden/filtered content")
 
 	return cmd
 }
@@ -827,5 +836,14 @@ func renderTaskChildren(task primary.TaskSummary, prefix string) {
 		}
 		fmt.Printf("%s%s %s\n", childPrefix, colorizeID(receipt.ID), colorizeReceiptStatus(receipt.Status))
 		childIdx++
+	}
+}
+
+// renderDebugInfo renders the debug information section
+func renderDebugInfo(info *primary.DebugInfo) {
+	debugColor := color.New(color.FgHiBlack)
+	debugColor.Println("─── Debug Info ───")
+	for _, msg := range info.Messages {
+		debugColor.Printf("  %s\n", msg)
 	}
 }

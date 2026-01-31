@@ -49,10 +49,23 @@ func TestCanCompleteShipment(t *testing.T) {
 		wantReason  string
 	}{
 		{
-			name: "can complete unpinned shipment",
+			name: "can complete unpinned shipment with all tasks complete",
 			ctx: CompleteShipmentContext{
 				ShipmentID: "SHIP-001",
 				IsPinned:   false,
+				Tasks: []TaskSummary{
+					{ID: "TASK-001", Status: "complete"},
+					{ID: "TASK-002", Status: "complete"},
+				},
+			},
+			wantAllowed: true,
+		},
+		{
+			name: "can complete shipment with no tasks",
+			ctx: CompleteShipmentContext{
+				ShipmentID: "SHIP-001",
+				IsPinned:   false,
+				Tasks:      []TaskSummary{},
 			},
 			wantAllowed: true,
 		},
@@ -61,9 +74,39 @@ func TestCanCompleteShipment(t *testing.T) {
 			ctx: CompleteShipmentContext{
 				ShipmentID: "SHIP-001",
 				IsPinned:   true,
+				Tasks: []TaskSummary{
+					{ID: "TASK-001", Status: "complete"},
+				},
 			},
 			wantAllowed: false,
 			wantReason:  "cannot complete pinned shipment SHIP-001. Unpin first with: orc shipment unpin SHIP-001",
+		},
+		{
+			name: "cannot complete shipment with incomplete tasks",
+			ctx: CompleteShipmentContext{
+				ShipmentID: "SHIP-001",
+				IsPinned:   false,
+				Tasks: []TaskSummary{
+					{ID: "TASK-001", Status: "complete"},
+					{ID: "TASK-002", Status: "ready"},
+					{ID: "TASK-003", Status: "in_progress"},
+				},
+			},
+			wantAllowed: false,
+			wantReason:  "cannot complete shipment: 2 task(s) incomplete (TASK-002, TASK-003). Use --force to complete anyway",
+		},
+		{
+			name: "can force complete shipment with incomplete tasks",
+			ctx: CompleteShipmentContext{
+				ShipmentID:      "SHIP-001",
+				IsPinned:        false,
+				ForceCompletion: true,
+				Tasks: []TaskSummary{
+					{ID: "TASK-001", Status: "complete"},
+					{ID: "TASK-002", Status: "ready"},
+				},
+			},
+			wantAllowed: true,
 		},
 	}
 

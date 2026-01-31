@@ -41,6 +41,11 @@ var shipmentCreateCmd = &cobra.Command{
 			}
 		}
 
+		// Validate entity IDs
+		if err := validateEntityID(conclaveID, "conclave"); err != nil {
+			return err
+		}
+
 		// Validate container assignment - must specify one of --conclave or --shipyard
 		if conclaveID == "" && !useShipyard {
 			return fmt.Errorf("container assignment required: specify --conclave CON-xxx or --shipyard")
@@ -197,8 +202,9 @@ var shipmentCompleteCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
 		shipmentID := args[0]
+		force, _ := cmd.Flags().GetBool("force")
 
-		err := wire.ShipmentService().CompleteShipment(ctx, shipmentID)
+		err := wire.ShipmentService().CompleteShipment(ctx, shipmentID, force)
 		if err != nil {
 			return fmt.Errorf("failed to complete shipment: %w", err)
 		}
@@ -364,6 +370,11 @@ var shipmentUnparkCmd = &cobra.Command{
 		shipmentID := args[0]
 		conclaveID, _ := cmd.Flags().GetString("conclave")
 
+		// Validate entity IDs
+		if err := validateEntityID(conclaveID, "conclave"); err != nil {
+			return err
+		}
+
 		if conclaveID == "" {
 			return fmt.Errorf("specify --conclave CON-xxx")
 		}
@@ -396,6 +407,9 @@ func init() {
 
 	// shipment unpark flags
 	shipmentUnparkCmd.Flags().String("conclave", "", "Target conclave ID (CON-xxx)")
+
+	// Flags for complete command
+	shipmentCompleteCmd.Flags().BoolP("force", "f", false, "Complete even if tasks are incomplete")
 
 	// Register subcommands
 	shipmentCmd.AddCommand(shipmentCreateCmd)

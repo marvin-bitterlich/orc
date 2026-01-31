@@ -181,7 +181,7 @@ func (m *mockShipmentServiceForPR) ResumeShipment(ctx context.Context, shipmentI
 	return nil
 }
 
-func (m *mockShipmentServiceForPR) CompleteShipment(ctx context.Context, shipmentID string) error {
+func (m *mockShipmentServiceForPR) CompleteShipment(ctx context.Context, shipmentID string, force bool) error {
 	m.completed[shipmentID] = true
 	return nil
 }

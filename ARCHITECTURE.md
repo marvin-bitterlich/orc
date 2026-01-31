@@ -72,7 +72,6 @@ orc workbench create [name] --repos main-app --commission COMM-001
 orc workbench list [--commission COMM-XXX]
 orc workbench show WORKBENCH-XXX
 orc workbench rename WORKBENCH-XXX new-name
-orc workbench open WORKBENCH-XXX      # Opens in new TMux window with IMP layout
 ```
 
 **Workbench Features:**
@@ -123,7 +122,7 @@ TMux Session: "Commission Name" (orc-COMM-XXX)
 ```
 
 **Features:**
-- `orc workbench open WORKBENCH-XXX` creates new window with IMP layout
+- Workbench directories contain `.orc-config.json` for context detection
 - All panes CD into workbench directory
 - Easy context switching between coordination and implementation
 
@@ -283,9 +282,8 @@ Next session can bootstrap from this
 - **Validation**: Everything worked first try
 
 ✅ **Workbench Management**
-- Create, list, rename, open commands
+- Create, list, rename commands
 - Git worktree integration
-- TMux window spawning (orc workbench open)
 - Commission context detection
 
 ✅ **Pinned Work Orders**

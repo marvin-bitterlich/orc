@@ -14,7 +14,8 @@ type ShipmentService interface {
 	ListShipments(ctx context.Context, filters ShipmentFilters) ([]*Shipment, error)
 
 	// CompleteShipment marks a shipment as complete.
-	CompleteShipment(ctx context.Context, shipmentID string) error
+	// If force is true, completes even if tasks are incomplete.
+	CompleteShipment(ctx context.Context, shipmentID string, force bool) error
 
 	// PauseShipment pauses an active shipment.
 	PauseShipment(ctx context.Context, shipmentID string) error

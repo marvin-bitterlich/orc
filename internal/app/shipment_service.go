@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	coreshipment "github.com/example/orc/internal/core/shipment"
 	"github.com/example/orc/internal/ports/primary"
 	"github.com/example/orc/internal/ports/secondary"
 )
@@ -123,15 +124,37 @@ func (s *ShipmentServiceImpl) ListShipments(ctx context.Context, filters primary
 }
 
 // CompleteShipment marks a shipment as complete.
-func (s *ShipmentServiceImpl) CompleteShipment(ctx context.Context, shipmentID string) error {
+// If force is true, completes even if tasks are incomplete.
+func (s *ShipmentServiceImpl) CompleteShipment(ctx context.Context, shipmentID string, force bool) error {
 	record, err := s.shipmentRepo.GetByID(ctx, shipmentID)
 	if err != nil {
 		return err
 	}
 
-	// Guard: cannot complete pinned shipment
-	if record.Pinned {
-		return fmt.Errorf("cannot complete pinned shipment %s. Unpin first with: orc shipment unpin %s", shipmentID, shipmentID)
+	// Get tasks for this shipment
+	taskRecords, err := s.taskRepo.List(ctx, secondary.TaskFilters{ShipmentID: shipmentID})
+	if err != nil {
+		return fmt.Errorf("failed to get tasks for shipment: %w", err)
+	}
+
+	// Build task summaries for guard
+	tasks := make([]coreshipment.TaskSummary, len(taskRecords))
+	for i, t := range taskRecords {
+		tasks[i] = coreshipment.TaskSummary{
+			ID:     t.ID,
+			Status: t.Status,
+		}
+	}
+
+	// Guard: check all completion preconditions
+	guardCtx := coreshipment.CompleteShipmentContext{
+		ShipmentID:      shipmentID,
+		IsPinned:        record.Pinned,
+		Tasks:           tasks,
+		ForceCompletion: force,
+	}
+	if result := coreshipment.CanCompleteShipment(guardCtx); !result.Allowed {
+		return result.Error()
 	}
 
 	return s.shipmentRepo.UpdateStatus(ctx, shipmentID, "complete", true)

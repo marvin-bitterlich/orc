@@ -231,8 +231,8 @@ func (s *PRServiceImpl) MergePR(ctx context.Context, prID string) error {
 		return fmt.Errorf("failed to update PR status: %w", err)
 	}
 
-	// Cascade: complete the shipment
-	if err := s.shipmentService.CompleteShipment(ctx, record.ShipmentID); err != nil {
+	// Cascade: complete the shipment (use force=true since PR merge implies tasks are done)
+	if err := s.shipmentService.CompleteShipment(ctx, record.ShipmentID, true); err != nil {
 		// Log but don't fail if shipment completion fails (e.g., already complete)
 		// The PR is still marked as merged
 		fmt.Printf("Warning: failed to complete shipment %s: %v\n", record.ShipmentID, err)

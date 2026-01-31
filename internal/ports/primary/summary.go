@@ -18,6 +18,7 @@ type SummaryRequest struct {
 	FocusID          string // Currently focused container
 	ShowAllShipments bool   // IMP flag: show shipments not assigned to this workbench
 	ExpandLibrary    bool   // Show individual tomes in LIBRARY and shipments in SHIPYARD
+	DebugMode        bool   // Show debug info about what was filtered
 }
 
 // CommissionSummary represents the hierarchical summary of a commission.
@@ -28,6 +29,12 @@ type CommissionSummary struct {
 	Library             LibrarySummary
 	Shipyard            ShipyardSummary
 	HiddenShipmentCount int // Count of shipments hidden from IMP view
+	DebugInfo           *DebugInfo
+}
+
+// DebugInfo contains debug messages about filtering decisions.
+type DebugInfo struct {
+	Messages []string
 }
 
 // ConclaveSummary represents a conclave with its nested tomes and shipments.

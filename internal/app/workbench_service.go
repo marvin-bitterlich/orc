@@ -91,48 +91,16 @@ func (s *WorkbenchServiceImpl) CreateWorkbench(ctx context.Context, req primary.
 	}
 
 	// 7. Write .orc/config.json via effects (non-fatal - workbench created even if config fails)
-	configEffects := s.buildConfigEffects(workbenchPath, record.ID)
-	_ = s.executor.Execute(ctx, configEffects)
+	// Skip if caller wants to write config after worktree setup (avoids race condition)
+	if !req.SkipConfigWrite {
+		configEffects := s.buildConfigEffects(workbenchPath, record.ID)
+		_ = s.executor.Execute(ctx, configEffects)
+	}
 
 	return &primary.CreateWorkbenchResponse{
 		WorkbenchID: record.ID,
 		Workbench:   s.recordToWorkbench(record),
 		Path:        workbenchPath,
-	}, nil
-}
-
-// OpenWorkbench opens a workbench in TMux.
-func (s *WorkbenchServiceImpl) OpenWorkbench(ctx context.Context, req primary.OpenWorkbenchRequest) (*primary.OpenWorkbenchResponse, error) {
-	// 1. Fetch workbench
-	workbench, err := s.workbenchRepo.GetByID(ctx, req.WorkbenchID)
-	if err != nil {
-		return nil, fmt.Errorf("workbench not found: %w", err)
-	}
-
-	// 2. Check path exists
-	pathExists := s.pathExists(workbench.WorktreePath)
-
-	// 3. Check TMux session (via environment)
-	inTMux := os.Getenv("TMUX") != ""
-
-	// 4. Guard check
-	guardCtx := coreworkbench.OpenWorkbenchContext{
-		WorkbenchID:     req.WorkbenchID,
-		WorkbenchExists: true,
-		PathExists:      pathExists,
-		InTMuxSession:   inTMux,
-	}
-	if result := coreworkbench.CanOpenWorkbench(guardCtx); !result.Allowed {
-		return nil, result.Error()
-	}
-
-	// 5. Get TMux session info
-	sessionName := s.getTMuxSession()
-
-	return &primary.OpenWorkbenchResponse{
-		Workbench:   s.recordToWorkbench(workbench),
-		SessionName: sessionName,
-		WindowName:  workbench.Name,
 	}, nil
 }
 
@@ -244,11 +212,6 @@ func (s *WorkbenchServiceImpl) defaultBasePath() string {
 func (s *WorkbenchServiceImpl) pathExists(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil
-}
-
-func (s *WorkbenchServiceImpl) getTMuxSession() string {
-	// In production, would parse TMUX env var or run tmux display-message
-	return "orc"
 }
 
 // buildConfigEffects generates FileEffects for writing .orc/config.json

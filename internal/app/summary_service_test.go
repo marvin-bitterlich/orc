@@ -264,7 +264,7 @@ func (m *mockShipmentServiceForSummary) ListShipments(_ context.Context, filters
 	return result, nil
 }
 
-func (m *mockShipmentServiceForSummary) CompleteShipment(_ context.Context, _ string) error {
+func (m *mockShipmentServiceForSummary) CompleteShipment(_ context.Context, _ string, _ bool) error {
 	return nil
 }
 
@@ -453,10 +453,6 @@ func newMockWorkbenchServiceForSummary() *mockWorkbenchServiceForSummary {
 }
 
 func (m *mockWorkbenchServiceForSummary) CreateWorkbench(_ context.Context, _ primary.CreateWorkbenchRequest) (*primary.CreateWorkbenchResponse, error) {
-	return nil, nil
-}
-
-func (m *mockWorkbenchServiceForSummary) OpenWorkbench(_ context.Context, _ primary.OpenWorkbenchRequest) (*primary.OpenWorkbenchResponse, error) {
 	return nil, nil
 }
 

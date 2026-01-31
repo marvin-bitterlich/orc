@@ -30,6 +30,11 @@ var taskCreateCmd = &cobra.Command{
 		description, _ := cmd.Flags().GetString("description")
 		taskType, _ := cmd.Flags().GetString("type")
 
+		// Validate entity IDs
+		if err := validateEntityID(shipmentID, "shipment"); err != nil {
+			return err
+		}
+
 		// Get commission from context or require explicit flag
 		if commissionID == "" {
 			commissionID = orccontext.GetContextCommissionID()
@@ -67,6 +72,11 @@ var taskListCmd = &cobra.Command{
 		shipmentID, _ := cmd.Flags().GetString("shipment")
 		status, _ := cmd.Flags().GetString("status")
 		tag, _ := cmd.Flags().GetString("tag")
+
+		// Validate entity IDs
+		if err := validateEntityID(shipmentID, "shipment"); err != nil {
+			return err
+		}
 
 		var tasks []*primary.Task
 		var err error

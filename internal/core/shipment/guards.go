@@ -2,7 +2,10 @@
 // Guards are pure functions that evaluate preconditions without side effects.
 package shipment
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 // GuardResult represents the outcome of a guard evaluation.
 type GuardResult struct {
@@ -24,10 +27,18 @@ type CreateShipmentContext struct {
 	CommissionExists bool
 }
 
+// TaskSummary contains minimal task info for guard evaluation.
+type TaskSummary struct {
+	ID     string
+	Status string
+}
+
 // CompleteShipmentContext provides context for shipment completion guards.
 type CompleteShipmentContext struct {
-	ShipmentID string
-	IsPinned   bool
+	ShipmentID      string
+	IsPinned        bool
+	Tasks           []TaskSummary
+	ForceCompletion bool // Skip task check if explicitly forced
 }
 
 // StatusTransitionContext provides context for pause/resume guards.
@@ -61,11 +72,29 @@ func CanCreateShipment(ctx CreateShipmentContext) GuardResult {
 // CanCompleteShipment evaluates whether a shipment can be completed.
 // Rules:
 // - Shipment must not be pinned
+// - All tasks must be complete (unless forced)
 func CanCompleteShipment(ctx CompleteShipmentContext) GuardResult {
 	if ctx.IsPinned {
 		return GuardResult{
 			Allowed: false,
 			Reason:  fmt.Sprintf("cannot complete pinned shipment %s. Unpin first with: orc shipment unpin %s", ctx.ShipmentID, ctx.ShipmentID),
+		}
+	}
+
+	// Check for incomplete tasks (unless force flag is set)
+	if !ctx.ForceCompletion {
+		var incomplete []string
+		for _, t := range ctx.Tasks {
+			if t.Status != "complete" {
+				incomplete = append(incomplete, t.ID)
+			}
+		}
+		if len(incomplete) > 0 {
+			return GuardResult{
+				Allowed: false,
+				Reason: fmt.Sprintf("cannot complete shipment: %d task(s) incomplete (%s). Use --force to complete anyway",
+					len(incomplete), strings.Join(incomplete, ", ")),
+			}
 		}
 	}
 

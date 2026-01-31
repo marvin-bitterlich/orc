@@ -12,6 +12,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/example/orc/internal/config"
 	"github.com/example/orc/internal/ports/primary"
 	"github.com/example/orc/internal/wire"
 )
@@ -29,7 +30,6 @@ func WorkbenchCmd() *cobra.Command {
 	cmd.AddCommand(workbenchListCmd())
 	cmd.AddCommand(workbenchShowCmd())
 	cmd.AddCommand(workbenchRenameCmd())
-	cmd.AddCommand(workbenchOpenCmd())
 	cmd.AddCommand(workbenchDeleteCmd())
 	cmd.AddCommand(workbenchCheckoutCmd())
 	cmd.AddCommand(workbenchStatusCmd())
@@ -67,12 +67,14 @@ Examples:
 			}
 
 			// Create workbench via service
+			// Skip config write if repos specified (to avoid race with git worktree add)
 			resp, err := wire.WorkbenchService().CreateWorkbench(ctx, primary.CreateWorkbenchRequest{
-				Name:       name,
-				WorkshopID: workshopID,
-				RepoID:     repoID,
-				Repos:      repos,
-				BasePath:   basePath,
+				Name:            name,
+				WorkshopID:      workshopID,
+				RepoID:          repoID,
+				Repos:           repos,
+				BasePath:        basePath,
+				SkipConfigWrite: len(repos) > 0,
 			})
 			if err != nil {
 				return fmt.Errorf("failed to create workbench: %w", err)
@@ -84,6 +86,7 @@ Examples:
 			fmt.Printf("  Path: %s\n", workbench.Path)
 
 			// Create worktrees for each repo
+			worktreeSuccess := false
 			if len(repos) > 0 {
 				fmt.Println()
 				fmt.Println("Creating git worktrees...")
@@ -93,6 +96,14 @@ Examples:
 						fmt.Printf("     You may need to create it manually\n")
 					} else {
 						fmt.Printf("  Created worktree for %s\n", repo)
+						worktreeSuccess = true
+					}
+				}
+
+				// Write config after worktree creation (deferred from service)
+				if worktreeSuccess {
+					if err := writeWorkbenchConfig(workbench.Path, workbench.ID); err != nil {
+						fmt.Printf("  Warning: Could not write .orc/config.json: %v\n", err)
 					}
 				}
 			}
@@ -400,89 +411,6 @@ Examples:
 	return cmd
 }
 
-func workbenchOpenCmd() *cobra.Command {
-	return &cobra.Command{
-		Use:   "open [workbench-id]",
-		Short: "Open a workbench in a new TMux window",
-		Long: `Open a workbench by creating a new TMux window with IMP workspace layout.
-
-Creates a new window in the current TMux session with:
-- Pane 1 (left): vim
-- Pane 2 (top right): claude (IMP)
-- Pane 3 (bottom right): shell
-
-All panes start in the workbench's working directory.
-
-Examples:
-  orc workbench open BENCH-001
-  orc workbench open BENCH-002`,
-		Args: cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			workbenchID := args[0]
-
-			// Get workbench from service
-			workbench, err := wire.WorkbenchService().GetWorkbench(context.Background(), workbenchID)
-			if err != nil {
-				return fmt.Errorf("failed to get workbench: %w", err)
-			}
-
-			// Check if workbench path exists
-			if _, err := os.Stat(workbench.Path); os.IsNotExist(err) {
-				return fmt.Errorf("workbench worktree not found at %s\nRun 'orc workbench create %s --repos <repo-names>' to materialize", workbench.Path, workbench.Name)
-			}
-
-			// Check if in TMux session
-			if os.Getenv("TMUX") == "" {
-				return fmt.Errorf("not in a TMux session\nRun this command from within a TMux session")
-			}
-
-			// Get current TMux session name
-			sessionNameBytes, err := exec.Command("tmux", "display-message", "-p", "#S").Output()
-			if err != nil {
-				return fmt.Errorf("failed to detect TMux session name: %w", err)
-			}
-			sessionName := strings.TrimSpace(string(sessionNameBytes))
-
-			// Get next window index by listing current windows
-			windowsOutput, err := exec.Command("tmux", "list-windows", "-t", sessionName, "-F", "#{window_index}").Output()
-			if err != nil {
-				return fmt.Errorf("failed to list windows: %w", err)
-			}
-
-			// Parse window indices to find the next available
-			var maxIndex int
-			lines := strings.Split(strings.TrimSpace(string(windowsOutput)), "\n")
-			for _, line := range lines {
-				if idx, err := strconv.Atoi(strings.TrimSpace(line)); err == nil && idx > maxIndex {
-					maxIndex = idx
-				}
-			}
-			nextIndex := maxIndex + 1
-
-			// Create workbench window with IMP layout via adapter
-			ctx := context.Background()
-			tmuxAdapter := wire.TMuxAdapter()
-			err = tmuxAdapter.CreateWorkbenchWindow(ctx, sessionName, nextIndex, workbench.Name, workbench.Path)
-			if err != nil {
-				return fmt.Errorf("failed to create workbench window: %w", err)
-			}
-
-			fmt.Printf("Opened workbench %s (%s)\n", workbench.ID, workbench.Name)
-			fmt.Printf("  Window: %s:%s\n", sessionName, workbench.Name)
-			fmt.Printf("  Path: %s\n", workbench.Path)
-			fmt.Println()
-			fmt.Printf("Layout:\n")
-			fmt.Printf("  Pane 1 (left): vim\n")
-			fmt.Printf("  Pane 2 (top right): claude (IMP)\n")
-			fmt.Printf("  Pane 3 (bottom right): shell\n")
-			fmt.Println()
-			fmt.Printf("Switch to window: Ctrl+b then w (select from list)\n")
-
-			return nil
-		},
-	}
-}
-
 func workbenchCheckoutCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "checkout [workbench-id] [branch]",
@@ -593,4 +521,13 @@ func createWorkbenchWorktree(repo, branch, targetPath string) error {
 	}
 
 	return nil
+}
+
+// writeWorkbenchConfig writes .orc/config.json after worktree creation
+func writeWorkbenchConfig(workbenchPath, workbenchID string) error {
+	cfg := &config.Config{
+		Version: "1.0",
+		PlaceID: workbenchID, // BENCH-xxx serves as the place_id
+	}
+	return config.SaveConfig(workbenchPath, cfg)
 }

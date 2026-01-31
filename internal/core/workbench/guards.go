@@ -56,44 +56,6 @@ func CanCreateWorkbench(ctx CreateWorkbenchContext) GuardResult {
 	return GuardResult{Allowed: true}
 }
 
-// OpenWorkbenchContext provides context for workbench open guards.
-type OpenWorkbenchContext struct {
-	WorkbenchID     string
-	WorkbenchExists bool
-	PathExists      bool
-	InTMuxSession   bool
-}
-
-// CanOpenWorkbench evaluates whether a workbench can be opened in TMux.
-// Rules:
-// - Workbench must exist in database
-// - Workbench path must exist on filesystem
-// - Must be in a TMux session
-func CanOpenWorkbench(ctx OpenWorkbenchContext) GuardResult {
-	if !ctx.WorkbenchExists {
-		return GuardResult{
-			Allowed: false,
-			Reason:  fmt.Sprintf("workbench %s not found", ctx.WorkbenchID),
-		}
-	}
-
-	if !ctx.PathExists {
-		return GuardResult{
-			Allowed: false,
-			Reason:  "workbench worktree not found - run 'orc workbench create' to materialize",
-		}
-	}
-
-	if !ctx.InTMuxSession {
-		return GuardResult{
-			Allowed: false,
-			Reason:  "not in a TMux session - run this command from within a TMux session",
-		}
-	}
-
-	return GuardResult{Allowed: true}
-}
-
 // DeleteWorkbenchContext provides context for workbench deletion guards.
 type DeleteWorkbenchContext struct {
 	WorkbenchID     string

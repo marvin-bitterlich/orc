@@ -29,7 +29,7 @@ If El Presidente asks for direct code changes or debugging work:
 ```bash
 orc commission create "Commission Title" --description "Description"
 orc workbench create workbench-name --repos main-app --commission COMM-XXX
-orc workbench open WORKBENCH-XXX  # Opens TMux with IMP layout
+# Navigate to workbench directory (see `orc workbench show WORKBENCH-XXX`)
 ```
 
 ### Status Check

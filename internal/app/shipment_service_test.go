@@ -170,11 +170,14 @@ func (m *mockShipmentRepository) UpdateContainer(ctx context.Context, id, contai
 
 // mockTaskRepositoryForShipment implements minimal TaskRepository for shipment tests.
 type mockTaskRepositoryForShipment struct {
+	tasks     map[string]*secondary.TaskRecord
 	assignErr error
 }
 
 func newMockTaskRepositoryForShipment() *mockTaskRepositoryForShipment {
-	return &mockTaskRepositoryForShipment{}
+	return &mockTaskRepositoryForShipment{
+		tasks: make(map[string]*secondary.TaskRecord),
+	}
 }
 
 func (m *mockTaskRepositoryForShipment) Create(ctx context.Context, task *secondary.TaskRecord) error {
@@ -186,7 +189,14 @@ func (m *mockTaskRepositoryForShipment) GetByID(ctx context.Context, id string) 
 }
 
 func (m *mockTaskRepositoryForShipment) List(ctx context.Context, filters secondary.TaskFilters) ([]*secondary.TaskRecord, error) {
-	return nil, nil
+	var result []*secondary.TaskRecord
+	for _, t := range m.tasks {
+		if filters.ShipmentID != "" && t.ShipmentID != filters.ShipmentID {
+			continue
+		}
+		result = append(result, t)
+	}
+	return result, nil
 }
 
 func (m *mockTaskRepositoryForShipment) Update(ctx context.Context, task *secondary.TaskRecord) error {
@@ -507,7 +517,7 @@ func TestListShipments_FilterByStatus(t *testing.T) {
 // ============================================================================
 
 func TestCompleteShipment_UnpinnedAllowed(t *testing.T) {
-	service, shipmentRepo, _ := newTestShipmentService()
+	service, shipmentRepo, taskRepo := newTestShipmentService()
 	ctx := context.Background()
 
 	shipmentRepo.shipments["SHIPMENT-001"] = &secondary.ShipmentRecord{
@@ -517,8 +527,11 @@ func TestCompleteShipment_UnpinnedAllowed(t *testing.T) {
 		Status:       "active",
 		Pinned:       false,
 	}
+	// All tasks complete
+	taskRepo.tasks["TASK-001"] = &secondary.TaskRecord{ID: "TASK-001", ShipmentID: "SHIPMENT-001", Status: "complete"}
+	taskRepo.tasks["TASK-002"] = &secondary.TaskRecord{ID: "TASK-002", ShipmentID: "SHIPMENT-001", Status: "complete"}
 
-	err := service.CompleteShipment(ctx, "SHIPMENT-001")
+	err := service.CompleteShipment(ctx, "SHIPMENT-001", false)
 
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -540,10 +553,61 @@ func TestCompleteShipment_PinnedBlocked(t *testing.T) {
 		Pinned:       true,
 	}
 
-	err := service.CompleteShipment(ctx, "SHIPMENT-001")
+	err := service.CompleteShipment(ctx, "SHIPMENT-001", false)
 
 	if err == nil {
 		t.Fatal("expected error for completing pinned shipment, got nil")
+	}
+}
+
+func TestCompleteShipment_IncompleteTasksBlocked(t *testing.T) {
+	service, shipmentRepo, taskRepo := newTestShipmentService()
+	ctx := context.Background()
+
+	shipmentRepo.shipments["SHIPMENT-001"] = &secondary.ShipmentRecord{
+		ID:           "SHIPMENT-001",
+		CommissionID: "COMM-001",
+		Title:        "Test Shipment",
+		Status:       "active",
+		Pinned:       false,
+	}
+	// One task incomplete
+	taskRepo.tasks["TASK-001"] = &secondary.TaskRecord{ID: "TASK-001", ShipmentID: "SHIPMENT-001", Status: "complete"}
+	taskRepo.tasks["TASK-002"] = &secondary.TaskRecord{ID: "TASK-002", ShipmentID: "SHIPMENT-001", Status: "ready"}
+
+	err := service.CompleteShipment(ctx, "SHIPMENT-001", false)
+
+	if err == nil {
+		t.Fatal("expected error for incomplete tasks, got nil")
+	}
+	if shipmentRepo.shipments["SHIPMENT-001"].Status == "complete" {
+		t.Error("shipment should not be completed with incomplete tasks")
+	}
+}
+
+func TestCompleteShipment_IncompleteTasksForced(t *testing.T) {
+	service, shipmentRepo, taskRepo := newTestShipmentService()
+	ctx := context.Background()
+
+	shipmentRepo.shipments["SHIPMENT-001"] = &secondary.ShipmentRecord{
+		ID:           "SHIPMENT-001",
+		CommissionID: "COMM-001",
+		Title:        "Test Shipment",
+		Status:       "active",
+		Pinned:       false,
+	}
+	// One task incomplete
+	taskRepo.tasks["TASK-001"] = &secondary.TaskRecord{ID: "TASK-001", ShipmentID: "SHIPMENT-001", Status: "complete"}
+	taskRepo.tasks["TASK-002"] = &secondary.TaskRecord{ID: "TASK-002", ShipmentID: "SHIPMENT-001", Status: "ready"}
+
+	// Force completion
+	err := service.CompleteShipment(ctx, "SHIPMENT-001", true)
+
+	if err != nil {
+		t.Fatalf("expected no error with force=true, got %v", err)
+	}
+	if shipmentRepo.shipments["SHIPMENT-001"].Status != "complete" {
+		t.Errorf("expected status 'complete', got '%s'", shipmentRepo.shipments["SHIPMENT-001"].Status)
 	}
 }
 
@@ -551,7 +615,7 @@ func TestCompleteShipment_NotFound(t *testing.T) {
 	service, _, _ := newTestShipmentService()
 	ctx := context.Background()
 
-	err := service.CompleteShipment(ctx, "SHIPMENT-NONEXISTENT")
+	err := service.CompleteShipment(ctx, "SHIPMENT-NONEXISTENT", false)
 
 	if err == nil {
 		t.Fatal("expected error for non-existent shipment, got nil")

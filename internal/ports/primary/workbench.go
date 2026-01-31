@@ -8,9 +8,6 @@ type WorkbenchService interface {
 	// CreateWorkbench creates a new workbench in a workshop.
 	CreateWorkbench(ctx context.Context, req CreateWorkbenchRequest) (*CreateWorkbenchResponse, error)
 
-	// OpenWorkbench opens a workbench in a TMux window with IMP layout.
-	OpenWorkbench(ctx context.Context, req OpenWorkbenchRequest) (*OpenWorkbenchResponse, error)
-
 	// GetWorkbench retrieves a workbench by ID.
 	GetWorkbench(ctx context.Context, workbenchID string) (*Workbench, error)
 
@@ -45,11 +42,12 @@ type WorkbenchService interface {
 
 // CreateWorkbenchRequest contains parameters for creating a workbench.
 type CreateWorkbenchRequest struct {
-	Name       string
-	WorkshopID string   // Required
-	RepoID     string   // Optional - link to repo
-	Repos      []string // Optional repository names for worktree creation
-	BasePath   string   // Optional, defaults to ~/src/worktrees
+	Name            string
+	WorkshopID      string   // Required
+	RepoID          string   // Optional - link to repo
+	Repos           []string // Optional repository names for worktree creation
+	BasePath        string   // Optional, defaults to ~/src/worktrees
+	SkipConfigWrite bool     // If true, caller writes config after worktree setup
 }
 
 // CreateWorkbenchResponse contains the result of workbench creation.
@@ -57,18 +55,6 @@ type CreateWorkbenchResponse struct {
 	WorkbenchID string
 	Workbench   *Workbench
 	Path        string // Materialized workbench path
-}
-
-// OpenWorkbenchRequest contains parameters for opening a workbench.
-type OpenWorkbenchRequest struct {
-	WorkbenchID string
-}
-
-// OpenWorkbenchResponse contains the result of opening a workbench.
-type OpenWorkbenchResponse struct {
-	Workbench   *Workbench
-	SessionName string
-	WindowName  string
 }
 
 // RenameWorkbenchRequest contains parameters for renaming a workbench.
