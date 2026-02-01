@@ -78,6 +78,9 @@ It coordinates IMPs (Implementation Agents) working in isolated workbenches (wor
 	rootCmd.AddCommand(cli.ScaffoldCmd())
 	rootCmd.AddCommand(cli.DebugCmd())
 
+	// Claude Code integration
+	rootCmd.AddCommand(cli.HookCmd())
+
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
