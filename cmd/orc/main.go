@@ -61,6 +61,8 @@ It coordinates IMPs (Implementation Agents) working in isolated workbenches (wor
 	// New entity commands (Stage 2)
 	rootCmd.AddCommand(cli.GatehouseCmd())
 	rootCmd.AddCommand(cli.KennelCmd())
+	rootCmd.AddCommand(cli.PatrolCmd())
+	rootCmd.AddCommand(cli.WatchdogCmd())
 	rootCmd.AddCommand(cli.ApprovalCmd())
 	rootCmd.AddCommand(cli.EscalationCmd())
 	rootCmd.AddCommand(cli.ManifestCmd())

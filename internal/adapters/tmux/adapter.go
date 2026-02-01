@@ -105,6 +105,11 @@ func (a *Adapter) SplitHorizontal(ctx context.Context, target, workingDir string
 	return session.SplitHorizontal(target, workingDir)
 }
 
+// JoinPane moves a pane from source to target.
+func (a *Adapter) JoinPane(ctx context.Context, source, target string, vertical bool, size int) error {
+	return tmuxpkg.JoinPane(source, target, vertical, size)
+}
+
 // SelectWindow selects a window by index.
 func (a *Adapter) SelectWindow(ctx context.Context, sessionName string, index int) error {
 	session := &tmuxpkg.Session{Name: sessionName}

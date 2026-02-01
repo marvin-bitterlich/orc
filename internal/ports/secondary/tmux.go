@@ -51,6 +51,7 @@ type TMuxAdapter interface {
 	CapturePaneContent(ctx context.Context, target string, lines int) (string, error)
 	SplitVertical(ctx context.Context, target, workingDir string) error
 	SplitHorizontal(ctx context.Context, target, workingDir string) error
+	JoinPane(ctx context.Context, source, target string, vertical bool, size int) error
 
 	// Communication
 	NudgeSession(ctx context.Context, target, message string) error

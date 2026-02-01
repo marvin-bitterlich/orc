@@ -40,6 +40,7 @@ var (
 	summaryService                 primary.SummaryService
 	gatehouseService               primary.GatehouseService
 	kennelService                  primary.KennelService
+	patrolService                  primary.PatrolService
 	approvalService                primary.ApprovalService
 	escalationService              primary.EscalationService
 	manifestService                primary.ManifestService
@@ -168,6 +169,12 @@ func GatehouseService() primary.GatehouseService {
 func KennelService() primary.KennelService {
 	once.Do(initServices)
 	return kennelService
+}
+
+// PatrolService returns the singleton PatrolService instance.
+func PatrolService() primary.PatrolService {
+	once.Do(initServices)
+	return patrolService
 }
 
 // ApprovalService returns the singleton ApprovalService instance.
@@ -316,6 +323,10 @@ func initServices() {
 	// Pass workbench repo to kennel service for EnsureAllWorkbenchesHaveKennels
 	kennelRepo := sqlite.NewKennelRepository(database)
 	kennelService = app.NewKennelService(kennelRepo, workbenchRepo)
+
+	// Create patrol service for watchdog monitoring
+	patrolRepo := sqlite.NewPatrolRepository(database)
+	patrolService = app.NewPatrolService(patrolRepo, kennelRepo, workbenchRepo)
 
 	approvalService = app.NewApprovalService(approvalRepo)
 

@@ -494,6 +494,9 @@ func (m *mockTMuxAdapterForPlan) FindSessionByWorkshopID(ctx context.Context, wo
 func (m *mockTMuxAdapterForPlan) ListWindows(ctx context.Context, sessionName string) ([]string, error) {
 	return nil, nil
 }
+func (m *mockTMuxAdapterForPlan) JoinPane(ctx context.Context, source, target string, vertical bool, size int) error {
+	return nil
+}
 
 // ============================================================================
 // Test Helper

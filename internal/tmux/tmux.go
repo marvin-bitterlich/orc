@@ -261,6 +261,24 @@ func (s *Session) SplitHorizontal(target, workingDir string) error {
 	return cmd.Run()
 }
 
+// JoinPane moves a pane from source to target.
+// If vertical is true, joins vertically (-v); otherwise horizontally (-h).
+// Size specifies the target pane size in lines (if vertical) or columns (if horizontal).
+func JoinPane(source, target string, vertical bool, size int) error {
+	args := []string{"join-pane"}
+	if vertical {
+		args = append(args, "-v")
+	} else {
+		args = append(args, "-h")
+	}
+	if size > 0 {
+		args = append(args, "-l", strconv.Itoa(size))
+	}
+	args = append(args, "-s", source, "-t", target)
+	cmd := exec.Command("tmux", args...)
+	return cmd.Run()
+}
+
 // SendKeys sends keystrokes to a pane (with Enter)
 func (s *Session) SendKeys(target, keys string) error {
 	cmd := exec.Command("tmux", "send-keys", "-t", target, keys, "C-m")
