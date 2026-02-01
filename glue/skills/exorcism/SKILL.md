@@ -372,6 +372,71 @@ Ship objective complete:
 - 5 notes synthesized
 ```
 
+## Spot Check
+
+Verification capability to confirm synthesis quality.
+
+### Triggering Spot Check
+
+**On request:**
+```
+spot check NOTE-302
+```
+
+**After batch close (agent offers):**
+```
+✓ Closed 5 notes (synthesized)
+
+Would you like to spot check any? [y]es / [n]o
+> y
+Which note? NOTE-___
+```
+
+### Spot Check Process
+
+1. Read the closed note content
+2. Read the target note (from close_reason --by reference)
+3. Identify where source content landed
+4. Identify what was intentionally left behind
+
+### Output Format
+
+```
+## Spot Check: NOTE-302
+
+### Source Content
+[original content from NOTE-302]
+
+### Where It Landed
+| Source excerpt | Target location |
+|----------------|-----------------|
+| "No auto modes" | NOTE-311 Non-Goals section |
+| "Three actors" | NOTE-311 Roles table |
+| "5 question limit" | NOTE-311 Interview Flow |
+
+### Left Behind
+- Internal tracking notes (supersedes lineage) - intentionally omitted
+- Draft wording variations - captured in final form
+
+### Verdict
+✓ Content preserved in target
+```
+
+### Handling Discrepancies
+
+If content appears missing:
+```
+⚠️ Possible gap detected
+
+Source excerpt: "[excerpt]"
+Not found in target NOTE-311
+
+Options:
+[a] Add to target now
+[i] Ignore (intentionally omitted)
+[r] Reopen source note
+```
+
 ## Commands Reference
 
 Pattern execution uses CLI operations:
