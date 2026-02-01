@@ -3,11 +3,13 @@ package cli
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/spf13/cobra"
 
 	"github.com/example/orc/internal/agent"
+	"github.com/example/orc/internal/config"
 	"github.com/example/orc/internal/ports/primary"
 	"github.com/example/orc/internal/wire"
 )
@@ -33,7 +35,7 @@ Agent identity is auto-detected from context (ORC repo or workbench).`,
 
 func mailSendCmd() *cobra.Command {
 	var to, subject string
-	var nudge bool
+	var nudge, toGoblin bool
 
 	cmd := &cobra.Command{
 		Use:   "send <body>",
@@ -54,14 +56,49 @@ Examples:
 				return fmt.Errorf("failed to detect agent identity: %w", err)
 			}
 
-			// Validate recipient
-			if to == "" {
-				return fmt.Errorf("--to is required")
-			}
+			// Resolve recipient
+			var recipientIdentity *agent.AgentIdentity
 
-			recipientIdentity, err := agent.ParseAgentID(to)
-			if err != nil {
-				return fmt.Errorf("invalid recipient: %w", err)
+			if toGoblin {
+				// Resolve goblin from workbench context
+				cwd, err := os.Getwd()
+				if err != nil {
+					return fmt.Errorf("failed to get working directory: %w", err)
+				}
+
+				cfg, err := config.LoadConfig(cwd)
+				if err != nil || cfg.PlaceID == "" {
+					return fmt.Errorf("--to-goblin requires workbench context (no .orc/config.json found)")
+				}
+
+				if !config.IsWorkbench(cfg.PlaceID) {
+					return fmt.Errorf("--to-goblin requires workbench context (found %s)", cfg.PlaceID)
+				}
+
+				// Get workbench -> workshop -> gatehouse
+				workbench, err := wire.WorkbenchService().GetWorkbench(ctx, cfg.PlaceID)
+				if err != nil {
+					return fmt.Errorf("failed to get workbench: %w", err)
+				}
+
+				gatehouse, err := wire.GatehouseService().GetGatehouseByWorkshop(ctx, workbench.WorkshopID)
+				if err != nil {
+					return fmt.Errorf("failed to resolve goblin: %w", err)
+				}
+
+				recipientIdentity = &agent.AgentIdentity{
+					Type:   agent.AgentTypeGoblin,
+					ID:     gatehouse.ID,
+					FullID: fmt.Sprintf("GOBLIN-%s", gatehouse.ID),
+				}
+			} else if to != "" {
+				var err error
+				recipientIdentity, err = agent.ParseAgentID(to)
+				if err != nil {
+					return fmt.Errorf("invalid recipient: %w", err)
+				}
+			} else {
+				return fmt.Errorf("--to or --to-goblin is required")
 			}
 
 			// Use subject or generate default
@@ -99,10 +136,10 @@ Examples:
 		},
 	}
 
-	cmd.Flags().StringVar(&to, "to", "", "Recipient agent ID (e.g., IMP-WB-001)")
+	cmd.Flags().StringVar(&to, "to", "", "Recipient agent ID (e.g., IMP-BENCH-001, GOBLIN-GATE-003)")
+	cmd.Flags().BoolVar(&toGoblin, "to-goblin", false, "Send to workshop's goblin (auto-resolved from context)")
 	cmd.Flags().StringVar(&subject, "subject", "", "Message subject")
 	cmd.Flags().BoolVar(&nudge, "nudge", false, "Also send real-time nudge to recipient")
-	cmd.MarkFlagRequired("to")
 
 	return cmd
 }

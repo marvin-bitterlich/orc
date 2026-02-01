@@ -102,12 +102,21 @@ Examples:
 			role := config.RoleGoblin // Default to Goblin
 			workbenchID := ""
 			workshopID := ""
+			gatehouseID := ""
 
 			if cfg != nil && cfg.PlaceID != "" {
 				role = config.GetRoleFromPlaceID(cfg.PlaceID)
 				if config.IsWorkbench(cfg.PlaceID) {
 					workbenchID = cfg.PlaceID
+					// Look up workshop and gatehouse from workbench
+					if wb, err := wire.WorkbenchService().GetWorkbench(cmd.Context(), cfg.PlaceID); err == nil {
+						workshopID = wb.WorkshopID
+						if gh, err := wire.GatehouseService().GetGatehouseByWorkshop(cmd.Context(), wb.WorkshopID); err == nil {
+							gatehouseID = gh.ID
+						}
+					}
 				} else if config.IsGatehouse(cfg.PlaceID) {
+					gatehouseID = cfg.PlaceID
 					// Look up workshop from gatehouse
 					gatehouse, err := wire.GatehouseService().GetGatehouse(cmd.Context(), cfg.PlaceID)
 					if err == nil {
@@ -174,7 +183,7 @@ Examples:
 			}
 
 			// Render header based on role
-			renderHeader(role, workbenchID, workshopID, focusID, filterCommissionID)
+			renderHeader(role, workbenchID, workshopID, gatehouseID, focusID, filterCommissionID)
 
 			// Display each commission
 			for i, commission := range openCommissions {
@@ -228,25 +237,51 @@ Examples:
 }
 
 // renderHeader prints the header line based on role
-func renderHeader(role, workbenchID, workshopID, focusID, commissionID string) {
-	if config.IsGoblinRole(role) {
-		if workshopID != "" {
-			fmt.Printf("Workshop %s", workshopID)
-			if commissionID != "" {
-				fmt.Printf(" - Active: %s", commissionID)
-			}
-			fmt.Println()
+func renderHeader(role, workbenchID, workshopID, gatehouseID, focusID, commissionID string) {
+	// Show workshop context (for both Goblin and IMP)
+	if workshopID != "" {
+		fmt.Printf("Workshop %s", workshopID)
+		if gatehouseID != "" {
+			fmt.Printf(" (Gatehouse: %s)", gatehouseID)
 		}
-	} else {
-		if workbenchID != "" {
-			fmt.Printf("Workbench %s", workbenchID)
-			if focusID != "" {
-				fmt.Printf(" - Focus: %s", focusID)
-			}
-			fmt.Println()
+		if config.IsGoblinRole(role) && commissionID != "" {
+			fmt.Printf(" - Active: %s", commissionID)
+		}
+		fmt.Println()
+
+		// Show workbenches in workshop
+		renderWorkshopBenches(workshopID, workbenchID)
+	}
+
+	// IMP-specific: show current workbench and focus
+	if !config.IsGoblinRole(role) && workbenchID != "" {
+		if focusID != "" {
+			fmt.Printf("Focus: %s\n", focusID)
 		}
 	}
+
 	fmt.Println()
+}
+
+// renderWorkshopBenches displays workbenches in the workshop
+func renderWorkshopBenches(workshopID, currentWorkbenchID string) {
+	ctx := context.Background()
+
+	workbenches, err := wire.WorkbenchService().ListWorkbenches(ctx, primary.WorkbenchFilters{
+		WorkshopID: workshopID,
+	})
+	if err != nil || len(workbenches) == 0 {
+		return
+	}
+
+	fmt.Println("Workbenches:")
+	for _, wb := range workbenches {
+		marker := ""
+		if wb.ID == currentWorkbenchID {
+			marker = color.New(color.FgHiMagenta).Sprint(" ←")
+		}
+		fmt.Printf("  - %s (%s)%s\n", wb.ID, wb.Name, marker)
+	}
 }
 
 // renderGoblinSummary renders the full tree view for Goblin role
