@@ -129,17 +129,80 @@ Wait for user to choose c, s, or b.
 
 After objective is selected:
 
-### Theme Selection
+### Theme Identification
 
-- Identify 3-5 themes from the survey data (e.g., "Scattered ideas about X", "Unanswered questions about Y")
-- Present themes to human for selection
+From the survey data, identify 3-5 themes such as:
+- "Scattered ideas about [topic]" - multiple related ideas not synthesized
+- "Unanswered questions about [topic]" - open questions on same subject
+- "Competing approaches to [topic]" - conflicting decisions/specs
+- "Stale discussions on [topic]" - old notes with no resolution
 
-### Interview (per theme)
+Present themes:
+```
+Themes identified:
+1. Scattered ideas about skill design (5 notes)
+2. Unanswered questions about execution model (3 notes)
+3. Competing approaches to ledger structure (2 specs)
 
-- Max 5 questions
-- Progress indicator: "2/3 questions remaining"
-- Each question: context + why it matters + choices
-- Choices map to patterns
+Select a theme to explore (1-3), or [a]ll:
+```
+
+### Interview Flow
+
+For each selected theme, conduct structured interview:
+
+**Interview structure:**
+- Max 5 questions per theme
+- Each question surfaces a decision point
+- Choices map to maintenance patterns
+
+**Progress indicator:**
+```
+Theme: Scattered ideas about skill design
+Question 2/5: [question text]
+```
+
+**Question format:**
+```
+Context: [brief context from notes]
+
+Question: [clear decision question]
+
+Choices:
+[a] [Choice that maps to SYNTHESIZE]
+[b] [Choice that maps to CLOSE-SUPERSEDED]
+[c] [Choice that maps to DEFER-TO-LIBRARY]
+[s] Skip this question
+```
+
+**Question types by objective:**
+
+Clean objective questions:
+- "These notes seem redundant. Merge them?" → CONSOLIDATE-DUPLICATES
+- "This is now covered in [note]. Close as superseded?" → CLOSE-SUPERSEDED
+- "This is valid but not actionable now. Park to library?" → DEFER-TO-LIBRARY
+- "This mixes vision and code. Split by layer?" → EXTRACT-LAYER
+
+Ship objective questions:
+- "These ideas converge on [concept]. Synthesize into spec?" → SYNTHESIZE
+- "This implicit decision should be explicit. Promote?" → PROMOTE-TO-DECISION
+- "Ready to create draft shipment for [scope]?" → (creates shipment)
+
+### Action Proposal
+
+After interview, summarize proposed actions:
+```
+## Proposed Actions
+
+Based on your answers:
+
+1. MERGE NOTE-101 into NOTE-105 (synthesize)
+2. CLOSE NOTE-102 --reason superseded --by NOTE-105
+3. CLOSE NOTE-103 --reason deferred
+4. CREATE shipment "Skill Implementation" with spec from NOTE-105
+
+Execute? [y]es / [n]o / [r]eview details
+```
 
 ## Patterns
 
