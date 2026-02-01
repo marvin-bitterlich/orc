@@ -4,11 +4,9 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/spf13/cobra"
 
-	orccontext "github.com/example/orc/internal/context"
 	"github.com/example/orc/internal/ports/primary"
 	"github.com/example/orc/internal/wire"
 )
@@ -73,19 +71,17 @@ var commissionShowCmd = &cobra.Command{
 
 var commissionStartCmd = &cobra.Command{
 	Use:   "start [commission-id]",
-	Short: "Start a commission workspace with TMux session",
-	Long: `Create a commission workspace with .orc/config.json and TMux session.
+	Short: "Start a TMux session for a commission",
+	Long: `Start a TMux session for a commission with existing workshop infrastructure.
 
-This command:
-1. Creates a workspace directory for the commission
-2. Writes .orc/config.json for commission context detection
-3. Queries database for active workbenches
-4. Creates TMux session with ORC pane and workbench panes
-5. Materializes git worktrees for workbenches if needed
+Prerequisites:
+- Workshop infrastructure must exist (run 'orc infra apply <workshop-id>' first)
+- Commission must have associated workshops
+
+This command creates a TMux session with windows for the ORC orchestrator.
 
 Examples:
-  orc commission start COMM-001
-  orc commission start COMM-001 --workspace ~/work/commission-001`,
+  orc commission start COMM-001`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
@@ -96,14 +92,8 @@ Examples:
 		}
 
 		commissionID := args[0]
-		workspacePath, _ := cmd.Flags().GetString("workspace")
 
-		// Check if we're in ORC source directory
-		if orccontext.IsOrcSourceDirectory() {
-			return fmt.Errorf("cannot start commission in ORC source directory - please run from another location")
-		}
-
-		// Validate Claude workspace trust before creating commission workspace
+		// Validate Claude workspace trust
 		if err := validateClaudeWorkspaceTrust(); err != nil {
 			return fmt.Errorf("Claude workspace trust validation failed:\n\n%w\n\nRun 'orc doctor' for detailed diagnostics", err)
 		}
@@ -114,27 +104,13 @@ Examples:
 			return fmt.Errorf("failed to get commission: %w", err)
 		}
 
-		// Default workspace path: ~/src/commissions/COMM-ID
-		if workspacePath == "" {
-			home, err := os.UserHomeDir()
-			if err != nil {
-				return fmt.Errorf("failed to get home directory: %w", err)
-			}
-			workspacePath = filepath.Join(home, "src", "commissions", commissionID)
+		// Use home directory as session working directory
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return fmt.Errorf("failed to get home directory: %w", err)
 		}
 
-		// Create workspace directory
-		if err := os.MkdirAll(workspacePath, 0755); err != nil {
-			return fmt.Errorf("failed to create workspace: %w", err)
-		}
-
-		// Write .orc/config.json for commission context
-		if err := orccontext.WriteCommissionContext(workspacePath); err != nil {
-			return fmt.Errorf("failed to write commission config: %w", err)
-		}
-
-		fmt.Printf("✓ Created commission workspace at: %s\n", workspacePath)
-		fmt.Printf("  Commission: %s - %s\n", commission.ID, commission.Title)
+		fmt.Printf("Starting TMux session for commission: %s - %s\n", commission.ID, commission.Title)
 		fmt.Println()
 
 		// Create TMux session
@@ -149,12 +125,12 @@ Examples:
 		fmt.Printf("Creating TMux session: %s\n", sessionName)
 
 		// Create session with base numbering from 1
-		if err := tmuxAdapter.CreateSession(ctx, sessionName, workspacePath); err != nil {
+		if err := tmuxAdapter.CreateSession(ctx, sessionName, home); err != nil {
 			return fmt.Errorf("failed to create TMux session: %w", err)
 		}
 
 		// Create ORC window (window 1) with claude
-		if err := tmuxAdapter.CreateOrcWindow(ctx, sessionName, workspacePath); err != nil {
+		if err := tmuxAdapter.CreateOrcWindow(ctx, sessionName, home); err != nil {
 			return fmt.Errorf("failed to create ORC window: %w", err)
 		}
 		fmt.Printf("  ✓ Window 1: orc (claude | vim | shell)\n")
@@ -163,7 +139,7 @@ Examples:
 		tmuxAdapter.SelectWindow(ctx, sessionName, 1)
 
 		fmt.Println()
-		fmt.Printf("Commission workspace ready!\n")
+		fmt.Printf("Commission session ready!\n")
 		fmt.Println()
 		fmt.Println(tmuxAdapter.AttachInstructions(sessionName))
 
@@ -251,7 +227,6 @@ func CommissionCmd() *cobra.Command {
 	// Add flags
 	commissionCreateCmd.Flags().StringP("description", "d", "", "Commission description")
 	commissionListCmd.Flags().StringP("status", "s", "", "Filter by status (active, paused, complete, archived)")
-	commissionStartCmd.Flags().StringP("workspace", "w", "", "Custom workspace path (default: ~/commissions/COMM-ID)")
 	commissionUpdateCmd.Flags().StringP("title", "t", "", "New commission title")
 	commissionUpdateCmd.Flags().StringP("description", "d", "", "New commission description")
 	commissionDeleteCmd.Flags().BoolP("force", "f", false, "Force delete even with associated data")

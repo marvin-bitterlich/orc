@@ -26,6 +26,9 @@ linters:
     - gofmt         # Check formatting
     - goimports     # Check import order
 
+    # Architecture - I/O isolation
+    - depguard      # Enforce import restrictions
+
     # Helpful but not critical
     - misspell      # Find misspelled words
     - durationcheck # Check for duration multiplication issues
@@ -48,6 +51,18 @@ linters-settings:
 
   staticcheck:
     checks: ["all"]
+
+  # I/O Isolation Rules
+  # Core layer must be pure - no direct I/O operations
+  # TODO: CLI layer also has os/exec usage that should be refactored to adapters
+  depguard:
+    rules:
+      core-no-exec:
+        files:
+          - "internal/core/**/*.go"
+        deny:
+          - pkg: "os/exec"
+            desc: "Core layer must be pure. Use effects pattern and adapters for I/O."
 
 issues:
   exclude-use-default: false

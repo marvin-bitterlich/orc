@@ -44,6 +44,7 @@ var (
 	approvalService                primary.ApprovalService
 	escalationService              primary.EscalationService
 	manifestService                primary.ManifestService
+	infraService                   primary.InfraService
 	commissionOrchestrationService *app.CommissionOrchestrationService
 	tmuxService                    secondary.TMuxAdapter
 	libraryRepo                    secondary.LibraryRepository
@@ -195,6 +196,12 @@ func ManifestService() primary.ManifestService {
 	return manifestService
 }
 
+// InfraService returns the singleton InfraService instance.
+func InfraService() primary.InfraService {
+	once.Do(initServices)
+	return infraService
+}
+
 // CommissionOrchestrationService returns the singleton CommissionOrchestrationService instance.
 func CommissionOrchestrationService() *app.CommissionOrchestrationService {
 	once.Do(initServices)
@@ -334,6 +341,9 @@ func initServices() {
 
 	manifestRepo := sqlite.NewManifestRepository(database)
 	manifestService = app.NewManifestService(manifestRepo)
+
+	// Create infra service for infrastructure planning
+	infraService = app.NewInfraService(factoryRepo, workshopRepo, workbenchRepo, repoRepo, gatehouseRepo, workspaceAdapter, executor)
 
 	// Create orchestration services
 	commissionOrchestrationService = app.NewCommissionOrchestrationService(commissionService, agentProvider)

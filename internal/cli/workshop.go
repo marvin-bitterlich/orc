@@ -1,14 +1,12 @@
 package cli
 
 import (
-	"bufio"
 	"context"
 	"fmt"
 	"os"
 	"strings"
 	"text/tabwriter"
 
-	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 
 	"github.com/example/orc/internal/config"
@@ -29,7 +27,6 @@ func WorkshopCmd() *cobra.Command {
 	cmd.AddCommand(workshopListCmd())
 	cmd.AddCommand(workshopShowCmd())
 	cmd.AddCommand(workshopDeleteCmd())
-	cmd.AddCommand(workshopOpenCmd())
 	cmd.AddCommand(workshopCloseCmd())
 	cmd.AddCommand(workshopSetCommissionCmd())
 
@@ -185,177 +182,6 @@ Examples:
 	cmd.Flags().BoolVarP(&force, "force", "f", false, "Force delete even with workbenches")
 
 	return cmd
-}
-
-func workshopOpenCmd() *cobra.Command {
-	var skipConfirm bool
-
-	cmd := &cobra.Command{
-		Use:   "open [workshop-id]",
-		Short: "Open a workshop TMux session",
-		Long: `Launch a TMux session for the workshop with:
-- Window 1: Gatehouse (Goblin orchestration)
-- Window 2+: One per workbench
-
-Shows a plan of what will be created and asks for confirmation.
-Use --yes to skip confirmation.
-
-Examples:
-  orc workshop open WORK-001
-  orc workshop open WORK-001 --yes`,
-		Args: cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			workshopID := args[0]
-			ctx := context.Background()
-
-			// 1. Generate plan
-			plan, err := wire.WorkshopService().PlanOpenWorkshop(ctx, primary.OpenWorkshopRequest{
-				WorkshopID: workshopID,
-			})
-			if err != nil {
-				return err
-			}
-
-			// 2. Display plan
-			displayOpenPlan(plan)
-
-			// 3. If nothing to do, show attach instructions and return
-			if plan.NothingToDo {
-				fmt.Println("Nothing to create.")
-				fmt.Println()
-				fmt.Println(wire.TMuxAdapter().AttachInstructions(plan.SessionName))
-				return nil
-			}
-
-			// 4. Confirm (unless --yes)
-			if !skipConfirm {
-				if !confirmPrompt("Proceed?") {
-					fmt.Println("Aborted.")
-					return nil
-				}
-			}
-
-			// 5. Apply
-			resp, err := wire.WorkshopService().ApplyOpenWorkshop(ctx, plan)
-			if err != nil {
-				return err
-			}
-
-			fmt.Printf("✓ Workshop %s opened: %s\n", workshopID, resp.Workshop.Name)
-			fmt.Println(resp.AttachInstructions)
-			return nil
-		},
-	}
-
-	cmd.Flags().BoolVarP(&skipConfirm, "yes", "y", false, "Skip confirmation prompt")
-
-	return cmd
-}
-
-func displayOpenPlan(plan *primary.OpenWorkshopPlan) {
-	fmt.Printf("🔍 Analyzing workshop: %s\n\n", plan.WorkshopID)
-	fmt.Println("📋 Plan:")
-	fmt.Println()
-
-	displayDBState(plan)
-	displayInfrastructure(plan)
-	displayTMuxPlan(plan)
-}
-
-func displayDBState(plan *primary.OpenWorkshopPlan) {
-	fmt.Println("Database State:")
-	fmt.Printf("  Workshop: %s - %s\n", plan.WorkshopID, plan.WorkshopName)
-	fmt.Printf("  Factory: %s - %s\n", plan.FactoryID, plan.FactoryName)
-
-	if plan.DBState != nil {
-		fmt.Printf("  Workbenches in DB: %d\n", plan.DBState.WorkbenchCount)
-		for _, wb := range plan.DBState.Workbenches {
-			fmt.Printf("    %s - %s\n", wb.ID, wb.Name)
-			fmt.Printf("      Path: %s\n", wb.Path)
-			fmt.Printf("      Status: %s\n", wb.Status)
-		}
-	} else {
-		fmt.Println("  Workbenches in DB: 0")
-	}
-	fmt.Println()
-}
-
-func displayInfrastructure(plan *primary.OpenWorkshopPlan) {
-	fmt.Println("Infrastructure:")
-	dim := color.New(color.Faint).SprintFunc()
-
-	if plan.GatehouseOp != nil {
-		fmt.Printf("  %s gatehouse: %s\n", statusColor(plan.GatehouseOp.Status), plan.GatehouseOp.Path)
-		fmt.Printf("  %s gatehouse config: %s/.orc/config.json\n",
-			statusColor(plan.GatehouseOp.ConfigStatus), plan.GatehouseOp.Path)
-		if plan.GatehouseOp.ConfigStatus == primary.OpCreate {
-			fmt.Printf("          %s\n", dim(`{ "role": "GOBLIN", ... }`))
-		}
-	}
-
-	for _, wb := range plan.WorkbenchOps {
-		label := fmt.Sprintf("workbench %s", wb.ID)
-		fmt.Printf("  %s %s: %s\n", statusColor(wb.Status), label, wb.Path)
-
-		if wb.Status == primary.OpCreate && wb.RepoName != "" {
-			fmt.Printf("          %s\n", dim(fmt.Sprintf("(worktree: %s@%s)", wb.RepoName, wb.Branch)))
-		}
-
-		fmt.Printf("  %s %s config: %s/.orc/config.json\n",
-			statusColor(wb.ConfigStatus), label, wb.Path)
-		if wb.ConfigStatus == primary.OpCreate {
-			fmt.Printf("          %s\n", dim(`{ "role": "IMP", ... }`))
-		}
-	}
-	fmt.Println()
-}
-
-func displayTMuxPlan(plan *primary.OpenWorkshopPlan) {
-	if plan.TMuxOp == nil {
-		fmt.Println("TMux Session:")
-		fmt.Printf("  %s session: %s\n", statusColor(primary.OpExists), plan.SessionName)
-		fmt.Println()
-		return
-	}
-
-	fmt.Println("TMux Session:")
-	if plan.TMuxOp.AddToExisting {
-		fmt.Printf("  %s session: %s (adding windows)\n", statusColor(primary.OpExists), plan.SessionName)
-	} else {
-		fmt.Printf("  %s session: %s\n", statusColor(plan.TMuxOp.SessionStatus), plan.SessionName)
-	}
-	for _, w := range plan.TMuxOp.Windows {
-		fmt.Printf("  %s window %d (%s): %s\n",
-			statusColor(w.Status), w.Index, w.Name, w.Path)
-	}
-	fmt.Println()
-}
-
-// statusColor returns a color-formatted status string.
-func statusColor(status primary.OpStatus) string {
-	switch status {
-	case primary.OpExists:
-		return color.New(color.FgBlue).Sprint("EXISTS ")
-	case primary.OpCreate:
-		return color.New(color.FgGreen).Sprint("CREATE ")
-	case primary.OpUpdate:
-		return color.New(color.FgYellow).Sprint("UPDATE ")
-	case primary.OpMissing:
-		return color.New(color.FgRed).Sprint("MISSING")
-	default:
-		return string(status)
-	}
-}
-
-func confirmPrompt(msg string) bool {
-	fmt.Printf("%s [y/N]: ", msg)
-	reader := bufio.NewReader(os.Stdin)
-	response, err := reader.ReadString('\n')
-	if err != nil {
-		return false
-	}
-	response = strings.TrimSpace(strings.ToLower(response))
-	return response == "y" || response == "yes"
 }
 
 func workshopCloseCmd() *cobra.Command {
