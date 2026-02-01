@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"strconv"
 	"strings"
 	"text/tabwriter"
@@ -282,20 +281,21 @@ Examples:
 
 func workbenchDeleteCmd() *cobra.Command {
 	var force bool
-	var removeWorktree bool
 
 	cmd := &cobra.Command{
 		Use:   "delete [workbench-id]",
 		Short: "Delete a workbench from the database",
-		Long: `Delete a workbench from the database and optionally remove its worktree.
+		Long: `Delete a workbench from the database.
 
-WARNING: This is a destructive operation. By default, only the database record
-is removed. Use --remove-worktree to also delete the git worktree.
+WARNING: This removes the workbench record from the database only.
+The filesystem worktree remains in place as an orphan.
+
+To clean up the filesystem after deleting workbenches:
+  orc infra apply WORK-xxx    # Detects and deletes orphaned worktrees
 
 Examples:
   orc workbench delete BENCH-001
-  orc workbench delete BENCH-001 --remove-worktree
-  orc workbench delete BENCH-001 --force --remove-worktree`,
+  orc workbench delete BENCH-001 --force`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := context.Background()
@@ -308,50 +308,24 @@ Examples:
 			}
 			workbenchPath := workbench.Path
 
-			// Remove worktree if requested
-			if removeWorktree {
-				if _, err := os.Stat(workbenchPath); err == nil {
-					fmt.Printf("Removing worktree at: %s\n", workbenchPath)
-
-					// Try to remove git worktree first
-					if err := exec.Command("git", "worktree", "remove", workbenchPath, "--force").Run(); err != nil {
-						fmt.Printf("  Warning: git worktree remove failed: %v\n", err)
-						fmt.Printf("  Attempting direct directory removal...\n")
-
-						// Fall back to direct directory removal
-						if err := os.RemoveAll(workbenchPath); err != nil {
-							return fmt.Errorf("failed to remove worktree directory: %w", err)
-						}
-					}
-					fmt.Printf("  Worktree removed\n")
-				} else {
-					fmt.Printf("  Worktree not found at %s (already removed)\n", workbenchPath)
-				}
-			}
-
 			// Delete from database
 			err = wire.WorkbenchService().DeleteWorkbench(ctx, primary.DeleteWorkbenchRequest{
-				WorkbenchID:    workbenchID,
-				Force:          force,
-				RemoveWorktree: removeWorktree,
+				WorkbenchID: workbenchID,
+				Force:       force,
 			})
 			if err != nil {
 				return err
 			}
 
-			fmt.Printf("✓ Workbench %s deleted\n", workbenchID)
-
-			if !removeWorktree {
-				fmt.Printf("  Worktree still exists at: %s\n", workbenchPath)
-				fmt.Printf("     Use --remove-worktree to delete it\n")
-			}
+			fmt.Printf("✓ Workbench %s deleted from database\n", workbenchID)
+			fmt.Printf("  Worktree remains at: %s\n", workbenchPath)
+			fmt.Printf("  Run 'orc infra apply' to clean up orphaned worktrees\n")
 
 			return nil
 		},
 	}
 
 	cmd.Flags().BoolVarP(&force, "force", "f", false, "Force delete even with errors")
-	cmd.Flags().BoolVar(&removeWorktree, "remove-worktree", false, "Also remove the git worktree directory")
 
 	return cmd
 }

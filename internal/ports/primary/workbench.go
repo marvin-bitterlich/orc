@@ -66,9 +66,8 @@ type RenameWorkbenchRequest struct {
 
 // DeleteWorkbenchRequest contains parameters for deleting a workbench.
 type DeleteWorkbenchRequest struct {
-	WorkbenchID    string
-	Force          bool
-	RemoveWorktree bool // Also remove filesystem worktree
+	WorkbenchID string
+	Force       bool
 }
 
 // Workbench represents a workbench entity at the port boundary.

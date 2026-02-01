@@ -111,6 +111,7 @@ const (
 	OpCreate  OpStatus = "CREATE"
 	OpUpdate  OpStatus = "UPDATE"
 	OpMissing OpStatus = "MISSING"
+	OpDelete  OpStatus = "DELETE" // Exists on disk but not in DB (orphan)
 )
 
 // OpenWorkshopPlan describes what will be created when opening a workshop.

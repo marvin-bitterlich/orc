@@ -17,6 +17,16 @@ type PlanInput struct {
 
 	// Workbench state
 	Workbenches []WorkbenchPlanInput
+
+	// Orphan state (exist on disk but not in DB)
+	OrphanWorkbenches []WorkbenchPlanInput
+	OrphanGatehouses  []GatehousePlanInput
+}
+
+// GatehousePlanInput contains pre-fetched data for a single gatehouse.
+type GatehousePlanInput struct {
+	PlaceID string // From config.json
+	Path    string
 }
 
 // WorkbenchPlanInput contains pre-fetched data for a single workbench.
@@ -39,6 +49,10 @@ type Plan struct {
 
 	Gatehouse   *GatehouseOp
 	Workbenches []WorkbenchOp
+
+	// Orphans (exist on disk but not in DB)
+	OrphanWorkbenches []WorkbenchOp
+	OrphanGatehouses  []GatehouseOp
 }
 
 // GatehouseOp describes gatehouse infrastructure state.
@@ -88,6 +102,27 @@ func GeneratePlan(input PlanInput) Plan {
 			ConfigExists: wb.ConfigExists,
 			RepoName:     wb.RepoName,
 			Branch:       wb.HomeBranch,
+		})
+	}
+
+	// Orphan workbenches (exist on disk but not in DB)
+	for _, wb := range input.OrphanWorkbenches {
+		plan.OrphanWorkbenches = append(plan.OrphanWorkbenches, WorkbenchOp{
+			ID:           wb.ID,
+			Name:         wb.Name,
+			Path:         wb.WorktreePath,
+			Exists:       true, // By definition, orphans exist on disk
+			ConfigExists: true,
+		})
+	}
+
+	// Orphan gatehouses
+	for _, gh := range input.OrphanGatehouses {
+		plan.OrphanGatehouses = append(plan.OrphanGatehouses, GatehouseOp{
+			ID:           gh.PlaceID,
+			Path:         gh.Path,
+			Exists:       true,
+			ConfigExists: true,
 		})
 	}
 
