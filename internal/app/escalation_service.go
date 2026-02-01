@@ -32,6 +32,7 @@ func (s *EscalationServiceImpl) GetEscalation(ctx context.Context, escalationID 
 // ListEscalations lists escalations with optional filters.
 func (s *EscalationServiceImpl) ListEscalations(ctx context.Context, filters primary.EscalationFilters) ([]*primary.Escalation, error) {
 	records, err := s.escalationRepo.List(ctx, secondary.EscalationFilters{
+		TaskID:        filters.TaskID,
 		Status:        filters.Status,
 		TargetActorID: filters.TargetActorID,
 	})

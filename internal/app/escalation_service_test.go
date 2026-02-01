@@ -44,6 +44,9 @@ func (m *mockEscalationRepository) GetByID(ctx context.Context, id string) (*sec
 func (m *mockEscalationRepository) List(ctx context.Context, filters secondary.EscalationFilters) ([]*secondary.EscalationRecord, error) {
 	var result []*secondary.EscalationRecord
 	for _, e := range m.escalations {
+		if filters.TaskID != "" && e.TaskID != filters.TaskID {
+			continue
+		}
 		if filters.Status != "" && e.Status != filters.Status {
 			continue
 		}
@@ -174,6 +177,25 @@ func TestEscalationService_ListEscalations_FilterByStatus(t *testing.T) {
 	}
 	if len(escalations) != 1 {
 		t.Errorf("expected 1 escalation, got %d", len(escalations))
+	}
+}
+
+func TestEscalationService_ListEscalations_FilterByTaskID(t *testing.T) {
+	service, repo := newTestEscalationService()
+	ctx := context.Background()
+
+	repo.escalations["ESC-001"] = &secondary.EscalationRecord{ID: "ESC-001", PlanID: "PLAN-001", TaskID: "TASK-001", Reason: "Test 1", Status: "pending", RoutingRule: "workshop_gatehouse", OriginActorID: "IMP-BENCH-001"}
+	repo.escalations["ESC-002"] = &secondary.EscalationRecord{ID: "ESC-002", PlanID: "PLAN-002", TaskID: "TASK-002", Reason: "Test 2", Status: "pending", RoutingRule: "workshop_gatehouse", OriginActorID: "IMP-BENCH-002"}
+
+	escalations, err := service.ListEscalations(ctx, primary.EscalationFilters{TaskID: "TASK-001"})
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if len(escalations) != 1 {
+		t.Errorf("expected 1 escalation, got %d", len(escalations))
+	}
+	if escalations[0].TaskID != "TASK-001" {
+		t.Errorf("expected TaskID 'TASK-001', got %q", escalations[0].TaskID)
 	}
 }
 
