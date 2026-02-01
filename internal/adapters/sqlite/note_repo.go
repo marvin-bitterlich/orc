@@ -72,13 +72,15 @@ func (r *NoteRepository) GetByID(ctx context.Context, id string) (*secondary.Not
 		closedAt         sql.NullTime
 		promotedFromID   sql.NullString
 		promotedFromType sql.NullString
+		closeReason      sql.NullString
+		closedByNoteID   sql.NullString
 	)
 
 	record := &secondary.NoteRecord{}
 	err := r.db.QueryRowContext(ctx,
-		"SELECT id, commission_id, title, content, type, status, shipment_id, conclave_id, tome_id, pinned, created_at, updated_at, closed_at, promoted_from_id, promoted_from_type FROM notes WHERE id = ?",
+		"SELECT id, commission_id, title, content, type, status, shipment_id, conclave_id, tome_id, pinned, created_at, updated_at, closed_at, promoted_from_id, promoted_from_type, close_reason, closed_by_note_id FROM notes WHERE id = ?",
 		id,
-	).Scan(&record.ID, &record.CommissionID, &record.Title, &content, &noteType, &status, &shipmentID, &conclaveID, &tomeID, &pinned, &createdAt, &updatedAt, &closedAt, &promotedFromID, &promotedFromType)
+	).Scan(&record.ID, &record.CommissionID, &record.Title, &content, &noteType, &status, &shipmentID, &conclaveID, &tomeID, &pinned, &createdAt, &updatedAt, &closedAt, &promotedFromID, &promotedFromType, &closeReason, &closedByNoteID)
 
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("note %s not found", id)
@@ -101,13 +103,15 @@ func (r *NoteRepository) GetByID(ctx context.Context, id string) (*secondary.Not
 	}
 	record.PromotedFromID = promotedFromID.String
 	record.PromotedFromType = promotedFromType.String
+	record.CloseReason = closeReason.String
+	record.ClosedByNoteID = closedByNoteID.String
 
 	return record, nil
 }
 
 // List retrieves notes matching the given filters.
 func (r *NoteRepository) List(ctx context.Context, filters secondary.NoteFilters) ([]*secondary.NoteRecord, error) {
-	query := "SELECT id, commission_id, title, content, type, status, shipment_id, conclave_id, tome_id, pinned, created_at, updated_at, closed_at, promoted_from_id, promoted_from_type FROM notes WHERE 1=1"
+	query := "SELECT id, commission_id, title, content, type, status, shipment_id, conclave_id, tome_id, pinned, created_at, updated_at, closed_at, promoted_from_id, promoted_from_type, close_reason, closed_by_note_id FROM notes WHERE 1=1"
 	args := []any{}
 
 	if filters.Type != "" {
@@ -143,10 +147,12 @@ func (r *NoteRepository) List(ctx context.Context, filters secondary.NoteFilters
 			closedAt         sql.NullTime
 			promotedFromID   sql.NullString
 			promotedFromType sql.NullString
+			closeReason      sql.NullString
+			closedByNoteID   sql.NullString
 		)
 
 		record := &secondary.NoteRecord{}
-		err := rows.Scan(&record.ID, &record.CommissionID, &record.Title, &content, &noteType, &status, &shipmentID, &conclaveID, &tomeID, &pinned, &createdAt, &updatedAt, &closedAt, &promotedFromID, &promotedFromType)
+		err := rows.Scan(&record.ID, &record.CommissionID, &record.Title, &content, &noteType, &status, &shipmentID, &conclaveID, &tomeID, &pinned, &createdAt, &updatedAt, &closedAt, &promotedFromID, &promotedFromType, &closeReason, &closedByNoteID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan note: %w", err)
 		}
@@ -165,6 +171,8 @@ func (r *NoteRepository) List(ctx context.Context, filters secondary.NoteFilters
 		}
 		record.PromotedFromID = promotedFromID.String
 		record.PromotedFromType = promotedFromType.String
+		record.CloseReason = closeReason.String
+		record.ClosedByNoteID = closedByNoteID.String
 
 		notes = append(notes, record)
 	}
@@ -290,12 +298,12 @@ func (r *NoteRepository) GetByContainer(ctx context.Context, containerType, cont
 	var query string
 	switch containerType {
 	case "shipment":
-		query = "SELECT id, commission_id, title, content, type, status, shipment_id, conclave_id, tome_id, pinned, created_at, updated_at, closed_at, promoted_from_id, promoted_from_type FROM notes WHERE shipment_id = ? ORDER BY created_at DESC"
+		query = "SELECT id, commission_id, title, content, type, status, shipment_id, conclave_id, tome_id, pinned, created_at, updated_at, closed_at, promoted_from_id, promoted_from_type, close_reason, closed_by_note_id FROM notes WHERE shipment_id = ? ORDER BY created_at DESC"
 	case "conclave":
 		// Exclude notes that have been filed to a tome - they appear under the tome instead
-		query = "SELECT id, commission_id, title, content, type, status, shipment_id, conclave_id, tome_id, pinned, created_at, updated_at, closed_at, promoted_from_id, promoted_from_type FROM notes WHERE conclave_id = ? AND tome_id IS NULL ORDER BY created_at DESC"
+		query = "SELECT id, commission_id, title, content, type, status, shipment_id, conclave_id, tome_id, pinned, created_at, updated_at, closed_at, promoted_from_id, promoted_from_type, close_reason, closed_by_note_id FROM notes WHERE conclave_id = ? AND tome_id IS NULL ORDER BY created_at DESC"
 	case "tome":
-		query = "SELECT id, commission_id, title, content, type, status, shipment_id, conclave_id, tome_id, pinned, created_at, updated_at, closed_at, promoted_from_id, promoted_from_type FROM notes WHERE tome_id = ? ORDER BY created_at DESC"
+		query = "SELECT id, commission_id, title, content, type, status, shipment_id, conclave_id, tome_id, pinned, created_at, updated_at, closed_at, promoted_from_id, promoted_from_type, close_reason, closed_by_note_id FROM notes WHERE tome_id = ? ORDER BY created_at DESC"
 	default:
 		return nil, fmt.Errorf("unknown container type: %s", containerType)
 	}
@@ -321,10 +329,12 @@ func (r *NoteRepository) GetByContainer(ctx context.Context, containerType, cont
 			closedAt         sql.NullTime
 			promotedFromID   sql.NullString
 			promotedFromType sql.NullString
+			closeReason      sql.NullString
+			closedByNoteID   sql.NullString
 		)
 
 		record := &secondary.NoteRecord{}
-		err := rows.Scan(&record.ID, &record.CommissionID, &record.Title, &content, &noteType, &status, &shipmentID, &conclaveID, &tomeID, &pinned, &createdAt, &updatedAt, &closedAt, &promotedFromID, &promotedFromType)
+		err := rows.Scan(&record.ID, &record.CommissionID, &record.Title, &content, &noteType, &status, &shipmentID, &conclaveID, &tomeID, &pinned, &createdAt, &updatedAt, &closedAt, &promotedFromID, &promotedFromType, &closeReason, &closedByNoteID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan note: %w", err)
 		}
@@ -343,6 +353,8 @@ func (r *NoteRepository) GetByContainer(ctx context.Context, containerType, cont
 		}
 		record.PromotedFromID = promotedFromID.String
 		record.PromotedFromType = promotedFromType.String
+		record.CloseReason = closeReason.String
+		record.ClosedByNoteID = closedByNoteID.String
 
 		notes = append(notes, record)
 	}
@@ -430,6 +442,34 @@ func (r *NoteRepository) CloseWithMerge(ctx context.Context, sourceID, targetID 
 	rowsAffected, _ := result.RowsAffected()
 	if rowsAffected == 0 {
 		return fmt.Errorf("note %s not found", sourceID)
+	}
+
+	return nil
+}
+
+// CloseWithReason closes a note with a reason and optional reference to another note.
+func (r *NoteRepository) CloseWithReason(ctx context.Context, id, reason, byNoteID string) error {
+	var closedByNoteID sql.NullString
+	if byNoteID != "" {
+		closedByNoteID = sql.NullString{String: byNoteID, Valid: true}
+	}
+
+	query := `UPDATE notes SET
+		status = 'closed',
+		closed_at = CURRENT_TIMESTAMP,
+		updated_at = CURRENT_TIMESTAMP,
+		close_reason = ?,
+		closed_by_note_id = ?
+		WHERE id = ?`
+
+	result, err := r.db.ExecContext(ctx, query, reason, closedByNoteID, id)
+	if err != nil {
+		return fmt.Errorf("failed to close note with reason: %w", err)
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		return fmt.Errorf("note %s not found", id)
 	}
 
 	return nil

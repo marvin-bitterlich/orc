@@ -324,6 +324,9 @@ type NoteRepository interface {
 
 	// CloseWithMerge closes a note and records it was merged into another note.
 	CloseWithMerge(ctx context.Context, sourceID, targetID string) error
+
+	// CloseWithReason closes a note with a reason and optional reference to another note.
+	CloseWithReason(ctx context.Context, id, reason, byNoteID string) error
 }
 
 // NoteRecord represents a note as stored in persistence.
@@ -343,6 +346,8 @@ type NoteRecord struct {
 	ClosedAt         string // Empty string means null
 	PromotedFromID   string // Empty string means null
 	PromotedFromType string // Empty string means null
+	CloseReason      string // Empty string means null
+	ClosedByNoteID   string // Empty string means null
 }
 
 // NoteFilters contains filter options for querying notes.

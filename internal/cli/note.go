@@ -230,8 +230,17 @@ var noteShowCmd = &cobra.Command{
 		if note.PromotedFromID != "" {
 			fmt.Printf("Promoted from: %s (%s)\n", note.PromotedFromID, note.PromotedFromType)
 		}
+		if note.CloseReason != "" {
+			fmt.Printf("Close reason: %s\n", note.CloseReason)
+		}
+		if note.ClosedByNoteID != "" {
+			fmt.Printf("Closed by: %s\n", note.ClosedByNoteID)
+		}
 		fmt.Printf("Created: %s\n", note.CreatedAt)
 		fmt.Printf("Updated: %s\n", note.UpdatedAt)
+		if note.ClosedAt != "" {
+			fmt.Printf("Closed: %s\n", note.ClosedAt)
+		}
 
 		return nil
 	},
@@ -344,18 +353,32 @@ var noteDeleteCmd = &cobra.Command{
 
 var noteCloseCmd = &cobra.Command{
 	Use:   "close [note-id]",
-	Short: "Close a note",
+	Short: "Close a note with a reason",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
 		noteID := args[0]
+		reason, _ := cmd.Flags().GetString("reason")
+		byNoteID, _ := cmd.Flags().GetString("by")
 
-		err := wire.NoteService().CloseNote(ctx, noteID)
+		if reason == "" {
+			return fmt.Errorf("--reason is required\nValid reasons: superseded, synthesized, resolved, deferred, duplicate, stale")
+		}
+
+		err := wire.NoteService().CloseNote(ctx, primary.CloseNoteRequest{
+			NoteID:   noteID,
+			Reason:   reason,
+			ByNoteID: byNoteID,
+		})
 		if err != nil {
 			return fmt.Errorf("failed to close note: %w", err)
 		}
 
-		fmt.Printf("✓ Note %s closed\n", noteID)
+		msg := fmt.Sprintf("✓ Note %s closed (reason: %s)", noteID, reason)
+		if byNoteID != "" {
+			msg += fmt.Sprintf(" by %s", byNoteID)
+		}
+		fmt.Println(msg)
 		return nil
 	},
 }
@@ -480,6 +503,10 @@ func init() {
 	noteMoveCmd.Flags().String("to-tome", "", "Move to tome")
 	noteMoveCmd.Flags().String("to-shipment", "", "Move to shipment")
 	noteMoveCmd.Flags().String("to-conclave", "", "Move to conclave")
+
+	// note close flags
+	noteCloseCmd.Flags().StringP("reason", "r", "", "Close reason (required): superseded, synthesized, resolved, deferred, duplicate, stale")
+	noteCloseCmd.Flags().String("by", "", "Reference to another note (optional)")
 
 	// Register subcommands
 	noteCmd.AddCommand(noteCreateCmd)

@@ -313,10 +313,13 @@ CREATE TABLE IF NOT EXISTS notes (
 	closed_at DATETIME,
 	promoted_from_id TEXT,
 	promoted_from_type TEXT,
+	close_reason TEXT,
+	closed_by_note_id TEXT,
 	FOREIGN KEY (commission_id) REFERENCES commissions(id),
 	FOREIGN KEY (shipment_id) REFERENCES shipments(id) ON DELETE SET NULL,
 	FOREIGN KEY (conclave_id) REFERENCES conclaves(id) ON DELETE SET NULL,
-	FOREIGN KEY (tome_id) REFERENCES tomes(id) ON DELETE SET NULL
+	FOREIGN KEY (tome_id) REFERENCES tomes(id) ON DELETE SET NULL,
+	FOREIGN KEY (closed_by_note_id) REFERENCES notes(id) ON DELETE SET NULL
 );
 
 -- Create indexes for common queries

@@ -222,7 +222,7 @@ func (m *mockNoteServiceForTome) GetNotesByContainer(ctx context.Context, contai
 	return []*primary.Note{}, nil
 }
 
-func (m *mockNoteServiceForTome) CloseNote(ctx context.Context, noteID string) error {
+func (m *mockNoteServiceForTome) CloseNote(ctx context.Context, req primary.CloseNoteRequest) error {
 	return nil
 }
 

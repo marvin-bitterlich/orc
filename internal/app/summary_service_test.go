@@ -409,7 +409,7 @@ func (m *mockNoteServiceForSummary) ListNotes(_ context.Context, _ primary.NoteF
 	return nil, nil
 }
 
-func (m *mockNoteServiceForSummary) CloseNote(_ context.Context, _ string) error {
+func (m *mockNoteServiceForSummary) CloseNote(_ context.Context, _ primary.CloseNoteRequest) error {
 	return nil
 }
 

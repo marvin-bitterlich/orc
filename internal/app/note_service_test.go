@@ -166,6 +166,16 @@ func (m *mockNoteRepository) CloseWithMerge(ctx context.Context, sourceID, targe
 	return errors.New("note not found")
 }
 
+func (m *mockNoteRepository) CloseWithReason(ctx context.Context, id, reason, byNoteID string) error {
+	if note, ok := m.notes[id]; ok {
+		note.Status = "closed"
+		note.CloseReason = reason
+		note.ClosedByNoteID = byNoteID
+		return nil
+	}
+	return errors.New("note not found")
+}
+
 // ============================================================================
 // Test Helper
 // ============================================================================

@@ -28,8 +28,8 @@ type NoteService interface {
 	// GetNotesByContainer retrieves notes for a specific container.
 	GetNotesByContainer(ctx context.Context, containerType, containerID string) ([]*Note, error)
 
-	// CloseNote closes a note.
-	CloseNote(ctx context.Context, noteID string) error
+	// CloseNote closes a note with a reason.
+	CloseNote(ctx context.Context, req CloseNoteRequest) error
 
 	// ReopenNote reopens a closed note.
 	ReopenNote(ctx context.Context, noteID string) error
@@ -80,6 +80,13 @@ type MergeNoteRequest struct {
 	TargetNoteID string
 }
 
+// CloseNoteRequest contains parameters for closing a note with a reason.
+type CloseNoteRequest struct {
+	NoteID   string
+	Reason   string // superseded, synthesized, resolved, deferred, duplicate, stale
+	ByNoteID string // Optional reference to another note
+}
+
 // Note represents a note entity at the port boundary.
 type Note struct {
 	ID               string
@@ -97,6 +104,8 @@ type Note struct {
 	ClosedAt         string
 	PromotedFromID   string
 	PromotedFromType string
+	CloseReason      string
+	ClosedByNoteID   string
 }
 
 // NoteFilters contains filter options for listing notes.

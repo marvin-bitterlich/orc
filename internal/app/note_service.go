@@ -140,19 +140,40 @@ func (s *NoteServiceImpl) GetNotesByContainer(ctx context.Context, containerType
 	return notes, nil
 }
 
-// CloseNote closes a note.
-func (s *NoteServiceImpl) CloseNote(ctx context.Context, noteID string) error {
+// CloseNote closes a note with a reason.
+func (s *NoteServiceImpl) CloseNote(ctx context.Context, req primary.CloseNoteRequest) error {
+	// Validate reason vocabulary
+	validReasons := map[string]bool{
+		"superseded":  true,
+		"synthesized": true,
+		"resolved":    true,
+		"deferred":    true,
+		"duplicate":   true,
+		"stale":       true,
+	}
+	if !validReasons[req.Reason] {
+		return fmt.Errorf("invalid close reason %q: must be one of superseded, synthesized, resolved, deferred, duplicate, stale", req.Reason)
+	}
+
 	// Get current note to verify it exists and check status
-	note, err := s.noteRepo.GetByID(ctx, noteID)
+	note, err := s.noteRepo.GetByID(ctx, req.NoteID)
 	if err != nil {
 		return err
 	}
 
 	if note.Status == "closed" {
-		return fmt.Errorf("note %s is already closed", noteID)
+		return fmt.Errorf("note %s is already closed", req.NoteID)
 	}
 
-	return s.noteRepo.UpdateStatus(ctx, noteID, "closed")
+	// If ByNoteID is specified, verify it exists
+	if req.ByNoteID != "" {
+		_, err := s.noteRepo.GetByID(ctx, req.ByNoteID)
+		if err != nil {
+			return fmt.Errorf("referenced note %s not found: %w", req.ByNoteID, err)
+		}
+	}
+
+	return s.noteRepo.CloseWithReason(ctx, req.NoteID, req.Reason, req.ByNoteID)
 }
 
 // ReopenNote reopens a closed note.
@@ -255,6 +276,8 @@ func (s *NoteServiceImpl) recordToNote(r *secondary.NoteRecord) *primary.Note {
 		ClosedAt:         r.ClosedAt,
 		PromotedFromID:   r.PromotedFromID,
 		PromotedFromType: r.PromotedFromType,
+		CloseReason:      r.CloseReason,
+		ClosedByNoteID:   r.ClosedByNoteID,
 	}
 }
 
