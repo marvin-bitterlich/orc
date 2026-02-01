@@ -80,6 +80,35 @@ cd <original-worktree-path>
 git rebase master
 ```
 
+### 7. Close Shipment
+
+If there's a focused shipment with all tasks complete, mark it complete:
+
+```bash
+orc status  # Check focused shipment
+orc task list --shipment SHIP-XXX --status ready  # Verify no remaining tasks
+orc shipment complete SHIP-XXX
+```
+
+### 8. Notify Goblin
+
+Mail and nudge the goblin with a summary of completed work:
+
+```bash
+# Find the gatehouse for the current workshop
+orc workshop show  # Note the gatehouse ID (GATE-XXX)
+
+orc mail send "<summary of completed tasks and commit hash>" \
+  --to GOBLIN-GATE-XXX \
+  --subject "SHIP-XXX Complete" \
+  --nudge
+```
+
+Include in the message:
+- Shipment ID and title
+- List of completed tasks with brief descriptions
+- Commit hash on master
+
 ## Success Output
 
 Report completion with:
@@ -87,6 +116,8 @@ Report completion with:
 - Hooks verified
 - Master pushed
 - Worktree rebased
+- Shipment closed (if applicable)
+- Goblin notified and nudged
 
 ## Error Handling
 
