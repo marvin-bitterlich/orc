@@ -5,14 +5,12 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
 
-	"github.com/example/orc/internal/config"
 	"github.com/example/orc/internal/ports/primary"
 	"github.com/example/orc/internal/wire"
 )
@@ -39,24 +37,21 @@ func WorkbenchCmd() *cobra.Command {
 
 func workbenchCreateCmd() *cobra.Command {
 	var workshopID string
-	var repos []string
 	var basePath string
 	var repoID string
 
 	cmd := &cobra.Command{
 		Use:   "create [name]",
-		Short: "Create a new workbench (worktree) in a workshop",
-		Long: `Create a new workbench with git worktree integration.
+		Short: "Create a new workbench record in a workshop",
+		Long: `Create a new workbench record in the database.
 
-This command:
-1. Creates a workbench record in the database
-2. Creates git worktree(s) for specified repos
-3. Writes .orc/config.json (workbench config)
+This command only creates the database record. To create the physical
+infrastructure (git worktrees, config files), run:
+  orc infra apply WORK-xxx
 
 Examples:
-  orc workbench create auth-backend --workshop WORK-001 --repos main-app
-  orc workbench create frontend --workshop WORK-001 --repos main-app
-  orc workbench create multi --workshop WORK-002 --repos main-app,api-service`,
+  orc workbench create auth-backend --workshop WORK-001
+  orc workbench create frontend --workshop WORK-001 --repo-id REPO-001`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := context.Background()
@@ -66,15 +61,13 @@ Examples:
 				return fmt.Errorf("--workshop flag is required")
 			}
 
-			// Create workbench via service
-			// Skip config write if repos specified (to avoid race with git worktree add)
+			// Create workbench via service (DB only, no filesystem operations)
 			resp, err := wire.WorkbenchService().CreateWorkbench(ctx, primary.CreateWorkbenchRequest{
 				Name:            name,
 				WorkshopID:      workshopID,
 				RepoID:          repoID,
-				Repos:           repos,
 				BasePath:        basePath,
-				SkipConfigWrite: len(repos) > 0,
+				SkipConfigWrite: true, // Infrastructure handled by orc infra apply
 			})
 			if err != nil {
 				return fmt.Errorf("failed to create workbench: %w", err)
@@ -84,40 +77,15 @@ Examples:
 			fmt.Printf("✓ Created workbench %s: %s\n", workbench.ID, workbench.Name)
 			fmt.Printf("  Workshop: %s\n", workbench.WorkshopID)
 			fmt.Printf("  Path: %s\n", workbench.Path)
-
-			// Create worktrees for each repo
-			worktreeSuccess := false
-			if len(repos) > 0 {
-				fmt.Println()
-				fmt.Println("Creating git worktrees...")
-				for _, repo := range repos {
-					if err := createWorkbenchWorktree(repo, name, workbench.Path); err != nil {
-						fmt.Printf("  Warning: Could not create worktree for %s: %v\n", repo, err)
-						fmt.Printf("     You may need to create it manually\n")
-					} else {
-						fmt.Printf("  Created worktree for %s\n", repo)
-						worktreeSuccess = true
-					}
-				}
-
-				// Write config after worktree creation (deferred from service)
-				if worktreeSuccess {
-					if err := writeWorkbenchConfig(workbench.Path, workbench.ID); err != nil {
-						fmt.Printf("  Warning: Could not write .orc/config.json: %v\n", err)
-					}
-				}
-			}
-
 			fmt.Println()
-			fmt.Printf("Workbench ready at: %s\n", workbench.Path)
-			fmt.Printf("Start working: cd %s\n", workbench.Path)
+			fmt.Println("To create the physical infrastructure, run:")
+			fmt.Printf("  orc infra apply %s\n", workshopID)
 
 			return nil
 		},
 	}
 
 	cmd.Flags().StringVarP(&workshopID, "workshop", "w", "", "Workshop ID (required)")
-	cmd.Flags().StringSliceVarP(&repos, "repos", "r", nil, "Comma-separated list of repo names")
 	cmd.Flags().StringVarP(&basePath, "path", "p", "", "Base path for worktrees (default: ~/src/worktrees)")
 	cmd.Flags().StringVar(&repoID, "repo-id", "", "Link to a repo entity (optional)")
 
@@ -128,10 +96,13 @@ func workbenchLikeCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "like [name]",
 		Short: "Create a new workbench based on the current one",
-		Long: `Create a new workbench with the same workshop as the current workbench.
+		Long: `Create a new workbench with the same workshop as the current workbench (DB record only).
 
 Detects the current workbench from the working directory and creates a sibling
-workbench in the same workshop.
+workbench in the same workshop. This creates the database record only.
+
+To create the git worktree and config files, run:
+  orc infra apply <workshop-id>
 
 Examples:
   orc workbench like                    # Auto-generate name
@@ -160,11 +131,12 @@ Examples:
 				newName = generateSiblingName(source.Name)
 			}
 
-			// Create new workbench with same workshop
+			// Create new workbench with same workshop (DB only, worktree via orc infra apply)
 			resp, err := wire.WorkbenchService().CreateWorkbench(ctx, primary.CreateWorkbenchRequest{
-				Name:       newName,
-				WorkshopID: source.WorkshopID,
-				RepoID:     source.RepoID,
+				Name:            newName,
+				WorkshopID:      source.WorkshopID,
+				RepoID:          source.RepoID,
+				SkipConfigWrite: true,
 			})
 			if err != nil {
 				return fmt.Errorf("failed to create workbench: %w", err)
@@ -173,35 +145,8 @@ Examples:
 			fmt.Printf("✓ Created workbench %s: %s\n", resp.WorkbenchID, resp.Workbench.Name)
 			fmt.Printf("  Based on: %s (%s)\n", source.ID, source.Name)
 			fmt.Printf("  Workshop: %s\n", resp.Workbench.WorkshopID)
-			fmt.Printf("  Path: %s\n", resp.Workbench.Path)
-
-			// Open in new tmux window if in tmux
-			if os.Getenv("TMUX") != "" {
-				// Get current TMux session name
-				sessionNameBytes, err := exec.Command("tmux", "display-message", "-p", "#S").Output()
-				if err == nil {
-					sessionName := strings.TrimSpace(string(sessionNameBytes))
-
-					// Get next window index
-					windowsOutput, err := exec.Command("tmux", "list-windows", "-t", sessionName, "-F", "#{window_index}").Output()
-					if err == nil {
-						var maxIndex int
-						lines := strings.Split(strings.TrimSpace(string(windowsOutput)), "\n")
-						for _, line := range lines {
-							if idx, err := strconv.Atoi(strings.TrimSpace(line)); err == nil && idx > maxIndex {
-								maxIndex = idx
-							}
-						}
-						nextIndex := maxIndex + 1
-
-						// Create workbench window
-						tmuxAdapter := wire.TMuxAdapter()
-						if err := tmuxAdapter.CreateWorkbenchWindow(ctx, sessionName, nextIndex, resp.Workbench.Name, resp.Workbench.Path); err == nil {
-							fmt.Printf("\n  Opened in tmux window: %s:%s\n", sessionName, resp.Workbench.Name)
-						}
-					}
-				}
-			}
+			fmt.Printf("\nTo create the git worktree, run:\n")
+			fmt.Printf("  orc infra apply %s\n", resp.Workbench.WorkshopID)
 
 			return nil
 		},
@@ -494,40 +439,4 @@ Examples:
 	}
 
 	return cmd
-}
-
-// createWorkbenchWorktree attempts to create a git worktree for a repo
-func createWorkbenchWorktree(repo, branch, targetPath string) error {
-	// Determine repo path (assume repos are in ~/src/)
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return err
-	}
-
-	repoPath := filepath.Join(home, "src", repo)
-
-	// Check if repo exists
-	if _, err := os.Stat(repoPath); os.IsNotExist(err) {
-		return fmt.Errorf("repo not found at %s", repoPath)
-	}
-
-	// Create worktree
-	execCmd := exec.Command("git", "worktree", "add", targetPath, "-b", branch)
-	execCmd.Dir = repoPath
-
-	output, err := execCmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("%w: %s", err, string(output))
-	}
-
-	return nil
-}
-
-// writeWorkbenchConfig writes .orc/config.json after worktree creation
-func writeWorkbenchConfig(workbenchPath, workbenchID string) error {
-	cfg := &config.Config{
-		Version: "1.0",
-		PlaceID: workbenchID, // BENCH-xxx serves as the place_id
-	}
-	return config.SaveConfig(workbenchPath, cfg)
 }

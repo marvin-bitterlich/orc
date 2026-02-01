@@ -115,6 +115,60 @@ The active commission is stored in `workshops.active_commission_id` and scopes G
 
 ---
 
+## Infrastructure (Plan/Apply Pattern)
+
+ORC separates **DB record creation** from **filesystem operations** using a plan/apply pattern.
+
+### Key Principle
+
+**DB commands create records only** — they do NOT create directories, worktrees, or config files.
+
+```bash
+orc workbench create my-bench --workshop WORK-001   # Creates DB record only
+orc workbench like feature-v2                        # Creates DB record only
+```
+
+### Infrastructure Workflow
+
+Use `orc infra` to materialize physical infrastructure:
+
+```bash
+orc infra plan WORK-001     # Show what would be created (dry run)
+orc infra apply WORK-001    # Create directories, worktrees, configs
+```
+
+The infrastructure plan shows:
+- **Gatehouse**: Workshop coordination directory (`~/.orc/ws/WORK-xxx-slug/`)
+- **Workbenches**: Git worktrees for each workbench record
+
+### TMux Connectivity
+
+After infrastructure exists, connect to the session:
+
+```bash
+orc tmux connect WORK-001   # Attach to workshop's tmux session
+```
+
+### Command Reference
+
+| Command | Creates DB Record | Creates Filesystem | Notes |
+|---------|------------------|-------------------|-------|
+| `orc workbench create` | ✓ | ✗ | DB only |
+| `orc workbench like` | ✓ | ✗ | DB only |
+| `orc commission start` | ✗ | ✗ | Starts tmux session only |
+| `orc infra plan` | ✗ | ✗ | Shows what would change |
+| `orc infra apply` | ✗ | ✓ | Creates gatehouse, worktrees, configs |
+| `orc tmux connect` | ✗ | ✗ | Attaches to existing session |
+
+### Why This Pattern?
+
+1. **Predictability**: DB state is the source of truth; filesystem catches up via `apply`
+2. **Idempotency**: `apply` is safe to run multiple times
+3. **Visibility**: `plan` shows exactly what will change before committing
+4. **Recovery**: If filesystem gets corrupted, `apply` reconstructs from DB
+
+---
+
 ## Build & Development
 
 **ALWAYS use the Makefile for building and installing ORC:**
