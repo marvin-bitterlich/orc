@@ -299,10 +299,12 @@ When ship objective is selected, converge exploration into work:
 
 ### Step 1: Create Draft Shipment
 
-Create a draft shipment as synthesis target:
+Create a draft shipment in the shipyard as synthesis target:
 ```bash
-orc shipment create "Shipment Title" --commission COMM-xxx --description "Synthesized from [container]"
+orc shipment create "Shipment Title" --commission COMM-xxx --shipyard --description "Synthesized from [container]"
 ```
+
+Shipments created via exorcism go directly to the shipyard queue for later assignment or prioritization.
 
 ### Step 2: SYNTHESIZE into Spec
 
@@ -353,7 +355,7 @@ Would you like to:
 
 ```
 Creating draft shipment...
-[running: orc shipment create "Skill Implementation" --commission COMM-001]
+[running: orc shipment create "Skill Implementation" --commission COMM-001 --shipyard]
 ✓ Created SHIP-xxx
 
 Synthesizing 5 notes into spec...
@@ -371,6 +373,40 @@ Ship objective complete:
 - Spec: NOTE-xxx
 - 5 notes synthesized
 ```
+
+### Step 5: Placement Choice
+
+After tasks are created, offer placement options:
+
+```
+Shipment SHIP-xxx created with X tasks.
+
+What next?
+[a] Assign to workbench now
+[q] Queue in shipyard (default FIFO)
+[p] Queue with priority 1 (urgent)
+[d] Done - decide later
+```
+
+**Option handling:**
+
+- **[a] Assign to workbench**: Prompt for workbench ID, then:
+  ```bash
+  orc shipment assign SHIP-xxx BENCH-yyy
+  ```
+
+- **[q] Queue in shipyard**: Already in shipyard (default), confirm:
+  ```bash
+  orc shipyard list  # Show queue position
+  ```
+
+- **[p] Queue with priority 1**: Set urgent priority:
+  ```bash
+  orc shipyard prioritize SHIP-xxx 1
+  orc shipyard list  # Show new queue position
+  ```
+
+- **[d] Done**: Leave in shipyard with default priority, end flow.
 
 ## Spot Check
 

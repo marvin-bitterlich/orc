@@ -155,6 +155,7 @@ CREATE TABLE IF NOT EXISTS shipments (
 	container_id TEXT,
 	container_type TEXT CHECK(container_type IN ('conclave', 'shipyard')),
 	autorun INTEGER DEFAULT 0,
+	priority INTEGER,
 	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 	updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 	completed_at DATETIME,
@@ -576,7 +577,7 @@ func InitSchema() error {
 				return err
 			}
 			// Insert all migration versions as applied
-			for i := 1; i <= 46; i++ {
+			for i := 1; i <= 47; i++ {
 				_, err = db.Exec("INSERT INTO schema_version (version) VALUES (?)", i)
 				if err != nil {
 					return err

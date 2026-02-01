@@ -121,6 +121,13 @@ type ShipmentRepository interface {
 
 	// WorkbenchAssignedToOther checks if workbench is assigned to another shipment.
 	WorkbenchAssignedToOther(ctx context.Context, workbenchID, excludeShipmentID string) (string, error)
+
+	// ListShipyardQueue retrieves shipments in the shipyard queue, ordered by priority then created_at.
+	// Excludes completed and merged shipments.
+	ListShipyardQueue(ctx context.Context, commissionID string) ([]*ShipyardQueueEntry, error)
+
+	// UpdatePriority sets the priority for a shipment (nil to clear).
+	UpdatePriority(ctx context.Context, id string, priority *int) error
 }
 
 // ShipmentRecord represents a shipment as stored in persistence.
@@ -137,6 +144,7 @@ type ShipmentRecord struct {
 	ContainerID         string // Empty string means null - CON-xxx or YARD-xxx
 	ContainerType       string // Empty string means null - "conclave" or "shipyard"
 	Autorun             bool   // Whether to auto-run tasks when shipment is launched
+	Priority            *int   // nil = default FIFO, 1 = highest priority
 	CreatedAt           string
 	UpdatedAt           string
 	CompletedAt         string // Empty string means null
@@ -146,6 +154,17 @@ type ShipmentRecord struct {
 type ShipmentFilters struct {
 	CommissionID string
 	Status       string
+}
+
+// ShipyardQueueEntry represents a shipment in the shipyard queue with task count.
+type ShipyardQueueEntry struct {
+	ID           string
+	CommissionID string
+	Title        string
+	Priority     *int   // nil = default FIFO
+	TaskCount    int    // Total tasks in shipment
+	DoneCount    int    // Completed tasks
+	CreatedAt    string // When shipment was created (queue time)
 }
 
 // TaskRepository defines the secondary port for task persistence.

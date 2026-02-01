@@ -244,6 +244,11 @@ var migrations = []Migration{
 		Name:    "drop_unused_watchdogs_and_work_orders_new_tables",
 		Up:      migrationV46,
 	},
+	{
+		Version: 47,
+		Name:    "add_priority_column_to_shipments",
+		Up:      migrationV47,
+	},
 }
 
 // RunMigrations executes all pending migrations
@@ -4173,6 +4178,17 @@ func migrationV46(db *sql.DB) error {
 	_, err = db.Exec(`DROP TABLE IF EXISTS work_orders_new`)
 	if err != nil {
 		return fmt.Errorf("failed to drop work_orders_new table: %w", err)
+	}
+
+	return nil
+}
+
+func migrationV47(db *sql.DB) error {
+	// Add priority column to shipments table for shipyard queue ordering
+	// NULL = default FIFO position, 1 = highest priority, 2, 3... = lower priority
+	_, err := db.Exec(`ALTER TABLE shipments ADD COLUMN priority INTEGER`)
+	if err != nil {
+		return fmt.Errorf("failed to add priority column to shipments: %w", err)
 	}
 
 	return nil

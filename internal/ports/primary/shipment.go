@@ -49,6 +49,12 @@ type ShipmentService interface {
 
 	// UnparkShipment moves a shipment from Shipyard to a specific Conclave.
 	UnparkShipment(ctx context.Context, shipmentID, conclaveID string) error
+
+	// ListShipyardQueue retrieves shipments in the shipyard queue, ordered by priority.
+	ListShipyardQueue(ctx context.Context, commissionID string) ([]*ShipyardQueueEntry, error)
+
+	// SetShipmentPriority sets the priority for a shipment in the queue.
+	SetShipmentPriority(ctx context.Context, shipmentID string, priority *int) error
 }
 
 // CreateShipmentRequest contains parameters for creating a shipment.
@@ -97,4 +103,15 @@ type Shipment struct {
 type ShipmentFilters struct {
 	CommissionID string
 	Status       string
+}
+
+// ShipyardQueueEntry represents a shipment in the shipyard queue.
+type ShipyardQueueEntry struct {
+	ID           string
+	CommissionID string
+	Title        string
+	Priority     *int   // nil = default FIFO, 1 = highest priority
+	TaskCount    int    // Total tasks in shipment
+	DoneCount    int    // Completed tasks
+	CreatedAt    string // When shipment was created
 }

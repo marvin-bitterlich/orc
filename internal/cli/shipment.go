@@ -333,33 +333,7 @@ var shipmentAssignCmd = &cobra.Command{
 	},
 }
 
-var shipmentParkCmd = &cobra.Command{
-	Use:   "park [shipment-id]",
-	Short: "Move shipment to Shipyard",
-	Args:  cobra.ExactArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
-		shipmentID := args[0]
-
-		// Get current state to check if already parked
-		shipment, err := wire.ShipmentService().GetShipment(ctx, shipmentID)
-		if err != nil {
-			return fmt.Errorf("shipment not found: %w", err)
-		}
-
-		if shipment.ContainerType == "shipyard" {
-			fmt.Printf("%s is already in Shipyard\n", shipmentID)
-			return nil
-		}
-
-		if err := wire.ShipmentService().ParkShipment(ctx, shipmentID); err != nil {
-			return fmt.Errorf("failed to park shipment: %w", err)
-		}
-
-		fmt.Printf("Moved %s to Shipyard\n", shipmentID)
-		return nil
-	},
-}
+// NOTE: shipment park command removed - use 'orc shipyard push' instead
 
 var shipmentUnparkCmd = &cobra.Command{
 	Use:   "unpark [shipment-id]",
@@ -422,7 +396,7 @@ func init() {
 	shipmentCmd.AddCommand(shipmentPinCmd)
 	shipmentCmd.AddCommand(shipmentUnpinCmd)
 	shipmentCmd.AddCommand(shipmentAssignCmd)
-	shipmentCmd.AddCommand(shipmentParkCmd)
+	// NOTE: park command removed - use 'orc shipyard push' instead
 	shipmentCmd.AddCommand(shipmentUnparkCmd)
 }
 

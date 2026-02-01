@@ -371,12 +371,13 @@ func (r *ShipmentRepository) CommissionExists(ctx context.Context, commissionID 
 	return count > 0, nil
 }
 
-// WorkbenchAssignedToOther checks if workbench is assigned to another shipment.
+// WorkbenchAssignedToOther checks if workbench is assigned to another active shipment.
 // Returns the shipment ID if assigned to another, empty string if not.
+// Excludes completed/merged shipments since workbenches can be reassigned after completion.
 func (r *ShipmentRepository) WorkbenchAssignedToOther(ctx context.Context, workbenchID, excludeShipmentID string) (string, error) {
 	var shipmentID string
 	err := r.db.QueryRowContext(ctx,
-		"SELECT id FROM shipments WHERE assigned_workbench_id = ? AND id != ? LIMIT 1",
+		"SELECT id FROM shipments WHERE assigned_workbench_id = ? AND id != ? AND status NOT IN ('complete', 'merged') LIMIT 1",
 		workbenchID, excludeShipmentID,
 	).Scan(&shipmentID)
 
@@ -398,6 +399,86 @@ func (r *ShipmentRepository) UpdateContainer(ctx context.Context, id, containerI
 	)
 	if err != nil {
 		return fmt.Errorf("failed to update shipment container: %w", err)
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		return fmt.Errorf("shipment %s not found", id)
+	}
+
+	return nil
+}
+
+// ListShipyardQueue retrieves shipments in the shipyard queue, ordered by priority then created_at.
+func (r *ShipmentRepository) ListShipyardQueue(ctx context.Context, commissionID string) ([]*secondary.ShipyardQueueEntry, error) {
+	query := `
+		SELECT
+			s.id, s.commission_id, s.title, s.priority, s.created_at,
+			COUNT(t.id) as task_count,
+			SUM(CASE WHEN t.status = 'complete' THEN 1 ELSE 0 END) as done_count
+		FROM shipments s
+		LEFT JOIN tasks t ON t.shipment_id = s.id
+		WHERE s.container_type = 'shipyard'
+		  AND s.status NOT IN ('complete', 'merged')
+	`
+	args := []any{}
+
+	if commissionID != "" {
+		query += " AND s.commission_id = ?"
+		args = append(args, commissionID)
+	}
+
+	query += `
+		GROUP BY s.id
+		ORDER BY COALESCE(s.priority, 999) ASC, s.created_at ASC
+	`
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list shipyard queue: %w", err)
+	}
+	defer rows.Close()
+
+	var entries []*secondary.ShipyardQueueEntry
+	for rows.Next() {
+		var (
+			priority  sql.NullInt64
+			createdAt time.Time
+		)
+		entry := &secondary.ShipyardQueueEntry{}
+		err := rows.Scan(&entry.ID, &entry.CommissionID, &entry.Title, &priority, &createdAt, &entry.TaskCount, &entry.DoneCount)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan shipyard queue entry: %w", err)
+		}
+		if priority.Valid {
+			p := int(priority.Int64)
+			entry.Priority = &p
+		}
+		entry.CreatedAt = createdAt.Format(time.RFC3339)
+		entries = append(entries, entry)
+	}
+
+	return entries, nil
+}
+
+// UpdatePriority sets the priority for a shipment (nil to clear).
+func (r *ShipmentRepository) UpdatePriority(ctx context.Context, id string, priority *int) error {
+	var result sql.Result
+	var err error
+
+	if priority == nil {
+		result, err = r.db.ExecContext(ctx,
+			"UPDATE shipments SET priority = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+			id,
+		)
+	} else {
+		result, err = r.db.ExecContext(ctx,
+			"UPDATE shipments SET priority = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+			*priority, id,
+		)
+	}
+	if err != nil {
+		return fmt.Errorf("failed to update shipment priority: %w", err)
 	}
 
 	rowsAffected, _ := result.RowsAffected()

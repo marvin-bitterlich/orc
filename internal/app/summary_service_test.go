@@ -314,6 +314,14 @@ func (m *mockShipmentServiceForSummary) UnparkShipment(_ context.Context, _, _ s
 	return nil
 }
 
+func (m *mockShipmentServiceForSummary) ListShipyardQueue(_ context.Context, _ string) ([]*primary.ShipyardQueueEntry, error) {
+	return nil, nil
+}
+
+func (m *mockShipmentServiceForSummary) SetShipmentPriority(_ context.Context, _ string, _ *int) error {
+	return nil
+}
+
 // mockTaskServiceForSummary implements primary.TaskService for testing.
 type mockTaskServiceForSummary struct{}
 

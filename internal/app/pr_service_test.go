@@ -206,6 +206,14 @@ func (m *mockShipmentServiceForPR) UnparkShipment(ctx context.Context, shipmentI
 	return nil
 }
 
+func (m *mockShipmentServiceForPR) ListShipyardQueue(ctx context.Context, commissionID string) ([]*primary.ShipyardQueueEntry, error) {
+	return nil, nil
+}
+
+func (m *mockShipmentServiceForPR) SetShipmentPriority(ctx context.Context, shipmentID string, priority *int) error {
+	return nil
+}
+
 func TestPRService_CreatePR(t *testing.T) {
 	ctx := context.Background()
 

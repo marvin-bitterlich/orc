@@ -347,6 +347,40 @@ func recordToTask(r *secondary.TaskRecord) *primary.Task {
 	}
 }
 
+// ListShipyardQueue retrieves shipments in the shipyard queue, ordered by priority.
+func (s *ShipmentServiceImpl) ListShipyardQueue(ctx context.Context, commissionID string) ([]*primary.ShipyardQueueEntry, error) {
+	entries, err := s.shipmentRepo.ListShipyardQueue(ctx, commissionID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert secondary records to primary types
+	result := make([]*primary.ShipyardQueueEntry, len(entries))
+	for i, e := range entries {
+		result[i] = &primary.ShipyardQueueEntry{
+			ID:           e.ID,
+			CommissionID: e.CommissionID,
+			Title:        e.Title,
+			Priority:     e.Priority,
+			TaskCount:    e.TaskCount,
+			DoneCount:    e.DoneCount,
+			CreatedAt:    e.CreatedAt,
+		}
+	}
+
+	return result, nil
+}
+
+// SetShipmentPriority sets the priority for a shipment in the queue.
+func (s *ShipmentServiceImpl) SetShipmentPriority(ctx context.Context, shipmentID string, priority *int) error {
+	// Validate priority if set
+	if priority != nil && *priority < 1 {
+		return fmt.Errorf("priority must be at least 1, got %d", *priority)
+	}
+
+	return s.shipmentRepo.UpdatePriority(ctx, shipmentID, priority)
+}
+
 // Ensure ShipmentServiceImpl implements the interface
 var _ primary.ShipmentService = (*ShipmentServiceImpl)(nil)
 

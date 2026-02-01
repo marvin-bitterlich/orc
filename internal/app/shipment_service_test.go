@@ -168,6 +168,38 @@ func (m *mockShipmentRepository) UpdateContainer(ctx context.Context, id, contai
 	return nil
 }
 
+func (m *mockShipmentRepository) ListShipyardQueue(ctx context.Context, commissionID string) ([]*secondary.ShipyardQueueEntry, error) {
+	var entries []*secondary.ShipyardQueueEntry
+	for _, s := range m.shipments {
+		if s.ContainerType != "shipyard" {
+			continue
+		}
+		if commissionID != "" && s.CommissionID != commissionID {
+			continue
+		}
+		if s.Status == "complete" || s.Status == "merged" {
+			continue
+		}
+		entries = append(entries, &secondary.ShipyardQueueEntry{
+			ID:           s.ID,
+			CommissionID: s.CommissionID,
+			Title:        s.Title,
+			Priority:     s.Priority,
+			TaskCount:    0,
+			DoneCount:    0,
+			CreatedAt:    s.CreatedAt,
+		})
+	}
+	return entries, nil
+}
+
+func (m *mockShipmentRepository) UpdatePriority(ctx context.Context, id string, priority *int) error {
+	if shipment, ok := m.shipments[id]; ok {
+		shipment.Priority = priority
+	}
+	return nil
+}
+
 // mockTaskRepositoryForShipment implements minimal TaskRepository for shipment tests.
 type mockTaskRepositoryForShipment struct {
 	tasks     map[string]*secondary.TaskRecord
