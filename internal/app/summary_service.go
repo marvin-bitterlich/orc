@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/example/orc/internal/config"
 	"github.com/example/orc/internal/ports/primary"
 )
 
@@ -92,10 +91,6 @@ func (s *SummaryServiceImpl) GetCommissionSummary(ctx context.Context, req prima
 	tomesByContainer := s.groupTomesByContainer(allTomes)
 	shipsByContainer := s.groupShipmentsByContainer(allShipments)
 
-	// Track hidden shipments for IMP view
-	hiddenShipmentCount := 0
-	isIMP := req.Role == config.RoleIMP
-
 	// Build conclave summaries
 	var conclaveSummaries []primary.ConclaveSummary
 	for _, con := range conclaves {
@@ -139,15 +134,6 @@ func (s *SummaryServiceImpl) GetCommissionSummary(ctx context.Context, req prima
 					continue
 				}
 
-				// IMP filtering: hide shipments not assigned to this workbench
-				if isIMP && !req.ShowAllShipments {
-					if ship.AssignedWorkbenchID != "" && ship.AssignedWorkbenchID != req.WorkbenchID {
-						addDebug(fmt.Sprintf("Hidden: %s (%s) - assigned to %s (not this workbench)", ship.ID, ship.Title, ship.AssignedWorkbenchID))
-						hiddenShipmentCount++
-						continue
-					}
-				}
-
 				shipSummary, err := s.buildShipmentSummary(ctx, ship, req.FocusID)
 				if err != nil {
 					continue // Skip on error
@@ -163,7 +149,7 @@ func (s *SummaryServiceImpl) GetCommissionSummary(ctx context.Context, req prima
 	librarySummary := s.buildLibrarySummaryWithDebug(ctx, allTomes, req.ExpandLibrary, req.FocusID, addDebug)
 
 	// Build shipyard summary (shipments with container_type="shipyard")
-	shipyardSummary := s.buildShipyardSummaryWithDebug(ctx, allShipments, isIMP, req.ShowAllShipments, req.WorkbenchID, &hiddenShipmentCount, req.ExpandLibrary, req.FocusID, addDebug)
+	shipyardSummary := s.buildShipyardSummaryWithDebug(ctx, allShipments, req.ExpandLibrary, req.FocusID, addDebug)
 
 	// Build debug info if in debug mode
 	var debugInfo *primary.DebugInfo
@@ -172,13 +158,12 @@ func (s *SummaryServiceImpl) GetCommissionSummary(ctx context.Context, req prima
 	}
 
 	return &primary.CommissionSummary{
-		ID:                  commission.ID,
-		Title:               commission.Title,
-		Conclaves:           conclaveSummaries,
-		Library:             librarySummary,
-		Shipyard:            shipyardSummary,
-		HiddenShipmentCount: hiddenShipmentCount,
-		DebugInfo:           debugInfo,
+		ID:        commission.ID,
+		Title:     commission.Title,
+		Conclaves: conclaveSummaries,
+		Library:   librarySummary,
+		Shipyard:  shipyardSummary,
+		DebugInfo: debugInfo,
 	}, nil
 }
 
@@ -321,7 +306,7 @@ func (s *SummaryServiceImpl) buildLibrarySummaryWithDebug(ctx context.Context, t
 }
 
 // buildShipyardSummaryWithDebug counts shipments in the Shipyard with debug tracking.
-func (s *SummaryServiceImpl) buildShipyardSummaryWithDebug(ctx context.Context, shipments []*primary.Shipment, isIMP, showAll bool, workbenchID string, hiddenCount *int, expand bool, focusID string, addDebug func(string)) primary.ShipyardSummary {
+func (s *SummaryServiceImpl) buildShipyardSummaryWithDebug(ctx context.Context, shipments []*primary.Shipment, expand bool, focusID string, addDebug func(string)) primary.ShipyardSummary {
 	var yardShipments []primary.ShipmentSummary
 	count := 0
 	for _, ship := range shipments {
@@ -329,14 +314,6 @@ func (s *SummaryServiceImpl) buildShipyardSummaryWithDebug(ctx context.Context, 
 			if ship.Status == "complete" {
 				addDebug(fmt.Sprintf("Hidden: %s (%s) - status is complete", ship.ID, ship.Title))
 				continue
-			}
-			// For IMP, check visibility
-			if isIMP && !showAll {
-				if ship.AssignedWorkbenchID != "" && ship.AssignedWorkbenchID != workbenchID {
-					addDebug(fmt.Sprintf("Hidden: %s (%s) - assigned to %s (not this workbench)", ship.ID, ship.Title, ship.AssignedWorkbenchID))
-					*hiddenCount++
-					continue
-				}
 			}
 			count++
 			if expand {

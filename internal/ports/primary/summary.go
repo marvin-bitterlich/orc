@@ -11,25 +11,22 @@ type SummaryService interface {
 
 // SummaryRequest contains parameters for getting a commission summary.
 type SummaryRequest struct {
-	CommissionID     string // Required: which commission to summarize
-	Role             string // "GOBLIN" or "IMP"
-	WorkbenchID      string // For IMP: the workbench making the request
-	WorkshopID       string // For GOBLIN: the workshop making the request
-	FocusID          string // Currently focused container
-	ShowAllShipments bool   // IMP flag: show shipments not assigned to this workbench
-	ExpandLibrary    bool   // Show individual tomes in LIBRARY and shipments in SHIPYARD
-	DebugMode        bool   // Show debug info about what was filtered
+	CommissionID  string // Required: which commission to summarize
+	WorkbenchID   string // The workbench making the request (for context)
+	WorkshopID    string // The workshop making the request (for context)
+	FocusID       string // Currently focused container
+	ExpandLibrary bool   // Show individual tomes in LIBRARY and shipments in SHIPYARD
+	DebugMode     bool   // Show debug info about what was filtered
 }
 
 // CommissionSummary represents the hierarchical summary of a commission.
 type CommissionSummary struct {
-	ID                  string
-	Title               string
-	Conclaves           []ConclaveSummary
-	Library             LibrarySummary
-	Shipyard            ShipyardSummary
-	HiddenShipmentCount int // Count of shipments hidden from IMP view
-	DebugInfo           *DebugInfo
+	ID        string
+	Title     string
+	Conclaves []ConclaveSummary
+	Library   LibrarySummary
+	Shipyard  ShipyardSummary
+	DebugInfo *DebugInfo
 }
 
 // DebugInfo contains debug messages about filtering decisions.

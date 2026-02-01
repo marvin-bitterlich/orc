@@ -66,23 +66,18 @@ Display modes:
   --all: Show all commissions and containers
   --commission [id]: Show specific commission (or 'current' for focus/context)
 
-Role-based views:
-  Goblin (Workshop): Full tree with [BENCH-xxx] markers on assigned shipments
-  IMP (Workbench): Filtered tree with [FOCUSED] marker, hides other workbenches' shipments
-
 Structure:
   Commission
   ├── Conclave (design discussions)
   │   ├── Tome (notes)
-  │   └── Shipment (tasks)
+  │   └── Shipment (tasks) [BENCH-xxx] shows workbench assignment
   ├── LIBRARY (parked tomes)
   └── SHIPYARD (parked shipments)
 
 Examples:
   orc summary                          # focused container's commission only
   orc summary --all                    # all commissions
-  orc summary --commission COMM-001    # specific commission
-  orc summary --all-shipments          # IMP: show shipments from other workbenches`,
+  orc summary --commission COMM-001    # specific commission`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Get current working directory for config
 			cwd, err := os.Getwd()
@@ -93,7 +88,6 @@ Examples:
 			// Get flags
 			commissionFilter, _ := cmd.Flags().GetString("commission")
 			expandAll, _ := cmd.Flags().GetBool("all")
-			allShipments, _ := cmd.Flags().GetBool("all-shipments")
 			expandLibrary, _ := cmd.Flags().GetBool("expand")
 			debugMode, _ := cmd.Flags().GetBool("debug")
 
@@ -185,18 +179,19 @@ Examples:
 			// Render header based on role
 			renderHeader(role, workbenchID, workshopID, gatehouseID, focusID, filterCommissionID)
 
+			// Build map of focused containers across all workbenches in this workshop
+			workshopFocus := buildWorkshopFocusMap(cmd.Context(), workshopID, workbenchID, gatehouseID)
+
 			// Display each commission
 			for i, commission := range openCommissions {
 				// Build summary request
 				req := primary.SummaryRequest{
-					CommissionID:     commission.ID,
-					Role:             role,
-					WorkbenchID:      workbenchID,
-					WorkshopID:       workshopID,
-					FocusID:          focusID,
-					ShowAllShipments: allShipments,
-					ExpandLibrary:    expandLibrary,
-					DebugMode:        debugMode,
+					CommissionID:  commission.ID,
+					WorkbenchID:   workbenchID,
+					WorkshopID:    workshopID,
+					FocusID:       focusID,
+					ExpandLibrary: expandLibrary,
+					DebugMode:     debugMode,
 				}
 
 				summary, err := wire.SummaryService().GetCommissionSummary(context.Background(), req)
@@ -205,12 +200,8 @@ Examples:
 					continue
 				}
 
-				// Render based on role
-				if config.IsGoblinRole(role) {
-					renderGoblinSummary(summary, focusID)
-				} else {
-					renderIMPSummary(summary, focusID, allShipments)
-				}
+				// Render summary (unified view for all roles)
+				renderSummary(summary, focusID, workshopFocus)
 
 				// Render debug info if present
 				if summary.DebugInfo != nil && len(summary.DebugInfo.Messages) > 0 {
@@ -229,7 +220,6 @@ Examples:
 
 	cmd.Flags().StringP("commission", "c", "", "Commission filter: commission ID or 'current' for context commission")
 	cmd.Flags().Bool("all", false, "Show all containers (default: only show focused container if set)")
-	cmd.Flags().Bool("all-shipments", false, "Show all shipments including those assigned to other workbenches (IMP only)")
 	cmd.Flags().Bool("expand", false, "Expand LIBRARY and SHIPYARD to show individual contents")
 	cmd.Flags().Bool("debug", false, "Show debug info about hidden/filtered content")
 
@@ -284,15 +274,96 @@ func renderWorkshopBenches(workshopID, currentWorkbenchID string) {
 	}
 }
 
-// renderGoblinSummary renders the full tree view for Goblin role
-func renderGoblinSummary(summary *primary.CommissionSummary, _ string) {
+// workshopFocusInfo tracks what each workbench in the workshop has focused
+type workshopFocusInfo struct {
+	containerToWorkbench map[string]string // containerID -> "name@ID" that has it focused
+	myName               string            // current workbench name
+	myID                 string            // current workbench ID
+	goblinID             string            // gatehouse ID
+}
+
+// buildWorkshopFocusMap fetches focus for all workbenches and the goblin in the workshop
+func buildWorkshopFocusMap(ctx context.Context, workshopID, currentWorkbenchID, gatehouseID string) workshopFocusInfo {
+	info := workshopFocusInfo{
+		containerToWorkbench: make(map[string]string),
+		myID:                 currentWorkbenchID,
+		goblinID:             gatehouseID,
+	}
+
+	if workshopID == "" {
+		return info
+	}
+
+	// Get current workbench name
+	if currentWorkbenchID != "" {
+		if wb, err := wire.WorkbenchService().GetWorkbench(ctx, currentWorkbenchID); err == nil {
+			info.myName = wb.Name
+		}
+	}
+
+	// Get Goblin's focus (workshop-level focus)
+	goblinFocusID, err := wire.WorkshopService().GetFocusedConclaveID(ctx, workshopID)
+	if err == nil && goblinFocusID != "" {
+		info.containerToWorkbench[goblinFocusID] = fmt.Sprintf("goblin@%s", gatehouseID)
+	}
+
+	// Get each IMP's focus
+	workbenches, err := wire.WorkbenchService().ListWorkbenches(ctx, primary.WorkbenchFilters{
+		WorkshopID: workshopID,
+	})
+	if err != nil {
+		return info
+	}
+
+	for _, wb := range workbenches {
+		// Skip our own workbench - handled separately for [FOCUSED] marker
+		if wb.ID == currentWorkbenchID {
+			continue
+		}
+
+		focusedID, err := wire.WorkbenchService().GetFocusedID(ctx, wb.ID)
+		if err != nil || focusedID == "" {
+			continue
+		}
+
+		info.containerToWorkbench[focusedID] = fmt.Sprintf("%s@%s", wb.Name, wb.ID)
+	}
+
+	return info
+}
+
+// renderSummary renders the commission tree view
+func renderSummary(summary *primary.CommissionSummary, _ string, workshopFocus workshopFocusInfo) {
 	// Commission header
 	fmt.Printf("%s - %s\n", colorizeID(summary.ID), summary.Title)
 	fmt.Println("│")
 
+	// Sort conclaves: my focus first, then other actors' focus, then active work, then rest
+	var myFocusedConclaves []primary.ConclaveSummary
+	var otherFocusedConclaves []primary.ConclaveSummary
+	var activeWorkConclaves []primary.ConclaveSummary
+	var otherConclaves []primary.ConclaveSummary
+
+	for i := range summary.Conclaves {
+		con := summary.Conclaves[i]
+		if con.IsFocused {
+			myFocusedConclaves = append(myFocusedConclaves, con)
+		} else if workshopFocus.containerToWorkbench[con.ID] != "" {
+			otherFocusedConclaves = append(otherFocusedConclaves, con)
+		} else if hasActiveWork(con, workshopFocus) {
+			activeWorkConclaves = append(activeWorkConclaves, con)
+		} else {
+			otherConclaves = append(otherConclaves, con)
+		}
+	}
+
+	conclaves := append(myFocusedConclaves, otherFocusedConclaves...)
+	conclaves = append(conclaves, activeWorkConclaves...)
+	conclaves = append(conclaves, otherConclaves...)
+
 	// Conclaves
-	for i, con := range summary.Conclaves {
-		isLastConclave := i == len(summary.Conclaves)-1
+	for i, con := range conclaves {
+		isLastConclave := i == len(conclaves)-1
 
 		prefix := "├── "
 		childPrefix := "│   "
@@ -303,7 +374,9 @@ func renderGoblinSummary(summary *primary.CommissionSummary, _ string) {
 
 		focusMarker := ""
 		if con.IsFocused {
-			focusMarker = color.New(color.FgHiMagenta).Sprint(" [FOCUSED]")
+			focusMarker = color.New(color.FgHiMagenta).Sprintf(" [focused by %s@%s (you)]", workshopFocus.myName, workshopFocus.myID)
+		} else if who := workshopFocus.containerToWorkbench[con.ID]; who != "" {
+			focusMarker = color.New(color.FgCyan).Sprintf(" [focused by %s]", who)
 		}
 		pinnedMarker := ""
 		if con.Pinned {
@@ -349,7 +422,9 @@ func renderGoblinSummary(summary *primary.CommissionSummary, _ string) {
 			}
 			focusMark := ""
 			if tome.IsFocused {
-				focusMark = color.New(color.FgHiMagenta).Sprint(" [FOCUSED]")
+				focusMark = color.New(color.FgHiMagenta).Sprintf(" [focused by %s@%s (you)]", workshopFocus.myName, workshopFocus.myID)
+			} else if who := workshopFocus.containerToWorkbench[tome.ID]; who != "" {
+				focusMark = color.New(color.FgCyan).Sprintf(" [focused by %s]", who)
 			}
 
 			fmt.Printf("%s%s%s%s - %s%s\n", tomePrefix, colorizeID(tome.ID), focusMark, pinnedMark, tome.Title, noteInfo)
@@ -385,7 +460,11 @@ func renderGoblinSummary(summary *primary.CommissionSummary, _ string) {
 
 			benchMarker := ""
 			if ship.BenchID != "" {
-				benchMarker = color.New(color.FgCyan).Sprintf(" [%s]", ship.BenchID)
+				if ship.BenchName != "" {
+					benchMarker = color.New(color.FgCyan).Sprintf(" [assigned to %s@%s]", ship.BenchName, ship.BenchID)
+				} else {
+					benchMarker = color.New(color.FgCyan).Sprintf(" [assigned to %s]", ship.BenchID)
+				}
 			}
 			taskInfo := fmt.Sprintf(" (%d/%d done)", ship.TasksDone, ship.TasksTotal)
 			pinnedMark := ""
@@ -394,7 +473,9 @@ func renderGoblinSummary(summary *primary.CommissionSummary, _ string) {
 			}
 			focusMark := ""
 			if ship.IsFocused {
-				focusMark = color.New(color.FgHiMagenta).Sprint(" [FOCUSED]")
+				focusMark = color.New(color.FgHiMagenta).Sprintf(" [focused by %s@%s (you)]", workshopFocus.myName, workshopFocus.myID)
+			} else if who := workshopFocus.containerToWorkbench[ship.ID]; who != "" {
+				focusMark = color.New(color.FgCyan).Sprintf(" [focused by %s]", who)
 			}
 
 			fmt.Printf("%s%s%s%s%s - %s%s\n", shipPrefix, colorizeID(ship.ID), benchMarker, focusMark, pinnedMark, ship.Title, taskInfo)
@@ -423,7 +504,7 @@ func renderGoblinSummary(summary *primary.CommissionSummary, _ string) {
 		}
 
 		// Add spacing between conclaves
-		if i < len(summary.Conclaves)-1 || summary.Library.TomeCount > 0 || summary.Shipyard.ShipmentCount > 0 {
+		if i < len(conclaves)-1 || summary.Library.TomeCount > 0 || summary.Shipyard.ShipmentCount > 0 {
 			fmt.Println("│")
 		}
 	}
@@ -455,7 +536,9 @@ func renderGoblinSummary(summary *primary.CommissionSummary, _ string) {
 			}
 			focusMark := ""
 			if tome.IsFocused {
-				focusMark = color.New(color.FgHiMagenta).Sprint(" [FOCUSED]")
+				focusMark = color.New(color.FgHiMagenta).Sprintf(" [focused by %s@%s (you)]", workshopFocus.myName, workshopFocus.myID)
+			} else if who := workshopFocus.containerToWorkbench[tome.ID]; who != "" {
+				focusMark = color.New(color.FgCyan).Sprintf(" [focused by %s]", who)
 			}
 			fmt.Printf("%s%s%s%s - %s%s\n", tomePrefix, colorizeID(tome.ID), focusMark, pinnedMark, tome.Title, noteInfo)
 		}
@@ -474,7 +557,11 @@ func renderGoblinSummary(summary *primary.CommissionSummary, _ string) {
 			}
 			benchMarker := ""
 			if ship.BenchID != "" {
-				benchMarker = color.New(color.FgCyan).Sprintf(" [%s]", ship.BenchID)
+				if ship.BenchName != "" {
+					benchMarker = color.New(color.FgCyan).Sprintf(" [assigned to %s@%s]", ship.BenchName, ship.BenchID)
+				} else {
+					benchMarker = color.New(color.FgCyan).Sprintf(" [assigned to %s]", ship.BenchID)
+				}
 			}
 			taskInfo := fmt.Sprintf(" (%d/%d done)", ship.TasksDone, ship.TasksTotal)
 			pinnedMark := ""
@@ -483,217 +570,29 @@ func renderGoblinSummary(summary *primary.CommissionSummary, _ string) {
 			}
 			focusMark := ""
 			if ship.IsFocused {
-				focusMark = color.New(color.FgHiMagenta).Sprint(" [FOCUSED]")
+				focusMark = color.New(color.FgHiMagenta).Sprintf(" [focused by %s@%s (you)]", workshopFocus.myName, workshopFocus.myID)
+			} else if who := workshopFocus.containerToWorkbench[ship.ID]; who != "" {
+				focusMark = color.New(color.FgCyan).Sprintf(" [focused by %s]", who)
 			}
 			fmt.Printf("%s%s%s%s%s - %s%s\n", shipPrefix, colorizeID(ship.ID), benchMarker, focusMark, pinnedMark, ship.Title, taskInfo)
 		}
 	}
 }
 
-// renderIMPSummary renders the filtered tree view for IMP role
-func renderIMPSummary(summary *primary.CommissionSummary, _ string, showAll bool) {
-	// Commission header
-	fmt.Printf("%s - %s\n", colorizeID(summary.ID), summary.Title)
-	fmt.Println("│")
-
-	// Conclaves
-	for i, con := range summary.Conclaves {
-		isLastConclave := i == len(summary.Conclaves)-1
-
-		prefix := "├── "
-		childPrefix := "│   "
-		if isLastConclave && summary.Library.TomeCount == 0 && summary.Shipyard.ShipmentCount == 0 && summary.HiddenShipmentCount == 0 {
-			prefix = "└── "
-			childPrefix = "    "
-		}
-
-		focusMarker := ""
-		if con.IsFocused {
-			focusMarker = color.New(color.FgHiMagenta).Sprint(" [FOCUSED]")
-		}
-		pinnedMarker := ""
-		if con.Pinned {
-			pinnedMarker = " *"
-		}
-
-		// Tomes under conclave (no note counts for IMP - simpler view)
-		totalChildren := len(con.Tomes) + len(con.Shipments)
-
-		// Build counts suffix for conclave
-		countParts := []string{}
-		if len(con.Tomes) > 0 {
-			countParts = append(countParts, pluralize(len(con.Tomes), "tome", "tomes"))
-		}
-		if len(con.Shipments) > 0 {
-			countParts = append(countParts, pluralize(len(con.Shipments), "shipment", "shipments"))
-		}
-		countSuffix := ""
-		if len(countParts) > 0 {
-			countSuffix = fmt.Sprintf(" (%s)", strings.Join(countParts, ", "))
-		}
-
-		fmt.Printf("%s%s%s%s - %s%s\n", prefix, colorizeID(con.ID), focusMarker, pinnedMarker, con.Title, countSuffix)
-		childIdx := 0
-
-		for _, tome := range con.Tomes {
-			isLast := childIdx == totalChildren-1
-			tomePrefix := childPrefix + "├── "
-			tomeChildPrefix := childPrefix + "│   "
-			if isLast {
-				tomePrefix = childPrefix + "└── "
-				tomeChildPrefix = childPrefix + "    "
-			}
-
-			noteInfo := ""
-			if tome.NoteCount > 0 && len(tome.Notes) == 0 {
-				// Show count only if notes aren't expanded
-				noteInfo = fmt.Sprintf(" (%s)", pluralize(tome.NoteCount, "note", "notes"))
-			}
-			pinnedMark := ""
-			if tome.Pinned {
-				pinnedMark = " *"
-			}
-			focusMark := ""
-			if tome.IsFocused {
-				focusMark = color.New(color.FgHiMagenta).Sprint(" [FOCUSED]")
-			}
-
-			fmt.Printf("%s%s%s%s - %s%s\n", tomePrefix, colorizeID(tome.ID), focusMark, pinnedMark, tome.Title, noteInfo)
-
-			// Expand notes for focused tome/conclave
-			if len(tome.Notes) > 0 {
-				for j, note := range tome.Notes {
-					isLastNote := j == len(tome.Notes)-1
-					notePrefix := tomeChildPrefix + "├── "
-					if isLastNote {
-						notePrefix = tomeChildPrefix + "└── "
-					}
-					typeMarker := ""
-					if note.Type != "" {
-						typeMarker = color.New(color.FgYellow).Sprintf("[%s] ", note.Type)
-					}
-					fmt.Printf("%s%s %s- %s\n", notePrefix, colorizeID(note.ID), typeMarker, note.Title)
-				}
-			}
-
-			childIdx++
-		}
-
-		// Shipments under conclave
-		for _, ship := range con.Shipments {
-			isLast := childIdx == totalChildren-1
-			shipPrefix := childPrefix + "├── "
-			taskPrefix := childPrefix + "│   "
-			if isLast {
-				shipPrefix = childPrefix + "└── "
-				taskPrefix = childPrefix + "    "
-			}
-
-			// IMP sees [FOCUSED] for their focused shipment instead of bench ID
-			focusMark := ""
-			if ship.IsFocused {
-				focusMark = color.New(color.FgHiMagenta).Sprint(" [FOCUSED]")
-			}
-			taskInfo := fmt.Sprintf(" (%d/%d done)", ship.TasksDone, ship.TasksTotal)
-			pinnedMark := ""
-			if ship.Pinned {
-				pinnedMark = " *"
-			}
-
-			fmt.Printf("%s%s%s%s - %s%s\n", shipPrefix, colorizeID(ship.ID), focusMark, pinnedMark, ship.Title, taskInfo)
-
-			// Expand tasks for focused shipment
-			if ship.IsFocused && len(ship.Tasks) > 0 {
-				for j, task := range ship.Tasks {
-					isLastTask := j == len(ship.Tasks)-1
-					tPrefix := taskPrefix + "├── "
-					taskChildPrefix := taskPrefix + "│   "
-					if isLastTask {
-						tPrefix = taskPrefix + "└── "
-						taskChildPrefix = taskPrefix + "    "
-					}
-					statusMark := ""
-					if task.Status != "" && task.Status != "ready" {
-						statusMark = colorizeStatus(task.Status) + " - "
-					}
-					fmt.Printf("%s%s - %s%s\n", tPrefix, colorizeID(task.ID), statusMark, task.Title)
-					// Render task children (plans, approvals, escalations, receipts)
-					renderTaskChildren(task, taskChildPrefix)
-				}
-			}
-
-			childIdx++
-		}
-
-		// Add spacing between conclaves
-		if i < len(summary.Conclaves)-1 || summary.Library.TomeCount > 0 || summary.Shipyard.ShipmentCount > 0 || summary.HiddenShipmentCount > 0 {
-			fmt.Println("│")
+// hasActiveWork returns true if the conclave has focused children, assigned shipments,
+// or items focused by other workbenches
+func hasActiveWork(con primary.ConclaveSummary, workshopFocus workshopFocusInfo) bool {
+	for _, tome := range con.Tomes {
+		if tome.IsFocused || workshopFocus.containerToWorkbench[tome.ID] != "" {
+			return true
 		}
 	}
-
-	// Library (always shown)
-	libPrefix := "├── "
-	libChildPrefix := "│   "
-	if summary.Shipyard.ShipmentCount == 0 && summary.HiddenShipmentCount == 0 {
-		libPrefix = "└── "
-		libChildPrefix = "    "
-	}
-	fmt.Printf("%s%s (%s)\n", libPrefix, colorizeLabel("LIBRARY"), pluralize(summary.Library.TomeCount, "tome", "tomes"))
-
-	// Expanded library tomes
-	if len(summary.Library.Tomes) > 0 {
-		for i, tome := range summary.Library.Tomes {
-			isLast := i == len(summary.Library.Tomes)-1
-			tomePrefix := libChildPrefix + "├── "
-			if isLast {
-				tomePrefix = libChildPrefix + "└── "
-			}
-			pinnedMark := ""
-			if tome.Pinned {
-				pinnedMark = " *"
-			}
-			focusMark := ""
-			if tome.IsFocused {
-				focusMark = color.New(color.FgHiMagenta).Sprint(" [FOCUSED]")
-			}
-			fmt.Printf("%s%s%s%s - %s\n", tomePrefix, colorizeID(tome.ID), focusMark, pinnedMark, tome.Title)
+	for _, ship := range con.Shipments {
+		if ship.IsFocused || ship.BenchID != "" || workshopFocus.containerToWorkbench[ship.ID] != "" {
+			return true
 		}
 	}
-
-	// Shipyard (always shown)
-	shipyardPrefix := "└── "
-	shipyardChildPrefix := "    "
-	if summary.HiddenShipmentCount > 0 {
-		shipyardPrefix = "├── "
-		shipyardChildPrefix = "│   "
-	}
-	fmt.Printf("%s%s (%s)\n", shipyardPrefix, colorizeLabel("SHIPYARD"), pluralize(summary.Shipyard.ShipmentCount, "shipment", "shipments"))
-
-	// Expanded shipyard shipments
-	if len(summary.Shipyard.Shipments) > 0 {
-		for i, ship := range summary.Shipyard.Shipments {
-			isLast := i == len(summary.Shipyard.Shipments)-1 && summary.HiddenShipmentCount == 0
-			shipPrefix := shipyardChildPrefix + "├── "
-			if isLast {
-				shipPrefix = shipyardChildPrefix + "└── "
-			}
-			focusMark := ""
-			if ship.IsFocused {
-				focusMark = color.New(color.FgHiMagenta).Sprint(" [FOCUSED]")
-			}
-			taskInfo := fmt.Sprintf(" (%d/%d done)", ship.TasksDone, ship.TasksTotal)
-			pinnedMark := ""
-			if ship.Pinned {
-				pinnedMark = " *"
-			}
-			fmt.Printf("%s%s%s%s - %s%s\n", shipPrefix, colorizeID(ship.ID), focusMark, pinnedMark, ship.Title, taskInfo)
-		}
-	}
-
-	// Hidden shipments message for IMP
-	if summary.HiddenShipmentCount > 0 && !showAll {
-		fmt.Printf("└── (%d other shipments hidden - use --all-shipments to show)\n", summary.HiddenShipmentCount)
-	}
+	return false
 }
 
 // pluralize returns "N singular" or "N plural" based on count

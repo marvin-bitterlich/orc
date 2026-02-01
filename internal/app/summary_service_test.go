@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/example/orc/internal/config"
 	"github.com/example/orc/internal/ports/primary"
 )
 
@@ -586,13 +585,11 @@ func TestSummaryService_GetCommissionSummary_GoblinFullTree(t *testing.T) {
 	// Create service
 	svc := NewSummaryService(commissionSvc, conclaveSvc, tomeSvc, shipmentSvc, taskSvc, noteSvc, workbenchSvc, nil, nil, nil, nil)
 
-	// Request summary as Goblin
+	// Request summary
 	req := primary.SummaryRequest{
-		CommissionID:     "COMM-001",
-		Role:             config.RoleGoblin,
-		WorkshopID:       "WORK-001",
-		FocusID:          "CON-001",
-		ShowAllShipments: false,
+		CommissionID: "COMM-001",
+		WorkshopID:   "WORK-001",
+		FocusID:      "CON-001",
 	}
 
 	summary, err := svc.GetCommissionSummary(context.Background(), req)
@@ -642,14 +639,9 @@ func TestSummaryService_GetCommissionSummary_GoblinFullTree(t *testing.T) {
 	if summary.Library.TomeCount != 1 {
 		t.Errorf("expected 1 library tome, got %d", summary.Library.TomeCount)
 	}
-
-	// Verify no hidden shipments for Goblin
-	if summary.HiddenShipmentCount != 0 {
-		t.Errorf("expected 0 hidden shipments for Goblin, got %d", summary.HiddenShipmentCount)
-	}
 }
 
-func TestSummaryService_GetCommissionSummary_IMPHidesOtherWorkbenchShipments(t *testing.T) {
+func TestSummaryService_GetCommissionSummary_ShowsAllWorkbenchShipments(t *testing.T) {
 	// Setup mocks
 	commissionSvc := newMockCommissionServiceForSummary()
 	conclaveSvc := newMockConclaveServiceForSummary()
@@ -674,7 +666,7 @@ func TestSummaryService_GetCommissionSummary_IMPHidesOtherWorkbenchShipments(t *
 		Status:       "active",
 	}
 
-	// Create shipment assigned to requesting workbench
+	// Create shipment assigned to one workbench
 	shipmentSvc.shipments["SHIP-001"] = &primary.Shipment{
 		ID:                  "SHIP-001",
 		CommissionID:        "COMM-001",
@@ -682,7 +674,7 @@ func TestSummaryService_GetCommissionSummary_IMPHidesOtherWorkbenchShipments(t *
 		ContainerType:       "conclave",
 		Title:               "My Shipment",
 		Status:              "active",
-		AssignedWorkbenchID: "BENCH-001", // IMP's workbench
+		AssignedWorkbenchID: "BENCH-001",
 	}
 
 	// Create shipment assigned to different workbench
@@ -693,7 +685,7 @@ func TestSummaryService_GetCommissionSummary_IMPHidesOtherWorkbenchShipments(t *
 		ContainerType:       "conclave",
 		Title:               "Other Shipment",
 		Status:              "active",
-		AssignedWorkbenchID: "BENCH-002", // Different workbench
+		AssignedWorkbenchID: "BENCH-002",
 	}
 
 	// Create unassigned shipment
@@ -704,19 +696,17 @@ func TestSummaryService_GetCommissionSummary_IMPHidesOtherWorkbenchShipments(t *
 		ContainerType:       "conclave",
 		Title:               "Unassigned Shipment",
 		Status:              "active",
-		AssignedWorkbenchID: "", // Unassigned
+		AssignedWorkbenchID: "",
 	}
 
 	// Create service
 	svc := NewSummaryService(commissionSvc, conclaveSvc, tomeSvc, shipmentSvc, taskSvc, noteSvc, workbenchSvc, nil, nil, nil, nil)
 
-	// Request summary as IMP (without --all-shipments)
+	// Request summary - all shipments should be visible regardless of workbench assignment
 	req := primary.SummaryRequest{
-		CommissionID:     "COMM-001",
-		Role:             config.RoleIMP,
-		WorkbenchID:      "BENCH-001",
-		FocusID:          "SHIP-001",
-		ShowAllShipments: false,
+		CommissionID: "COMM-001",
+		WorkbenchID:  "BENCH-001",
+		FocusID:      "SHIP-001",
 	}
 
 	summary, err := svc.GetCommissionSummary(context.Background(), req)
@@ -724,31 +714,9 @@ func TestSummaryService_GetCommissionSummary_IMPHidesOtherWorkbenchShipments(t *
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	// IMP should see own shipment and unassigned shipment
-	if len(summary.Conclaves[0].Shipments) != 2 {
-		t.Errorf("expected 2 visible shipments for IMP, got %d", len(summary.Conclaves[0].Shipments))
-	}
-
-	// IMP should have 1 hidden shipment
-	if summary.HiddenShipmentCount != 1 {
-		t.Errorf("expected 1 hidden shipment, got %d", summary.HiddenShipmentCount)
-	}
-
-	// Now test with --all-shipments
-	req.ShowAllShipments = true
-	summary, err = svc.GetCommissionSummary(context.Background(), req)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	// Should see all 3 shipments
+	// All 3 shipments should be visible (no more IMP filtering)
 	if len(summary.Conclaves[0].Shipments) != 3 {
-		t.Errorf("expected 3 shipments with --all-shipments, got %d", len(summary.Conclaves[0].Shipments))
-	}
-
-	// No hidden shipments when showing all
-	if summary.HiddenShipmentCount != 0 {
-		t.Errorf("expected 0 hidden shipments with --all-shipments, got %d", summary.HiddenShipmentCount)
+		t.Errorf("expected 3 visible shipments, got %d", len(summary.Conclaves[0].Shipments))
 	}
 }
 
@@ -800,7 +768,6 @@ func TestSummaryService_GetCommissionSummary_TaskCounting(t *testing.T) {
 
 	req := primary.SummaryRequest{
 		CommissionID: "COMM-001",
-		Role:         config.RoleGoblin,
 	}
 
 	summary, err := svc.GetCommissionSummary(context.Background(), req)
@@ -881,7 +848,6 @@ func TestSummaryService_GetCommissionSummary_LibraryAndShipyard(t *testing.T) {
 
 	req := primary.SummaryRequest{
 		CommissionID: "COMM-001",
-		Role:         config.RoleGoblin,
 	}
 
 	summary, err := svc.GetCommissionSummary(context.Background(), req)
