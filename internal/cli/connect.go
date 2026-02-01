@@ -1,13 +1,17 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 
 	"github.com/spf13/cobra"
 
 	"github.com/example/orc/internal/config"
+	"github.com/example/orc/internal/ports/primary"
+	"github.com/example/orc/internal/wire"
 )
 
 // ConnectCmd returns the connect command
@@ -31,6 +35,7 @@ Usage:
   orc connect                    # Launch Claude (role from place_id)
   orc connect --role imp         # Launch as IMP (workbench only)
   orc connect --role goblin      # Launch as Goblin (gatehouse only)
+  orc connect --role watchdog --target BENCH-xxx  # Launch as Watchdog
 
 Role validation:
   - IMP role is only allowed from workbenches (BENCH-XXX)
@@ -47,7 +52,8 @@ TMux Integration:
 	}
 
 	cmd.Flags().Bool("dry-run", false, "Show command that would be executed without running it")
-	cmd.Flags().String("role", "", "Agent role (imp, goblin)")
+	cmd.Flags().String("role", "", "Agent role (imp, goblin, watchdog)")
+	cmd.Flags().String("target", "", "Target workbench ID (required for watchdog role)")
 
 	return cmd
 }
@@ -55,6 +61,7 @@ TMux Integration:
 func runConnect(cmd *cobra.Command, args []string) error {
 	dryRun, _ := cmd.Flags().GetBool("dry-run")
 	role, _ := cmd.Flags().GetString("role")
+	target, _ := cmd.Flags().GetString("target")
 
 	// Load config to get place_id (with Goblin migration if needed)
 	cwd, _ := os.Getwd()
@@ -63,6 +70,11 @@ func runConnect(cmd *cobra.Command, args []string) error {
 	// Validate role against place_id
 	if err := validateRoleForPlace(role, cfg); err != nil {
 		return err
+	}
+
+	// Handle watchdog role specially
+	if role == "watchdog" {
+		return runConnectWatchdog(cmd.Context(), target, cwd, dryRun)
 	}
 
 	// The prime directive: Claude must run orc prime immediately upon boot
@@ -90,6 +102,77 @@ func runConnect(cmd *cobra.Command, args []string) error {
 		}
 		return nil
 	}
+
+	// Launch Claude
+	return claudeCmd.Run()
+}
+
+// runConnectWatchdog handles the watchdog role connection.
+func runConnectWatchdog(ctx context.Context, target, cwd string, dryRun bool) error {
+	if target == "" {
+		return fmt.Errorf("--target is required for watchdog role")
+	}
+
+	// Normalize target: accept BENCH-xxx or IMP-BENCH-xxx
+	workbenchID := target
+	if strings.HasPrefix(target, "IMP-") {
+		workbenchID = strings.TrimPrefix(target, "IMP-")
+	}
+
+	// Look up workbench
+	workbench, err := wire.WorkbenchService().GetWorkbench(ctx, workbenchID)
+	if err != nil {
+		return fmt.Errorf("workbench not found: %w", err)
+	}
+
+	// Get or create kennel for workbench
+	kennel, err := wire.KennelService().GetKennelByWorkbench(ctx, workbenchID)
+	if err != nil {
+		// Try to create kennel if it doesn't exist
+		kennel, err = wire.KennelService().CreateKennel(ctx, workbenchID)
+		if err != nil {
+			return fmt.Errorf("failed to get or create kennel: %w", err)
+		}
+	}
+
+	// Update kennel status to occupied
+	if kennel.Status != primary.KennelStatusOccupied {
+		if err := wire.KennelService().UpdateKennelStatus(ctx, kennel.ID, primary.KennelStatusOccupied); err != nil {
+			return fmt.Errorf("failed to update kennel status: %w", err)
+		}
+	}
+
+	// Watchdog prime directive includes orc prime and patrol start
+	impIdentity := fmt.Sprintf("IMP-%s", workbenchID)
+	primeDirective := fmt.Sprintf(
+		"Run the 'orc prime' shell command IMMEDIATELY. Then start patrol on %s by running 'orc patrol start %s'. Do not greet the user, do not explain what you're doing - just execute these commands.",
+		impIdentity, workbenchID,
+	)
+
+	if dryRun {
+		fmt.Printf("Would execute: claude %q\n", primeDirective)
+		fmt.Printf("Working directory: %s\n", cwd)
+		fmt.Printf("Role: watchdog\n")
+		fmt.Printf("Target workbench: %s (%s)\n", workbench.ID, workbench.Name)
+		fmt.Printf("Kennel: %s\n", kennel.ID)
+		fmt.Printf("Environment: WATCHDOG_KENNEL_ID=%s\n", kennel.ID)
+		return nil
+	}
+
+	// Build claude command
+	claudeArgs := []string{primeDirective}
+	claudeCmd := exec.Command("claude", claudeArgs...)
+
+	// Pass through stdio for interactive session
+	claudeCmd.Stdin = os.Stdin
+	claudeCmd.Stdout = os.Stdout
+	claudeCmd.Stderr = os.Stderr
+
+	// Set working directory to workbench path
+	claudeCmd.Dir = workbench.Path
+
+	// Set environment variable for kennel identity
+	claudeCmd.Env = append(os.Environ(), fmt.Sprintf("WATCHDOG_KENNEL_ID=%s", kennel.ID))
 
 	// Launch Claude
 	return claudeCmd.Run()

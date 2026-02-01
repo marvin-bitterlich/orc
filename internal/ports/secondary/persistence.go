@@ -1140,42 +1140,42 @@ type GatehouseFilters struct {
 	Status     string
 }
 
-// WatchdogRepository defines the secondary port for watchdog persistence.
-// Watchdogs are 1:1 with workbenches (IMP monitors).
-type WatchdogRepository interface {
-	// Create persists a new watchdog.
-	Create(ctx context.Context, watchdog *WatchdogRecord) error
+// KennelRepository defines the secondary port for kennel persistence.
+// Kennels are 1:1 with workbenches (Watchdog seat).
+type KennelRepository interface {
+	// Create persists a new kennel.
+	Create(ctx context.Context, kennel *KennelRecord) error
 
-	// GetByID retrieves a watchdog by its ID.
-	GetByID(ctx context.Context, id string) (*WatchdogRecord, error)
+	// GetByID retrieves a kennel by its ID.
+	GetByID(ctx context.Context, id string) (*KennelRecord, error)
 
-	// GetByWorkbench retrieves a watchdog by workbench ID.
-	GetByWorkbench(ctx context.Context, workbenchID string) (*WatchdogRecord, error)
+	// GetByWorkbench retrieves a kennel by workbench ID.
+	GetByWorkbench(ctx context.Context, workbenchID string) (*KennelRecord, error)
 
-	// List retrieves watchdogs matching the given filters.
-	List(ctx context.Context, filters WatchdogFilters) ([]*WatchdogRecord, error)
+	// List retrieves kennels matching the given filters.
+	List(ctx context.Context, filters KennelFilters) ([]*KennelRecord, error)
 
-	// Update updates an existing watchdog.
-	Update(ctx context.Context, watchdog *WatchdogRecord) error
+	// Update updates an existing kennel.
+	Update(ctx context.Context, kennel *KennelRecord) error
 
-	// Delete removes a watchdog from persistence.
+	// Delete removes a kennel from persistence.
 	Delete(ctx context.Context, id string) error
 
-	// GetNextID returns the next available watchdog ID.
+	// GetNextID returns the next available kennel ID.
 	GetNextID(ctx context.Context) (string, error)
 
-	// UpdateStatus updates the status of a watchdog.
+	// UpdateStatus updates the status of a kennel.
 	UpdateStatus(ctx context.Context, id, status string) error
 
 	// WorkbenchExists checks if a workbench exists (for validation).
 	WorkbenchExists(ctx context.Context, workbenchID string) (bool, error)
 
-	// WorkbenchHasWatchdog checks if a workbench already has a watchdog (for 1:1 constraint).
-	WorkbenchHasWatchdog(ctx context.Context, workbenchID string) (bool, error)
+	// WorkbenchHasKennel checks if a workbench already has a kennel (for 1:1 constraint).
+	WorkbenchHasKennel(ctx context.Context, workbenchID string) (bool, error)
 }
 
-// WatchdogRecord represents a watchdog as stored in persistence.
-type WatchdogRecord struct {
+// KennelRecord represents a kennel as stored in persistence.
+type KennelRecord struct {
 	ID          string
 	WorkbenchID string
 	Status      string
@@ -1183,8 +1183,8 @@ type WatchdogRecord struct {
 	UpdatedAt   string
 }
 
-// WatchdogFilters contains filter options for querying watchdogs.
-type WatchdogFilters struct {
+// KennelFilters contains filter options for querying kennels.
+type KennelFilters struct {
 	WorkbenchID string
 	Status      string
 }
@@ -1349,4 +1349,149 @@ type ManifestRecord struct {
 type ManifestFilters struct {
 	ShipmentID string
 	Status     string
+}
+
+// PatrolRepository defines the secondary port for patrol persistence.
+// Patrols are monitoring sessions owned by a watchdog (1:many with kennel).
+type PatrolRepository interface {
+	// Create persists a new patrol.
+	Create(ctx context.Context, patrol *PatrolRecord) error
+
+	// GetByID retrieves a patrol by its ID.
+	GetByID(ctx context.Context, id string) (*PatrolRecord, error)
+
+	// GetByKennel retrieves patrols by kennel ID.
+	GetByKennel(ctx context.Context, kennelID string) ([]*PatrolRecord, error)
+
+	// GetActiveByKennel retrieves the active patrol for a kennel.
+	GetActiveByKennel(ctx context.Context, kennelID string) (*PatrolRecord, error)
+
+	// List retrieves patrols matching the given filters.
+	List(ctx context.Context, filters PatrolFilters) ([]*PatrolRecord, error)
+
+	// Update updates an existing patrol.
+	Update(ctx context.Context, patrol *PatrolRecord) error
+
+	// UpdateStatus updates the status of a patrol.
+	UpdateStatus(ctx context.Context, id, status string) error
+
+	// GetNextID returns the next available patrol ID.
+	GetNextID(ctx context.Context) (string, error)
+
+	// KennelExists checks if a kennel exists (for validation).
+	KennelExists(ctx context.Context, kennelID string) (bool, error)
+}
+
+// PatrolRecord represents a patrol as stored in persistence.
+type PatrolRecord struct {
+	ID        string
+	KennelID  string
+	Target    string // Session:window.pane target being monitored
+	Status    string // 'active', 'completed', 'escalated'
+	Config    string // JSON config for patrol
+	StartedAt string
+	EndedAt   string
+	CreatedAt string
+	UpdatedAt string
+}
+
+// PatrolFilters contains filter options for querying patrols.
+type PatrolFilters struct {
+	KennelID string
+	Status   string
+}
+
+// CheckRepository defines the secondary port for check persistence.
+// Checks are individual observations during a patrol (1:many with patrol).
+type CheckRepository interface {
+	// Create persists a new check.
+	Create(ctx context.Context, check *CheckRecord) error
+
+	// GetByID retrieves a check by its ID.
+	GetByID(ctx context.Context, id string) (*CheckRecord, error)
+
+	// GetByPatrol retrieves checks by patrol ID.
+	GetByPatrol(ctx context.Context, patrolID string) ([]*CheckRecord, error)
+
+	// GetLatest retrieves the latest check for a patrol.
+	GetLatest(ctx context.Context, patrolID string) (*CheckRecord, error)
+
+	// List retrieves checks matching the given filters.
+	List(ctx context.Context, filters CheckFilters) ([]*CheckRecord, error)
+
+	// GetNextID returns the next available check ID.
+	GetNextID(ctx context.Context) (string, error)
+
+	// PatrolExists checks if a patrol exists (for validation).
+	PatrolExists(ctx context.Context, patrolID string) (bool, error)
+}
+
+// CheckRecord represents a check as stored in persistence.
+type CheckRecord struct {
+	ID          string
+	PatrolID    string
+	StuckID     string // Empty string means null
+	PaneContent string
+	Outcome     string // 'working', 'idle', 'menu', 'typed', 'error'
+	CapturedAt  string
+	CreatedAt   string
+}
+
+// CheckFilters contains filter options for querying checks.
+type CheckFilters struct {
+	PatrolID string
+	StuckID  string
+	Outcome  string
+}
+
+// StuckRepository defines the secondary port for stuck persistence.
+// Stucks are rollups of consecutive failure checks (1:many with patrol).
+type StuckRepository interface {
+	// Create persists a new stuck.
+	Create(ctx context.Context, stuck *StuckRecord) error
+
+	// GetByID retrieves a stuck by its ID.
+	GetByID(ctx context.Context, id string) (*StuckRecord, error)
+
+	// GetByPatrol retrieves stucks by patrol ID.
+	GetByPatrol(ctx context.Context, patrolID string) ([]*StuckRecord, error)
+
+	// GetOpenByPatrol retrieves the open stuck for a patrol (if any).
+	GetOpenByPatrol(ctx context.Context, patrolID string) (*StuckRecord, error)
+
+	// List retrieves stucks matching the given filters.
+	List(ctx context.Context, filters StuckFilters) ([]*StuckRecord, error)
+
+	// Update updates an existing stuck.
+	Update(ctx context.Context, stuck *StuckRecord) error
+
+	// IncrementCount increments the check_count of a stuck.
+	IncrementCount(ctx context.Context, id string) error
+
+	// UpdateStatus updates the status of a stuck.
+	UpdateStatus(ctx context.Context, id, status string) error
+
+	// GetNextID returns the next available stuck ID.
+	GetNextID(ctx context.Context) (string, error)
+
+	// PatrolExists checks if a patrol exists (for validation).
+	PatrolExists(ctx context.Context, patrolID string) (bool, error)
+}
+
+// StuckRecord represents a stuck as stored in persistence.
+type StuckRecord struct {
+	ID           string
+	PatrolID     string
+	FirstCheckID string // Reference to first check in stuck sequence
+	CheckCount   int    // Rolling up consecutive failures
+	Status       string // 'open', 'resolved', 'escalated'
+	ResolvedAt   string // Empty string means null
+	CreatedAt    string
+	UpdatedAt    string
+}
+
+// StuckFilters contains filter options for querying stucks.
+type StuckFilters struct {
+	PatrolID string
+	Status   string
 }

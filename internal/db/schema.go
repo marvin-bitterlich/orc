@@ -400,17 +400,79 @@ CREATE TABLE IF NOT EXISTS gatehouses (
 CREATE INDEX IF NOT EXISTS idx_gatehouses_workshop ON gatehouses(workshop_id);
 CREATE INDEX IF NOT EXISTS idx_gatehouses_status ON gatehouses(status);
 
--- Watchdogs (1:1 with Workbench - monitors IMP)
-CREATE TABLE IF NOT EXISTS watchdogs (
+-- Kennels (IMP monitoring seats - linked to Workbenches)
+CREATE TABLE IF NOT EXISTS kennels (
 	id TEXT PRIMARY KEY,
-	workbench_id TEXT NOT NULL UNIQUE,
-	status TEXT NOT NULL DEFAULT 'inactive' CHECK (status IN ('active', 'inactive')),
+	workbench_id TEXT NOT NULL,
+	status TEXT NOT NULL CHECK(status IN ('vacant', 'occupied', 'away')) DEFAULT 'vacant',
 	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 	updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 	FOREIGN KEY (workbench_id) REFERENCES workbenches(id) ON DELETE CASCADE
 );
-CREATE INDEX IF NOT EXISTS idx_watchdogs_workbench ON watchdogs(workbench_id);
-CREATE INDEX IF NOT EXISTS idx_watchdogs_status ON watchdogs(status);
+CREATE INDEX IF NOT EXISTS idx_kennels_workbench ON kennels(workbench_id);
+CREATE INDEX IF NOT EXISTS idx_kennels_status ON kennels(status);
+
+-- Dogbeds (Goblin docking points - linked to Gatehouses)
+CREATE TABLE IF NOT EXISTS dogbeds (
+	id TEXT PRIMARY KEY,
+	gatehouse_id TEXT NOT NULL,
+	status TEXT NOT NULL CHECK(status IN ('vacant', 'occupied')) DEFAULT 'vacant',
+	docked_kennel_id TEXT,
+	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+	FOREIGN KEY (gatehouse_id) REFERENCES gatehouses(id) ON DELETE CASCADE,
+	FOREIGN KEY (docked_kennel_id) REFERENCES kennels(id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS idx_dogbeds_gatehouse ON dogbeds(gatehouse_id);
+CREATE INDEX IF NOT EXISTS idx_dogbeds_status ON dogbeds(status);
+CREATE INDEX IF NOT EXISTS idx_dogbeds_kennel ON dogbeds(docked_kennel_id);
+
+-- Patrols (monitoring sessions - owned by watchdog actor)
+CREATE TABLE IF NOT EXISTS patrols (
+	id TEXT PRIMARY KEY,
+	kennel_id TEXT NOT NULL,
+	target TEXT NOT NULL,
+	status TEXT NOT NULL CHECK(status IN ('active', 'completed', 'escalated')) DEFAULT 'active',
+	config TEXT,
+	started_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+	ended_at DATETIME,
+	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+	FOREIGN KEY (kennel_id) REFERENCES kennels(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_patrols_kennel ON patrols(kennel_id);
+CREATE INDEX IF NOT EXISTS idx_patrols_status ON patrols(status);
+
+-- Stucks (consecutive failure rollups)
+CREATE TABLE IF NOT EXISTS stucks (
+	id TEXT PRIMARY KEY,
+	patrol_id TEXT NOT NULL,
+	first_check_id TEXT,
+	check_count INTEGER DEFAULT 1,
+	status TEXT NOT NULL CHECK(status IN ('open', 'resolved', 'escalated')) DEFAULT 'open',
+	resolved_at DATETIME,
+	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+	FOREIGN KEY (patrol_id) REFERENCES patrols(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_stucks_patrol ON stucks(patrol_id);
+CREATE INDEX IF NOT EXISTS idx_stucks_status ON stucks(status);
+
+-- Checks (individual observations)
+CREATE TABLE IF NOT EXISTS checks (
+	id TEXT PRIMARY KEY,
+	patrol_id TEXT NOT NULL,
+	stuck_id TEXT,
+	pane_content TEXT,
+	outcome TEXT NOT NULL CHECK(outcome IN ('working', 'idle', 'menu', 'typed', 'error')),
+	captured_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+	FOREIGN KEY (patrol_id) REFERENCES patrols(id) ON DELETE CASCADE,
+	FOREIGN KEY (stuck_id) REFERENCES stucks(id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS idx_checks_patrol ON checks(patrol_id);
+CREATE INDEX IF NOT EXISTS idx_checks_stuck ON checks(stuck_id);
+CREATE INDEX IF NOT EXISTS idx_checks_outcome ON checks(outcome);
 
 -- Approvals (1:1 with Plan)
 CREATE TABLE IF NOT EXISTS approvals (
@@ -514,7 +576,7 @@ func InitSchema() error {
 				return err
 			}
 			// Insert all migration versions as applied
-			for i := 1; i <= 45; i++ {
+			for i := 1; i <= 46; i++ {
 				_, err = db.Exec("INSERT INTO schema_version (version) VALUES (?)", i)
 				if err != nil {
 					return err

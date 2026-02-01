@@ -469,6 +469,10 @@ func (m *mockTMuxAdapter) GetPaneCommand(ctx context.Context, sessionName, windo
 	return ""
 }
 
+func (m *mockTMuxAdapter) CapturePaneContent(ctx context.Context, target string, lines int) (string, error) {
+	return "", nil
+}
+
 func (m *mockTMuxAdapter) SplitVertical(ctx context.Context, target, workingDir string) error {
 	return nil
 }
@@ -539,6 +543,10 @@ func (m *mockTMuxAdapter) FindSessionByWorkshopID(ctx context.Context, workshopI
 
 func (m *mockTMuxAdapter) ListWindows(ctx context.Context, sessionName string) ([]string, error) {
 	return nil, nil
+}
+
+func (m *mockTMuxAdapter) JoinPane(ctx context.Context, source, target string, vertical bool, size int) error {
+	return nil
 }
 
 // mockWorkspaceAdapter implements secondary.WorkspaceAdapter for testing.

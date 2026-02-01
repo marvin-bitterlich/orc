@@ -443,6 +443,9 @@ func (m *mockTMuxAdapterForPlan) GetPaneCount(ctx context.Context, sessionName, 
 func (m *mockTMuxAdapterForPlan) GetPaneCommand(ctx context.Context, sessionName, windowName string, paneNum int) string {
 	return ""
 }
+func (m *mockTMuxAdapterForPlan) CapturePaneContent(ctx context.Context, target string, lines int) (string, error) {
+	return "", nil
+}
 func (m *mockTMuxAdapterForPlan) SplitVertical(ctx context.Context, target, workingDir string) error {
 	return nil
 }
@@ -490,6 +493,9 @@ func (m *mockTMuxAdapterForPlan) FindSessionByWorkshopID(ctx context.Context, wo
 }
 func (m *mockTMuxAdapterForPlan) ListWindows(ctx context.Context, sessionName string) ([]string, error) {
 	return nil, nil
+}
+func (m *mockTMuxAdapterForPlan) JoinPane(ctx context.Context, source, target string, vertical bool, size int) error {
+	return nil
 }
 
 // ============================================================================

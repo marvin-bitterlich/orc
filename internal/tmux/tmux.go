@@ -81,6 +81,22 @@ func GetPaneCommand(sessionName, windowName string, paneNum int) string {
 	return strings.TrimSpace(string(output))
 }
 
+// CapturePaneContent captures visible content from a pane.
+// target is in format "session:window.pane" (e.g., "workshop:bench.2")
+// lines specifies how many lines to capture (0 for all visible)
+func CapturePaneContent(target string, lines int) (string, error) {
+	args := []string{"capture-pane", "-t", target, "-p"}
+	if lines > 0 {
+		args = append(args, "-S", fmt.Sprintf("-%d", lines))
+	}
+	cmd := exec.Command("tmux", args...)
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("failed to capture pane content: %w", err)
+	}
+	return string(output), nil
+}
+
 // CreateOrcWindow creates the ORC orchestrator window with layout:
 // Layout:
 //
@@ -242,6 +258,24 @@ func (s *Session) SplitVertical(target, workingDir string) error {
 // SplitHorizontal splits a pane horizontally (creates pane below)
 func (s *Session) SplitHorizontal(target, workingDir string) error {
 	cmd := exec.Command("tmux", "split-window", "-v", "-t", target, "-c", workingDir)
+	return cmd.Run()
+}
+
+// JoinPane moves a pane from source to target.
+// If vertical is true, joins vertically (-v); otherwise horizontally (-h).
+// Size specifies the target pane size in lines (if vertical) or columns (if horizontal).
+func JoinPane(source, target string, vertical bool, size int) error {
+	args := []string{"join-pane"}
+	if vertical {
+		args = append(args, "-v")
+	} else {
+		args = append(args, "-h")
+	}
+	if size > 0 {
+		args = append(args, "-l", strconv.Itoa(size))
+	}
+	args = append(args, "-s", source, "-t", target)
+	cmd := exec.Command("tmux", args...)
 	return cmd.Run()
 }
 

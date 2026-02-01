@@ -78,6 +78,11 @@ func (a *Adapter) GetPaneCommand(ctx context.Context, sessionName, windowName st
 	return tmuxpkg.GetPaneCommand(sessionName, windowName, paneNum)
 }
 
+// CapturePaneContent captures visible content from a pane.
+func (a *Adapter) CapturePaneContent(ctx context.Context, target string, lines int) (string, error) {
+	return tmuxpkg.CapturePaneContent(target, lines)
+}
+
 // NudgeSession sends a message to a running Claude session.
 func (a *Adapter) NudgeSession(ctx context.Context, target, message string) error {
 	return tmuxpkg.NudgeSession(target, message)
@@ -98,6 +103,11 @@ func (a *Adapter) SplitVertical(ctx context.Context, target, workingDir string) 
 func (a *Adapter) SplitHorizontal(ctx context.Context, target, workingDir string) error {
 	session := &tmuxpkg.Session{Name: ""}
 	return session.SplitHorizontal(target, workingDir)
+}
+
+// JoinPane moves a pane from source to target.
+func (a *Adapter) JoinPane(ctx context.Context, source, target string, vertical bool, size int) error {
+	return tmuxpkg.JoinPane(source, target, vertical, size)
 }
 
 // SelectWindow selects a window by index.
