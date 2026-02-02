@@ -113,8 +113,8 @@ type ShipmentRepository interface {
 	// UpdateStatus updates the status and optionally completed_at timestamp.
 	UpdateStatus(ctx context.Context, id, status string, setCompleted bool) error
 
-	// SetShipyardID sets the shipyard_id FK and status to 'queued'.
-	// Used for park operation (move to shipyard queue).
+	// SetShipyardID sets the shipyard_id FK.
+	// Used for park operation (move to shipyard queue). Status unchanged - it's work state, not location.
 	SetShipyardID(ctx context.Context, id, shipyardID string) error
 
 	// SetConclaveID sets the conclave_id FK and clears shipyard_id.
@@ -127,7 +127,7 @@ type ShipmentRepository interface {
 	// WorkbenchAssignedToOther checks if workbench is assigned to another shipment.
 	WorkbenchAssignedToOther(ctx context.Context, workbenchID, excludeShipmentID string) (string, error)
 
-	// ListShipyardQueue retrieves shipments in the shipyard queue (status='queued'), ordered by priority then created_at.
+	// ListShipyardQueue retrieves shipments in the shipyard queue (shipyard_id IS NOT NULL), ordered by priority then created_at.
 	// Filters by factory via shipyard_id FK to shipyards.factory_id.
 	ListShipyardQueue(ctx context.Context, factoryID string) ([]*ShipyardQueueEntry, error)
 

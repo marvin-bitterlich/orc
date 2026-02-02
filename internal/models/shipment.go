@@ -26,9 +26,12 @@ type Shipment struct {
 	CompletedAt         sql.NullTime
 }
 
-// Shipment status constants
+// Shipment status constants - work state lifecycle
 const (
-	ShipmentStatusActive   = "active"
-	ShipmentStatusPaused   = "paused"
-	ShipmentStatusComplete = "complete"
+	ShipmentStatusDraft      = "draft"
+	ShipmentStatusExploring  = "exploring"
+	ShipmentStatusSpecced    = "specced"
+	ShipmentStatusTasked     = "tasked"
+	ShipmentStatusInProgress = "in_progress"
+	ShipmentStatusComplete   = "complete"
 )

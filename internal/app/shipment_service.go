@@ -305,7 +305,7 @@ func (s *ShipmentServiceImpl) ParkShipment(ctx context.Context, shipmentID strin
 		return fmt.Errorf("failed to get shipyard: %w", err)
 	}
 
-	// Set shipyard_id and status='queued'
+	// Set shipyard_id (status unchanged - it's work state, not location)
 	return s.shipmentRepo.SetShipyardID(ctx, shipmentID, yard.ID)
 }
 

@@ -46,11 +46,8 @@ func (r *ShipmentRepository) Create(ctx context.Context, shipment *secondary.Shi
 		specNoteID = sql.NullString{String: shipment.SpecNoteID, Valid: true}
 	}
 
-	// Status depends on where shipment is created: draft (conclave), queued (shipyard)
+	// All new shipments start as draft - status is work state, not location
 	status := "draft"
-	if shipment.ShipyardID != "" {
-		status = "queued"
-	}
 
 	_, err := r.db.ExecContext(ctx,
 		"INSERT INTO shipments (id, commission_id, title, description, status, repo_id, branch, conclave_id, shipyard_id, spec_note_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -406,11 +403,11 @@ func (r *ShipmentRepository) WorkbenchAssignedToOther(ctx context.Context, workb
 	return shipmentID, nil
 }
 
-// SetShipyardID sets the shipyard_id FK and status to 'queued'.
-// Used for park operation (move to shipyard queue).
+// SetShipyardID sets the shipyard_id FK.
+// Used for park operation (move to shipyard queue). Status unchanged - it's work state, not location.
 func (r *ShipmentRepository) SetShipyardID(ctx context.Context, id, shipyardID string) error {
 	result, err := r.db.ExecContext(ctx,
-		"UPDATE shipments SET shipyard_id = ?, status = 'queued', updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+		"UPDATE shipments SET shipyard_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
 		shipyardID, id,
 	)
 	if err != nil {
@@ -425,11 +422,11 @@ func (r *ShipmentRepository) SetShipyardID(ctx context.Context, id, shipyardID s
 	return nil
 }
 
-// SetConclaveID sets the conclave_id FK, clears shipyard_id, and sets status to 'draft'.
-// Used for unpark operation (move from queue to conclave).
+// SetConclaveID sets the conclave_id FK and clears shipyard_id.
+// Used for unpark operation (move from queue to conclave). Status unchanged - it's work state, not location.
 func (r *ShipmentRepository) SetConclaveID(ctx context.Context, id, conclaveID string) error {
 	result, err := r.db.ExecContext(ctx,
-		"UPDATE shipments SET conclave_id = ?, shipyard_id = NULL, status = 'draft', updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+		"UPDATE shipments SET conclave_id = ?, shipyard_id = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
 		conclaveID, id,
 	)
 	if err != nil {
@@ -444,7 +441,7 @@ func (r *ShipmentRepository) SetConclaveID(ctx context.Context, id, conclaveID s
 	return nil
 }
 
-// ListShipyardQueue retrieves shipments in the shipyard queue (status='queued'), ordered by priority then created_at.
+// ListShipyardQueue retrieves shipments in the shipyard queue (shipyard_id IS NOT NULL), ordered by priority then created_at.
 // Filters by factory via shipyard_id FK to shipyards.factory_id. Returns ALL shipments across commissions in the factory.
 func (r *ShipmentRepository) ListShipyardQueue(ctx context.Context, factoryID string) ([]*secondary.ShipyardQueueEntry, error) {
 	query := `
@@ -455,7 +452,7 @@ func (r *ShipmentRepository) ListShipyardQueue(ctx context.Context, factoryID st
 		FROM shipments s
 		LEFT JOIN tasks t ON t.shipment_id = s.id
 		LEFT JOIN shipyards y ON s.shipyard_id = y.id
-		WHERE s.status = 'queued'
+		WHERE s.shipyard_id IS NOT NULL
 	`
 	args := []any{}
 

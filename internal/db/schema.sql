@@ -108,14 +108,14 @@ CREATE TABLE IF NOT EXISTS messages (
 );
 
 -- Shipments (Work containers)
--- Lifecycle: draft → queued → assigned → active → complete
--- conclave_id = source/origin conclave, shipyard_id = when in queue, assigned_workbench_id = when assigned
+-- Lifecycle: draft → exploring → specced → tasked → in_progress → complete
+-- Location tracked by FKs: shipyard_id (queued), assigned_workbench_id (assigned)
 CREATE TABLE IF NOT EXISTS shipments (
 	id TEXT PRIMARY KEY,
 	commission_id TEXT NOT NULL,
 	title TEXT NOT NULL,
 	description TEXT,
-	status TEXT NOT NULL CHECK(status IN ('draft', 'queued', 'assigned', 'active', 'complete')) DEFAULT 'draft',
+	status TEXT NOT NULL CHECK(status IN ('draft', 'exploring', 'specced', 'tasked', 'in_progress', 'complete')) DEFAULT 'draft',
 	assigned_workbench_id TEXT,
 	repo_id TEXT,
 	branch TEXT,

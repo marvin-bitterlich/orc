@@ -98,12 +98,12 @@ func SeedFixtures(database *sql.DB) error {
 		}
 	}
 
-	// Shipments (valid statuses: draft, queued, assigned, active, complete)
+	// Shipments (valid statuses: draft, exploring, specced, tasked, in_progress, complete)
 	shipments := []struct{ id, commissionID, title, status string }{
 		{"SHIP-001", "COMM-001", "Initial Setup", "complete"},
-		{"SHIP-002", "COMM-001", "Core Features", "active"},
+		{"SHIP-002", "COMM-001", "Core Features", "in_progress"},
 		{"SHIP-003", "COMM-001", "Polish & Docs", "draft"},
-		{"SHIP-004", "COMM-002", "API Integration", "queued"},
+		{"SHIP-004", "COMM-002", "API Integration", "tasked"},
 		{"SHIP-005", "COMM-002", "Testing Suite", "draft"},
 	}
 	for _, s := range shipments {
