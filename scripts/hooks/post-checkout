@@ -1,9 +1,8 @@
 #!/bin/bash
-set -e
 
 # =============================================================================
-# Post-checkout hook for AI agent workflow
-# Ensures database schema is always in sync when switching branches
+# Post-checkout hook - Reminder for AI agents
+# Shows breadcrumbs about schema state after branch switches
 # =============================================================================
 
 # Args: $1=prev HEAD, $2=new HEAD, $3=1 if branch checkout (0 if file checkout)
@@ -14,12 +13,19 @@ if [[ "$BRANCH_CHECKOUT" != "1" ]]; then
     exit 0
 fi
 
-# Apply schema changes (agents need consistent DB state)
+BRANCH=$(git rev-parse --abbrev-ref HEAD)
+echo ""
+echo "📍 Switched to branch: $BRANCH"
+
+# Check if schema might be out of sync
 if command -v atlas &>/dev/null; then
-    echo "Applying schema changes..."
-    make schema-apply 2>/dev/null || {
-        echo "⚠️  schema-apply failed (may need: brew install ariga/tap/atlas)"
-    }
+    if atlas schema diff --env local 2>/dev/null | grep -q .; then
+        echo "⚠️  Schema may differ from schema.sql"
+        echo "   Run: make schema-diff   (preview)"
+        echo "   Run: make schema-apply  (apply changes)"
+    fi
 else
-    echo "⚠️  Atlas not installed - run: brew install ariga/tap/atlas"
+    echo "💡 Atlas not installed for schema management"
+    echo "   Install: brew install ariga/tap/atlas"
 fi
+echo ""

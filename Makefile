@@ -19,7 +19,7 @@ LDFLAGS := -X 'github.com/example/orc/internal/version.Version=$(VERSION)' \
 #---------------------------------------------------------------------------
 
 # Full install: binary + shim
-install: install-binary install-shim
+install: install-binary install-shim install-dev-shim
 	@echo ""
 	@echo "✓ ORC installed with local-first shim"
 	@echo "  Binary: $(GOBIN)/orc-bin"
@@ -46,6 +46,16 @@ install-shim:
 	@echo '  exec "$$(dirname "$$0")/orc-bin" "$$@"' >> $(GOBIN)/orc
 	@echo 'fi' >> $(GOBIN)/orc
 	@chmod +x $(GOBIN)/orc
+
+# Install orc-dev shim for development (uses local dev DB)
+install-dev-shim:
+	@echo "Installing orc-dev shim..."
+	@echo '#!/bin/bash' > $(GOBIN)/orc-dev
+	@echo '# ORC dev shim - uses local dev database' >> $(GOBIN)/orc-dev
+	@echo 'export ORC_DB_PATH="$$HOME/.orc/dev.db"' >> $(GOBIN)/orc-dev
+	@echo 'exec "$$(dirname "$$0")/orc-bin" "$$@"' >> $(GOBIN)/orc-dev
+	@chmod +x $(GOBIN)/orc-dev
+	@echo "✓ orc-dev installed (uses ~/.orc/dev.db)"
 
 # Remove shim and restore direct binary access
 uninstall-shim:

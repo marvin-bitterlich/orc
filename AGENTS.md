@@ -506,6 +506,72 @@ All Makefile targets use `--env local` from `atlas.hcl`, which handles:
 
 ---
 
+## Development Database Workflow
+
+ORC uses a two-binary architecture to prevent accidental modification of the production database.
+
+### Binary Architecture
+
+| Binary | Database | Purpose |
+|--------|----------|---------|
+| `orc` | `~/.orc/orc.db` | Production - real commissions, shipments, tasks |
+| `orc-dev` | `~/.orc/dev.db` | Development - resettable fixtures for testing |
+
+The `orc-dev` shim sets `ORC_DB_PATH=~/.orc/dev.db` before executing the same binary.
+
+### Development Commands
+
+**Reset dev database with fresh fixtures:**
+```bash
+orc-dev dev reset         # Interactive confirmation
+orc-dev dev reset -f      # Skip confirmation
+```
+
+This seeds comprehensive test data:
+- 3 tags, 2 repos
+- 2 factories, 3 workshops, 2 workbenches
+- 3 commissions, 5 shipments, 10 tasks
+- 2 conclaves, 2 tomes, 4 notes
+
+**Check dev environment health:**
+```bash
+orc-dev dev doctor        # Full diagnostics
+orc-dev dev doctor -q     # Quiet (exit code only)
+```
+
+Checks: ORC_DB_PATH set, DB exists, Atlas installed, schema in sync.
+
+### Git Hooks (Reminder-Based)
+
+Git hooks provide **breadcrumbs**, not automation. They show helpful reminders but don't auto-execute commands.
+
+**post-checkout / post-merge:**
+- Shows current branch
+- Warns if schema may be out of sync
+- On master: shows rebuild checklist
+
+**pre-commit:**
+- Quality gate (still enforced)
+- Runs `make lint` and `make test`
+
+After checkout or merge, you decide what to run:
+```bash
+make schema-diff    # Preview schema changes
+make schema-apply   # Apply if needed
+make init           # Full initialization
+make install        # Rebuild binary
+```
+
+### Why Reminder-Based?
+
+For highly autonomous AI agents, explicit control is better than hidden automation:
+- Agents see exactly what state they're in
+- No silent failures from auto-executed commands
+- Clear "next steps" guidance
+- Repeatable, predictable workflow
+
+---
+
 ## Creating Containers
 
 ### Tomes

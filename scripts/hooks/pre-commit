@@ -1,6 +1,11 @@
 #!/bin/bash
-set -e
+
+# =============================================================================
+# Pre-commit hook - Quality gate (not just reminder)
+# This one stays as enforcement to prevent bad commits
+# =============================================================================
+
 echo "Running pre-commit checks..."
-make lint
-make test
+make lint || { echo "❌ Lint failed - fix issues before committing"; exit 1; }
+make test || { echo "❌ Tests failed - fix issues before committing"; exit 1; }
 echo "✓ Pre-commit checks passed"

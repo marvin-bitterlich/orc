@@ -19,13 +19,21 @@ func GetDB() (*sql.DB, error) {
 		return db, nil
 	}
 
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get home directory: %w", err)
+	// Check for dev/test override via environment variable
+	var dbPath, orcDir string
+	var err error
+	if override := os.Getenv("ORC_DB_PATH"); override != "" {
+		dbPath = override
+		orcDir = filepath.Dir(override)
+	} else {
+		var home string
+		home, err = os.UserHomeDir()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get home directory: %w", err)
+		}
+		orcDir = filepath.Join(home, ".orc")
+		dbPath = filepath.Join(orcDir, "orc.db")
 	}
-
-	orcDir := filepath.Join(home, ".orc")
-	dbPath := filepath.Join(orcDir, "orc.db")
 
 	// Ensure .orc directory exists
 	if err := os.MkdirAll(orcDir, 0755); err != nil {
@@ -64,6 +72,10 @@ func Close() error {
 
 // GetDBPath returns the path to the database file
 func GetDBPath() (string, error) {
+	// Check for dev/test override via environment variable
+	if override := os.Getenv("ORC_DB_PATH"); override != "" {
+		return override, nil
+	}
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", err

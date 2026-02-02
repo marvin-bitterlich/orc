@@ -1,31 +1,34 @@
 #!/bin/bash
-set -e
 
 # =============================================================================
-# Post-merge hook for AI agent workflow
-# Ensures database schema is always in sync with code after any merge
+# Post-merge hook - Reminder for AI agents
+# Shows breadcrumbs about post-merge tasks
 # =============================================================================
 
 BRANCH=$(git rev-parse --abbrev-ref HEAD)
+echo ""
+echo "📍 Merged into: $BRANCH"
 
-# Always apply schema changes (agents need consistent DB state)
+# Remind about schema sync
 if command -v atlas &>/dev/null; then
-    echo "Applying schema changes..."
-    make schema-apply 2>/dev/null || {
-        echo "⚠️  schema-apply failed (may need: brew install ariga/tap/atlas)"
-        # Don't fail the merge - DB might just be up to date
-    }
+    if atlas schema diff --env local 2>/dev/null | grep -q .; then
+        echo "⚠️  Schema may differ from schema.sql"
+        echo "   Run: make schema-diff   (preview)"
+        echo "   Run: make schema-apply  (apply changes)"
+    else
+        echo "✓ Schema appears in sync"
+    fi
 else
-    echo "⚠️  Atlas not installed - run: brew install ariga/tap/atlas"
-    echo "   Schema may be out of sync with code"
+    echo "💡 Atlas not installed - run: brew install ariga/tap/atlas"
 fi
 
-# Full rebuild only on master/main
+# Master/main branch reminders
 if [[ "$BRANCH" == "master" || "$BRANCH" == "main" ]]; then
-    echo "Post-merge on $BRANCH: rebuilding and installing..."
-    make init
-    make install
-    make deploy-glue
-    make clean
-    echo "✓ Post-merge rebuild complete"
+    echo ""
+    echo "📋 Master branch checklist:"
+    echo "   [ ] make init          # Initialize dependencies"
+    echo "   [ ] make install       # Install orc binary"
+    echo "   [ ] make deploy-glue   # Deploy Claude Code glue"
+    echo "   [ ] make test          # Verify tests pass"
 fi
+echo ""

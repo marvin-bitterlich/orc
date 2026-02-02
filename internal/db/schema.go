@@ -46,9 +46,11 @@ func InitSchema() error {
 	}
 
 	if tableCount == 0 {
-		// Fresh install - check if we have old schema tables (migrations needed)
+		// Fresh install - check if we have truly OLD schema tables (migrations needed)
+		// Note: 'operations' exists in both old and new schemas, so only check for
+		// 'expeditions' and 'missions' which were removed in modern schema
 		var oldTableCount int
-		err = db.QueryRow("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN ('operations', 'expeditions', 'missions')").Scan(&oldTableCount)
+		err = db.QueryRow("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN ('expeditions', 'missions')").Scan(&oldTableCount)
 		if err != nil {
 			return err
 		}
