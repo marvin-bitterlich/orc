@@ -27,8 +27,6 @@ var shipmentCreateCmd = &cobra.Command{
 		ctx := context.Background()
 		title := args[0]
 		commissionID, _ := cmd.Flags().GetString("commission")
-		conclaveID, _ := cmd.Flags().GetString("conclave")
-		useShipyard, _ := cmd.Flags().GetBool("shipyard")
 		description, _ := cmd.Flags().GetString("description")
 		repoID, _ := cmd.Flags().GetString("repo")
 		branch, _ := cmd.Flags().GetString("branch")
@@ -41,55 +39,19 @@ var shipmentCreateCmd = &cobra.Command{
 			}
 		}
 
-		// Validate entity IDs
-		if err := validateEntityID(conclaveID, "conclave"); err != nil {
-			return err
-		}
-
-		// Validate container assignment - must specify one of --conclave or --shipyard
-		if conclaveID == "" && !useShipyard {
-			return fmt.Errorf("container assignment required: specify --conclave CON-xxx or --shipyard")
-		}
-		if conclaveID != "" && useShipyard {
-			return fmt.Errorf("specify either --conclave or --shipyard, not both")
-		}
-
-		// Resolve shipyard ID if --shipyard flag is set
-		var shipyardID string
-		if useShipyard {
-			// Look up factory for this commission, then shipyard for factory
-			factoryID, err := wire.ShipmentRepository().GetFactoryIDForCommission(ctx, commissionID)
-			if err != nil {
-				return fmt.Errorf("failed to get factory for commission: %w", err)
-			}
-			yard, err := wire.ShipyardRepository().GetByFactoryID(ctx, factoryID)
-			if err != nil {
-				return fmt.Errorf("failed to get shipyard for factory: %w", err)
-			}
-			shipyardID = yard.ID
-		}
-
 		resp, err := wire.ShipmentService().CreateShipment(ctx, primary.CreateShipmentRequest{
 			CommissionID: commissionID,
 			Title:        title,
 			Description:  description,
 			RepoID:       repoID,
 			Branch:       branch,
-			ConclaveID:   conclaveID,
-			ShipyardID:   shipyardID,
 		})
 		if err != nil {
 			return fmt.Errorf("failed to create shipment: %w", err)
 		}
 
 		fmt.Printf("✓ Created shipment %s: %s\n", resp.Shipment.ID, resp.Shipment.Title)
-		fmt.Printf("  Under commission: %s\n", resp.Shipment.CommissionID)
-		if resp.Shipment.ConclaveID != "" {
-			fmt.Printf("  Conclave: %s\n", resp.Shipment.ConclaveID)
-		}
-		if resp.Shipment.ShipyardID != "" {
-			fmt.Printf("  Shipyard: %s\n", resp.Shipment.ShipyardID)
-		}
+		fmt.Printf("  Commission: %s\n", resp.Shipment.CommissionID)
 		if resp.Shipment.Branch != "" {
 			fmt.Printf("  Branch: %s\n", resp.Shipment.Branch)
 		}
@@ -334,40 +296,9 @@ var shipmentAssignCmd = &cobra.Command{
 	},
 }
 
-// NOTE: shipment park command removed - use 'orc shipyard push' instead
-
-var shipmentUnparkCmd = &cobra.Command{
-	Use:   "unpark [shipment-id]",
-	Short: "Move shipment to Conclave",
-	Args:  cobra.ExactArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
-		shipmentID := args[0]
-		conclaveID, _ := cmd.Flags().GetString("conclave")
-
-		// Validate entity IDs
-		if err := validateEntityID(conclaveID, "conclave"); err != nil {
-			return err
-		}
-
-		if conclaveID == "" {
-			return fmt.Errorf("specify --conclave CON-xxx")
-		}
-
-		if err := wire.ShipmentService().UnparkShipment(ctx, shipmentID, conclaveID); err != nil {
-			return fmt.Errorf("failed to unpark shipment: %w", err)
-		}
-
-		fmt.Printf("Moved %s to %s\n", shipmentID, conclaveID)
-		return nil
-	},
-}
-
 func init() {
 	// shipment create flags
 	shipmentCreateCmd.Flags().StringP("commission", "c", "", "Commission ID (defaults to context)")
-	shipmentCreateCmd.Flags().String("conclave", "", "Parent conclave ID (CON-xxx)")
-	shipmentCreateCmd.Flags().Bool("shipyard", false, "Create in commission's shipyard")
 	shipmentCreateCmd.Flags().StringP("description", "d", "", "Shipment description")
 	shipmentCreateCmd.Flags().StringP("repo", "r", "", "Repository ID to link for branch ownership")
 	shipmentCreateCmd.Flags().String("branch", "", "Override auto-generated branch name")
@@ -379,9 +310,6 @@ func init() {
 	// shipment update flags
 	shipmentUpdateCmd.Flags().String("title", "", "New title")
 	shipmentUpdateCmd.Flags().StringP("description", "d", "", "New description")
-
-	// shipment unpark flags
-	shipmentUnparkCmd.Flags().String("conclave", "", "Target conclave ID (CON-xxx)")
 
 	// Flags for complete command
 	shipmentCompleteCmd.Flags().BoolP("force", "f", false, "Complete even if tasks are incomplete")
@@ -397,8 +325,6 @@ func init() {
 	shipmentCmd.AddCommand(shipmentPinCmd)
 	shipmentCmd.AddCommand(shipmentUnpinCmd)
 	shipmentCmd.AddCommand(shipmentAssignCmd)
-	// NOTE: park command removed - use 'orc shipyard push' instead
-	shipmentCmd.AddCommand(shipmentUnparkCmd)
 }
 
 // ShipmentCmd returns the shipment command
