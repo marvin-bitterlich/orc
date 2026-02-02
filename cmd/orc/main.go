@@ -53,7 +53,6 @@ It coordinates IMPs (Implementation Agents) working in isolated workbenches (wor
 	rootCmd.AddCommand(cli.NoteCmd())
 	rootCmd.AddCommand(cli.PlanCmd())
 	rootCmd.AddCommand(cli.TomeCmd())
-	rootCmd.AddCommand(cli.ConclaveCmd())
 
 	// Receipt command
 	rootCmd.AddCommand(cli.ReceiptCmd())
@@ -76,9 +75,6 @@ It coordinates IMPs (Implementation Agents) working in isolated workbenches (wor
 	rootCmd.AddCommand(cli.WorkbenchCmd())
 	rootCmd.AddCommand(cli.InfraCmd())
 	rootCmd.AddCommand(cli.TmuxCmd())
-
-	// Shipyard queue commands
-	rootCmd.AddCommand(cli.ShipyardCmd())
 
 	// Developer tools
 	rootCmd.AddCommand(cli.ScaffoldCmd())

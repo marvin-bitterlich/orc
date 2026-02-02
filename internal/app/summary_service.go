@@ -10,7 +10,6 @@ import (
 // SummaryServiceImpl implements the SummaryService interface.
 type SummaryServiceImpl struct {
 	commissionService primary.CommissionService
-	conclaveService   primary.ConclaveService
 	tomeService       primary.TomeService
 	shipmentService   primary.ShipmentService
 	taskService       primary.TaskService
@@ -25,7 +24,6 @@ type SummaryServiceImpl struct {
 // NewSummaryService creates a new SummaryService with injected dependencies.
 func NewSummaryService(
 	commissionService primary.CommissionService,
-	conclaveService primary.ConclaveService,
 	tomeService primary.TomeService,
 	shipmentService primary.ShipmentService,
 	taskService primary.TaskService,
@@ -38,7 +36,6 @@ func NewSummaryService(
 ) *SummaryServiceImpl {
 	return &SummaryServiceImpl{
 		commissionService: commissionService,
-		conclaveService:   conclaveService,
 		tomeService:       tomeService,
 		shipmentService:   shipmentService,
 		taskService:       taskService,
@@ -51,7 +48,7 @@ func NewSummaryService(
 	}
 }
 
-// GetCommissionSummary returns a hierarchical summary with role-based filtering.
+// GetCommissionSummary returns a flat summary of shipments and tomes under a commission.
 func (s *SummaryServiceImpl) GetCommissionSummary(ctx context.Context, req primary.SummaryRequest) (*primary.CommissionSummary, error) {
 	// Debug helper
 	var debugMsgs []string
@@ -67,103 +64,55 @@ func (s *SummaryServiceImpl) GetCommissionSummary(ctx context.Context, req prima
 		return nil, fmt.Errorf("failed to get commission: %w", err)
 	}
 
-	// 1. Fetch all conclaves for this commission
-	conclaves, err := s.conclaveService.ListConclaves(ctx, primary.ConclaveFilters{CommissionID: req.CommissionID})
-	if err != nil {
-		return nil, fmt.Errorf("failed to list conclaves: %w", err)
-	}
-
-	// 2. Fetch all tomes for this commission
+	// Fetch all tomes for this commission
 	allTomes, err := s.tomeService.ListTomes(ctx, primary.TomeFilters{CommissionID: req.CommissionID})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list tomes: %w", err)
 	}
 
-	// 3. Fetch all shipments for this commission
+	// Fetch all shipments for this commission
 	allShipments, err := s.shipmentService.ListShipments(ctx, primary.ShipmentFilters{CommissionID: req.CommissionID})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list shipments: %w", err)
 	}
 
-	addDebug(fmt.Sprintf("Fetched %d conclaves, %d tomes, %d shipments", len(conclaves), len(allTomes), len(allShipments)))
+	addDebug(fmt.Sprintf("Fetched %d tomes, %d shipments", len(allTomes), len(allShipments)))
 
-	// Build lookup maps for grouping
-	tomesByContainer := s.groupTomesByContainer(allTomes)
-	shipsByContainer := s.groupShipmentsByContainer(allShipments)
-
-	// Build conclave summaries
-	var conclaveSummaries []primary.ConclaveSummary
-	for _, con := range conclaves {
-		// Skip closed conclaves
-		if con.Status == "closed" {
-			addDebug(fmt.Sprintf("Hidden: %s (%s) - status is closed", con.ID, con.Title))
+	// Build flat shipment list
+	var shipmentSummaries []primary.ShipmentSummary
+	for _, ship := range allShipments {
+		if ship.Status == "complete" {
+			addDebug(fmt.Sprintf("Hidden: %s (%s) - status is complete", ship.ID, ship.Title))
 			continue
 		}
 
-		conSummary := primary.ConclaveSummary{
-			ID:        con.ID,
-			Title:     con.Title,
-			Status:    con.Status,
-			Pinned:    con.Pinned,
-			IsFocused: con.ID == req.FocusID,
+		shipSummary, err := s.buildShipmentSummary(ctx, ship, req.FocusID)
+		if err != nil {
+			continue // Skip on error
 		}
-
-		// Get tomes for this conclave
-		conclaveIsFocused := con.ID == req.FocusID
-		if tomes, ok := tomesByContainer[con.ID]; ok {
-			for _, tome := range tomes {
-				if tome.Status == "closed" {
-					addDebug(fmt.Sprintf("Hidden: %s (%s) - status is closed", tome.ID, tome.Title))
-					continue
-				}
-				// Expand notes if conclave is focused or tome itself is focused
-				expandNotes := conclaveIsFocused || tome.ID == req.FocusID
-				tomeSummary, err := s.buildTomeSummary(ctx, tome, req.FocusID, expandNotes)
-				if err != nil {
-					continue // Skip on error
-				}
-				conSummary.Tomes = append(conSummary.Tomes, *tomeSummary)
-			}
-		}
-
-		// Get shipments for this conclave
-		if ships, ok := shipsByContainer[con.ID]; ok {
-			for _, ship := range ships {
-				if ship.Status == "complete" {
-					addDebug(fmt.Sprintf("Hidden: %s (%s) - status is complete", ship.ID, ship.Title))
-					continue
-				}
-
-				shipSummary, err := s.buildShipmentSummary(ctx, ship, req.FocusID)
-				if err != nil {
-					continue // Skip on error
-				}
-				conSummary.Shipments = append(conSummary.Shipments, *shipSummary)
-			}
-		}
-
-		conclaveSummaries = append(conclaveSummaries, conSummary)
+		shipmentSummaries = append(shipmentSummaries, *shipSummary)
 	}
 
-	// Build orphan tomes summary (tomes without container at commission root)
-	orphanTomes := s.buildOrphanTomesSummary(ctx, allTomes, req.FocusID, addDebug)
-
-	// Build shipyard summary (shipments with container_type="shipyard")
-	shipyardSummary := s.buildShipyardSummaryWithDebug(ctx, allShipments, req.ExpandLibrary, req.FocusID, addDebug)
+	// Build flat tome list
+	var tomeSummaries []primary.TomeSummary
+	for _, tome := range allTomes {
+		if tome.Status == "closed" {
+			addDebug(fmt.Sprintf("Hidden: %s (%s) - status is closed", tome.ID, tome.Title))
+			continue
+		}
+		expandNotes := tome.ID == req.FocusID
+		tomeSummary, err := s.buildTomeSummary(ctx, tome, req.FocusID, expandNotes)
+		if err != nil {
+			continue // Skip on error
+		}
+		tomeSummaries = append(tomeSummaries, *tomeSummary)
+	}
 
 	// Determine if this is the focused commission
 	isFocusedCommission := false
 	if req.FocusID != "" {
-		// If focus is a commission, check direct match
 		if req.FocusID == commission.ID {
 			isFocusedCommission = true
-		}
-		// If focus is a container, check if it belongs to this commission
-		for _, con := range conclaves {
-			if con.ID == req.FocusID {
-				isFocusedCommission = true
-				break
-			}
 		}
 		for _, tome := range allTomes {
 			if tome.ID == req.FocusID {
@@ -189,42 +138,10 @@ func (s *SummaryServiceImpl) GetCommissionSummary(ctx context.Context, req prima
 		ID:                  commission.ID,
 		Title:               commission.Title,
 		IsFocusedCommission: isFocusedCommission,
-		Conclaves:           conclaveSummaries,
-		OrphanTomes:         orphanTomes,
-		Library:             primary.LibrarySummary{}, // Library entity removed - always empty
-		Shipyard:            shipyardSummary,
+		Shipments:           shipmentSummaries,
+		Tomes:               tomeSummaries,
 		DebugInfo:           debugInfo,
 	}, nil
-}
-
-// groupTomesByContainer groups tomes by their container ID (conclave).
-func (s *SummaryServiceImpl) groupTomesByContainer(tomes []*primary.Tome) map[string][]*primary.Tome {
-	result := make(map[string][]*primary.Tome)
-	for _, t := range tomes {
-		containerID := t.ContainerID
-		// Fall back to ConclaveID for backwards compatibility
-		if containerID == "" && t.ConclaveID != "" {
-			containerID = t.ConclaveID
-		}
-		if containerID != "" {
-			result[containerID] = append(result[containerID], t)
-		}
-	}
-	return result
-}
-
-// groupShipmentsByContainer groups shipments by their container (conclave or shipyard).
-func (s *SummaryServiceImpl) groupShipmentsByContainer(shipments []*primary.Shipment) map[string][]*primary.Shipment {
-	result := make(map[string][]*primary.Shipment)
-	for _, ship := range shipments {
-		// Group by conclave if set, otherwise by shipyard
-		if ship.ConclaveID != "" {
-			result[ship.ConclaveID] = append(result[ship.ConclaveID], ship)
-		} else if ship.ShipyardID != "" {
-			result[ship.ShipyardID] = append(result[ship.ShipyardID], ship)
-		}
-	}
-	return result
 }
 
 // buildTomeSummary creates a TomeSummary with note count.
@@ -312,66 +229,6 @@ func (s *SummaryServiceImpl) buildShipmentSummary(ctx context.Context, ship *pri
 		TasksTotal: tasksTotal,
 		Tasks:      taskSummaries,
 	}, nil
-}
-
-// buildOrphanTomesSummary returns tomes without a container (at commission root).
-func (s *SummaryServiceImpl) buildOrphanTomesSummary(ctx context.Context, tomes []*primary.Tome, focusID string, addDebug func(string)) []primary.TomeSummary {
-	var orphanTomes []primary.TomeSummary
-	for _, t := range tomes {
-		// Orphan tome: no ContainerID and no ContainerType and no ConclaveID (backward compat)
-		if t.ContainerID == "" && t.ContainerType == "" && t.ConclaveID == "" {
-			if t.Status == "closed" {
-				addDebug(fmt.Sprintf("Hidden: %s (%s) - status is closed", t.ID, t.Title))
-				continue
-			}
-			tomeSummary, err := s.buildTomeSummary(ctx, t, focusID, t.ID == focusID)
-			if err == nil {
-				orphanTomes = append(orphanTomes, *tomeSummary)
-			}
-		}
-	}
-	return orphanTomes
-}
-
-// buildShipyardSummaryWithDebug counts shipments in the Shipyard with debug tracking.
-func (s *SummaryServiceImpl) buildShipyardSummaryWithDebug(ctx context.Context, shipments []*primary.Shipment, expand bool, focusID string, addDebug func(string)) primary.ShipyardSummary {
-	var yardShipments []primary.ShipmentSummary
-	count := 0
-
-	// Build priority map from shipyard queue
-	priorityMap := make(map[string]*int)
-	for _, ship := range shipments {
-		if ship.Status == "queued" && ship.CommissionID != "" {
-			queue, err := s.shipmentService.ListShipyardQueue(ctx, ship.CommissionID)
-			if err == nil {
-				for _, entry := range queue {
-					priorityMap[entry.ID] = entry.Priority
-				}
-			}
-			break // Only need to fetch once per commission
-		}
-	}
-
-	for _, ship := range shipments {
-		if ship.Status == "queued" {
-			if ship.Status == "complete" {
-				addDebug(fmt.Sprintf("Hidden: %s (%s) - status is complete", ship.ID, ship.Title))
-				continue
-			}
-			count++
-			if expand {
-				shipSummary, err := s.buildShipmentSummary(ctx, ship, focusID)
-				if err == nil {
-					// Add priority from shipyard queue
-					if priority, ok := priorityMap[ship.ID]; ok {
-						shipSummary.Priority = priority
-					}
-					yardShipments = append(yardShipments, *shipSummary)
-				}
-			}
-		}
-	}
-	return primary.ShipyardSummary{ShipmentCount: count, Shipments: yardShipments}
 }
 
 // fetchTaskChildren populates the Plans, Approvals, Escalations, and Receipts for a task.

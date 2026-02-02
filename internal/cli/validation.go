@@ -13,7 +13,6 @@ import (
 var entityPrefixes = map[string]string{
 	"tome":       "TOME",
 	"shipment":   "SHIP",
-	"conclave":   "CON",
 	"commission": "COMM",
 	"task":       "TASK",
 	"note":       "NOTE",

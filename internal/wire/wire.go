@@ -340,7 +340,6 @@ func initServices() {
 	// Create summary service (depends on most other services)
 	summaryService = app.NewSummaryService(
 		commissionService,
-		conclaveService,
 		tomeService,
 		shipmentService,
 		taskService,

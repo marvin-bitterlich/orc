@@ -11,40 +11,27 @@ type SummaryService interface {
 
 // SummaryRequest contains parameters for getting a commission summary.
 type SummaryRequest struct {
-	CommissionID  string // Required: which commission to summarize
-	WorkbenchID   string // The workbench making the request (for context)
-	WorkshopID    string // The workshop making the request (for context)
-	FocusID       string // Currently focused container
-	ExpandLibrary bool   // Show individual tomes in LIBRARY and shipments in SHIPYARD
-	DebugMode     bool   // Show debug info about what was filtered
+	CommissionID string // Required: which commission to summarize
+	WorkbenchID  string // The workbench making the request (for context)
+	WorkshopID   string // The workshop making the request (for context)
+	FocusID      string // Currently focused container (SHIP-xxx or TOME-xxx)
+	DebugMode    bool   // Show debug info about what was filtered
 }
 
-// CommissionSummary represents the hierarchical summary of a commission.
+// CommissionSummary represents the flat summary of a commission.
+// Shipments and tomes are listed directly under the commission.
 type CommissionSummary struct {
 	ID                  string
 	Title               string
 	IsFocusedCommission bool // true if this is the focused commission
-	Conclaves           []ConclaveSummary
-	OrphanTomes         []TomeSummary // tomes without a container (at commission root)
-	Library             LibrarySummary
-	Shipyard            ShipyardSummary
+	Shipments           []ShipmentSummary
+	Tomes               []TomeSummary
 	DebugInfo           *DebugInfo
 }
 
 // DebugInfo contains debug messages about filtering decisions.
 type DebugInfo struct {
 	Messages []string
-}
-
-// ConclaveSummary represents a conclave with its nested tomes and shipments.
-type ConclaveSummary struct {
-	ID        string
-	Title     string
-	Status    string
-	IsFocused bool
-	Pinned    bool
-	Tomes     []TomeSummary
-	Shipments []ShipmentSummary
 }
 
 // TomeSummary represents a tome with its note count.
@@ -55,7 +42,7 @@ type TomeSummary struct {
 	NoteCount int
 	IsFocused bool
 	Pinned    bool
-	Notes     []NoteSummary // Populated when tome or parent conclave is focused
+	Notes     []NoteSummary // Populated when tome is focused
 }
 
 // NoteSummary represents a note in the summary view.
@@ -77,7 +64,6 @@ type ShipmentSummary struct {
 	TasksDone  int
 	TasksTotal int
 	Tasks      []TaskSummary // Populated only for focused shipment
-	Priority   *int          // Shipyard priority (nil = no priority, 1 = highest)
 }
 
 // TaskSummary represents a task in the summary view.
@@ -114,16 +100,4 @@ type EscalationSummary struct {
 type ReceiptSummary struct {
 	ID     string
 	Status string // draft, submitted, verified
-}
-
-// LibrarySummary represents the Library section with parked tomes.
-type LibrarySummary struct {
-	TomeCount int
-	Tomes     []TomeSummary // Populated when ExpandLibrary is true
-}
-
-// ShipyardSummary represents the Shipyard section with parked shipments.
-type ShipyardSummary struct {
-	ShipmentCount int
-	Shipments     []ShipmentSummary // Populated when ExpandLibrary is true
 }

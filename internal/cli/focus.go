@@ -18,23 +18,18 @@ func FocusCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "focus [container-id]",
 		Short: "Set or show the currently focused container",
-		Long: `Focus on a specific container (Conclave, Shipment, or Tome).
-
-For Goblin (workshop context):
-  - Can only focus on Conclaves (CON-xxx)
-  - Focus stored in workshops.focused_conclave_id
+		Long: `Focus on a specific container (Shipment or Tome).
 
 For IMP (workbench context):
-  - Can focus on Conclaves (CON-xxx), Shipments (SHIP-xxx), or Tomes (TOME-xxx)
+  - Can focus on Shipments (SHIP-xxx) or Tomes (TOME-xxx)
   - Focus stored in workbenches.focused_id
 
 The focused container appears in 'orc prime' output and can be used as default
 for other commands.
 
 Examples:
-  orc focus CON-007     # Focus on a conclave (works for both roles)
-  orc focus SHIP-178    # Focus on a shipment (IMP only)
-  orc focus TOME-028    # Focus on a tome (IMP only)
+  orc focus SHIP-178    # Focus on a shipment
+  orc focus TOME-028    # Focus on a tome
   orc focus --show      # Show current focus
   orc focus --clear     # Clear the current focus`,
 		Args: cobra.MaximumNArgs(1),
@@ -68,15 +63,15 @@ func runFocus(cmd *cobra.Command, args []string) error {
 		// IMP role - use workbench focus
 		return runIMPFocus(cmd, args, cfg, showOnly, clearFlag)
 	case config.PlaceTypeGatehouse:
-		// Goblin role - need to look up workshop from gatehouse
-		return runGoblinFocus(cmd, args, cfg, showOnly, clearFlag)
+		// Goblin role - focus not supported (conclaves removed)
+		return fmt.Errorf("focus not supported in gatehouse context (use workbench context)")
 	default:
-		return fmt.Errorf("focus requires workbench (IMP) or gatehouse (Goblin) context")
+		return fmt.Errorf("focus requires workbench (IMP) context")
 	}
 }
 
 // runIMPFocus handles focus for IMP role (workbench context)
-// IMP can focus on CON-xxx or SHIP-xxx
+// IMP can focus on SHIP-xxx or TOME-xxx
 func runIMPFocus(_ *cobra.Command, args []string, cfg *config.Config, showOnly, clearFlag bool) error {
 	workbenchID := cfg.PlaceID // BENCH-XXX
 
@@ -95,9 +90,9 @@ func runIMPFocus(_ *cobra.Command, args []string, cfg *config.Config, showOnly, 
 	// Set focus
 	containerID := args[0]
 
-	// IMP can focus on CON-xxx, SHIP-xxx, or TOME-xxx
-	if !strings.HasPrefix(containerID, "CON-") && !strings.HasPrefix(containerID, "SHIP-") && !strings.HasPrefix(containerID, "TOME-") {
-		return fmt.Errorf("IMP can only focus on Conclaves (CON-xxx), Shipments (SHIP-xxx), or Tomes (TOME-xxx), got: %s", containerID)
+	// IMP can focus on SHIP-xxx or TOME-xxx
+	if !strings.HasPrefix(containerID, "SHIP-") && !strings.HasPrefix(containerID, "TOME-") {
+		return fmt.Errorf("can only focus on Shipments (SHIP-xxx) or Tomes (TOME-xxx), got: %s", containerID)
 	}
 
 	containerType, title, err := validateAndGetInfo(containerID)
@@ -106,47 +101,6 @@ func runIMPFocus(_ *cobra.Command, args []string, cfg *config.Config, showOnly, 
 	}
 
 	return setIMPFocus(workbenchID, containerID, containerType, title)
-}
-
-// runGoblinFocus handles focus for Goblin role (gatehouse context)
-// Goblin can ONLY focus on CON-xxx
-// Gatehouse place_id is GATE-XXX, need to look up workshop
-func runGoblinFocus(_ *cobra.Command, args []string, cfg *config.Config, showOnly, clearFlag bool) error {
-	gatehouseID := cfg.PlaceID // GATE-XXX
-
-	// Look up workshop from gatehouse
-	ctx := context.Background()
-	gatehouse, err := wire.GatehouseService().GetGatehouse(ctx, gatehouseID)
-	if err != nil {
-		return fmt.Errorf("failed to get gatehouse: %w", err)
-	}
-	workshopID := gatehouse.WorkshopID
-
-	if showOnly {
-		return showGoblinFocus(workshopID)
-	}
-
-	if clearFlag {
-		return clearGoblinFocus(workshopID)
-	}
-
-	if len(args) == 0 {
-		return fmt.Errorf("Usage: orc focus <CON-xxx> or orc focus --show or orc focus --clear")
-	}
-
-	containerID := args[0]
-
-	// Goblin can ONLY focus on CON-xxx
-	if !strings.HasPrefix(containerID, "CON-") {
-		return fmt.Errorf("Goblin can only focus on Conclaves (CON-xxx), got: %s", containerID)
-	}
-
-	containerType, title, err := validateAndGetInfo(containerID)
-	if err != nil {
-		return err
-	}
-
-	return setGoblinFocus(workshopID, containerID, containerType, title)
 }
 
 // validateAndGetInfo validates the container ID exists and returns its type and title
@@ -160,13 +114,6 @@ func validateAndGetInfo(id string) (containerType string, title string, err erro
 		}
 		return "Shipment", ship.Title, nil
 
-	case strings.HasPrefix(id, "CON-"):
-		con, err := wire.ConclaveService().GetConclave(ctx, id)
-		if err != nil {
-			return "", "", fmt.Errorf("conclave %s not found", id)
-		}
-		return "Conclave", con.Title, nil
-
 	case strings.HasPrefix(id, "TOME-"):
 		tome, err := wire.TomeService().GetTome(ctx, id)
 		if err != nil {
@@ -175,7 +122,7 @@ func validateAndGetInfo(id string) (containerType string, title string, err erro
 		return "Tome", tome.Title, nil
 
 	default:
-		return "", "", fmt.Errorf("unknown container type for ID: %s (expected CON-*, SHIP-*, or TOME-*)", id)
+		return "", "", fmt.Errorf("unknown container type for ID: %s (expected SHIP-* or TOME-*)", id)
 	}
 }
 
@@ -190,34 +137,7 @@ func showIMPFocus(workbenchID string) error {
 
 	if focusID == "" {
 		fmt.Println("No focus set")
-		fmt.Println("\nSet focus with: orc focus <CON-xxx>, orc focus <SHIP-xxx>, or orc focus <TOME-xxx>")
-		return nil
-	}
-
-	containerType, title, err := validateAndGetInfo(focusID)
-	if err != nil {
-		// Focus is set but container no longer exists - graceful degradation
-		fmt.Printf("Focus: %s (container not found - may have been deleted)\n", focusID)
-		return nil //nolint:nilerr // intentional: show info even if container deleted
-	}
-
-	fmt.Printf("Focus: %s\n", focusID)
-	fmt.Printf("  %s: %s\n", containerType, title)
-	return nil
-}
-
-// showGoblinFocus displays the current Goblin focus from DB
-func showGoblinFocus(workshopID string) error {
-	ctx := context.Background()
-
-	focusID, err := wire.WorkshopService().GetFocusedConclaveID(ctx, workshopID)
-	if err != nil {
-		return fmt.Errorf("failed to get focus: %w", err)
-	}
-
-	if focusID == "" {
-		fmt.Println("No focus set")
-		fmt.Println("\nSet focus with: orc focus <CON-xxx>")
+		fmt.Println("\nSet focus with: orc focus <SHIP-xxx> or orc focus <TOME-xxx>")
 		return nil
 	}
 
@@ -267,22 +187,6 @@ func setIMPFocus(workbenchID, containerID, containerType, title string) error {
 	return nil
 }
 
-// setGoblinFocus sets the Goblin focus in the DB
-func setGoblinFocus(workshopID, containerID, containerType, title string) error {
-	ctx := context.Background()
-
-	// Update focus in DB
-	if err := wire.WorkshopService().UpdateFocusedConclaveID(ctx, workshopID, containerID); err != nil {
-		return fmt.Errorf("failed to set focus: %w", err)
-	}
-
-	fmt.Printf("Focused on %s: %s\n", containerType, containerID)
-	fmt.Printf("  %s\n", title)
-
-	fmt.Println("\nRun 'orc prime' to see updated context.")
-	return nil
-}
-
 // autoCheckoutShipmentBranch checks out the shipment's branch in the workbench
 func autoCheckoutShipmentBranch(workbenchID, shipmentID string) error {
 	ctx := context.Background()
@@ -318,18 +222,6 @@ func clearIMPFocus(workbenchID string) error {
 	return nil
 }
 
-// clearGoblinFocus clears the Goblin focus in DB
-func clearGoblinFocus(workshopID string) error {
-	ctx := context.Background()
-
-	if err := wire.WorkshopService().UpdateFocusedConclaveID(ctx, workshopID, ""); err != nil {
-		return fmt.Errorf("failed to clear focus: %w", err)
-	}
-
-	fmt.Println("Focus cleared")
-	return nil
-}
-
 // GetCurrentFocus is exported for use by other commands (e.g., prime)
 // Returns the focused ID from DB based on place_id context
 func GetCurrentFocus(cfg *config.Config) string {
@@ -349,16 +241,8 @@ func GetCurrentFocus(cfg *config.Config) string {
 		}
 		return focusID
 	case config.PlaceTypeGatehouse:
-		// Goblin context - look up workshop from gatehouse
-		gatehouse, err := wire.GatehouseService().GetGatehouse(ctx, cfg.PlaceID)
-		if err != nil {
-			return ""
-		}
-		focusID, err := wire.WorkshopService().GetFocusedConclaveID(ctx, gatehouse.WorkshopID)
-		if err != nil {
-			return ""
-		}
-		return focusID
+		// Gatehouse context - no focus support (conclaves removed)
+		return ""
 	}
 
 	return ""
@@ -375,10 +259,6 @@ func GetFocusInfo(focusID string) (containerType, title, status string) {
 	case strings.HasPrefix(focusID, "SHIP-"):
 		if ship, err := wire.ShipmentService().GetShipment(ctx, focusID); err == nil {
 			return "Shipment", ship.Title, ship.Status
-		}
-	case strings.HasPrefix(focusID, "CON-"):
-		if con, err := wire.ConclaveService().GetConclave(ctx, focusID); err == nil {
-			return "Conclave", con.Title, con.Status
 		}
 	case strings.HasPrefix(focusID, "TOME-"):
 		if tome, err := wire.TomeService().GetTome(ctx, focusID); err == nil {

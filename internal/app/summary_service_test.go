@@ -77,83 +77,6 @@ func (m *mockCommissionServiceForSummary) UnpinCommission(_ context.Context, _ s
 	return nil
 }
 
-// mockConclaveServiceForSummary implements primary.ConclaveService for testing.
-type mockConclaveServiceForSummary struct {
-	conclaves map[string]*primary.Conclave
-}
-
-func newMockConclaveServiceForSummary() *mockConclaveServiceForSummary {
-	return &mockConclaveServiceForSummary{
-		conclaves: make(map[string]*primary.Conclave),
-	}
-}
-
-func (m *mockConclaveServiceForSummary) CreateConclave(_ context.Context, _ primary.CreateConclaveRequest) (*primary.CreateConclaveResponse, error) {
-	return nil, nil
-}
-
-func (m *mockConclaveServiceForSummary) GetConclave(_ context.Context, id string) (*primary.Conclave, error) {
-	if con, ok := m.conclaves[id]; ok {
-		return con, nil
-	}
-	return nil, nil
-}
-
-func (m *mockConclaveServiceForSummary) ListConclaves(_ context.Context, filters primary.ConclaveFilters) ([]*primary.Conclave, error) {
-	var result []*primary.Conclave
-	for _, c := range m.conclaves {
-		if filters.CommissionID != "" && c.CommissionID != filters.CommissionID {
-			continue
-		}
-		result = append(result, c)
-	}
-	return result, nil
-}
-
-func (m *mockConclaveServiceForSummary) CompleteConclave(_ context.Context, _ string) error {
-	return nil
-}
-
-func (m *mockConclaveServiceForSummary) PauseConclave(_ context.Context, _ string) error {
-	return nil
-}
-
-func (m *mockConclaveServiceForSummary) ResumeConclave(_ context.Context, _ string) error {
-	return nil
-}
-
-func (m *mockConclaveServiceForSummary) UpdateConclave(_ context.Context, _ primary.UpdateConclaveRequest) error {
-	return nil
-}
-
-func (m *mockConclaveServiceForSummary) PinConclave(_ context.Context, _ string) error {
-	return nil
-}
-
-func (m *mockConclaveServiceForSummary) UnpinConclave(_ context.Context, _ string) error {
-	return nil
-}
-
-func (m *mockConclaveServiceForSummary) ReopenConclave(_ context.Context, _ string) error {
-	return nil
-}
-
-func (m *mockConclaveServiceForSummary) DeleteConclave(_ context.Context, _ string) error {
-	return nil
-}
-
-func (m *mockConclaveServiceForSummary) GetConclavesByShipment(_ context.Context, _ string) ([]*primary.Conclave, error) {
-	return nil, nil
-}
-
-func (m *mockConclaveServiceForSummary) GetConclaveTasks(_ context.Context, _ string) ([]*primary.ConclaveTask, error) {
-	return nil, nil
-}
-
-func (m *mockConclaveServiceForSummary) GetConclavePlans(_ context.Context, _ string) ([]*primary.ConclavePlan, error) {
-	return nil, nil
-}
-
 // mockTomeServiceForSummary implements primary.TomeService for testing.
 type mockTomeServiceForSummary struct {
 	tomes     map[string]*primary.Tome
@@ -531,13 +454,12 @@ func (m *mockWorkbenchServiceForSummary) ArchiveWorkbench(_ context.Context, _ s
 }
 
 // ============================================================================
-// Tests
+// Tests for Flat Summary Structure
 // ============================================================================
 
-func TestSummaryService_GetCommissionSummary_GoblinFullTree(t *testing.T) {
+func TestSummaryService_GetCommissionSummary_FlatStructure(t *testing.T) {
 	// Setup mocks
 	commissionSvc := newMockCommissionServiceForSummary()
-	conclaveSvc := newMockConclaveServiceForSummary()
 	tomeSvc := newMockTomeServiceForSummary()
 	shipmentSvc := newMockShipmentServiceForSummary()
 	taskSvc := newMockTaskServiceForSummary()
@@ -551,19 +473,10 @@ func TestSummaryService_GetCommissionSummary_GoblinFullTree(t *testing.T) {
 		Status: "active",
 	}
 
-	// Create conclave
-	conclaveSvc.conclaves["CON-001"] = &primary.Conclave{
-		ID:           "CON-001",
-		CommissionID: "COMM-001",
-		Title:        "Design Conclave",
-		Status:       "active",
-	}
-
-	// Create tome under conclave
+	// Create tome directly under commission
 	tomeSvc.tomes["TOME-001"] = &primary.Tome{
 		ID:           "TOME-001",
 		CommissionID: "COMM-001",
-		ConclaveID:   "CON-001",
 		Title:        "Design Notes",
 		Status:       "open",
 	}
@@ -575,11 +488,10 @@ func TestSummaryService_GetCommissionSummary_GoblinFullTree(t *testing.T) {
 		{ID: "NOTE-003", Title: "Note 3", Status: "closed"},
 	}
 
-	// Create shipment under conclave with assigned workbench
+	// Create shipment directly under commission with assigned workbench
 	shipmentSvc.shipments["SHIP-001"] = &primary.Shipment{
 		ID:                  "SHIP-001",
 		CommissionID:        "COMM-001",
-		ConclaveID:          "CON-001",
 		Title:               "Bug Fixes",
 		Status:              "active",
 		AssignedWorkbenchID: "BENCH-001",
@@ -598,7 +510,7 @@ func TestSummaryService_GetCommissionSummary_GoblinFullTree(t *testing.T) {
 		Name: "bench-alpha",
 	}
 
-	// Create orphan tome (at commission root)
+	// Create another tome
 	tomeSvc.tomes["TOME-002"] = &primary.Tome{
 		ID:           "TOME-002",
 		CommissionID: "COMM-001",
@@ -606,14 +518,14 @@ func TestSummaryService_GetCommissionSummary_GoblinFullTree(t *testing.T) {
 		Status:       "open",
 	}
 
-	// Create service
-	svc := NewSummaryService(commissionSvc, conclaveSvc, tomeSvc, shipmentSvc, taskSvc, noteSvc, workbenchSvc, nil, nil, nil, nil)
+	// Create service (no conclave service needed)
+	svc := NewSummaryService(commissionSvc, tomeSvc, shipmentSvc, taskSvc, noteSvc, workbenchSvc, nil, nil, nil, nil)
 
 	// Request summary
 	req := primary.SummaryRequest{
 		CommissionID: "COMM-001",
 		WorkshopID:   "WORK-001",
-		FocusID:      "CON-001",
+		FocusID:      "SHIP-001",
 	}
 
 	summary, err := svc.GetCommissionSummary(context.Background(), req)
@@ -626,49 +538,35 @@ func TestSummaryService_GetCommissionSummary_GoblinFullTree(t *testing.T) {
 		t.Errorf("expected commission ID COMM-001, got %s", summary.ID)
 	}
 
-	// Verify conclaves
-	if len(summary.Conclaves) != 1 {
-		t.Errorf("expected 1 conclave, got %d", len(summary.Conclaves))
+	// Verify flat shipments list
+	if len(summary.Shipments) != 1 {
+		t.Errorf("expected 1 shipment, got %d", len(summary.Shipments))
 	}
-	if summary.Conclaves[0].ID != "CON-001" {
-		t.Errorf("expected conclave ID CON-001, got %s", summary.Conclaves[0].ID)
+	if summary.Shipments[0].ID != "SHIP-001" {
+		t.Errorf("expected shipment ID SHIP-001, got %s", summary.Shipments[0].ID)
 	}
-	if !summary.Conclaves[0].IsFocused {
-		t.Error("expected conclave to be focused")
+	if !summary.Shipments[0].IsFocused {
+		t.Error("expected shipment to be focused")
 	}
-
-	// Verify tomes under conclave
-	if len(summary.Conclaves[0].Tomes) != 1 {
-		t.Errorf("expected 1 tome under conclave, got %d", len(summary.Conclaves[0].Tomes))
+	if summary.Shipments[0].BenchID != "BENCH-001" {
+		t.Errorf("expected bench ID BENCH-001, got %s", summary.Shipments[0].BenchID)
 	}
-	if summary.Conclaves[0].Tomes[0].NoteCount != 2 {
-		t.Errorf("expected 2 open notes, got %d", summary.Conclaves[0].Tomes[0].NoteCount)
+	if summary.Shipments[0].TasksDone != 1 {
+		t.Errorf("expected 1 task done, got %d", summary.Shipments[0].TasksDone)
 	}
-
-	// Verify shipments under conclave
-	if len(summary.Conclaves[0].Shipments) != 1 {
-		t.Errorf("expected 1 shipment under conclave, got %d", len(summary.Conclaves[0].Shipments))
-	}
-	if summary.Conclaves[0].Shipments[0].BenchID != "BENCH-001" {
-		t.Errorf("expected bench ID BENCH-001, got %s", summary.Conclaves[0].Shipments[0].BenchID)
-	}
-	if summary.Conclaves[0].Shipments[0].TasksDone != 1 {
-		t.Errorf("expected 1 task done, got %d", summary.Conclaves[0].Shipments[0].TasksDone)
-	}
-	if summary.Conclaves[0].Shipments[0].TasksTotal != 3 {
-		t.Errorf("expected 3 total tasks, got %d", summary.Conclaves[0].Shipments[0].TasksTotal)
+	if summary.Shipments[0].TasksTotal != 3 {
+		t.Errorf("expected 3 total tasks, got %d", summary.Shipments[0].TasksTotal)
 	}
 
-	// Verify orphan tomes
-	if len(summary.OrphanTomes) != 1 {
-		t.Errorf("expected 1 orphan tome, got %d", len(summary.OrphanTomes))
+	// Verify flat tomes list
+	if len(summary.Tomes) != 2 {
+		t.Errorf("expected 2 tomes, got %d", len(summary.Tomes))
 	}
 }
 
-func TestSummaryService_GetCommissionSummary_ShowsAllWorkbenchShipments(t *testing.T) {
+func TestSummaryService_GetCommissionSummary_ShowsAllShipments(t *testing.T) {
 	// Setup mocks
 	commissionSvc := newMockCommissionServiceForSummary()
-	conclaveSvc := newMockConclaveServiceForSummary()
 	tomeSvc := newMockTomeServiceForSummary()
 	shipmentSvc := newMockShipmentServiceForSummary()
 	taskSvc := newMockTaskServiceForSummary()
@@ -682,19 +580,10 @@ func TestSummaryService_GetCommissionSummary_ShowsAllWorkbenchShipments(t *testi
 		Status: "active",
 	}
 
-	// Create conclave
-	conclaveSvc.conclaves["CON-001"] = &primary.Conclave{
-		ID:           "CON-001",
-		CommissionID: "COMM-001",
-		Title:        "Design Conclave",
-		Status:       "active",
-	}
-
 	// Create shipment assigned to one workbench
 	shipmentSvc.shipments["SHIP-001"] = &primary.Shipment{
 		ID:                  "SHIP-001",
 		CommissionID:        "COMM-001",
-		ConclaveID:          "CON-001",
 		Title:               "My Shipment",
 		Status:              "active",
 		AssignedWorkbenchID: "BENCH-001",
@@ -704,7 +593,6 @@ func TestSummaryService_GetCommissionSummary_ShowsAllWorkbenchShipments(t *testi
 	shipmentSvc.shipments["SHIP-002"] = &primary.Shipment{
 		ID:                  "SHIP-002",
 		CommissionID:        "COMM-001",
-		ConclaveID:          "CON-001",
 		Title:               "Other Shipment",
 		Status:              "active",
 		AssignedWorkbenchID: "BENCH-002",
@@ -714,14 +602,13 @@ func TestSummaryService_GetCommissionSummary_ShowsAllWorkbenchShipments(t *testi
 	shipmentSvc.shipments["SHIP-003"] = &primary.Shipment{
 		ID:                  "SHIP-003",
 		CommissionID:        "COMM-001",
-		ConclaveID:          "CON-001",
 		Title:               "Unassigned Shipment",
 		Status:              "active",
 		AssignedWorkbenchID: "",
 	}
 
 	// Create service
-	svc := NewSummaryService(commissionSvc, conclaveSvc, tomeSvc, shipmentSvc, taskSvc, noteSvc, workbenchSvc, nil, nil, nil, nil)
+	svc := NewSummaryService(commissionSvc, tomeSvc, shipmentSvc, taskSvc, noteSvc, workbenchSvc, nil, nil, nil, nil)
 
 	// Request summary - all shipments should be visible regardless of workbench assignment
 	req := primary.SummaryRequest{
@@ -735,16 +622,15 @@ func TestSummaryService_GetCommissionSummary_ShowsAllWorkbenchShipments(t *testi
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	// All 3 shipments should be visible (no more IMP filtering)
-	if len(summary.Conclaves[0].Shipments) != 3 {
-		t.Errorf("expected 3 visible shipments, got %d", len(summary.Conclaves[0].Shipments))
+	// All 3 shipments should be visible in flat list
+	if len(summary.Shipments) != 3 {
+		t.Errorf("expected 3 visible shipments, got %d", len(summary.Shipments))
 	}
 }
 
 func TestSummaryService_GetCommissionSummary_TaskCounting(t *testing.T) {
 	// Setup mocks
 	commissionSvc := newMockCommissionServiceForSummary()
-	conclaveSvc := newMockConclaveServiceForSummary()
 	tomeSvc := newMockTomeServiceForSummary()
 	shipmentSvc := newMockShipmentServiceForSummary()
 	taskSvc := newMockTaskServiceForSummary()
@@ -757,17 +643,9 @@ func TestSummaryService_GetCommissionSummary_TaskCounting(t *testing.T) {
 		Status: "active",
 	}
 
-	conclaveSvc.conclaves["CON-001"] = &primary.Conclave{
-		ID:           "CON-001",
-		CommissionID: "COMM-001",
-		Title:        "Design",
-		Status:       "active",
-	}
-
 	shipmentSvc.shipments["SHIP-001"] = &primary.Shipment{
 		ID:           "SHIP-001",
 		CommissionID: "COMM-001",
-		ConclaveID:   "CON-001",
 		Title:        "Feature Work",
 		Status:       "active",
 	}
@@ -784,7 +662,7 @@ func TestSummaryService_GetCommissionSummary_TaskCounting(t *testing.T) {
 		{ID: "TASK-008", Status: "ready"},
 	}
 
-	svc := NewSummaryService(commissionSvc, conclaveSvc, tomeSvc, shipmentSvc, taskSvc, noteSvc, workbenchSvc, nil, nil, nil, nil)
+	svc := NewSummaryService(commissionSvc, tomeSvc, shipmentSvc, taskSvc, noteSvc, workbenchSvc, nil, nil, nil, nil)
 
 	req := primary.SummaryRequest{
 		CommissionID: "COMM-001",
@@ -795,7 +673,7 @@ func TestSummaryService_GetCommissionSummary_TaskCounting(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	ship := summary.Conclaves[0].Shipments[0]
+	ship := summary.Shipments[0]
 	if ship.TasksDone != 3 {
 		t.Errorf("expected 3 tasks done, got %d", ship.TasksDone)
 	}
@@ -804,10 +682,9 @@ func TestSummaryService_GetCommissionSummary_TaskCounting(t *testing.T) {
 	}
 }
 
-func TestSummaryService_GetCommissionSummary_OrphanTomesAndShipyard(t *testing.T) {
+func TestSummaryService_GetCommissionSummary_HidesClosedAndComplete(t *testing.T) {
 	// Setup mocks
 	commissionSvc := newMockCommissionServiceForSummary()
-	conclaveSvc := newMockConclaveServiceForSummary()
 	tomeSvc := newMockTomeServiceForSummary()
 	shipmentSvc := newMockShipmentServiceForSummary()
 	taskSvc := newMockTaskServiceForSummary()
@@ -820,43 +697,43 @@ func TestSummaryService_GetCommissionSummary_OrphanTomesAndShipyard(t *testing.T
 		Status: "active",
 	}
 
-	// Orphan tomes at commission root (2 open, 1 closed)
-	tomeSvc.tomes["TOME-L1"] = &primary.Tome{
-		ID:           "TOME-L1",
+	// Open tomes (should appear)
+	tomeSvc.tomes["TOME-001"] = &primary.Tome{
+		ID:           "TOME-001",
 		CommissionID: "COMM-001",
-		Title:        "Root Tome 1",
+		Title:        "Open Tome 1",
 		Status:       "open",
 	}
-	tomeSvc.tomes["TOME-L2"] = &primary.Tome{
-		ID:           "TOME-L2",
+	tomeSvc.tomes["TOME-002"] = &primary.Tome{
+		ID:           "TOME-002",
 		CommissionID: "COMM-001",
-		Title:        "Root Tome 2",
+		Title:        "Open Tome 2",
 		Status:       "open",
 	}
-	tomeSvc.tomes["TOME-L3"] = &primary.Tome{
-		ID:           "TOME-L3",
+	// Closed tome (should be hidden)
+	tomeSvc.tomes["TOME-003"] = &primary.Tome{
+		ID:           "TOME-003",
 		CommissionID: "COMM-001",
-		Title:        "Closed Root Tome",
+		Title:        "Closed Tome",
 		Status:       "closed",
 	}
 
-	// Shipyard shipments (1 queued, 1 complete)
-	shipmentSvc.shipments["SHIP-Y1"] = &primary.Shipment{
-		ID:           "SHIP-Y1",
+	// Active shipment (should appear)
+	shipmentSvc.shipments["SHIP-001"] = &primary.Shipment{
+		ID:           "SHIP-001",
 		CommissionID: "COMM-001",
-		ShipyardID:   "YARD-001",
-		Title:        "Parked Shipment",
-		Status:       "queued",
+		Title:        "Active Shipment",
+		Status:       "active",
 	}
-	shipmentSvc.shipments["SHIP-Y2"] = &primary.Shipment{
-		ID:           "SHIP-Y2",
+	// Complete shipment (should be hidden)
+	shipmentSvc.shipments["SHIP-002"] = &primary.Shipment{
+		ID:           "SHIP-002",
 		CommissionID: "COMM-001",
-		ShipyardID:   "YARD-001",
-		Title:        "Complete Parked Shipment",
+		Title:        "Complete Shipment",
 		Status:       "complete",
 	}
 
-	svc := NewSummaryService(commissionSvc, conclaveSvc, tomeSvc, shipmentSvc, taskSvc, noteSvc, workbenchSvc, nil, nil, nil, nil)
+	svc := NewSummaryService(commissionSvc, tomeSvc, shipmentSvc, taskSvc, noteSvc, workbenchSvc, nil, nil, nil, nil)
 
 	req := primary.SummaryRequest{
 		CommissionID: "COMM-001",
@@ -867,68 +744,20 @@ func TestSummaryService_GetCommissionSummary_OrphanTomesAndShipyard(t *testing.T
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	// Orphan tomes should count 2 open tomes (not the closed one)
-	if len(summary.OrphanTomes) != 2 {
-		t.Errorf("expected 2 orphan tomes, got %d", len(summary.OrphanTomes))
+	// Should have 2 open tomes (not the closed one)
+	if len(summary.Tomes) != 2 {
+		t.Errorf("expected 2 tomes, got %d", len(summary.Tomes))
 	}
 
-	// Shipyard should count 1 active shipment (not the complete one)
-	if summary.Shipyard.ShipmentCount != 1 {
-		t.Errorf("expected 1 shipyard shipment, got %d", summary.Shipyard.ShipmentCount)
-	}
-}
-
-func TestSummaryService_GetCommissionSummary_OrphanTomes(t *testing.T) {
-	// Setup mocks
-	commissionSvc := newMockCommissionServiceForSummary()
-	conclaveSvc := newMockConclaveServiceForSummary()
-	tomeSvc := newMockTomeServiceForSummary()
-	shipmentSvc := newMockShipmentServiceForSummary()
-	taskSvc := newMockTaskServiceForSummary()
-	noteSvc := newMockNoteServiceForSummary()
-	workbenchSvc := newMockWorkbenchServiceForSummary()
-
-	commissionSvc.commissions["COMM-001"] = &primary.Commission{
-		ID:     "COMM-001",
-		Title:  "Test Commission",
-		Status: "active",
-	}
-
-	// Orphan tome (no container)
-	tomeSvc.tomes["TOME-ORPHAN"] = &primary.Tome{
-		ID:           "TOME-ORPHAN",
-		CommissionID: "COMM-001",
-		Title:        "Root Tome",
-		Status:       "open",
-		// ContainerID and ContainerType are empty - orphan at commission root
-	}
-
-	svc := NewSummaryService(commissionSvc, conclaveSvc, tomeSvc, shipmentSvc, taskSvc, noteSvc, workbenchSvc, nil, nil, nil, nil)
-
-	req := primary.SummaryRequest{
-		CommissionID: "COMM-001",
-	}
-
-	summary, err := svc.GetCommissionSummary(context.Background(), req)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	// Should have 1 orphan tome
-	if len(summary.OrphanTomes) != 1 {
-		t.Errorf("expected 1 orphan tome, got %d", len(summary.OrphanTomes))
-	}
-
-	// Verify it's the right tome
-	if len(summary.OrphanTomes) > 0 && summary.OrphanTomes[0].ID != "TOME-ORPHAN" {
-		t.Errorf("expected orphan tome ID 'TOME-ORPHAN', got '%s'", summary.OrphanTomes[0].ID)
+	// Should have 1 active shipment (not the complete one)
+	if len(summary.Shipments) != 1 {
+		t.Errorf("expected 1 shipment, got %d", len(summary.Shipments))
 	}
 }
 
 func TestSummaryService_GetCommissionSummary_FocusedCommission(t *testing.T) {
 	// Setup mocks
 	commissionSvc := newMockCommissionServiceForSummary()
-	conclaveSvc := newMockConclaveServiceForSummary()
 	tomeSvc := newMockTomeServiceForSummary()
 	shipmentSvc := newMockShipmentServiceForSummary()
 	taskSvc := newMockTaskServiceForSummary()
@@ -941,19 +770,19 @@ func TestSummaryService_GetCommissionSummary_FocusedCommission(t *testing.T) {
 		Status: "active",
 	}
 
-	conclaveSvc.conclaves["CON-001"] = &primary.Conclave{
-		ID:           "CON-001",
+	shipmentSvc.shipments["SHIP-001"] = &primary.Shipment{
+		ID:           "SHIP-001",
 		CommissionID: "COMM-001",
-		Title:        "Test Conclave",
-		Status:       "open",
+		Title:        "Test Shipment",
+		Status:       "active",
 	}
 
-	svc := NewSummaryService(commissionSvc, conclaveSvc, tomeSvc, shipmentSvc, taskSvc, noteSvc, workbenchSvc, nil, nil, nil, nil)
+	svc := NewSummaryService(commissionSvc, tomeSvc, shipmentSvc, taskSvc, noteSvc, workbenchSvc, nil, nil, nil, nil)
 
-	// Test with focus on conclave in this commission
+	// Test with focus on shipment in this commission
 	req := primary.SummaryRequest{
 		CommissionID: "COMM-001",
-		FocusID:      "CON-001",
+		FocusID:      "SHIP-001",
 	}
 
 	summary, err := svc.GetCommissionSummary(context.Background(), req)
@@ -979,6 +808,56 @@ func TestSummaryService_GetCommissionSummary_FocusedCommission(t *testing.T) {
 	// Commission should not be marked as focused
 	if summaryNoFocus.IsFocusedCommission {
 		t.Error("expected IsFocusedCommission to be false when no focus")
+	}
+}
+
+func TestSummaryService_GetCommissionSummary_TomeNoteCount(t *testing.T) {
+	// Setup mocks
+	commissionSvc := newMockCommissionServiceForSummary()
+	tomeSvc := newMockTomeServiceForSummary()
+	shipmentSvc := newMockShipmentServiceForSummary()
+	taskSvc := newMockTaskServiceForSummary()
+	noteSvc := newMockNoteServiceForSummary()
+	workbenchSvc := newMockWorkbenchServiceForSummary()
+
+	commissionSvc.commissions["COMM-001"] = &primary.Commission{
+		ID:     "COMM-001",
+		Title:  "Test Commission",
+		Status: "active",
+	}
+
+	tomeSvc.tomes["TOME-001"] = &primary.Tome{
+		ID:           "TOME-001",
+		CommissionID: "COMM-001",
+		Title:        "Notes Tome",
+		Status:       "open",
+	}
+
+	// 2 open notes, 1 closed note (should only count open)
+	tomeSvc.tomeNotes["TOME-001"] = []*primary.Note{
+		{ID: "NOTE-001", Title: "Open Note 1", Status: "open"},
+		{ID: "NOTE-002", Title: "Open Note 2", Status: "open"},
+		{ID: "NOTE-003", Title: "Closed Note", Status: "closed"},
+	}
+
+	svc := NewSummaryService(commissionSvc, tomeSvc, shipmentSvc, taskSvc, noteSvc, workbenchSvc, nil, nil, nil, nil)
+
+	req := primary.SummaryRequest{
+		CommissionID: "COMM-001",
+	}
+
+	summary, err := svc.GetCommissionSummary(context.Background(), req)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(summary.Tomes) != 1 {
+		t.Fatalf("expected 1 tome, got %d", len(summary.Tomes))
+	}
+
+	// Should count only open notes
+	if summary.Tomes[0].NoteCount != 2 {
+		t.Errorf("expected 2 open notes, got %d", summary.Tomes[0].NoteCount)
 	}
 }
 
