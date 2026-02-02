@@ -90,6 +90,24 @@ var shipyardClaimCmd = &cobra.Command{
 			return fmt.Errorf("failed to claim shipment: %w", err)
 		}
 
+		// Unpark shipment: change ContainerType from 'shipyard' to 'conclave'
+		// First get the workbench to find its workshop
+		workbench, err := wire.WorkbenchService().GetWorkbench(ctx, workbenchID)
+		if err != nil {
+			return fmt.Errorf("failed to get workbench: %w", err)
+		}
+
+		// Get the focused conclave from the workshop
+		focusedConclaveID, err := wire.WorkshopService().GetFocusedConclaveID(ctx, workbench.WorkshopID)
+		if err != nil {
+			return fmt.Errorf("failed to get focused conclave: %w", err)
+		}
+
+		// Unpark the shipment into the focused conclave
+		if err := wire.ShipmentService().UnparkShipment(ctx, topShipment.ID, focusedConclaveID); err != nil {
+			return fmt.Errorf("failed to unpark shipment: %w", err)
+		}
+
 		fmt.Printf("✓ Claimed %s: %s\n", topShipment.ID, topShipment.Title)
 		fmt.Printf("  Assigned to workbench: %s\n", workbenchID)
 		if topShipment.TaskCount > 0 {
