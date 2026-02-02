@@ -118,6 +118,39 @@ func displayInfraPlan(plan *primary.InfraPlan) {
 		}
 	}
 	fmt.Println()
+
+	// Show orphaned resources (exist on disk but not in DB)
+	if len(plan.OrphanWorkbenches) > 0 || len(plan.OrphanGatehouses) > 0 {
+		fmt.Println("Orphaned Resources (exist on disk, not in DB):")
+
+		if len(plan.OrphanGatehouses) > 0 {
+			fmt.Println("  Gatehouses:")
+			for _, gh := range plan.OrphanGatehouses {
+				fmt.Printf("    %s %s: %s\n",
+					infraStatusColor(gh.Status),
+					gh.ID,
+					gh.Path,
+				)
+			}
+		}
+
+		if len(plan.OrphanWorkbenches) > 0 {
+			fmt.Println("  Workbenches:")
+			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+			fmt.Fprintln(w, "    STATUS\tID\tNAME\tPATH")
+			fmt.Fprintln(w, "    ------\t--\t----\t----")
+			for _, wb := range plan.OrphanWorkbenches {
+				fmt.Fprintf(w, "    %s\t%s\t%s\t%s\n",
+					infraStatusColor(wb.Status),
+					wb.ID,
+					wb.Name,
+					wb.Path,
+				)
+			}
+			w.Flush()
+		}
+		fmt.Println()
+	}
 }
 
 // infraStatusColor returns a color-formatted status string for infra display.
@@ -129,6 +162,8 @@ func infraStatusColor(status primary.OpStatus) string {
 		return color.New(color.FgGreen).Sprint("CREATE ")
 	case primary.OpMissing:
 		return color.New(color.FgRed).Sprint("MISSING")
+	case primary.OpDelete:
+		return color.New(color.FgRed).Sprint("DELETE ")
 	default:
 		return string(status)
 	}
@@ -136,6 +171,8 @@ func infraStatusColor(status primary.OpStatus) string {
 
 func infraApplyCmd() *cobra.Command {
 	var skipConfirm bool
+	var forceDelete bool
+	var noDelete bool
 
 	cmd := &cobra.Command{
 		Use:   "apply [workshop-id]",
@@ -148,9 +185,14 @@ Creates:
   - Workbench worktrees (via git worktree add)
   - ORC config files in each workbench
 
+Use --force to delete orphan worktrees even if they have uncommitted changes.
+Use --no-delete to only perform CREATE operations, leaving orphans in place.
+
 Examples:
   orc infra apply WORK-001
-  orc infra apply WORK-001 --yes`,
+  orc infra apply WORK-001 --yes
+  orc infra apply WORK-001 --force
+  orc infra apply WORK-001 --no-delete`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			workshopID := args[0]
@@ -159,6 +201,8 @@ Examples:
 			// 1. Generate plan
 			plan, err := wire.InfraService().PlanInfra(ctx, primary.InfraPlanRequest{
 				WorkshopID: workshopID,
+				Force:      forceDelete,
+				NoDelete:   noDelete,
 			})
 			if err != nil {
 				return err
@@ -167,16 +211,19 @@ Examples:
 			// 2. Display plan
 			displayInfraPlan(plan)
 
-			// 3. Check if anything to do
-			nothingToDo := checkNothingToDo(plan)
+			// 3. Check if anything to do (orphans don't count if --no-delete)
+			nothingToDo := checkNothingToDoWithFlags(plan, noDelete)
 			if nothingToDo {
-				fmt.Println("Nothing to create. All infrastructure exists.")
+				fmt.Println("Nothing to do. All infrastructure exists.")
 				return nil
 			}
 
-			// 4. Confirm (unless --yes)
-			if !skipConfirm {
-				if !infraConfirmPrompt("Proceed with creation?") {
+			// 4. Confirm deletions only (CREATE operations proceed without confirmation)
+			// Skip confirmation if --no-delete is set
+			hasDeletes := len(plan.OrphanWorkbenches) > 0 || len(plan.OrphanGatehouses) > 0
+			if hasDeletes && !noDelete && !skipConfirm {
+				deleteCount := len(plan.OrphanWorkbenches) + len(plan.OrphanGatehouses)
+				if !infraConfirmPrompt(fmt.Sprintf("Delete %d orphan(s)?", deleteCount)) {
 					fmt.Println("Aborted.")
 					return nil
 				}
@@ -199,17 +246,22 @@ Examples:
 			if resp.ConfigsCreated > 0 {
 				fmt.Printf("  - %d config file(s) created\n", resp.ConfigsCreated)
 			}
+			if resp.OrphansDeleted > 0 {
+				fmt.Printf("  - %d orphan(s) deleted\n", resp.OrphansDeleted)
+			}
 
 			return nil
 		},
 	}
 
-	cmd.Flags().BoolVarP(&skipConfirm, "yes", "y", false, "Skip confirmation prompt")
+	cmd.Flags().BoolVarP(&skipConfirm, "yes", "y", false, "Skip confirmation prompt for DELETE operations")
+	cmd.Flags().BoolVarP(&forceDelete, "force", "f", false, "Force deletion of dirty worktrees with uncommitted changes")
+	cmd.Flags().BoolVar(&noDelete, "no-delete", false, "Only perform CREATE operations, leaving orphans in place")
 
 	return cmd
 }
 
-func checkNothingToDo(plan *primary.InfraPlan) bool {
+func checkNothingToDoWithFlags(plan *primary.InfraPlan, noDelete bool) bool {
 	if plan.Gatehouse != nil && (plan.Gatehouse.Status == primary.OpCreate || plan.Gatehouse.ConfigStatus == primary.OpCreate) {
 		return false
 	}
@@ -217,6 +269,10 @@ func checkNothingToDo(plan *primary.InfraPlan) bool {
 		if wb.Status == primary.OpCreate || wb.Status == primary.OpMissing || wb.ConfigStatus == primary.OpCreate {
 			return false
 		}
+	}
+	// Check for orphan deletions (unless --no-delete, then orphans are ignored)
+	if !noDelete && (len(plan.OrphanWorkbenches) > 0 || len(plan.OrphanGatehouses) > 0) {
+		return false
 	}
 	return true
 }

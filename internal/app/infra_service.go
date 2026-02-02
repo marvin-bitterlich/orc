@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"github.com/example/orc/internal/config"
 	"github.com/example/orc/internal/core/effects"
@@ -95,7 +97,10 @@ func (s *InfraServiceImpl) PlanInfra(ctx context.Context, req primary.InfraPlanR
 		})
 	}
 
-	// 6. Generate plan using pure function
+	// 6. Scan for orphaned configs on disk
+	orphanWbs, orphanGhs := s.scanForOrphans(ctx, workbenches, gatehouse)
+
+	// 7. Generate plan using pure function
 	input := coreinfra.PlanInput{
 		WorkshopID:            req.WorkshopID,
 		WorkshopName:          workshop.Name,
@@ -106,11 +111,145 @@ func (s *InfraServiceImpl) PlanInfra(ctx context.Context, req primary.InfraPlanR
 		GatehousePathExists:   gatehousePathExists,
 		GatehouseConfigExists: gatehouseConfigExists,
 		Workbenches:           wbInputs,
+		OrphanWorkbenches:     orphanWbs,
+		OrphanGatehouses:      orphanGhs,
 	}
 	corePlan := coreinfra.GeneratePlan(input)
 
-	// 7. Convert core plan to primary plan
-	return s.corePlanToPrimary(&corePlan), nil
+	// 8. Convert core plan to primary plan
+	result := s.corePlanToPrimary(&corePlan)
+	result.Force = req.Force
+	result.NoDelete = req.NoDelete
+	return result, nil
+}
+
+// scanForOrphans scans filesystem for config.json files with place_ids not in DB.
+// Scans ~/wb/*/.orc/config.json for workbenches and ~/.orc/ws/WORK-*/.orc/config.json for gatehouses.
+func (s *InfraServiceImpl) scanForOrphans(ctx context.Context, knownWorkbenches []*secondary.WorkbenchRecord, knownGatehouse *secondary.GatehouseRecord) ([]coreinfra.WorkbenchPlanInput, []coreinfra.GatehousePlanInput) {
+	var orphanWbs []coreinfra.WorkbenchPlanInput
+	var orphanGhs []coreinfra.GatehousePlanInput
+
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return orphanWbs, orphanGhs
+	}
+
+	// Build set of known IDs for quick lookup
+	knownWbIDs := make(map[string]bool)
+	for _, wb := range knownWorkbenches {
+		knownWbIDs[wb.ID] = true
+	}
+	knownGhID := ""
+	if knownGatehouse != nil {
+		knownGhID = knownGatehouse.ID
+	}
+
+	// Scan ~/wb/*/.orc/config.json for workbenches
+	wbPattern := filepath.Join(home, "wb", "*", ".orc", "config.json")
+	wbConfigs, _ := filepath.Glob(wbPattern)
+	for _, configPath := range wbConfigs {
+		placeID, err := s.readPlaceID(configPath)
+		if err != nil || placeID == "" {
+			continue
+		}
+		// Only consider BENCH-* place IDs
+		if !strings.HasPrefix(placeID, "BENCH-") {
+			continue
+		}
+		// Check if this place_id exists in DB
+		if knownWbIDs[placeID] {
+			continue // Known workbench, not an orphan
+		}
+		// Verify it's truly not in DB (cross-check with repo)
+		_, err = s.workbenchRepo.GetByID(ctx, placeID)
+		if err == nil {
+			continue // Found in DB, not an orphan
+		}
+		// This is an orphan
+		wbPath := filepath.Dir(filepath.Dir(configPath)) // Go up from .orc/config.json
+		orphanWbs = append(orphanWbs, coreinfra.WorkbenchPlanInput{
+			ID:           placeID,
+			Name:         filepath.Base(wbPath),
+			WorktreePath: wbPath,
+		})
+	}
+
+	// Scan ~/.orc/ws/WORK-*/.orc/config.json for gatehouses
+	ghPattern := filepath.Join(home, ".orc", "ws", "WORK-*", ".orc", "config.json")
+	ghConfigs, _ := filepath.Glob(ghPattern)
+	for _, configPath := range ghConfigs {
+		placeID, err := s.readPlaceID(configPath)
+		if err != nil || placeID == "" {
+			continue
+		}
+		// Only consider GATE-* place IDs
+		if !strings.HasPrefix(placeID, "GATE-") {
+			continue
+		}
+		// Check if this is the known gatehouse
+		if placeID == knownGhID {
+			continue // Known gatehouse, not an orphan
+		}
+		// Verify it's truly not in DB
+		_, err = s.gatehouseRepo.GetByID(ctx, placeID)
+		if err == nil {
+			continue // Found in DB, not an orphan
+		}
+		// This is an orphan
+		ghPath := filepath.Dir(filepath.Dir(configPath))
+		orphanGhs = append(orphanGhs, coreinfra.GatehousePlanInput{
+			PlaceID: placeID,
+			Path:    ghPath,
+		})
+	}
+
+	return orphanWbs, orphanGhs
+}
+
+// readPlaceID reads the place_id from a config.json file.
+func (s *InfraServiceImpl) readPlaceID(configPath string) (string, error) {
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		return "", err
+	}
+	var cfg config.Config
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		return "", err
+	}
+	return cfg.PlaceID, nil
+}
+
+// isWorktreeDirty checks if a git worktree has uncommitted changes.
+// Returns (dirty, modified_count, untracked_count, error).
+func (s *InfraServiceImpl) isWorktreeDirty(path string) (bool, int, int, error) {
+	cmd := exec.Command("git", "status", "--porcelain")
+	cmd.Dir = path
+	output, err := cmd.Output()
+	if err != nil {
+		// Not a git repo or git error - treat as not dirty
+		return false, 0, 0, err
+	}
+
+	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
+	if len(lines) == 1 && lines[0] == "" {
+		return false, 0, 0, nil
+	}
+
+	modified := 0
+	untracked := 0
+	for _, line := range lines {
+		if len(line) < 2 {
+			continue
+		}
+		// Status codes: M = modified, A = added, D = deleted, ?? = untracked
+		if strings.HasPrefix(line, "??") {
+			untracked++
+		} else {
+			modified++
+		}
+	}
+
+	return modified > 0 || untracked > 0, modified, untracked, nil
 }
 
 func (s *InfraServiceImpl) corePlanToPrimary(core *coreinfra.Plan) *primary.InfraPlan {
@@ -149,6 +288,27 @@ func (s *InfraServiceImpl) corePlanToPrimary(core *coreinfra.Plan) *primary.Infr
 		})
 	}
 
+	// Map orphan workbenches (exist on disk but not in DB)
+	for _, wb := range core.OrphanWorkbenches {
+		plan.OrphanWorkbenches = append(plan.OrphanWorkbenches, primary.InfraWorkbenchOp{
+			ID:           wb.ID,
+			Name:         wb.Name,
+			Path:         wb.Path,
+			Status:       primary.OpDelete,
+			ConfigStatus: primary.OpDelete,
+		})
+	}
+
+	// Map orphan gatehouses
+	for _, gh := range core.OrphanGatehouses {
+		plan.OrphanGatehouses = append(plan.OrphanGatehouses, primary.InfraGatehouseOp{
+			ID:           gh.ID,
+			Path:         gh.Path,
+			Status:       primary.OpDelete,
+			ConfigStatus: primary.OpDelete,
+		})
+	}
+
 	return plan
 }
 
@@ -179,6 +339,10 @@ func (s *InfraServiceImpl) ApplyInfra(ctx context.Context, plan *primary.InfraPl
 			nothingToDo = false
 			break
 		}
+	}
+	// Check for orphan deletions
+	if len(plan.OrphanWorkbenches) > 0 || len(plan.OrphanGatehouses) > 0 {
+		nothingToDo = false
 	}
 	if nothingToDo {
 		response.NothingToDo = true
@@ -235,6 +399,35 @@ func (s *InfraServiceImpl) ApplyInfra(ctx context.Context, plan *primary.InfraPl
 
 		if planWb.Status == primary.OpCreate || planWb.Status == primary.OpMissing || planWb.ConfigStatus == primary.OpCreate {
 			response.ConfigsCreated++
+		}
+	}
+
+	// 3. Delete orphan workbenches (unless --no-delete)
+	if !plan.NoDelete {
+		for _, wb := range plan.OrphanWorkbenches {
+			if wb.Status == primary.OpDelete {
+				// Check for dirty worktree if not forced
+				if !plan.Force {
+					dirty, modified, untracked, err := s.isWorktreeDirty(wb.Path)
+					if err == nil && dirty {
+						return nil, fmt.Errorf("cannot delete %s: worktree has uncommitted changes (%d modified, %d untracked). Use --force to override", wb.ID, modified, untracked)
+					}
+				}
+				if err := os.RemoveAll(wb.Path); err != nil {
+					return nil, fmt.Errorf("failed to delete orphan workbench %s: %w", wb.ID, err)
+				}
+				response.OrphansDeleted++
+			}
+		}
+
+		// 4. Delete orphan gatehouses
+		for _, gh := range plan.OrphanGatehouses {
+			if gh.Status == primary.OpDelete {
+				if err := os.RemoveAll(gh.Path); err != nil {
+					return nil, fmt.Errorf("failed to delete orphan gatehouse %s: %w", gh.ID, err)
+				}
+				response.OrphansDeleted++
+			}
 		}
 	}
 

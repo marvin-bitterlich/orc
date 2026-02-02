@@ -17,6 +17,8 @@ type InfraService interface {
 // InfraPlanRequest contains parameters for planning infrastructure.
 type InfraPlanRequest struct {
 	WorkshopID string
+	Force      bool // Force deletion of dirty worktrees
+	NoDelete   bool // Skip DELETE operations (only perform CREATE)
 }
 
 // InfraPlan describes the infrastructure state for a workshop.
@@ -31,6 +33,16 @@ type InfraPlan struct {
 
 	// Workbench infrastructure
 	Workbenches []InfraWorkbenchOp
+
+	// Orphan infrastructure (exists on disk but not in DB)
+	OrphanWorkbenches []InfraWorkbenchOp
+	OrphanGatehouses  []InfraGatehouseOp
+
+	// Force deletion of dirty worktrees
+	Force bool
+
+	// Skip DELETE operations
+	NoDelete bool
 }
 
 // InfraGatehouseOp describes gatehouse infrastructure state.
@@ -59,5 +71,6 @@ type InfraApplyResponse struct {
 	GatehouseCreated   bool
 	WorkbenchesCreated int
 	ConfigsCreated     int
+	OrphansDeleted     int
 	NothingToDo        bool
 }
