@@ -80,7 +80,14 @@ func (s *InfraServiceImpl) PlanInfra(ctx context.Context, req primary.InfraPlanR
 	gatehouseConfigExists := s.fileExists(filepath.Join(gatehousePath, ".orc", "config.json"))
 
 	// 5. Get workbenches and check each one's state
-	workbenches, _ := s.workbenchRepo.List(ctx, req.WorkshopID)
+	allWorkbenches, _ := s.workbenchRepo.List(ctx, req.WorkshopID)
+	// Filter out archived workbenches - they should be treated as orphans to delete
+	var workbenches []*secondary.WorkbenchRecord
+	for _, wb := range allWorkbenches {
+		if wb.Status != "archived" {
+			workbenches = append(workbenches, wb)
+		}
+	}
 	var wbInputs []coreinfra.WorkbenchPlanInput
 	for _, wb := range workbenches {
 		repoName := ""
@@ -683,6 +690,111 @@ func (s *InfraServiceImpl) ensureConfigExists(ctx context.Context, wb *secondary
 	}
 
 	return s.executor.Execute(ctx, effs)
+}
+
+// CleanupWorkbench removes the worktree directory for a workbench.
+func (s *InfraServiceImpl) CleanupWorkbench(ctx context.Context, req primary.CleanupWorkbenchRequest) error {
+	// Check for dirty worktree if not forced
+	if !req.Force && req.WorktreePath != "" {
+		dirty, modified, untracked, err := s.isWorktreeDirty(req.WorktreePath)
+		if err == nil && dirty {
+			return fmt.Errorf("cannot delete %s: worktree has uncommitted changes (%d modified, %d untracked). Use --force to override", req.WorkbenchID, modified, untracked)
+		}
+	}
+
+	// Remove the worktree directory
+	if req.WorktreePath != "" {
+		if err := os.RemoveAll(req.WorktreePath); err != nil {
+			return fmt.Errorf("failed to remove worktree %s: %w", req.WorktreePath, err)
+		}
+	}
+
+	// Kill tmux window if exists (best effort - don't fail if not found)
+	if s.tmuxAdapter != nil {
+		// Find session for this workbench's workshop
+		wb, err := s.workbenchRepo.GetByID(ctx, req.WorkbenchID)
+		if err == nil {
+			sessionName := s.tmuxAdapter.FindSessionByWorkshopID(ctx, wb.WorkshopID)
+			if sessionName != "" {
+				_ = s.tmuxAdapter.KillWindow(ctx, sessionName, wb.Name)
+			}
+		}
+	}
+
+	return nil
+}
+
+// CleanupWorkshop removes all infrastructure for a workshop.
+func (s *InfraServiceImpl) CleanupWorkshop(ctx context.Context, req primary.CleanupWorkshopRequest) error {
+	// Get workshop info before deletion
+	workshop, err := s.workshopRepo.GetByID(ctx, req.WorkshopID)
+	if err != nil {
+		return fmt.Errorf("workshop not found: %w", err)
+	}
+
+	// Get all workbenches for this workshop
+	workbenches, _ := s.workbenchRepo.List(ctx, req.WorkshopID)
+
+	// Cleanup each workbench
+	for _, wb := range workbenches {
+		if err := s.CleanupWorkbench(ctx, primary.CleanupWorkbenchRequest{
+			WorkbenchID:  wb.ID,
+			WorktreePath: wb.WorktreePath,
+			Force:        req.Force,
+		}); err != nil {
+			return fmt.Errorf("failed to cleanup workbench %s: %w", wb.ID, err)
+		}
+	}
+
+	// Remove gatehouse directory
+	home, _ := os.UserHomeDir()
+	gatehousePath := coreworkshop.GatehousePath(home, req.WorkshopID, workshop.Name)
+	if err := os.RemoveAll(gatehousePath); err != nil {
+		return fmt.Errorf("failed to remove gatehouse directory: %w", err)
+	}
+
+	// Kill tmux session if exists
+	if s.tmuxAdapter != nil {
+		sessionName := s.tmuxAdapter.FindSessionByWorkshopID(ctx, req.WorkshopID)
+		if sessionName != "" {
+			_ = s.tmuxAdapter.KillSession(ctx, sessionName)
+		}
+	}
+
+	return nil
+}
+
+// CleanupOrphans scans for and removes orphaned infrastructure.
+func (s *InfraServiceImpl) CleanupOrphans(ctx context.Context, req primary.CleanupOrphansRequest) (*primary.CleanupOrphansResponse, error) {
+	response := &primary.CleanupOrphansResponse{}
+
+	// Scan for orphans (passing empty known lists to find all orphans)
+	orphanWbs, orphanGhs := s.scanForOrphans(ctx, nil, nil)
+
+	// Delete orphan workbenches
+	for _, wb := range orphanWbs {
+		// Check for dirty worktree if not forced
+		if !req.Force {
+			dirty, modified, untracked, err := s.isWorktreeDirty(wb.WorktreePath)
+			if err == nil && dirty {
+				return nil, fmt.Errorf("cannot delete %s: worktree has uncommitted changes (%d modified, %d untracked). Use --force to override", wb.ID, modified, untracked)
+			}
+		}
+		if err := os.RemoveAll(wb.WorktreePath); err != nil {
+			return nil, fmt.Errorf("failed to delete orphan workbench %s: %w", wb.ID, err)
+		}
+		response.WorkbenchesDeleted++
+	}
+
+	// Delete orphan gatehouses
+	for _, gh := range orphanGhs {
+		if err := os.RemoveAll(gh.Path); err != nil {
+			return nil, fmt.Errorf("failed to delete orphan gatehouse %s: %w", gh.PlaceID, err)
+		}
+		response.GatehousesDeleted++
+	}
+
+	return response, nil
 }
 
 // Ensure InfraServiceImpl implements the interface

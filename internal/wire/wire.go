@@ -274,8 +274,10 @@ func initServices() {
 	workbenchRepo := sqlite.NewWorkbenchRepository(database)
 	gatehouseRepo := sqlite.NewGatehouseRepository(database) // needed by workshop service for auto-creation
 	factoryService = app.NewFactoryService(factoryRepo)
-	workshopService = app.NewWorkshopService(factoryRepo, workshopRepo, workbenchRepo, repoRepo, gatehouseRepo, tmuxService, workspaceAdapter, executor)
-	workbenchService = app.NewWorkbenchService(workbenchRepo, workshopRepo, agentProvider, executor)
+	workshopServiceImpl := app.NewWorkshopService(factoryRepo, workshopRepo, workbenchRepo, repoRepo, gatehouseRepo, tmuxService, workspaceAdapter, executor)
+	workshopService = workshopServiceImpl
+	workbenchServiceImpl := app.NewWorkbenchService(workbenchRepo, workshopRepo, agentProvider, executor)
+	workbenchService = workbenchServiceImpl
 
 	// Create approval and escalation repositories early (needed by plan service)
 	approvalRepo := sqlite.NewApprovalRepository(database)
@@ -314,6 +316,10 @@ func initServices() {
 
 	// Create infra service for infrastructure planning
 	infraService = app.NewInfraService(factoryRepo, workshopRepo, workbenchRepo, repoRepo, gatehouseRepo, workspaceAdapter, tmuxAdapter, executor)
+
+	// Inject infra service into workbench and workshop services for pre-delete cleanup
+	workbenchServiceImpl.SetInfraService(infraService)
+	workshopServiceImpl.SetInfraService(infraService)
 
 	// Create orchestration services
 	commissionOrchestrationService = app.NewCommissionOrchestrationService(commissionService, agentProvider)

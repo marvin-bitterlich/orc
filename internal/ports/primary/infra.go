@@ -12,6 +12,18 @@ type InfraService interface {
 	// ApplyInfra executes the infrastructure plan, creating directories,
 	// worktrees, and configs as needed.
 	ApplyInfra(ctx context.Context, plan *InfraPlan) (*InfraApplyResponse, error)
+
+	// CleanupWorkbench removes the worktree directory for a workbench.
+	// Called before DB deletion to ensure filesystem cleanup happens first.
+	CleanupWorkbench(ctx context.Context, req CleanupWorkbenchRequest) error
+
+	// CleanupWorkshop removes all infrastructure for a workshop (workbenches, gatehouse, tmux).
+	// Called before DB deletion to ensure filesystem cleanup happens first.
+	CleanupWorkshop(ctx context.Context, req CleanupWorkshopRequest) error
+
+	// CleanupOrphans scans for and removes orphaned infrastructure.
+	// Useful for manual recovery when system is in inconsistent state.
+	CleanupOrphans(ctx context.Context, req CleanupOrphansRequest) (*CleanupOrphansResponse, error)
 }
 
 // InfraPlanRequest contains parameters for planning infrastructure.
@@ -91,4 +103,28 @@ type InfraApplyResponse struct {
 	ConfigsCreated     int
 	OrphansDeleted     int
 	NothingToDo        bool
+}
+
+// CleanupWorkbenchRequest contains parameters for cleaning up workbench infrastructure.
+type CleanupWorkbenchRequest struct {
+	WorkbenchID  string
+	WorktreePath string
+	Force        bool // Force deletion even if worktree has uncommitted changes
+}
+
+// CleanupWorkshopRequest contains parameters for cleaning up workshop infrastructure.
+type CleanupWorkshopRequest struct {
+	WorkshopID string
+	Force      bool // Force deletion even if worktrees have uncommitted changes
+}
+
+// CleanupOrphansRequest contains parameters for cleaning up orphaned infrastructure.
+type CleanupOrphansRequest struct {
+	Force bool // Force deletion even if worktrees have uncommitted changes
+}
+
+// CleanupOrphansResponse contains the result of cleaning up orphans.
+type CleanupOrphansResponse struct {
+	WorkbenchesDeleted int
+	GatehousesDeleted  int
 }

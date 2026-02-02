@@ -318,9 +318,8 @@ Examples:
 				return err
 			}
 
-			fmt.Printf("✓ Workbench %s deleted from database\n", workbenchID)
-			fmt.Printf("  Worktree remains at: %s\n", workbenchPath)
-			fmt.Printf("  Run 'orc infra apply' to clean up orphaned worktrees\n")
+			fmt.Printf("✓ Workbench %s deleted\n", workbenchID)
+			fmt.Printf("  Worktree cleaned up: %s\n", workbenchPath)
 
 			return nil
 		},

@@ -26,6 +26,7 @@ func InfraCmd() *cobra.Command {
 	cmd.AddCommand(infraPlanCmd())
 	cmd.AddCommand(infraApplyCmd())
 	cmd.AddCommand(infraArchiveWorkbenchCmd())
+	cmd.AddCommand(infraCleanupCmd())
 
 	return cmd
 }
@@ -353,6 +354,55 @@ Examples:
 			return nil
 		},
 	}
+
+	return cmd
+}
+
+func infraCleanupCmd() *cobra.Command {
+	var forceDelete bool
+
+	cmd := &cobra.Command{
+		Use:   "cleanup",
+		Short: "Clean up orphaned infrastructure",
+		Long: `Scan for and remove orphaned infrastructure.
+
+Orphaned infrastructure includes:
+  - Workbench directories with no matching DB record
+  - Gatehouse directories with no matching DB record
+
+This is useful for manual recovery when the system is in an inconsistent state.
+
+Examples:
+  orc infra cleanup          # Show orphans and confirm before deleting
+  orc infra cleanup --force  # Delete orphans with uncommitted changes`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			ctx := context.Background()
+
+			resp, err := wire.InfraService().CleanupOrphans(ctx, primary.CleanupOrphansRequest{
+				Force: forceDelete,
+			})
+			if err != nil {
+				return err
+			}
+
+			if resp.WorkbenchesDeleted == 0 && resp.GatehousesDeleted == 0 {
+				fmt.Println("No orphans found")
+				return nil
+			}
+
+			fmt.Println("✓ Cleanup complete")
+			if resp.WorkbenchesDeleted > 0 {
+				fmt.Printf("  - %d orphan workbench(es) deleted\n", resp.WorkbenchesDeleted)
+			}
+			if resp.GatehousesDeleted > 0 {
+				fmt.Printf("  - %d orphan gatehouse(s) deleted\n", resp.GatehousesDeleted)
+			}
+
+			return nil
+		},
+	}
+
+	cmd.Flags().BoolVarP(&forceDelete, "force", "f", false, "Force deletion of dirty worktrees with uncommitted changes")
 
 	return cmd
 }
