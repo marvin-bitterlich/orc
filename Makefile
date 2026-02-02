@@ -1,4 +1,4 @@
-.PHONY: install install-binary install-shim uninstall-shim dev build test lint lint-fix schema-check check-test-presence check-coverage init install-hooks clean help deploy-glue schema-diff schema-apply schema-inspect setup-workbench
+.PHONY: install install-binary install-shim uninstall-shim dev build test lint lint-fix schema-check check-test-presence check-coverage init install-hooks clean help deploy-glue schema-diff schema-apply schema-inspect setup-workbench schema-diff-workbench schema-apply-workbench
 
 # Go binary location (handles empty GOBIN)
 GOBIN := $(shell go env GOPATH)/bin
@@ -47,19 +47,20 @@ install-shim:
 	@echo 'fi' >> $(GOBIN)/orc
 	@chmod +x $(GOBIN)/orc
 
-# Install orc-dev shim for development (prefers local workbench DB)
+# Install orc-dev shim for development (requires workbench DB)
 install-dev-shim:
 	@echo "Installing orc-dev shim..."
 	@echo '#!/bin/bash' > $(GOBIN)/orc-dev
-	@echo '# ORC dev shim - prefers workbench-local DB, falls back to global dev DB' >> $(GOBIN)/orc-dev
-	@echo 'if [[ -f ".orc/workbench.db" ]]; then' >> $(GOBIN)/orc-dev
-	@echo '  export ORC_DB_PATH=".orc/workbench.db"' >> $(GOBIN)/orc-dev
-	@echo 'else' >> $(GOBIN)/orc-dev
-	@echo '  export ORC_DB_PATH="$$HOME/.orc/dev.db"' >> $(GOBIN)/orc-dev
+	@echo '# ORC dev shim - requires workbench-local DB' >> $(GOBIN)/orc-dev
+	@echo 'if [[ ! -f ".orc/workbench.db" ]]; then' >> $(GOBIN)/orc-dev
+	@echo '  echo "Error: No workbench DB found at .orc/workbench.db" >&2' >> $(GOBIN)/orc-dev
+	@echo '  echo "Run: make setup-workbench" >&2' >> $(GOBIN)/orc-dev
+	@echo '  exit 1' >> $(GOBIN)/orc-dev
 	@echo 'fi' >> $(GOBIN)/orc-dev
+	@echo 'export ORC_DB_PATH=".orc/workbench.db"' >> $(GOBIN)/orc-dev
 	@echo 'exec "$$(dirname "$$0")/orc-bin" "$$@"' >> $(GOBIN)/orc-dev
 	@chmod +x $(GOBIN)/orc-dev
-	@echo "✓ orc-dev installed (prefers .orc/workbench.db when present)"
+	@echo "✓ orc-dev installed (requires .orc/workbench.db)"
 
 # Remove shim and restore direct binary access
 uninstall-shim:
@@ -150,7 +151,7 @@ lint-fix:
 schema-diff:
 	@echo "Comparing current database to schema.sql..."
 	@command -v atlas >/dev/null 2>&1 || { echo "atlas not installed. Run: brew install ariga/tap/atlas"; exit 1; }
-	atlas schema diff --env local
+	atlas schema apply --env local --dry-run
 
 # Apply schema changes from schema.sql to database
 schema-apply:
@@ -163,6 +164,25 @@ schema-inspect:
 	@echo "Inspecting current database schema..."
 	@command -v atlas >/dev/null 2>&1 || { echo "atlas not installed. Run: brew install ariga/tap/atlas"; exit 1; }
 	atlas schema inspect --env local
+
+# Schema management for workbench-local database
+schema-diff-workbench:
+	@if [ ! -f ".orc/workbench.db" ]; then \
+		echo "No workbench DB found. Run: make setup-workbench"; \
+		exit 1; \
+	fi
+	@echo "Comparing workbench DB to schema.sql..."
+	@command -v atlas >/dev/null 2>&1 || { echo "atlas not installed. Run: brew install ariga/tap/atlas"; exit 1; }
+	atlas schema apply --env workbench --dry-run
+
+schema-apply-workbench:
+	@if [ ! -f ".orc/workbench.db" ]; then \
+		echo "No workbench DB found. Run: make setup-workbench"; \
+		exit 1; \
+	fi
+	@echo "Applying schema.sql to workbench DB..."
+	@command -v atlas >/dev/null 2>&1 || { echo "atlas not installed. Run: brew install ariga/tap/atlas"; exit 1; }
+	atlas schema apply --env workbench --auto-approve
 
 #---------------------------------------------------------------------------
 # Development Environment Setup
@@ -252,9 +272,12 @@ help:
 	@echo "  make clean         Remove local build artifacts"
 	@echo ""
 	@echo "Schema Management (Atlas):"
-	@echo "  make schema-diff     Preview schema changes (DB vs schema.sql)"
-	@echo "  make schema-apply    Apply schema.sql to database"
-	@echo "  make schema-inspect  Dump current database schema"
+	@echo "  make schema-diff            Preview schema changes (production DB vs schema.sql)"
+	@echo "  make schema-apply           Apply schema.sql to production database"
+	@echo "  make schema-inspect         Dump current production database schema"
+	@echo "  make schema-diff-workbench  Preview schema changes (workbench DB vs schema.sql)"
+	@echo "  make schema-apply-workbench Apply schema.sql to workbench database"
+	@echo "  make setup-workbench        Create/reset workbench-local database"
 	@echo ""
 	@echo "Installation:"
 	@echo "  make install    Install global orc-bin + local-first shim"

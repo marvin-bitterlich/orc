@@ -23,3 +23,11 @@ env "test" {
 
   exclude = ["*.sqlite_autoindex*[type=index]"]
 }
+
+env "workbench" {
+  src = "file://internal/db/schema.sql"
+  url = "sqlite://.orc/workbench.db"
+  dev = "sqlite://dev?mode=memory"
+
+  exclude = ["*.sqlite_autoindex*[type=index]"]
+}

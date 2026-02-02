@@ -381,9 +381,11 @@ If you add new container types or display features, add corresponding test data 
 
 When adding a new field to an existing entity (e.g., adding `priority` to Task):
 
+- [ ] Create workbench DB: `make setup-workbench`
 - [ ] Update model struct in `internal/models/<entity>.go`
 - [ ] Update SQL schema in `internal/db/schema.sql`
-- [ ] Create migration in `internal/db/migrations/`
+- [ ] Preview with Atlas: `make schema-diff-workbench`
+- [ ] Apply to workbench: `make schema-apply-workbench`
 - [ ] Update repository:
   - [ ] `internal/adapters/sqlite/<entity>_repo.go`
   - [ ] `internal/adapters/sqlite/<entity>_repo_test.go`
@@ -418,10 +420,12 @@ When adding a new state or transition to an entity's state machine:
 
 When adding a new entity that requires persistence (e.g., CycleWorkOrder, Receipt):
 
+- [ ] Create workbench DB: `make setup-workbench`
 - [ ] Guards in `internal/core/<entity>/guards.go`
 - [ ] Guard tests in `internal/core/<entity>/guards_test.go`
-- [ ] Schema in `internal/db/schema.go`
-- [ ] Migration in `internal/db/migrations/`
+- [ ] Schema in `internal/db/schema.sql`
+- [ ] Preview with Atlas: `make schema-diff-workbench`
+- [ ] Apply to workbench: `make schema-apply-workbench`
 - [ ] Secondary port interface in `internal/ports/secondary/persistence.go`
 - [ ] Primary port interface in `internal/ports/primary/<entity>.go`
 - [ ] **Repository implementation + tests** (REQUIRED):
@@ -442,7 +446,7 @@ When adding a new entity that requires persistence (e.g., CycleWorkOrder, Receip
 
 | Term | When | Where | Runs |
 |------|------|-------|------|
-| **Schema migration** | Deploy | `internal/db/schema.go` | Once, centralized |
+| **Schema change** | Development | `internal/db/schema.sql` + Atlas | Per-workbench |
 | **Backfill** | Post-deploy task | `cmd/backfill/` or task | Once, batch |
 | **Config upgrade** | Command execution | CLI layer (`cli/`) | Per-machine, lazy |
 
@@ -508,67 +512,114 @@ All Makefile targets use `--env local` from `atlas.hcl`, which handles:
 
 ## Development Database Workflow
 
-ORC uses a two-binary architecture to prevent accidental modification of the production database.
+ORC uses a two-database model to prevent accidental modification of production data.
 
-### Binary Architecture
+### Two-Database Model
 
-| Binary | Database | Purpose |
-|--------|----------|---------|
-| `orc` | `~/.orc/orc.db` | Production - real commissions, shipments, tasks |
-| `orc-dev` | `~/.orc/dev.db` | Development - resettable fixtures for testing |
+| Database | Path | Command | Purpose |
+|----------|------|---------|---------|
+| Production | `~/.orc/orc.db` | `orc` | Real commissions, shipments, tasks |
+| Workbench | `.orc/workbench.db` | `orc-dev` | Isolated development per workbench |
 
-The `orc-dev` shim sets `ORC_DB_PATH=~/.orc/dev.db` before executing the same binary.
+**There is no shared dev database.** Each workbench has its own isolated database that must be explicitly created.
 
-### Development Commands
+### Setup: Create Workbench Database
 
-**Reset dev database with fresh fixtures:**
+Before using `orc-dev`, create a workbench-local database:
+
 ```bash
-orc-dev dev reset         # Interactive confirmation
-orc-dev dev reset -f      # Skip confirmation
+make setup-workbench
 ```
 
-This seeds comprehensive test data:
+This creates `.orc/workbench.db` with fresh fixtures:
 - 3 tags, 2 repos
 - 2 factories, 3 workshops, 2 workbenches
 - 3 commissions, 5 shipments, 10 tasks
 - 2 conclaves, 2 tomes, 4 notes
 
-**Check dev environment health:**
+### Using orc-dev
+
+The `orc-dev` command **requires** a workbench database:
+
 ```bash
-orc-dev dev doctor        # Full diagnostics
-orc-dev dev doctor -q     # Quiet (exit code only)
+orc-dev summary          # Works if .orc/workbench.db exists
+orc-dev dev doctor       # Verifies environment
 ```
 
-Checks: ORC_DB_PATH set, DB exists, Atlas installed, schema in sync.
+If no workbench DB exists, `orc-dev` will error:
+```
+Error: No workbench DB found at .orc/workbench.db
+Run: make setup-workbench
+```
+
+### Resetting the Workbench Database
+
+To start fresh:
+
+```bash
+make setup-workbench     # Recreates .orc/workbench.db with fixtures
+```
 
 ### Git Hooks (Reminder-Based)
 
-Git hooks provide **breadcrumbs**, not automation. They show helpful reminders but don't auto-execute commands.
+Git hooks provide **breadcrumbs**, not automation:
 
 **post-checkout / post-merge:**
 - Shows current branch
 - Warns if schema may be out of sync
-- On master: shows rebuild checklist
+- Shows workbench DB status if present
 
 **pre-commit:**
-- Quality gate (still enforced)
+- Quality gate (enforced)
 - Runs `make lint` and `make test`
 
-After checkout or merge, you decide what to run:
+---
+
+## IMP Schema Modification Workflow
+
+When developing ORC itself and modifying the database schema, follow this workflow.
+
+### Schema Change Workflow
+
+**1. Create/reset workbench DB:**
 ```bash
-make schema-diff    # Preview schema changes
-make schema-apply   # Apply if needed
-make init           # Full initialization
-make install        # Rebuild binary
+make setup-workbench
 ```
 
-### Why Reminder-Based?
+**2. Edit the schema:**
+```bash
+$EDITOR internal/db/schema.sql
+```
 
-For highly autonomous AI agents, explicit control is better than hidden automation:
-- Agents see exactly what state they're in
-- No silent failures from auto-executed commands
-- Clear "next steps" guidance
-- Repeatable, predictable workflow
+**3. Preview changes against workbench DB:**
+```bash
+make schema-diff-workbench
+```
+
+**4. Apply to workbench DB:**
+```bash
+make schema-apply-workbench
+```
+
+**5. Test with workbench DB:**
+```bash
+orc-dev summary          # Manual verification
+make test                # Automated tests (use in-memory DB)
+```
+
+**6. Verify lint passes:**
+```bash
+make lint
+```
+
+**7. Commit your changes** (pre-commit hook enforces tests + lint)
+
+### Golden Rules
+
+1. **Always `make setup-workbench` before schema work** - Creates isolated DB
+2. **Use `make schema-*-workbench` for iteration** - Fast feedback loop
+3. **Let Atlas generate SQL** - Never write migration SQL by hand
+4. **Tests must pass before commit** - Pre-commit hook enforces this
 
 ---
 
