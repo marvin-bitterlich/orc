@@ -476,6 +476,10 @@ func renderSummary(summary *primary.CommissionSummary, _ string, workshopFocus w
 					benchMarker = color.New(color.FgCyan).Sprintf(" [assigned to %s]", ship.BenchID)
 				}
 			}
+			statusBadge := ""
+			if ship.Status != "" && ship.Status != "complete" {
+				statusBadge = " " + colorizeShipmentStatus(ship.Status)
+			}
 			taskInfo := fmt.Sprintf(" (%d/%d done)", ship.TasksDone, ship.TasksTotal)
 			pinnedMark := ""
 			if ship.Pinned {
@@ -488,7 +492,7 @@ func renderSummary(summary *primary.CommissionSummary, _ string, workshopFocus w
 				focusMark = color.New(color.FgCyan).Sprintf(" [focused by %s]", who)
 			}
 
-			fmt.Printf("%s%s%s%s%s - %s%s\n", shipPrefix, colorizeID(ship.ID), benchMarker, focusMark, pinnedMark, ship.Title, taskInfo)
+			fmt.Printf("%s%s%s%s%s%s - %s%s\n", shipPrefix, colorizeID(ship.ID), statusBadge, benchMarker, focusMark, pinnedMark, ship.Title, taskInfo)
 
 			// Expand tasks for focused shipment
 			if ship.IsFocused && len(ship.Tasks) > 0 {
@@ -593,6 +597,10 @@ func renderSummary(summary *primary.CommissionSummary, _ string, workshopFocus w
 					benchMarker = color.New(color.FgCyan).Sprintf(" [assigned to %s]", ship.BenchID)
 				}
 			}
+			statusBadge := ""
+			if ship.Status != "" && ship.Status != "complete" {
+				statusBadge = " " + colorizeShipmentStatus(ship.Status)
+			}
 			taskInfo := fmt.Sprintf(" (%d/%d done)", ship.TasksDone, ship.TasksTotal)
 			pinnedMark := ""
 			if ship.Pinned {
@@ -608,7 +616,7 @@ func renderSummary(summary *primary.CommissionSummary, _ string, workshopFocus w
 			if ship.Priority != nil {
 				priorityMark = color.New(color.FgYellow).Sprintf(" [P%d]", *ship.Priority)
 			}
-			fmt.Printf("%s%s%s%s%s%s - %s%s\n", shipPrefix, colorizeID(ship.ID), priorityMark, benchMarker, focusMark, pinnedMark, ship.Title, taskInfo)
+			fmt.Printf("%s%s%s%s%s%s%s - %s%s\n", shipPrefix, colorizeID(ship.ID), statusBadge, priorityMark, benchMarker, focusMark, pinnedMark, ship.Title, taskInfo)
 		}
 	}
 }
@@ -691,6 +699,28 @@ func colorizeStatus(status string) string {
 		return color.New(color.FgHiGreen).Sprint(upper)
 	default:
 		return color.New(color.FgWhite).Sprint(upper)
+	}
+}
+
+// colorizeShipmentStatus formats shipment status badge with semantic color
+func colorizeShipmentStatus(status string) string {
+	switch status {
+	case "draft":
+		return color.New(color.FgHiBlack).Sprint("[draft]")
+	case "exploring":
+		return color.New(color.FgHiCyan).Sprint("[exploring]")
+	case "specced":
+		return color.New(color.FgHiMagenta).Sprint("[specced]")
+	case "tasked":
+		return color.New(color.FgHiYellow).Sprint("[tasked]")
+	case "in_progress":
+		return color.New(color.FgHiBlue).Sprint("[in_progress]")
+	case "paused":
+		return color.New(color.FgYellow).Sprint("[paused]")
+	case "complete":
+		return color.New(color.FgHiGreen).Sprint("[complete]")
+	default:
+		return fmt.Sprintf("[%s]", status)
 	}
 }
 
