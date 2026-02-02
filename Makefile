@@ -1,4 +1,4 @@
-.PHONY: install install-binary install-shim uninstall-shim dev build test lint lint-fix schema-check check-test-presence check-coverage init install-hooks clean help deploy-glue schema-diff schema-apply schema-inspect
+.PHONY: install install-binary install-shim uninstall-shim dev build test lint lint-fix schema-check check-test-presence check-coverage init install-hooks clean help deploy-glue schema-diff schema-apply schema-inspect setup-workbench
 
 # Go binary location (handles empty GOBIN)
 GOBIN := $(shell go env GOPATH)/bin
@@ -47,15 +47,19 @@ install-shim:
 	@echo 'fi' >> $(GOBIN)/orc
 	@chmod +x $(GOBIN)/orc
 
-# Install orc-dev shim for development (uses local dev DB)
+# Install orc-dev shim for development (prefers local workbench DB)
 install-dev-shim:
 	@echo "Installing orc-dev shim..."
 	@echo '#!/bin/bash' > $(GOBIN)/orc-dev
-	@echo '# ORC dev shim - uses local dev database' >> $(GOBIN)/orc-dev
-	@echo 'export ORC_DB_PATH="$$HOME/.orc/dev.db"' >> $(GOBIN)/orc-dev
+	@echo '# ORC dev shim - prefers workbench-local DB, falls back to global dev DB' >> $(GOBIN)/orc-dev
+	@echo 'if [[ -f ".orc/workbench.db" ]]; then' >> $(GOBIN)/orc-dev
+	@echo '  export ORC_DB_PATH=".orc/workbench.db"' >> $(GOBIN)/orc-dev
+	@echo 'else' >> $(GOBIN)/orc-dev
+	@echo '  export ORC_DB_PATH="$$HOME/.orc/dev.db"' >> $(GOBIN)/orc-dev
+	@echo 'fi' >> $(GOBIN)/orc-dev
 	@echo 'exec "$$(dirname "$$0")/orc-bin" "$$@"' >> $(GOBIN)/orc-dev
 	@chmod +x $(GOBIN)/orc-dev
-	@echo "✓ orc-dev installed (uses ~/.orc/dev.db)"
+	@echo "✓ orc-dev installed (prefers .orc/workbench.db when present)"
 
 # Remove shim and restore direct binary access
 uninstall-shim:
@@ -179,6 +183,19 @@ install-hooks:
 # Initialize development environment
 init: install-hooks
 	@echo "✓ ORC development environment initialized"
+
+# Setup workbench-local development database
+setup-workbench:
+	@echo "Creating workbench-local database..."
+	@mkdir -p .orc
+	@rm -f .orc/workbench.db
+	@ORC_DB_PATH=.orc/workbench.db go run ./cmd/orc dev reset --force
+	@echo ""
+	@echo "✓ Workbench DB created: .orc/workbench.db"
+	@echo ""
+	@echo "Usage:"
+	@echo "  orc-dev ...    → uses this local DB (when present)"
+	@echo "  orc ...        → uses production DB"
 
 # Clean build artifacts
 clean:

@@ -28,4 +28,11 @@ else
     echo "💡 Atlas not installed for schema management"
     echo "   Install: brew install ariga/tap/atlas"
 fi
+
+# Check for workbench-local database
+if [[ -f ".orc/workbench.db" ]]; then
+    echo "📦 ORC Workbench DB: .orc/workbench.db"
+    echo "   • orc-dev → uses local DB"
+    echo "   • orc     → uses production DB"
+fi
 echo ""
