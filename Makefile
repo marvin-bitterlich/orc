@@ -142,7 +142,7 @@ schema-diff:
 schema-apply:
 	@echo "Applying schema.sql to database..."
 	@command -v atlas >/dev/null 2>&1 || { echo "atlas not installed. Run: brew install ariga/tap/atlas"; exit 1; }
-	atlas schema apply --env local
+	atlas schema apply --env local --auto-approve
 
 # Dump current database schema
 schema-inspect:
@@ -162,6 +162,8 @@ install-hooks:
 	chmod +x "$$HOOKS_DIR/pre-commit"; \
 	cp scripts/hooks/post-merge "$$HOOKS_DIR/post-merge"; \
 	chmod +x "$$HOOKS_DIR/post-merge"; \
+	cp scripts/hooks/post-checkout "$$HOOKS_DIR/post-checkout"; \
+	chmod +x "$$HOOKS_DIR/post-checkout"; \
 	echo "✓ Git hooks installed to $$HOOKS_DIR"
 
 # Initialize development environment

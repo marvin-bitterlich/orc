@@ -1,10 +1,26 @@
 #!/bin/bash
 set -e
 
-# Get current branch name
+# =============================================================================
+# Post-merge hook for AI agent workflow
+# Ensures database schema is always in sync with code after any merge
+# =============================================================================
+
 BRANCH=$(git rev-parse --abbrev-ref HEAD)
 
-# Only run on master or main
+# Always apply schema changes (agents need consistent DB state)
+if command -v atlas &>/dev/null; then
+    echo "Applying schema changes..."
+    make schema-apply 2>/dev/null || {
+        echo "⚠️  schema-apply failed (may need: brew install ariga/tap/atlas)"
+        # Don't fail the merge - DB might just be up to date
+    }
+else
+    echo "⚠️  Atlas not installed - run: brew install ariga/tap/atlas"
+    echo "   Schema may be out of sync with code"
+fi
+
+# Full rebuild only on master/main
 if [[ "$BRANCH" == "master" || "$BRANCH" == "main" ]]; then
     echo "Post-merge on $BRANCH: rebuilding and installing..."
     make init

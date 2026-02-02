@@ -1,9 +1,14 @@
 // Atlas project configuration
 // Reference: AGENTS.md "Database Migrations (Atlas)" section
 
+variable "home" {
+  type    = string
+  default = getenv("HOME")
+}
+
 env "local" {
   src = "file://internal/db/schema.sql"
-  url = "sqlite:///$HOME/.orc/orc.db"
+  url = "sqlite:///${var.home}/.orc/orc.db"
   dev = "sqlite://dev?mode=memory"
 
   // CRITICAL: Exclude SQLite autoindexes to avoid migration errors
