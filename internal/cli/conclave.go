@@ -314,6 +314,108 @@ var conclaveDeleteCmd = &cobra.Command{
 	},
 }
 
+var conclaveMigrateCmd = &cobra.Command{
+	Use:   "migrate [conclave-id]",
+	Short: "Migrate open conclave to shipment",
+	Long: `Convert an open conclave to a shipment.
+
+The conclave's title, description, and commission are copied to a new shipment
+with status 'exploring'. Closed conclaves are skipped (they remain as archives).
+
+Use --all to migrate all open conclaves at once.
+
+NOTE: Run this after merging schema changes to master and applying to prod DB.`,
+	Args: cobra.MaximumNArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx := context.Background()
+		migrateAll, _ := cmd.Flags().GetBool("all")
+		dryRun, _ := cmd.Flags().GetBool("dry-run")
+
+		if !migrateAll && len(args) == 0 {
+			return fmt.Errorf("specify a conclave ID or use --all")
+		}
+
+		var conclavesToMigrate []*primary.Conclave
+
+		if migrateAll {
+			// Get all open conclaves
+			conclaves, err := wire.ConclaveService().ListConclaves(ctx, primary.ConclaveFilters{
+				Status: "open",
+			})
+			if err != nil {
+				return fmt.Errorf("failed to list conclaves: %w", err)
+			}
+			conclavesToMigrate = conclaves
+		} else {
+			// Get single conclave
+			conclave, err := wire.ConclaveService().GetConclave(ctx, args[0])
+			if err != nil {
+				return fmt.Errorf("conclave not found: %w", err)
+			}
+			conclavesToMigrate = []*primary.Conclave{conclave}
+		}
+
+		if len(conclavesToMigrate) == 0 {
+			fmt.Println("No open conclaves to migrate.")
+			return nil
+		}
+
+		var migrated, skipped int
+		for _, c := range conclavesToMigrate {
+			// Skip closed conclaves
+			if c.Status == "closed" {
+				if !migrateAll {
+					fmt.Printf("⏭ %s: Skipped (closed conclave)\n", c.ID)
+				}
+				skipped++
+				continue
+			}
+
+			// Check if shipment already exists for this conclave
+			existing, err := wire.ShipmentService().ListShipments(ctx, primary.ShipmentFilters{
+				ConclaveID: c.ID,
+			})
+			if err != nil {
+				return fmt.Errorf("failed to check existing shipments: %w", err)
+			}
+			if len(existing) > 0 {
+				fmt.Printf("⏭ %s: Skipped (shipment %s already exists)\n", c.ID, existing[0].ID)
+				skipped++
+				continue
+			}
+
+			if dryRun {
+				fmt.Printf("🔄 %s: Would migrate → shipment (exploring)\n", c.ID)
+				fmt.Printf("   Title: %s\n", c.Title)
+				migrated++
+				continue
+			}
+
+			// Create shipment from conclave
+			resp, err := wire.ShipmentService().CreateShipment(ctx, primary.CreateShipmentRequest{
+				CommissionID: c.CommissionID,
+				Title:        c.Title,
+				Description:  c.Description,
+				ConclaveID:   c.ID,
+			})
+			if err != nil {
+				return fmt.Errorf("failed to create shipment for %s: %w", c.ID, err)
+			}
+
+			fmt.Printf("✓ %s → %s: %s\n", c.ID, resp.ShipmentID, c.Title)
+			migrated++
+		}
+
+		fmt.Println()
+		if dryRun {
+			fmt.Printf("Dry run: %d would migrate, %d skipped\n", migrated, skipped)
+		} else {
+			fmt.Printf("Migrated: %d, Skipped: %d\n", migrated, skipped)
+		}
+		return nil
+	},
+}
+
 func init() {
 	// conclave create flags
 	conclaveCreateCmd.Flags().StringP("commission", "c", "", "Commission ID (defaults to context)")
@@ -327,6 +429,10 @@ func init() {
 	conclaveUpdateCmd.Flags().String("title", "", "New title")
 	conclaveUpdateCmd.Flags().StringP("description", "d", "", "New description")
 
+	// conclave migrate flags
+	conclaveMigrateCmd.Flags().Bool("all", false, "Migrate all open conclaves")
+	conclaveMigrateCmd.Flags().Bool("dry-run", false, "Show what would be migrated without making changes")
+
 	// Register subcommands
 	conclaveCmd.AddCommand(conclaveCreateCmd)
 	conclaveCmd.AddCommand(conclaveListCmd)
@@ -339,6 +445,7 @@ func init() {
 	conclaveCmd.AddCommand(conclaveUnpinCmd)
 	conclaveCmd.AddCommand(conclaveReopenCmd)
 	conclaveCmd.AddCommand(conclaveDeleteCmd)
+	conclaveCmd.AddCommand(conclaveMigrateCmd)
 }
 
 // ConclaveCmd returns the conclave command

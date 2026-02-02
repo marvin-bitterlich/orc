@@ -105,6 +105,7 @@ func (s *ShipmentServiceImpl) ListShipments(ctx context.Context, filters primary
 	records, err := s.shipmentRepo.List(ctx, secondary.ShipmentFilters{
 		CommissionID: filters.CommissionID,
 		Status:       filters.Status,
+		ConclaveID:   filters.ConclaveID,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list shipments: %w", err)

@@ -115,6 +115,7 @@ type Shipment struct {
 type ShipmentFilters struct {
 	CommissionID string
 	Status       string
+	ConclaveID   string // Filter by source conclave
 }
 
 // ShipyardQueueEntry represents a shipment in the shipyard queue.

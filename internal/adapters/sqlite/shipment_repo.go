@@ -125,6 +125,11 @@ func (r *ShipmentRepository) List(ctx context.Context, filters secondary.Shipmen
 		args = append(args, filters.Status)
 	}
 
+	if filters.ConclaveID != "" {
+		query += " AND conclave_id = ?"
+		args = append(args, filters.ConclaveID)
+	}
+
 	query += " ORDER BY created_at DESC"
 
 	rows, err := r.db.QueryContext(ctx, query, args...)
