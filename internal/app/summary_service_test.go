@@ -134,6 +134,10 @@ func (m *mockConclaveServiceForSummary) UnpinConclave(_ context.Context, _ strin
 	return nil
 }
 
+func (m *mockConclaveServiceForSummary) ReopenConclave(_ context.Context, _ string) error {
+	return nil
+}
+
 func (m *mockConclaveServiceForSummary) DeleteConclave(_ context.Context, _ string) error {
 	return nil
 }
@@ -449,6 +453,10 @@ func (m *mockNoteServiceForSummary) MoveNote(_ context.Context, _ primary.MoveNo
 }
 
 func (m *mockNoteServiceForSummary) MergeNotes(_ context.Context, _ primary.MergeNoteRequest) error {
+	return nil
+}
+
+func (m *mockNoteServiceForSummary) SetNoteInFlight(_ context.Context, _ string) error {
 	return nil
 }
 

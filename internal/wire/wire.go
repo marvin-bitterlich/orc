@@ -43,7 +43,6 @@ var (
 	patrolService                  primary.PatrolService
 	approvalService                primary.ApprovalService
 	escalationService              primary.EscalationService
-	manifestService                primary.ManifestService
 	infraService                   primary.InfraService
 	commissionOrchestrationService *app.CommissionOrchestrationService
 	tmuxService                    secondary.TMuxAdapter
@@ -190,12 +189,6 @@ func EscalationService() primary.EscalationService {
 	return escalationService
 }
 
-// ManifestService returns the singleton ManifestService instance.
-func ManifestService() primary.ManifestService {
-	once.Do(initServices)
-	return manifestService
-}
-
 // InfraService returns the singleton InfraService instance.
 func InfraService() primary.InfraService {
 	once.Do(initServices)
@@ -272,7 +265,7 @@ func initServices() {
 
 	// Create tome and shipment services
 	tomeService = app.NewTomeService(tomeRepo, noteService)
-	shipmentService = app.NewShipmentService(shipmentRepo, taskRepo, shipyardRepo)
+	shipmentService = app.NewShipmentService(shipmentRepo, taskRepo, shipyardRepo, noteService)
 
 	// Create conclave and operation services
 	conclaveRepo := sqlite.NewConclaveRepository(database)
@@ -322,7 +315,7 @@ func initServices() {
 	receiptRepo := sqlite.NewReceiptRepository(database)
 	receiptService = app.NewReceiptService(receiptRepo)
 
-	// Create new entity services (gatehouses, kennels, approvals, escalations, manifests)
+	// Create new entity services (gatehouses, kennels, approvals, escalations)
 	// Pass workshop repo to gatehouse service for EnsureAllWorkshopsHaveGatehouses
 	gatehouseService = app.NewGatehouseService(gatehouseRepo, workshopRepo)
 
@@ -337,9 +330,6 @@ func initServices() {
 	approvalService = app.NewApprovalService(approvalRepo)
 
 	escalationService = app.NewEscalationService(escalationRepo)
-
-	manifestRepo := sqlite.NewManifestRepository(database)
-	manifestService = app.NewManifestService(manifestRepo)
 
 	// Create infra service for infrastructure planning
 	infraService = app.NewInfraService(factoryRepo, workshopRepo, workbenchRepo, repoRepo, gatehouseRepo, workspaceAdapter, tmuxAdapter, executor)

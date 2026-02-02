@@ -20,6 +20,7 @@ type Shipment struct {
 	Pinned              bool
 	ContainerID         sql.NullString // CON-xxx or YARD-xxx
 	ContainerType       sql.NullString // "conclave" or "shipyard"
+	SpecNoteID          sql.NullString // NOTE-xxx - spec note that generated this shipment
 	CreatedAt           time.Time
 	UpdatedAt           time.Time
 	CompletedAt         sql.NullTime

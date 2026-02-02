@@ -39,6 +39,7 @@ const (
 
 // Note statuses
 const (
-	NoteStatusOpen   = "open"
-	NoteStatusClosed = "closed"
+	NoteStatusOpen     = "open"
+	NoteStatusInFlight = "in_flight"
+	NoteStatusClosed   = "closed"
 )

@@ -259,6 +259,16 @@ var migrations = []Migration{
 		Name:    "replace_shipment_container_with_explicit_fks",
 		Up:      migrationV49,
 	},
+	{
+		Version: 50,
+		Name:    "add_spec_note_id_to_shipments",
+		Up:      migrationV50,
+	},
+	{
+		Version: 51,
+		Name:    "add_in_flight_status_to_notes",
+		Up:      migrationV51,
+	},
 }
 
 // RunMigrations executes all pending migrations
@@ -4343,6 +4353,97 @@ func migrationV49(db *sql.DB) error {
 	_, err = db.Exec(`CREATE INDEX idx_shipments_shipyard ON shipments(shipyard_id)`)
 	if err != nil {
 		return fmt.Errorf("failed to create idx_shipments_shipyard: %w", err)
+	}
+
+	return nil
+}
+
+// migrationV50 adds spec_note_id column to shipments table.
+// This nullable FK tracks which spec note generated this shipment.
+func migrationV50(db *sql.DB) error {
+	_, err := db.Exec(`ALTER TABLE shipments ADD COLUMN spec_note_id TEXT REFERENCES notes(id) ON DELETE SET NULL`)
+	if err != nil {
+		return fmt.Errorf("failed to add spec_note_id column to shipments: %w", err)
+	}
+	return nil
+}
+
+// migrationV51 adds 'in_flight' status to notes.
+// Spec notes go in_flight when shipment is created, closed when shipment completes.
+func migrationV51(db *sql.DB) error {
+	// SQLite doesn't support ALTER CONSTRAINT - must recreate table
+	// Step 1: Create new notes table with updated CHECK constraint
+	_, err := db.Exec(`
+		CREATE TABLE notes_new (
+			id TEXT PRIMARY KEY,
+			commission_id TEXT NOT NULL,
+			shipment_id TEXT,
+			conclave_id TEXT,
+			tome_id TEXT,
+			title TEXT NOT NULL,
+			content TEXT,
+			type TEXT,
+			status TEXT NOT NULL CHECK(status IN ('open', 'in_flight', 'resolved', 'closed')) DEFAULT 'open',
+			pinned INTEGER DEFAULT 0,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			closed_at DATETIME,
+			promoted_from_id TEXT,
+			promoted_from_type TEXT,
+			close_reason TEXT,
+			closed_by_note_id TEXT,
+			FOREIGN KEY (commission_id) REFERENCES commissions(id),
+			FOREIGN KEY (shipment_id) REFERENCES shipments(id) ON DELETE SET NULL,
+			FOREIGN KEY (conclave_id) REFERENCES conclaves(id) ON DELETE SET NULL,
+			FOREIGN KEY (tome_id) REFERENCES tomes(id) ON DELETE SET NULL,
+			FOREIGN KEY (closed_by_note_id) REFERENCES notes(id) ON DELETE SET NULL
+		)
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to create notes_new table: %w", err)
+	}
+
+	// Step 2: Copy data from old table
+	_, err = db.Exec(`
+		INSERT INTO notes_new (id, commission_id, shipment_id, conclave_id, tome_id, title, content, type, status, pinned, created_at, updated_at, closed_at, promoted_from_id, promoted_from_type, close_reason, closed_by_note_id)
+		SELECT id, commission_id, shipment_id, conclave_id, tome_id, title, content, type, status, pinned, created_at, updated_at, closed_at, promoted_from_id, promoted_from_type, close_reason, closed_by_note_id FROM notes
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to copy notes data: %w", err)
+	}
+
+	// Step 3: Drop old table
+	_, err = db.Exec(`DROP TABLE notes`)
+	if err != nil {
+		return fmt.Errorf("failed to drop old notes table: %w", err)
+	}
+
+	// Step 4: Rename new table
+	_, err = db.Exec(`ALTER TABLE notes_new RENAME TO notes`)
+	if err != nil {
+		return fmt.Errorf("failed to rename notes_new to notes: %w", err)
+	}
+
+	// Step 5: Recreate indexes
+	_, err = db.Exec(`CREATE INDEX idx_notes_commission ON notes(commission_id)`)
+	if err != nil {
+		return fmt.Errorf("failed to create idx_notes_commission: %w", err)
+	}
+	_, err = db.Exec(`CREATE INDEX idx_notes_status ON notes(status)`)
+	if err != nil {
+		return fmt.Errorf("failed to create idx_notes_status: %w", err)
+	}
+	_, err = db.Exec(`CREATE INDEX idx_notes_shipment ON notes(shipment_id)`)
+	if err != nil {
+		return fmt.Errorf("failed to create idx_notes_shipment: %w", err)
+	}
+	_, err = db.Exec(`CREATE INDEX idx_notes_conclave ON notes(conclave_id)`)
+	if err != nil {
+		return fmt.Errorf("failed to create idx_notes_conclave: %w", err)
+	}
+	_, err = db.Exec(`CREATE INDEX idx_notes_tome ON notes(tome_id)`)
+	if err != nil {
+		return fmt.Errorf("failed to create idx_notes_tome: %w", err)
 	}
 
 	return nil

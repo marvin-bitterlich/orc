@@ -280,6 +280,23 @@ var conclaveUnpinCmd = &cobra.Command{
 	},
 }
 
+var conclaveReopenCmd = &cobra.Command{
+	Use:   "reopen [conclave-id]",
+	Short: "Reopen a closed conclave",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		conclaveID := args[0]
+
+		err := wire.ConclaveService().ReopenConclave(context.Background(), conclaveID)
+		if err != nil {
+			return fmt.Errorf("failed to reopen conclave: %w", err)
+		}
+
+		fmt.Printf("✓ Conclave %s reopened\n", conclaveID)
+		return nil
+	},
+}
+
 var conclaveDeleteCmd = &cobra.Command{
 	Use:   "delete [conclave-id]",
 	Short: "Delete a conclave",
@@ -320,6 +337,7 @@ func init() {
 	conclaveCmd.AddCommand(conclaveUpdateCmd)
 	conclaveCmd.AddCommand(conclavePinCmd)
 	conclaveCmd.AddCommand(conclaveUnpinCmd)
+	conclaveCmd.AddCommand(conclaveReopenCmd)
 	conclaveCmd.AddCommand(conclaveDeleteCmd)
 }
 

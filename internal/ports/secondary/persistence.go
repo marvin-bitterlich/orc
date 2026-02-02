@@ -154,6 +154,7 @@ type ShipmentRecord struct {
 	ShipyardID          string // Empty string means null - when in shipyard queue (YARD-xxx)
 	Autorun             bool   // Whether to auto-run tasks when shipment is launched
 	Priority            *int   // nil = default FIFO, 1 = highest priority
+	SpecNoteID          string // Empty string means null - spec note that generated this shipment (NOTE-xxx)
 	CreatedAt           string
 	UpdatedAt           string
 	CompletedAt         string // Empty string means null
@@ -1297,59 +1298,6 @@ type EscalationFilters struct {
 	TaskID        string
 	Status        string
 	TargetActorID string
-}
-
-// ManifestRepository defines the secondary port for manifest persistence.
-// Manifests are 1:1 with shipments.
-type ManifestRepository interface {
-	// Create persists a new manifest.
-	Create(ctx context.Context, manifest *ManifestRecord) error
-
-	// GetByID retrieves a manifest by its ID.
-	GetByID(ctx context.Context, id string) (*ManifestRecord, error)
-
-	// GetByShipment retrieves a manifest by shipment ID.
-	GetByShipment(ctx context.Context, shipmentID string) (*ManifestRecord, error)
-
-	// List retrieves manifests matching the given filters.
-	List(ctx context.Context, filters ManifestFilters) ([]*ManifestRecord, error)
-
-	// Update updates an existing manifest.
-	Update(ctx context.Context, manifest *ManifestRecord) error
-
-	// Delete removes a manifest from persistence.
-	Delete(ctx context.Context, id string) error
-
-	// GetNextID returns the next available manifest ID.
-	GetNextID(ctx context.Context) (string, error)
-
-	// UpdateStatus updates the status of a manifest.
-	UpdateStatus(ctx context.Context, id, status string) error
-
-	// ShipmentExists checks if a shipment exists (for validation).
-	ShipmentExists(ctx context.Context, shipmentID string) (bool, error)
-
-	// ShipmentHasManifest checks if a shipment already has a manifest (for 1:1 constraint).
-	ShipmentHasManifest(ctx context.Context, shipmentID string) (bool, error)
-}
-
-// ManifestRecord represents a manifest as stored in persistence.
-type ManifestRecord struct {
-	ID            string
-	ShipmentID    string
-	CreatedBy     string
-	Attestation   string // Empty string means null
-	Tasks         string // JSON array of task IDs, empty string means null
-	OrderingNotes string // Empty string means null
-	Status        string // 'draft' or 'launched'
-	CreatedAt     string
-	UpdatedAt     string
-}
-
-// ManifestFilters contains filter options for querying manifests.
-type ManifestFilters struct {
-	ShipmentID string
-	Status     string
 }
 
 // PatrolRepository defines the secondary port for patrol persistence.

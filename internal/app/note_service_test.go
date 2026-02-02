@@ -573,3 +573,87 @@ func TestGetNotesByContainer_Tome(t *testing.T) {
 		t.Errorf("expected 1 tome note, got %d", len(notes))
 	}
 }
+
+// ============================================================================
+// SetNoteInFlight Tests
+// ============================================================================
+
+func TestSetNoteInFlight_Success(t *testing.T) {
+	noteRepo := newMockNoteRepository()
+	service := NewNoteService(noteRepo)
+	ctx := context.Background()
+
+	// Create an open note
+	noteRepo.notes["NOTE-001"] = &secondary.NoteRecord{
+		ID:           "NOTE-001",
+		CommissionID: "COMM-001",
+		Title:        "Spec Note",
+		Status:       "open",
+		Type:         "spec",
+	}
+
+	err := service.SetNoteInFlight(ctx, "NOTE-001")
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	// Verify status changed
+	if noteRepo.notes["NOTE-001"].Status != "in_flight" {
+		t.Errorf("expected status 'in_flight', got '%s'", noteRepo.notes["NOTE-001"].Status)
+	}
+}
+
+func TestSetNoteInFlight_AlreadyClosed(t *testing.T) {
+	noteRepo := newMockNoteRepository()
+	service := NewNoteService(noteRepo)
+	ctx := context.Background()
+
+	// Create a closed note
+	noteRepo.notes["NOTE-001"] = &secondary.NoteRecord{
+		ID:           "NOTE-001",
+		CommissionID: "COMM-001",
+		Title:        "Closed Spec Note",
+		Status:       "closed",
+		Type:         "spec",
+	}
+
+	err := service.SetNoteInFlight(ctx, "NOTE-001")
+
+	if err == nil {
+		t.Fatal("expected error for closed note")
+	}
+}
+
+func TestSetNoteInFlight_AlreadyInFlight(t *testing.T) {
+	noteRepo := newMockNoteRepository()
+	service := NewNoteService(noteRepo)
+	ctx := context.Background()
+
+	// Create an in_flight note
+	noteRepo.notes["NOTE-001"] = &secondary.NoteRecord{
+		ID:           "NOTE-001",
+		CommissionID: "COMM-001",
+		Title:        "In-Flight Spec Note",
+		Status:       "in_flight",
+		Type:         "spec",
+	}
+
+	err := service.SetNoteInFlight(ctx, "NOTE-001")
+
+	if err == nil {
+		t.Fatal("expected error for in_flight note")
+	}
+}
+
+func TestSetNoteInFlight_NotFound(t *testing.T) {
+	noteRepo := newMockNoteRepository()
+	service := NewNoteService(noteRepo)
+	ctx := context.Background()
+
+	err := service.SetNoteInFlight(ctx, "NOTE-999")
+
+	if err == nil {
+		t.Fatal("expected error for non-existent note")
+	}
+}

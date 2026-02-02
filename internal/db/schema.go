@@ -152,6 +152,7 @@ CREATE TABLE IF NOT EXISTS shipments (
 	shipyard_id TEXT,
 	autorun INTEGER DEFAULT 0,
 	priority INTEGER,
+	spec_note_id TEXT,
 	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 	updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 	completed_at DATETIME,
@@ -159,7 +160,8 @@ CREATE TABLE IF NOT EXISTS shipments (
 	FOREIGN KEY (assigned_workbench_id) REFERENCES workbenches(id),
 	FOREIGN KEY (repo_id) REFERENCES repos(id),
 	FOREIGN KEY (conclave_id) REFERENCES conclaves(id),
-	FOREIGN KEY (shipyard_id) REFERENCES shipyards(id)
+	FOREIGN KEY (shipyard_id) REFERENCES shipyards(id),
+	FOREIGN KEY (spec_note_id) REFERENCES notes(id) ON DELETE SET NULL
 );
 
 -- Tomes (Knowledge containers)
@@ -305,7 +307,7 @@ CREATE TABLE IF NOT EXISTS notes (
 	title TEXT NOT NULL,
 	content TEXT,
 	type TEXT,
-	status TEXT NOT NULL CHECK(status IN ('open', 'resolved', 'closed')) DEFAULT 'open',
+	status TEXT NOT NULL CHECK(status IN ('open', 'in_flight', 'resolved', 'closed')) DEFAULT 'open',
 	pinned INTEGER DEFAULT 0,
 	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 	updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -515,22 +517,6 @@ CREATE INDEX IF NOT EXISTS idx_escalations_plan ON escalations(plan_id);
 CREATE INDEX IF NOT EXISTS idx_escalations_task ON escalations(task_id);
 CREATE INDEX IF NOT EXISTS idx_escalations_status ON escalations(status);
 CREATE INDEX IF NOT EXISTS idx_escalations_target ON escalations(target_actor_id);
-
--- Manifests (1:1 with Shipment)
-CREATE TABLE IF NOT EXISTS manifests (
-	id TEXT PRIMARY KEY,
-	shipment_id TEXT NOT NULL UNIQUE,
-	created_by TEXT NOT NULL,
-	attestation TEXT,
-	tasks TEXT,
-	ordering_notes TEXT,
-	status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'launched')),
-	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-	updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-	FOREIGN KEY (shipment_id) REFERENCES shipments(id) ON DELETE CASCADE
-);
-CREATE INDEX IF NOT EXISTS idx_manifests_shipment ON manifests(shipment_id);
-CREATE INDEX IF NOT EXISTS idx_manifests_status ON manifests(status);
 `
 
 // InitSchema creates the database schema

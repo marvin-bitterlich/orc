@@ -325,5 +325,22 @@ func (s *NoteServiceImpl) MergeNotes(ctx context.Context, req primary.MergeNoteR
 	return nil
 }
 
+// SetNoteInFlight sets a note status to in_flight.
+// Used when a shipment is created from a spec note.
+func (s *NoteServiceImpl) SetNoteInFlight(ctx context.Context, noteID string) error {
+	// Get current note to verify it exists and check status
+	note, err := s.noteRepo.GetByID(ctx, noteID)
+	if err != nil {
+		return err
+	}
+
+	// Can only set in_flight from open status
+	if note.Status != "open" {
+		return fmt.Errorf("note %s cannot be set to in_flight: current status is %s (must be open)", noteID, note.Status)
+	}
+
+	return s.noteRepo.UpdateStatus(ctx, noteID, "in_flight")
+}
+
 // Ensure NoteServiceImpl implements the interface
 var _ primary.NoteService = (*NoteServiceImpl)(nil)

@@ -364,6 +364,74 @@ func (m *mockShipyardRepository) FactoryExists(ctx context.Context, factoryID st
 	return true, nil
 }
 
+// mockNoteServiceForShipment implements primary.NoteService for testing.
+type mockNoteServiceForShipment struct {
+	closedNotes map[string]string // noteID -> reason
+	closeErr    error
+}
+
+func newMockNoteServiceForShipment() *mockNoteServiceForShipment {
+	return &mockNoteServiceForShipment{
+		closedNotes: make(map[string]string),
+	}
+}
+
+func (m *mockNoteServiceForShipment) CreateNote(_ context.Context, _ primary.CreateNoteRequest) (*primary.CreateNoteResponse, error) {
+	return nil, nil
+}
+
+func (m *mockNoteServiceForShipment) GetNote(_ context.Context, _ string) (*primary.Note, error) {
+	return nil, nil
+}
+
+func (m *mockNoteServiceForShipment) ListNotes(_ context.Context, _ primary.NoteFilters) ([]*primary.Note, error) {
+	return nil, nil
+}
+
+func (m *mockNoteServiceForShipment) UpdateNote(_ context.Context, _ primary.UpdateNoteRequest) error {
+	return nil
+}
+
+func (m *mockNoteServiceForShipment) DeleteNote(_ context.Context, _ string) error {
+	return nil
+}
+
+func (m *mockNoteServiceForShipment) PinNote(_ context.Context, _ string) error {
+	return nil
+}
+
+func (m *mockNoteServiceForShipment) UnpinNote(_ context.Context, _ string) error {
+	return nil
+}
+
+func (m *mockNoteServiceForShipment) GetNotesByContainer(_ context.Context, _, _ string) ([]*primary.Note, error) {
+	return nil, nil
+}
+
+func (m *mockNoteServiceForShipment) CloseNote(_ context.Context, req primary.CloseNoteRequest) error {
+	if m.closeErr != nil {
+		return m.closeErr
+	}
+	m.closedNotes[req.NoteID] = req.Reason
+	return nil
+}
+
+func (m *mockNoteServiceForShipment) ReopenNote(_ context.Context, _ string) error {
+	return nil
+}
+
+func (m *mockNoteServiceForShipment) MoveNote(_ context.Context, _ primary.MoveNoteRequest) error {
+	return nil
+}
+
+func (m *mockNoteServiceForShipment) MergeNotes(_ context.Context, _ primary.MergeNoteRequest) error {
+	return nil
+}
+
+func (m *mockNoteServiceForShipment) SetNoteInFlight(_ context.Context, _ string) error {
+	return nil
+}
+
 // ============================================================================
 // Test Helper
 // ============================================================================
@@ -372,7 +440,8 @@ func newTestShipmentService() (*ShipmentServiceImpl, *mockShipmentRepository, *m
 	shipmentRepo := newMockShipmentRepository()
 	taskRepo := newMockTaskRepositoryForShipment()
 	shipyardRepo := newMockShipyardRepository()
-	service := NewShipmentService(shipmentRepo, taskRepo, shipyardRepo)
+	noteService := newMockNoteServiceForShipment()
+	service := NewShipmentService(shipmentRepo, taskRepo, shipyardRepo, noteService)
 	return service, shipmentRepo, taskRepo
 }
 
@@ -995,5 +1064,133 @@ func TestDeleteShipment_Success(t *testing.T) {
 	}
 	if _, exists := shipmentRepo.shipments["SHIPMENT-001"]; exists {
 		t.Error("expected shipment to be deleted")
+	}
+}
+
+// ============================================================================
+// CreateShipment with SpecNoteID Tests
+// ============================================================================
+
+func TestCreateShipment_WithSpecNoteID(t *testing.T) {
+	shipmentRepo := newMockShipmentRepository()
+	taskRepo := newMockTaskRepository()
+	shipyardRepo := newMockShipyardRepository()
+	noteService := newMockNoteServiceForShipment()
+	service := NewShipmentService(shipmentRepo, taskRepo, shipyardRepo, noteService)
+	ctx := context.Background()
+
+	req := primary.CreateShipmentRequest{
+		CommissionID: "COMM-001",
+		Title:        "Shipment from Spec",
+		ConclaveID:   "CON-001",
+		SpecNoteID:   "NOTE-001",
+	}
+
+	resp, err := service.CreateShipment(ctx, req)
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	// Verify SpecNoteID was stored
+	record := shipmentRepo.shipments[resp.ShipmentID]
+	if record.SpecNoteID != "NOTE-001" {
+		t.Errorf("expected SpecNoteID 'NOTE-001', got '%s'", record.SpecNoteID)
+	}
+
+	// Verify it's returned in response
+	if resp.Shipment.SpecNoteID != "NOTE-001" {
+		t.Errorf("expected Shipment.SpecNoteID 'NOTE-001', got '%s'", resp.Shipment.SpecNoteID)
+	}
+}
+
+func TestCreateShipment_WithoutSpecNoteID(t *testing.T) {
+	shipmentRepo := newMockShipmentRepository()
+	taskRepo := newMockTaskRepository()
+	shipyardRepo := newMockShipyardRepository()
+	noteService := newMockNoteServiceForShipment()
+	service := NewShipmentService(shipmentRepo, taskRepo, shipyardRepo, noteService)
+	ctx := context.Background()
+
+	req := primary.CreateShipmentRequest{
+		CommissionID: "COMM-001",
+		Title:        "Shipment without Spec",
+	}
+
+	resp, err := service.CreateShipment(ctx, req)
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	// Verify SpecNoteID is empty
+	record := shipmentRepo.shipments[resp.ShipmentID]
+	if record.SpecNoteID != "" {
+		t.Errorf("expected empty SpecNoteID, got '%s'", record.SpecNoteID)
+	}
+}
+
+// ============================================================================
+// CompleteShipment with SpecNoteID Tests
+// ============================================================================
+
+func TestCompleteShipment_ClosesSpecNote(t *testing.T) {
+	shipmentRepo := newMockShipmentRepository()
+	taskRepo := newMockTaskRepositoryForShipment()
+	shipyardRepo := newMockShipyardRepository()
+	noteService := newMockNoteServiceForShipment()
+	service := NewShipmentService(shipmentRepo, taskRepo, shipyardRepo, noteService)
+	ctx := context.Background()
+
+	// Create a shipment with a SpecNoteID
+	shipmentRepo.shipments["SHIP-001"] = &secondary.ShipmentRecord{
+		ID:           "SHIP-001",
+		CommissionID: "COMM-001",
+		Title:        "Test Shipment",
+		Status:       "active",
+		SpecNoteID:   "NOTE-001",
+	}
+
+	err := service.CompleteShipment(ctx, "SHIP-001", true)
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	// Verify note was closed with reason "resolved"
+	reason, closed := noteService.closedNotes["NOTE-001"]
+	if !closed {
+		t.Error("expected spec note NOTE-001 to be closed")
+	}
+	if reason != "resolved" {
+		t.Errorf("expected close reason 'resolved', got '%s'", reason)
+	}
+}
+
+func TestCompleteShipment_WithoutSpecNote(t *testing.T) {
+	shipmentRepo := newMockShipmentRepository()
+	taskRepo := newMockTaskRepositoryForShipment()
+	shipyardRepo := newMockShipyardRepository()
+	noteService := newMockNoteServiceForShipment()
+	service := NewShipmentService(shipmentRepo, taskRepo, shipyardRepo, noteService)
+	ctx := context.Background()
+
+	// Create a shipment without SpecNoteID
+	shipmentRepo.shipments["SHIP-001"] = &secondary.ShipmentRecord{
+		ID:           "SHIP-001",
+		CommissionID: "COMM-001",
+		Title:        "Test Shipment",
+		Status:       "active",
+	}
+
+	err := service.CompleteShipment(ctx, "SHIP-001", true)
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	// Verify no notes were closed
+	if len(noteService.closedNotes) != 0 {
+		t.Errorf("expected no notes to be closed, got %d", len(noteService.closedNotes))
 	}
 }

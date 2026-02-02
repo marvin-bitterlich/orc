@@ -31,6 +31,9 @@ type ConclaveService interface {
 	// UnpinConclave unpins a conclave.
 	UnpinConclave(ctx context.Context, conclaveID string) error
 
+	// ReopenConclave reopens a closed conclave (escape hatch for more exploration).
+	ReopenConclave(ctx context.Context, conclaveID string) error
+
 	// DeleteConclave deletes a conclave.
 	DeleteConclave(ctx context.Context, conclaveID string) error
 

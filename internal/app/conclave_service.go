@@ -155,6 +155,21 @@ func (s *ConclaveServiceImpl) UnpinConclave(ctx context.Context, conclaveID stri
 	return s.conclaveRepo.Unpin(ctx, conclaveID)
 }
 
+// ReopenConclave reopens a closed conclave (escape hatch for more exploration).
+func (s *ConclaveServiceImpl) ReopenConclave(ctx context.Context, conclaveID string) error {
+	record, err := s.conclaveRepo.GetByID(ctx, conclaveID)
+	if err != nil {
+		return err
+	}
+
+	// Guard: cannot reopen if already open
+	if record.Status == "open" {
+		return fmt.Errorf("conclave %s is already open", conclaveID)
+	}
+
+	return s.conclaveRepo.UpdateStatus(ctx, conclaveID, "open", false)
+}
+
 // DeleteConclave deletes a conclave.
 func (s *ConclaveServiceImpl) DeleteConclave(ctx context.Context, conclaveID string) error {
 	return s.conclaveRepo.Delete(ctx, conclaveID)

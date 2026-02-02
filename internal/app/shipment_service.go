@@ -15,6 +15,7 @@ type ShipmentServiceImpl struct {
 	shipmentRepo secondary.ShipmentRepository
 	taskRepo     secondary.TaskRepository
 	shipyardRepo secondary.ShipyardRepository
+	noteService  primary.NoteService
 }
 
 // NewShipmentService creates a new ShipmentService with injected dependencies.
@@ -22,11 +23,13 @@ func NewShipmentService(
 	shipmentRepo secondary.ShipmentRepository,
 	taskRepo secondary.TaskRepository,
 	shipyardRepo secondary.ShipyardRepository,
+	noteService primary.NoteService,
 ) *ShipmentServiceImpl {
 	return &ShipmentServiceImpl{
 		shipmentRepo: shipmentRepo,
 		taskRepo:     taskRepo,
 		shipyardRepo: shipyardRepo,
+		noteService:  noteService,
 	}
 }
 
@@ -69,6 +72,7 @@ func (s *ShipmentServiceImpl) CreateShipment(ctx context.Context, req primary.Cr
 		Branch:       branch,
 		ConclaveID:   req.ConclaveID,
 		ShipyardID:   req.ShipyardID,
+		SpecNoteID:   req.SpecNoteID,
 	}
 
 	if err := s.shipmentRepo.Create(ctx, record); err != nil {
@@ -115,6 +119,7 @@ func (s *ShipmentServiceImpl) ListShipments(ctx context.Context, filters primary
 
 // CompleteShipment marks a shipment as complete.
 // If force is true, completes even if tasks are incomplete.
+// If shipment has a SpecNoteID, the spec note is closed with reason "resolved".
 func (s *ShipmentServiceImpl) CompleteShipment(ctx context.Context, shipmentID string, force bool) error {
 	record, err := s.shipmentRepo.GetByID(ctx, shipmentID)
 	if err != nil {
@@ -147,7 +152,24 @@ func (s *ShipmentServiceImpl) CompleteShipment(ctx context.Context, shipmentID s
 		return result.Error()
 	}
 
-	return s.shipmentRepo.UpdateStatus(ctx, shipmentID, "complete", true)
+	// Update shipment status to complete
+	if err := s.shipmentRepo.UpdateStatus(ctx, shipmentID, "complete", true); err != nil {
+		return err
+	}
+
+	// Close spec note if shipment was generated from one
+	if record.SpecNoteID != "" && s.noteService != nil {
+		closeReq := primary.CloseNoteRequest{
+			NoteID: record.SpecNoteID,
+			Reason: "resolved",
+		}
+		if err := s.noteService.CloseNote(ctx, closeReq); err != nil {
+			// Log but don't fail - shipment is already complete
+			fmt.Printf("Warning: failed to close spec note %s: %v\n", record.SpecNoteID, err)
+		}
+	}
+
+	return nil
 }
 
 // PauseShipment pauses an active shipment.
@@ -314,6 +336,7 @@ func (s *ShipmentServiceImpl) recordToShipment(r *secondary.ShipmentRecord) *pri
 		Pinned:              r.Pinned,
 		ConclaveID:          r.ConclaveID,
 		ShipyardID:          r.ShipyardID,
+		SpecNoteID:          r.SpecNoteID,
 		CreatedAt:           r.CreatedAt,
 		UpdatedAt:           r.UpdatedAt,
 		CompletedAt:         r.CompletedAt,

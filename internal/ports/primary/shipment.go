@@ -68,6 +68,7 @@ type CreateShipmentRequest struct {
 	Branch       string // Optional - override auto-generated branch name
 	ConclaveID   string // Optional: CON-xxx - source/origin conclave
 	ShipyardID   string // Optional: YARD-xxx - for direct creation in shipyard queue
+	SpecNoteID   string // Optional: NOTE-xxx - spec note that generated this shipment
 }
 
 // CreateShipmentResponse contains the result of creating a shipment.
@@ -97,6 +98,7 @@ type Shipment struct {
 	Pinned              bool
 	ConclaveID          string // Source/origin conclave (CON-xxx)
 	ShipyardID          string // When in shipyard queue (YARD-xxx)
+	SpecNoteID          string // Spec note that generated this shipment (NOTE-xxx)
 	CreatedAt           string
 	UpdatedAt           string
 	CompletedAt         string

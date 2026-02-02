@@ -238,6 +238,10 @@ func (m *mockNoteServiceForTome) MergeNotes(ctx context.Context, req primary.Mer
 	return nil
 }
 
+func (m *mockNoteServiceForTome) SetNoteInFlight(ctx context.Context, noteID string) error {
+	return nil
+}
+
 // ============================================================================
 // Test Helper
 // ============================================================================

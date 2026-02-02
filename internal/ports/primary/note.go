@@ -39,6 +39,10 @@ type NoteService interface {
 
 	// MergeNotes merges source note into target and closes source.
 	MergeNotes(ctx context.Context, req MergeNoteRequest) error
+
+	// SetNoteInFlight sets a note status to in_flight.
+	// Used when a shipment is created from a spec note.
+	SetNoteInFlight(ctx context.Context, noteID string) error
 }
 
 // CreateNoteRequest contains parameters for creating a note.
@@ -132,6 +136,7 @@ const (
 
 // Note status constants
 const (
-	NoteStatusOpen   = "open"
-	NoteStatusClosed = "closed"
+	NoteStatusOpen     = "open"
+	NoteStatusInFlight = "in_flight"
+	NoteStatusClosed   = "closed"
 )

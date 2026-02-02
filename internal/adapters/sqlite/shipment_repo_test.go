@@ -483,3 +483,74 @@ func TestShipmentRepository_WorkbenchAssignedToOther(t *testing.T) {
 		t.Errorf("expected s1 to have the workbench, got '%s'", otherID)
 	}
 }
+
+func TestShipmentRepository_SpecNoteID(t *testing.T) {
+	db := setupShipmentTestDB(t)
+	repo := sqlite.NewShipmentRepository(db)
+	ctx := context.Background()
+
+	// Create a note to reference
+	_, _ = db.Exec("INSERT INTO notes (id, commission_id, title, status) VALUES ('NOTE-001', 'COMM-001', 'Test Spec Note', 'open')")
+
+	// Create a shipment with a spec_note_id
+	shipment := &secondary.ShipmentRecord{
+		ID:           "SHIP-001",
+		CommissionID: "COMM-001",
+		Title:        "Shipment from Spec",
+		SpecNoteID:   "NOTE-001",
+	}
+
+	err := repo.Create(ctx, shipment)
+	if err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+
+	// Verify spec_note_id was stored
+	retrieved, err := repo.GetByID(ctx, "SHIP-001")
+	if err != nil {
+		t.Fatalf("GetByID failed: %v", err)
+	}
+	if retrieved.SpecNoteID != "NOTE-001" {
+		t.Errorf("expected spec_note_id 'NOTE-001', got '%s'", retrieved.SpecNoteID)
+	}
+
+	// Create a shipment without spec_note_id
+	shipment2 := &secondary.ShipmentRecord{
+		ID:           "SHIP-002",
+		CommissionID: "COMM-001",
+		Title:        "Shipment without Spec",
+	}
+
+	err = repo.Create(ctx, shipment2)
+	if err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+
+	// Verify spec_note_id is empty
+	retrieved2, err := repo.GetByID(ctx, "SHIP-002")
+	if err != nil {
+		t.Fatalf("GetByID failed: %v", err)
+	}
+	if retrieved2.SpecNoteID != "" {
+		t.Errorf("expected empty spec_note_id, got '%s'", retrieved2.SpecNoteID)
+	}
+
+	// Verify list returns spec_note_id
+	shipments, err := repo.List(ctx, secondary.ShipmentFilters{})
+	if err != nil {
+		t.Fatalf("List failed: %v", err)
+	}
+	if len(shipments) != 2 {
+		t.Fatalf("expected 2 shipments, got %d", len(shipments))
+	}
+	// Find the one with spec note (order may vary)
+	var foundWithSpec bool
+	for _, s := range shipments {
+		if s.ID == "SHIP-001" && s.SpecNoteID == "NOTE-001" {
+			foundWithSpec = true
+		}
+	}
+	if !foundWithSpec {
+		t.Error("expected to find shipment with spec_note_id in list")
+	}
+}
