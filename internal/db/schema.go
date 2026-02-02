@@ -21,14 +21,12 @@ import (
 //
 // # Keeping Schema in Sync
 //
-// IMPORTANT: Keep this in sync with migrations. Use Atlas to verify:
+// Schema changes use the Atlas workflow (migrations.go is frozen):
 //
-//	atlas schema diff --from "sqlite:///$HOME/.orc/orc.db" --to "sqlite:///tmp/fresh.db" --dev-url "sqlite://dev?mode=memory"
-//
-// When adding new columns or tables:
-//  1. Add migration in internal/db/migrations/
-//  2. Update schema.sql here
-//  3. Run `make test` to verify alignment
+//  1. Edit internal/db/schema.sql
+//  2. Run: make schema-diff   (preview changes)
+//  3. Run: make schema-apply  (apply to local DB)
+//  4. Run: make test          (verify alignment)
 //
 //go:embed schema.sql
 var SchemaSQL string
@@ -60,29 +58,10 @@ func InitSchema() error {
 			return RunMigrations()
 		} else {
 			// Completely fresh install - create modern schema directly
-			// Also create schema_version at max version to prevent migrations from running
+			// No schema_version table needed; fresh installs are Atlas-managed.
+			// The schema.sql uses IF NOT EXISTS so this is idempotent.
 			_, err = db.Exec(SchemaSQL)
-			if err != nil {
-				return err
-			}
-			// Mark all migrations as applied for fresh installs
-			_, err = db.Exec(`
-				CREATE TABLE IF NOT EXISTS schema_version (
-					version INTEGER PRIMARY KEY,
-					applied_at DATETIME DEFAULT CURRENT_TIMESTAMP
-				)
-			`)
-			if err != nil {
-				return err
-			}
-			// Insert all migration versions as applied
-			for i := 1; i <= 47; i++ {
-				_, err = db.Exec("INSERT INTO schema_version (version) VALUES (?)", i)
-				if err != nil {
-					return err
-				}
-			}
-			return nil
+			return err
 		}
 	}
 
