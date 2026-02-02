@@ -90,7 +90,6 @@ type MoveTaskRequest struct {
 	TaskID       string
 	ToShipmentID string
 	ToTomeID     string
-	ToConclaveID string
 }
 
 // Task represents a task entity at the port boundary.
@@ -98,7 +97,6 @@ type Task struct {
 	ID                  string
 	ShipmentID          string
 	TomeID              string
-	ConclaveID          string
 	CommissionID        string
 	Title               string
 	Description         string

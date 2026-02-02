@@ -51,8 +51,8 @@ type CreateNoteRequest struct {
 	Title         string
 	Content       string
 	Type          string // learning, concern, finding, frq, bug
-	ContainerID   string // The container ID (shipment, conclave, or tome)
-	ContainerType string // "shipment", "conclave", or "tome"
+	ContainerID   string // The container ID (shipment or tome)
+	ContainerType string // "shipment" or "tome"
 }
 
 // CreateNoteResponse contains the result of creating a note.
@@ -75,7 +75,6 @@ type MoveNoteRequest struct {
 	NoteID       string
 	ToTomeID     string
 	ToShipmentID string
-	ToConclaveID string
 }
 
 // MergeNoteRequest contains parameters for merging one note into another.
@@ -100,7 +99,6 @@ type Note struct {
 	Type             string
 	Status           string // "open" or "closed"
 	ShipmentID       string
-	ConclaveID       string
 	TomeID           string
 	Pinned           bool
 	CreatedAt        string

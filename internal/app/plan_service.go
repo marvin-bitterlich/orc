@@ -352,7 +352,6 @@ func (s *PlanServiceImpl) recordToPlan(r *secondary.PlanRecord) *primary.Plan {
 		CreatedAt:        r.CreatedAt,
 		UpdatedAt:        r.UpdatedAt,
 		ApprovedAt:       r.ApprovedAt,
-		ConclaveID:       r.ConclaveID,
 		PromotedFromID:   r.PromotedFromID,
 		PromotedFromType: r.PromotedFromType,
 		SupersedesPlanID: r.SupersedesPlanID,

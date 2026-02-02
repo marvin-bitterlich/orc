@@ -382,12 +382,9 @@ func (s *TaskServiceImpl) MoveTask(ctx context.Context, req primary.MoveTaskRequ
 	if req.ToTomeID != "" {
 		targetCount++
 	}
-	if req.ToConclaveID != "" {
-		targetCount++
-	}
 
 	if targetCount == 0 {
-		return fmt.Errorf("must specify exactly one target container (--to-shipment, --to-tome, or --to-conclave)")
+		return fmt.Errorf("must specify exactly one target container (--to-shipment or --to-tome)")
 	}
 	if targetCount > 1 {
 		return fmt.Errorf("cannot specify multiple target containers")
@@ -416,17 +413,6 @@ func (s *TaskServiceImpl) MoveTask(ctx context.Context, req primary.MoveTaskRequ
 			return fmt.Errorf("tome %s not found", req.ToTomeID)
 		}
 		record.TomeID = req.ToTomeID
-	}
-
-	if req.ToConclaveID != "" {
-		exists, err := s.taskRepo.ConclaveExists(ctx, req.ToConclaveID)
-		if err != nil {
-			return fmt.Errorf("failed to validate conclave: %w", err)
-		}
-		if !exists {
-			return fmt.Errorf("conclave %s not found", req.ToConclaveID)
-		}
-		record.ConclaveID = req.ToConclaveID
 	}
 
 	return s.taskRepo.Update(ctx, record)

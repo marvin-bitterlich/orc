@@ -27,7 +27,6 @@ var tomeCreateCmd = &cobra.Command{
 		ctx := context.Background()
 		title := args[0]
 		commissionID, _ := cmd.Flags().GetString("commission")
-		conclaveID, _ := cmd.Flags().GetString("conclave")
 		description, _ := cmd.Flags().GetString("description")
 
 		// Get commission from context or require explicit flag
@@ -38,26 +37,10 @@ var tomeCreateCmd = &cobra.Command{
 			}
 		}
 
-		// Validate entity IDs
-		if err := validateEntityID(conclaveID, "conclave"); err != nil {
-			return err
-		}
-
-		// Resolve container (optional - tomes can exist at commission root)
-		var containerID, containerType string
-		if conclaveID != "" {
-			containerID = conclaveID
-			containerType = "conclave"
-		}
-		// else: containerID and containerType remain empty (root tome at commission level)
-
 		resp, err := wire.TomeService().CreateTome(ctx, primary.CreateTomeRequest{
-			CommissionID:  commissionID,
-			ConclaveID:    conclaveID,
-			Title:         title,
-			Description:   description,
-			ContainerID:   containerID,
-			ContainerType: containerType,
+			CommissionID: commissionID,
+			Title:        title,
+			Description:  description,
 		})
 		if err != nil {
 			return fmt.Errorf("failed to create tome: %w", err)
@@ -66,11 +49,6 @@ var tomeCreateCmd = &cobra.Command{
 		tome := resp.Tome
 		fmt.Printf("✓ Created tome %s: %s\n", tome.ID, tome.Title)
 		fmt.Printf("  Commission: %s\n", tome.CommissionID)
-		if tome.ContainerType == "conclave" {
-			fmt.Printf("  Conclave: %s\n", tome.ContainerID)
-		} else {
-			fmt.Printf("  Location: commission root\n")
-		}
 		fmt.Printf("  Status: %s\n", tome.Status)
 		fmt.Println()
 		fmt.Println("Next steps:")
@@ -273,46 +251,9 @@ var tomeDeleteCmd = &cobra.Command{
 	},
 }
 
-var tomeParkCmd = &cobra.Command{
-	Use:   "park [tome-id]",
-	Short: "[DEPRECATED] Library entity has been removed",
-	Args:  cobra.ExactArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		return fmt.Errorf("Library entity has been removed. Tomes now exist at commission root when not in a conclave.\nTo move a tome to commission root, use: orc tome update %s (no container change needed - it's already there)", args[0])
-	},
-}
-
-var tomeUnparkCmd = &cobra.Command{
-	Use:   "unpark [tome-id]",
-	Short: "Move tome to Conclave",
-	Args:  cobra.ExactArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
-		tomeID := args[0]
-		conclaveID, _ := cmd.Flags().GetString("conclave")
-
-		// Validate entity IDs
-		if err := validateEntityID(conclaveID, "conclave"); err != nil {
-			return err
-		}
-
-		if conclaveID == "" {
-			return fmt.Errorf("specify --conclave CON-xxx")
-		}
-
-		if err := wire.TomeService().UnparkTome(ctx, tomeID, conclaveID); err != nil {
-			return fmt.Errorf("failed to unpark tome: %w", err)
-		}
-
-		fmt.Printf("Moved %s to %s\n", tomeID, conclaveID)
-		return nil
-	},
-}
-
 func init() {
 	// tome create flags
 	tomeCreateCmd.Flags().StringP("commission", "c", "", "Commission ID (defaults to context)")
-	tomeCreateCmd.Flags().String("conclave", "", "Parent conclave ID (CON-xxx)")
 	tomeCreateCmd.Flags().StringP("description", "d", "", "Tome description")
 
 	// tome list flags
@@ -323,9 +264,6 @@ func init() {
 	tomeUpdateCmd.Flags().String("title", "", "New title")
 	tomeUpdateCmd.Flags().StringP("description", "d", "", "New description")
 
-	// tome unpark flags
-	tomeUnparkCmd.Flags().String("conclave", "", "Target conclave ID (CON-xxx)")
-
 	// Register subcommands
 	tomeCmd.AddCommand(tomeCreateCmd)
 	tomeCmd.AddCommand(tomeListCmd)
@@ -335,8 +273,6 @@ func init() {
 	tomeCmd.AddCommand(tomePinCmd)
 	tomeCmd.AddCommand(tomeUnpinCmd)
 	tomeCmd.AddCommand(tomeDeleteCmd)
-	tomeCmd.AddCommand(tomeParkCmd)
-	tomeCmd.AddCommand(tomeUnparkCmd)
 }
 
 // TomeCmd returns the tome command

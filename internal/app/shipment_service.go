@@ -14,7 +14,6 @@ import (
 type ShipmentServiceImpl struct {
 	shipmentRepo secondary.ShipmentRepository
 	taskRepo     secondary.TaskRepository
-	shipyardRepo secondary.ShipyardRepository
 	noteService  primary.NoteService
 }
 
@@ -22,13 +21,11 @@ type ShipmentServiceImpl struct {
 func NewShipmentService(
 	shipmentRepo secondary.ShipmentRepository,
 	taskRepo secondary.TaskRepository,
-	shipyardRepo secondary.ShipyardRepository,
 	noteService primary.NoteService,
 ) *ShipmentServiceImpl {
 	return &ShipmentServiceImpl{
 		shipmentRepo: shipmentRepo,
 		taskRepo:     taskRepo,
-		shipyardRepo: shipyardRepo,
 		noteService:  noteService,
 	}
 }
@@ -61,8 +58,7 @@ func (s *ShipmentServiceImpl) CreateShipment(ctx context.Context, req primary.Cr
 		}
 	}
 
-	// Create record with explicit FKs
-	// Status is determined by repo: draft (conclave) or queued (shipyard)
+	// Create record - shipments go directly under commissions
 	record := &secondary.ShipmentRecord{
 		ID:           nextID,
 		CommissionID: req.CommissionID,
@@ -70,8 +66,6 @@ func (s *ShipmentServiceImpl) CreateShipment(ctx context.Context, req primary.Cr
 		Description:  req.Description,
 		RepoID:       req.RepoID,
 		Branch:       branch,
-		ConclaveID:   req.ConclaveID,
-		ShipyardID:   req.ShipyardID,
 		SpecNoteID:   req.SpecNoteID,
 	}
 
@@ -105,7 +99,6 @@ func (s *ShipmentServiceImpl) ListShipments(ctx context.Context, filters primary
 	records, err := s.shipmentRepo.List(ctx, secondary.ShipmentFilters{
 		CommissionID: filters.CommissionID,
 		Status:       filters.Status,
-		ConclaveID:   filters.ConclaveID,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list shipments: %w", err)
@@ -308,46 +301,6 @@ func (s *ShipmentServiceImpl) DeleteShipment(ctx context.Context, shipmentID str
 	return s.shipmentRepo.Delete(ctx, shipmentID)
 }
 
-// ParkShipment moves a shipment to the commission's Shipyard.
-func (s *ShipmentServiceImpl) ParkShipment(ctx context.Context, shipmentID string) error {
-	// Get shipment to find commission and check current container
-	shipment, err := s.shipmentRepo.GetByID(ctx, shipmentID)
-	if err != nil {
-		return err
-	}
-
-	// If already queued (in shipyard), return early (no-op, CLI handles message)
-	if shipment.Status == "queued" {
-		return nil
-	}
-
-	// Look up factory for commission, then shipyard for factory
-	factoryID, err := s.shipmentRepo.GetFactoryIDForCommission(ctx, shipment.CommissionID)
-	if err != nil {
-		return fmt.Errorf("failed to get factory for commission: %w", err)
-	}
-
-	yard, err := s.shipyardRepo.GetByFactoryID(ctx, factoryID)
-	if err != nil {
-		return fmt.Errorf("failed to get shipyard: %w", err)
-	}
-
-	// Set shipyard_id (status unchanged - it's work state, not location)
-	return s.shipmentRepo.SetShipyardID(ctx, shipmentID, yard.ID)
-}
-
-// UnparkShipment moves a shipment from Shipyard to a specific Conclave.
-func (s *ShipmentServiceImpl) UnparkShipment(ctx context.Context, shipmentID, conclaveID string) error {
-	// Get shipment to verify it exists
-	_, err := s.shipmentRepo.GetByID(ctx, shipmentID)
-	if err != nil {
-		return err
-	}
-
-	// Set conclave_id, clear shipyard_id, status='draft'
-	return s.shipmentRepo.SetConclaveID(ctx, shipmentID, conclaveID)
-}
-
 // Helper methods
 
 func (s *ShipmentServiceImpl) recordToShipment(r *secondary.ShipmentRecord) *primary.Shipment {
@@ -361,8 +314,6 @@ func (s *ShipmentServiceImpl) recordToShipment(r *secondary.ShipmentRecord) *pri
 		RepoID:              r.RepoID,
 		Branch:              r.Branch,
 		Pinned:              r.Pinned,
-		ConclaveID:          r.ConclaveID,
-		ShipyardID:          r.ShipyardID,
 		SpecNoteID:          r.SpecNoteID,
 		CreatedAt:           r.CreatedAt,
 		UpdatedAt:           r.UpdatedAt,
@@ -376,7 +327,6 @@ func recordToTask(r *secondary.TaskRecord) *primary.Task {
 		ID:                  r.ID,
 		ShipmentID:          r.ShipmentID,
 		TomeID:              r.TomeID,
-		ConclaveID:          r.ConclaveID,
 		CommissionID:        r.CommissionID,
 		Title:               r.Title,
 		Description:         r.Description,
@@ -390,40 +340,6 @@ func recordToTask(r *secondary.TaskRecord) *primary.Task {
 		ClaimedAt:           r.ClaimedAt,
 		CompletedAt:         r.CompletedAt,
 	}
-}
-
-// ListShipyardQueue retrieves shipments in the shipyard queue, ordered by priority.
-func (s *ShipmentServiceImpl) ListShipyardQueue(ctx context.Context, factoryID string) ([]*primary.ShipyardQueueEntry, error) {
-	entries, err := s.shipmentRepo.ListShipyardQueue(ctx, factoryID)
-	if err != nil {
-		return nil, err
-	}
-
-	// Convert secondary records to primary types
-	result := make([]*primary.ShipyardQueueEntry, len(entries))
-	for i, e := range entries {
-		result[i] = &primary.ShipyardQueueEntry{
-			ID:           e.ID,
-			CommissionID: e.CommissionID,
-			Title:        e.Title,
-			Priority:     e.Priority,
-			TaskCount:    e.TaskCount,
-			DoneCount:    e.DoneCount,
-			CreatedAt:    e.CreatedAt,
-		}
-	}
-
-	return result, nil
-}
-
-// SetShipmentPriority sets the priority for a shipment in the queue.
-func (s *ShipmentServiceImpl) SetShipmentPriority(ctx context.Context, shipmentID string, priority *int) error {
-	// Validate priority if set
-	if priority != nil && *priority < 1 {
-		return fmt.Errorf("priority must be at least 1, got %d", *priority)
-	}
-
-	return s.shipmentRepo.UpdatePriority(ctx, shipmentID, priority)
 }
 
 // Ensure ShipmentServiceImpl implements the interface

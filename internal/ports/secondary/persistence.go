@@ -113,47 +113,25 @@ type ShipmentRepository interface {
 	// UpdateStatus updates the status and optionally completed_at timestamp.
 	UpdateStatus(ctx context.Context, id, status string, setCompleted bool) error
 
-	// SetShipyardID sets the shipyard_id FK.
-	// Used for park operation (move to shipyard queue). Status unchanged - it's work state, not location.
-	SetShipyardID(ctx context.Context, id, shipyardID string) error
-
-	// SetConclaveID sets the conclave_id FK and clears shipyard_id.
-	// Used for unpark operation (move from queue to conclave).
-	SetConclaveID(ctx context.Context, id, conclaveID string) error
-
 	// CommissionExists checks if a commission exists (for validation).
 	CommissionExists(ctx context.Context, commissionID string) (bool, error)
 
 	// WorkbenchAssignedToOther checks if workbench is assigned to another shipment.
 	WorkbenchAssignedToOther(ctx context.Context, workbenchID, excludeShipmentID string) (string, error)
-
-	// ListShipyardQueue retrieves shipments in the shipyard queue (shipyard_id IS NOT NULL), ordered by priority then created_at.
-	// Filters by factory via shipyard_id FK to shipyards.factory_id.
-	ListShipyardQueue(ctx context.Context, factoryID string) ([]*ShipyardQueueEntry, error)
-
-	// GetFactoryIDForCommission returns the factory_id for a given commission.
-	// Used to resolve factory context from commission for shipyard operations.
-	GetFactoryIDForCommission(ctx context.Context, commissionID string) (string, error)
-
-	// UpdatePriority sets the priority for a shipment (nil to clear).
-	UpdatePriority(ctx context.Context, id string, priority *int) error
 }
 
 // ShipmentRecord represents a shipment as stored in persistence.
+// Shipments go directly under commissions (conclaves and shipyards are removed).
 type ShipmentRecord struct {
 	ID                  string
 	CommissionID        string
 	Title               string
 	Description         string // Empty string means null
-	Status              string // draft, queued, assigned, active, complete
+	Status              string // draft, exploring, specced, tasked, in_progress, paused, complete
 	AssignedWorkbenchID string // Empty string means null
 	RepoID              string // Empty string means null - FK to repos table
 	Branch              string // Empty string means null - owned branch (e.g., ml/SHIP-001-feature-name)
 	Pinned              bool
-	ConclaveID          string // Empty string means null - source/origin conclave (CON-xxx)
-	ShipyardID          string // Empty string means null - when in shipyard queue (YARD-xxx)
-	Autorun             bool   // Whether to auto-run tasks when shipment is launched
-	Priority            *int   // nil = default FIFO, 1 = highest priority
 	SpecNoteID          string // Empty string means null - spec note that generated this shipment (NOTE-xxx)
 	CreatedAt           string
 	UpdatedAt           string
@@ -164,18 +142,6 @@ type ShipmentRecord struct {
 type ShipmentFilters struct {
 	CommissionID string
 	Status       string
-	ConclaveID   string // Filter by source conclave
-}
-
-// ShipyardQueueEntry represents a shipment in the shipyard queue with task count.
-type ShipyardQueueEntry struct {
-	ID           string
-	CommissionID string
-	Title        string
-	Priority     *int   // nil = default FIFO
-	TaskCount    int    // Total tasks in shipment
-	DoneCount    int    // Completed tasks
-	CreatedAt    string // When shipment was created (queue time)
 }
 
 // TaskRepository defines the secondary port for task persistence.
@@ -227,9 +193,6 @@ type TaskRepository interface {
 
 	// TomeExists checks if a tome exists (for validation).
 	TomeExists(ctx context.Context, tomeID string) (bool, error)
-
-	// ConclaveExists checks if a conclave exists (for validation).
-	ConclaveExists(ctx context.Context, conclaveID string) (bool, error)
 
 	// GetTag retrieves the tag for a task (nil if none).
 	GetTag(ctx context.Context, taskID string) (*TagRecord, error)

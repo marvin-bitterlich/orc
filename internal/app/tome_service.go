@@ -27,11 +27,6 @@ func NewTomeService(
 
 // CreateTome creates a new tome (knowledge container).
 func (s *TomeServiceImpl) CreateTome(ctx context.Context, req primary.CreateTomeRequest) (*primary.CreateTomeResponse, error) {
-	// Validate container type if provided
-	if req.ContainerType != "" && req.ContainerType != "conclave" {
-		return nil, fmt.Errorf("invalid container type %q: must be 'conclave'", req.ContainerType)
-	}
-
 	// Validate commission exists
 	exists, err := s.tomeRepo.CommissionExists(ctx, req.CommissionID)
 	if err != nil {
@@ -47,22 +42,13 @@ func (s *TomeServiceImpl) CreateTome(ctx context.Context, req primary.CreateTome
 		return nil, fmt.Errorf("failed to generate tome ID: %w", err)
 	}
 
-	// Set ConclaveID for backwards compatibility if container is a conclave
-	conclaveID := req.ConclaveID
-	if req.ContainerType == "conclave" && conclaveID == "" {
-		conclaveID = req.ContainerID
-	}
-
-	// Create record
+	// Create record - tomes go directly under commissions
 	record := &secondary.TomeRecord{
-		ID:            nextID,
-		CommissionID:  req.CommissionID,
-		ConclaveID:    conclaveID,
-		Title:         req.Title,
-		Description:   req.Description,
-		Status:        "open",
-		ContainerID:   req.ContainerID,
-		ContainerType: req.ContainerType,
+		ID:           nextID,
+		CommissionID: req.CommissionID,
+		Title:        req.Title,
+		Description:  req.Description,
+		Status:       "open",
 	}
 
 	if err := s.tomeRepo.Create(ctx, record); err != nil {
@@ -94,7 +80,6 @@ func (s *TomeServiceImpl) GetTome(ctx context.Context, tomeID string) (*primary.
 func (s *TomeServiceImpl) ListTomes(ctx context.Context, filters primary.TomeFilters) ([]*primary.Tome, error) {
 	records, err := s.tomeRepo.List(ctx, secondary.TomeFilters{
 		CommissionID: filters.CommissionID,
-		ConclaveID:   filters.ConclaveID,
 		Status:       filters.Status,
 	})
 	if err != nil {
@@ -179,32 +164,17 @@ func (s *TomeServiceImpl) GetTomeNotes(ctx context.Context, tomeID string) ([]*p
 	return s.noteService.GetNotesByContainer(ctx, "tome", tomeID)
 }
 
-// UnparkTome moves a tome from commission root to a specific Conclave.
-func (s *TomeServiceImpl) UnparkTome(ctx context.Context, tomeID, conclaveID string) error {
-	// Get tome to verify it exists
-	_, err := s.tomeRepo.GetByID(ctx, tomeID)
-	if err != nil {
-		return err
-	}
-
-	// Update container
-	return s.tomeRepo.UpdateContainer(ctx, tomeID, conclaveID, "conclave")
-}
-
 // Helper methods
 
 func (s *TomeServiceImpl) recordToTome(r *secondary.TomeRecord) *primary.Tome {
 	return &primary.Tome{
 		ID:                  r.ID,
 		CommissionID:        r.CommissionID,
-		ConclaveID:          r.ConclaveID,
 		Title:               r.Title,
 		Description:         r.Description,
 		Status:              r.Status,
 		AssignedWorkbenchID: r.AssignedWorkbenchID,
 		Pinned:              r.Pinned,
-		ContainerID:         r.ContainerID,
-		ContainerType:       r.ContainerType,
 		CreatedAt:           r.CreatedAt,
 		UpdatedAt:           r.UpdatedAt,
 		ClosedAt:            r.ClosedAt,

@@ -51,8 +51,6 @@ func (s *NoteServiceImpl) CreateNote(ctx context.Context, req primary.CreateNote
 		switch req.ContainerType {
 		case "shipment":
 			record.ShipmentID = req.ContainerID
-		case "conclave":
-			record.ConclaveID = req.ContainerID
 		case "tome":
 			record.TomeID = req.ContainerID
 		}
@@ -207,12 +205,9 @@ func (s *NoteServiceImpl) MoveNote(ctx context.Context, req primary.MoveNoteRequ
 	if req.ToShipmentID != "" {
 		targetCount++
 	}
-	if req.ToConclaveID != "" {
-		targetCount++
-	}
 
 	if targetCount == 0 {
-		return fmt.Errorf("must specify exactly one target container (--to-tome, --to-shipment, or --to-conclave)")
+		return fmt.Errorf("must specify exactly one target container (--to-tome or --to-shipment)")
 	}
 	if targetCount > 1 {
 		return fmt.Errorf("cannot specify multiple target containers")
@@ -243,17 +238,6 @@ func (s *NoteServiceImpl) MoveNote(ctx context.Context, req primary.MoveNoteRequ
 		record.ShipmentID = req.ToShipmentID
 	}
 
-	if req.ToConclaveID != "" {
-		exists, err := s.noteRepo.ConclaveExists(ctx, req.ToConclaveID)
-		if err != nil {
-			return fmt.Errorf("failed to validate conclave: %w", err)
-		}
-		if !exists {
-			return fmt.Errorf("conclave %s not found", req.ToConclaveID)
-		}
-		record.ConclaveID = req.ToConclaveID
-	}
-
 	return s.noteRepo.Update(ctx, record)
 }
 
@@ -268,7 +252,6 @@ func (s *NoteServiceImpl) recordToNote(r *secondary.NoteRecord) *primary.Note {
 		Type:             r.Type,
 		Status:           r.Status,
 		ShipmentID:       r.ShipmentID,
-		ConclaveID:       r.ConclaveID,
 		TomeID:           r.TomeID,
 		Pinned:           r.Pinned,
 		CreatedAt:        r.CreatedAt,

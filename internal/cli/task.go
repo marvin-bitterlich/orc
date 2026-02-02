@@ -172,9 +172,6 @@ var taskShowCmd = &cobra.Command{
 		if task.TomeID != "" {
 			fmt.Printf("Tome: %s\n", task.TomeID)
 		}
-		if task.ConclaveID != "" {
-			fmt.Printf("Conclave: %s\n", task.ConclaveID)
-		}
 		if task.AssignedWorkbenchID != "" {
 			fmt.Printf("Assigned Workbench: %s\n", task.AssignedWorkbenchID)
 		}
@@ -469,7 +466,6 @@ var taskMoveCmd = &cobra.Command{
 		taskID := args[0]
 		toShipment, _ := cmd.Flags().GetString("to-shipment")
 		toTome, _ := cmd.Flags().GetString("to-tome")
-		toConclave, _ := cmd.Flags().GetString("to-conclave")
 
 		// Validate exactly one target specified
 		targetCount := 0
@@ -479,12 +475,8 @@ var taskMoveCmd = &cobra.Command{
 		if toTome != "" {
 			targetCount++
 		}
-		if toConclave != "" {
-			targetCount++
-		}
-
 		if targetCount == 0 {
-			return fmt.Errorf("must specify exactly one target: --to-shipment, --to-tome, or --to-conclave")
+			return fmt.Errorf("must specify exactly one target: --to-shipment or --to-tome")
 		}
 		if targetCount > 1 {
 			return fmt.Errorf("cannot specify multiple targets")
@@ -494,7 +486,6 @@ var taskMoveCmd = &cobra.Command{
 			TaskID:       taskID,
 			ToShipmentID: toShipment,
 			ToTomeID:     toTome,
-			ToConclaveID: toConclave,
 		})
 		if err != nil {
 			return fmt.Errorf("failed to move task: %w", err)
@@ -503,10 +494,8 @@ var taskMoveCmd = &cobra.Command{
 		target := ""
 		if toShipment != "" {
 			target = toShipment
-		} else if toTome != "" {
-			target = toTome
 		} else {
-			target = toConclave
+			target = toTome
 		}
 
 		fmt.Printf("✓ Task %s moved to %s\n", taskID, target)

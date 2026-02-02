@@ -44,20 +44,6 @@ type ShipmentService interface {
 	// DeleteShipment deletes a shipment.
 	DeleteShipment(ctx context.Context, shipmentID string) error
 
-	// ParkShipment moves a shipment to the factory's Shipyard.
-	// Resolves factory from the shipment's commission.
-	ParkShipment(ctx context.Context, shipmentID string) error
-
-	// UnparkShipment moves a shipment from Shipyard to a specific Conclave.
-	UnparkShipment(ctx context.Context, shipmentID, conclaveID string) error
-
-	// ListShipyardQueue retrieves shipments in the shipyard queue, ordered by priority.
-	// Filters by factory (shipyards are factory-scoped). Returns ALL shipments across commissions.
-	ListShipyardQueue(ctx context.Context, factoryID string) ([]*ShipyardQueueEntry, error)
-
-	// SetShipmentPriority sets the priority for a shipment in the queue.
-	SetShipmentPriority(ctx context.Context, shipmentID string, priority *int) error
-
 	// UpdateStatus sets a shipment's status directly (used for auto-transitions).
 	UpdateStatus(ctx context.Context, shipmentID, status string) error
 
@@ -73,8 +59,6 @@ type CreateShipmentRequest struct {
 	Description  string
 	RepoID       string // Optional - link shipment to a repository for branch ownership
 	Branch       string // Optional - override auto-generated branch name
-	ConclaveID   string // Optional: CON-xxx - source/origin conclave
-	ShipyardID   string // Optional: YARD-xxx - for direct creation in shipyard queue
 	SpecNoteID   string // Optional: NOTE-xxx - spec note that generated this shipment
 }
 
@@ -103,8 +87,6 @@ type Shipment struct {
 	RepoID              string // Linked repository for branch ownership
 	Branch              string // Owned branch (e.g., ml/SHIP-001-feature-name)
 	Pinned              bool
-	ConclaveID          string // Source/origin conclave (CON-xxx)
-	ShipyardID          string // When in shipyard queue (YARD-xxx)
 	SpecNoteID          string // Spec note that generated this shipment (NOTE-xxx)
 	CreatedAt           string
 	UpdatedAt           string
@@ -115,16 +97,4 @@ type Shipment struct {
 type ShipmentFilters struct {
 	CommissionID string
 	Status       string
-	ConclaveID   string // Filter by source conclave
-}
-
-// ShipyardQueueEntry represents a shipment in the shipyard queue.
-type ShipyardQueueEntry struct {
-	ID           string
-	CommissionID string
-	Title        string
-	Priority     *int   // nil = default FIFO, 1 = highest priority
-	TaskCount    int    // Total tasks in shipment
-	DoneCount    int    // Completed tasks
-	CreatedAt    string // When shipment was created
 }

@@ -35,10 +35,6 @@ func resolveContainerCommission(containerID string) string {
 
 	// Determine container type from ID prefix
 	switch {
-	case strings.HasPrefix(containerID, "CON-"):
-		if conclave, err := wire.ConclaveService().GetConclave(ctx, containerID); err == nil {
-			return conclave.CommissionID
-		}
 	case strings.HasPrefix(containerID, "SHIP-"):
 		if shipment, err := wire.ShipmentService().GetShipment(ctx, containerID); err == nil {
 			return shipment.CommissionID
@@ -301,11 +297,7 @@ func buildWorkshopFocusMap(ctx context.Context, workshopID, currentWorkbenchID, 
 		info.myID = gatehouseID
 	}
 
-	// Get Goblin's focus (workshop-level focus)
-	goblinFocusID, err := wire.WorkshopService().GetFocusedConclaveID(ctx, workshopID)
-	if err == nil && goblinFocusID != "" {
-		info.containerToWorkbench[goblinFocusID] = fmt.Sprintf("goblin@%s", gatehouseID)
-	}
+	// Note: Goblin's focused_conclave_id is deprecated - conclaves removed
 
 	// Get each IMP's focus
 	workbenches, err := wire.WorkbenchService().ListWorkbenches(ctx, primary.WorkbenchFilters{

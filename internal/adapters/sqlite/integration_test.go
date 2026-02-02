@@ -252,46 +252,62 @@ func TestIntegration_MultipleEntitiesAssignedToWorkbench(t *testing.T) {
 }
 
 // ============================================================================
-// Conclave Workflow Tests
+// Shipment with Tasks and Plans Tests
 // ============================================================================
 
-func TestIntegration_ConclaveWithTasksQuestionsPlans(t *testing.T) {
+func TestIntegration_ShipmentWithTasksAndPlans(t *testing.T) {
 	db := setupTestDB(t)
 	ctx := context.Background()
 
 	seedCommission(t, db, "COMM-001", "Test Commission")
 
-	// Create a shipment for the conclave
-	seedShipment(t, db, "SHIP-001", "COMM-001", "Test Shipment")
+	shipmentRepo := sqlite.NewShipmentRepository(db)
+	taskRepo := sqlite.NewTaskRepository(db)
+	planRepo := sqlite.NewPlanRepository(db)
 
-	conclaveRepo := sqlite.NewConclaveRepository(db)
+	// Create shipment
+	if err := shipmentRepo.Create(ctx, &secondary.ShipmentRecord{
+		ID:           "SHIP-001",
+		CommissionID: "COMM-001",
+		Title:        "Implementation Shipment",
+	}); err != nil {
+		t.Fatalf("Create shipment failed: %v", err)
+	}
 
-	// Create conclave linked to shipment
-	conclave := &secondary.ConclaveRecord{
-		ID:           "CON-001",
+	// Create task for shipment
+	if err := taskRepo.Create(ctx, &secondary.TaskRecord{
+		ID:           "TASK-001",
 		CommissionID: "COMM-001",
 		ShipmentID:   "SHIP-001",
-		Title:        "Architecture Review",
+		Title:        "Implementation Task",
+	}); err != nil {
+		t.Fatalf("Create task failed: %v", err)
 	}
-	if err := conclaveRepo.Create(ctx, conclave); err != nil {
-		t.Fatalf("Create conclave failed: %v", err)
+
+	// Create plan for task
+	if err := planRepo.Create(ctx, &secondary.PlanRecord{
+		ID:           "PLAN-001",
+		CommissionID: "COMM-001",
+		TaskID:       "TASK-001",
+		Title:        "Implementation Plan",
+		Content:      "Plan content...",
+	}); err != nil {
+		t.Fatalf("Create plan failed: %v", err)
 	}
 
-	// Task linked to conclave (task-first model)
-	_, _ = db.Exec(`INSERT INTO tasks (id, commission_id, conclave_id, title, status) VALUES ('TASK-001', 'COMM-001', 'CON-001', 'Review Task', 'ready')`)
-
-	// Plan linked to task (task-first model)
-	_, _ = db.Exec(`INSERT INTO plans (id, task_id, commission_id, title, status) VALUES ('PLAN-001', 'TASK-001', 'COMM-001', 'Review Plan', 'draft')`)
-
-	// Verify entities linked to conclave
-	tasks, _ := conclaveRepo.GetTasksByConclave(ctx, "CON-001")
+	// Verify tasks retrievable by shipment
+	tasks, err := taskRepo.GetByShipment(ctx, "SHIP-001")
+	if err != nil {
+		t.Fatalf("GetByShipment failed: %v", err)
+	}
 	if len(tasks) != 1 {
-		t.Errorf("expected 1 task in conclave, got %d", len(tasks))
+		t.Errorf("expected 1 task, got %d", len(tasks))
 	}
 
-	plans, _ := conclaveRepo.GetPlansByConclave(ctx, "CON-001")
-	if len(plans) != 1 {
-		t.Errorf("expected 1 plan in conclave, got %d", len(plans))
+	// Verify plan has active draft
+	hasActive, _ := planRepo.HasActivePlanForTask(ctx, "TASK-001")
+	if !hasActive {
+		t.Error("expected task to have active (draft) plan")
 	}
 }
 
@@ -409,32 +425,23 @@ func TestIntegration_NotesAcrossContainers(t *testing.T) {
 
 	noteRepo := sqlite.NewNoteRepository(db)
 	shipmentRepo := sqlite.NewShipmentRepository(db)
-	conclaveRepo := sqlite.NewConclaveRepository(db)
 	tomeRepo := sqlite.NewTomeRepository(db)
 
 	// Create containers
 	_ = shipmentRepo.Create(ctx, &secondary.ShipmentRecord{ID: "SHIP-001", CommissionID: "COMM-001", Title: "Shipment"})
-	_ = conclaveRepo.Create(ctx, &secondary.ConclaveRecord{ID: "CON-001", CommissionID: "COMM-001", Title: "Conclave"})
 	_ = tomeRepo.Create(ctx, &secondary.TomeRecord{ID: "TOME-001", CommissionID: "COMM-001", Title: "Tome"})
 
 	// Create notes for each container
 	shipmentNote := &secondary.NoteRecord{ID: "NOTE-001", CommissionID: "COMM-001", Title: "Shipment Note", ShipmentID: "SHIP-001"}
-	conclaveNote := &secondary.NoteRecord{ID: "NOTE-002", CommissionID: "COMM-001", Title: "Conclave Note", ConclaveID: "CON-001"}
-	tomeNote := &secondary.NoteRecord{ID: "NOTE-003", CommissionID: "COMM-001", Title: "Tome Note", TomeID: "TOME-001"}
+	tomeNote := &secondary.NoteRecord{ID: "NOTE-002", CommissionID: "COMM-001", Title: "Tome Note", TomeID: "TOME-001"}
 
 	_ = noteRepo.Create(ctx, shipmentNote)
-	_ = noteRepo.Create(ctx, conclaveNote)
 	_ = noteRepo.Create(ctx, tomeNote)
 
 	// Verify notes by container
 	shipmentNotes, _ := noteRepo.GetByContainer(ctx, "shipment", "SHIP-001")
 	if len(shipmentNotes) != 1 {
 		t.Errorf("expected 1 shipment note, got %d", len(shipmentNotes))
-	}
-
-	conclaveNotes, _ := noteRepo.GetByContainer(ctx, "conclave", "CON-001")
-	if len(conclaveNotes) != 1 {
-		t.Errorf("expected 1 conclave note, got %d", len(conclaveNotes))
 	}
 
 	tomeNotes, _ := noteRepo.GetByContainer(ctx, "tome", "TOME-001")
@@ -444,8 +451,8 @@ func TestIntegration_NotesAcrossContainers(t *testing.T) {
 
 	// Verify all notes in commission
 	allNotes, _ := noteRepo.List(ctx, secondary.NoteFilters{CommissionID: "COMM-001"})
-	if len(allNotes) != 3 {
-		t.Errorf("expected 3 notes total, got %d", len(allNotes))
+	if len(allNotes) != 2 {
+		t.Errorf("expected 2 notes total, got %d", len(allNotes))
 	}
 }
 

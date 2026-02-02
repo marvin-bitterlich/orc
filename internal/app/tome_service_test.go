@@ -262,11 +262,9 @@ func TestCreateTome_Success(t *testing.T) {
 	ctx := context.Background()
 
 	resp, err := service.CreateTome(ctx, primary.CreateTomeRequest{
-		CommissionID:  "COMM-001",
-		Title:         "Test Tome",
-		Description:   "A test tome",
-		ContainerID:   "CON-001",
-		ContainerType: "conclave",
+		CommissionID: "COMM-001",
+		Title:        "Test Tome",
+		Description:  "A test tome",
 	})
 
 	if err != nil {
@@ -281,32 +279,8 @@ func TestCreateTome_Success(t *testing.T) {
 	if resp.Tome.Status != "open" {
 		t.Errorf("expected status 'open', got '%s'", resp.Tome.Status)
 	}
-	if resp.Tome.ContainerID != "CON-001" {
-		t.Errorf("expected container ID 'CON-001', got '%s'", resp.Tome.ContainerID)
-	}
-	if resp.Tome.ContainerType != "conclave" {
-		t.Errorf("expected container type 'conclave', got '%s'", resp.Tome.ContainerType)
-	}
-}
-
-func TestCreateTome_NoContainer(t *testing.T) {
-	service, _, _ := newTestTomeService()
-	ctx := context.Background()
-
-	resp, err := service.CreateTome(ctx, primary.CreateTomeRequest{
-		CommissionID: "COMM-001",
-		Title:        "Root Tome",
-		Description:  "A tome at commission root",
-	})
-
-	if err != nil {
-		t.Fatalf("expected success for root tome, got error: %v", err)
-	}
-	if resp.Tome.ContainerID != "" {
-		t.Errorf("expected empty ContainerID for root tome, got '%s'", resp.Tome.ContainerID)
-	}
-	if resp.Tome.ContainerType != "" {
-		t.Errorf("expected empty ContainerType for root tome, got '%s'", resp.Tome.ContainerType)
+	if resp.Tome.CommissionID != "COMM-001" {
+		t.Errorf("expected commission ID 'COMM-001', got '%s'", resp.Tome.CommissionID)
 	}
 }
 
@@ -317,11 +291,9 @@ func TestCreateTome_CommissionNotFound(t *testing.T) {
 	tomeRepo.commissionExistsResult = false
 
 	_, err := service.CreateTome(ctx, primary.CreateTomeRequest{
-		CommissionID:  "COMM-NONEXISTENT",
-		Title:         "Test Tome",
-		Description:   "A test tome",
-		ContainerID:   "CON-001",
-		ContainerType: "conclave",
+		CommissionID: "COMM-NONEXISTENT",
+		Title:        "Test Tome",
+		Description:  "A test tome",
 	})
 
 	if err == nil {

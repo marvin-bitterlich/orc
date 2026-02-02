@@ -401,16 +401,6 @@ func (r *TaskRepository) TomeExists(ctx context.Context, tomeID string) (bool, e
 	return count > 0, nil
 }
 
-// ConclaveExists checks if a conclave exists.
-func (r *TaskRepository) ConclaveExists(ctx context.Context, conclaveID string) (bool, error) {
-	var count int
-	err := r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM conclaves WHERE id = ?", conclaveID).Scan(&count)
-	if err != nil {
-		return false, fmt.Errorf("failed to check conclave existence: %w", err)
-	}
-	return count > 0, nil
-}
-
 // GetTag retrieves the tag for a task (nil if none).
 func (r *TaskRepository) GetTag(ctx context.Context, taskID string) (*secondary.TagRecord, error) {
 	var tagID, tagName string

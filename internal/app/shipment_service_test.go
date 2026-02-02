@@ -40,12 +40,8 @@ func (m *mockShipmentRepository) Create(ctx context.Context, shipment *secondary
 	if m.createErr != nil {
 		return m.createErr
 	}
-	// Set status based on container: draft (conclave) or queued (shipyard)
-	if shipment.ShipyardID != "" {
-		shipment.Status = "queued"
-	} else {
-		shipment.Status = "draft"
-	}
+	// Shipments go directly under commissions with draft status
+	shipment.Status = "draft"
 	m.shipments[shipment.ID] = shipment
 	return nil
 }
@@ -166,54 +162,7 @@ func (m *mockShipmentRepository) WorkbenchAssignedToOther(ctx context.Context, w
 	return "", nil
 }
 
-func (m *mockShipmentRepository) SetShipyardID(ctx context.Context, id, shipyardID string) error {
-	if shipment, ok := m.shipments[id]; ok {
-		shipment.ShipyardID = shipyardID
-		shipment.Status = "queued"
-	}
-	return nil
-}
-
-func (m *mockShipmentRepository) SetConclaveID(ctx context.Context, id, conclaveID string) error {
-	if shipment, ok := m.shipments[id]; ok {
-		shipment.ConclaveID = conclaveID
-		shipment.ShipyardID = ""
-		shipment.Status = "draft"
-	}
-	return nil
-}
-
-func (m *mockShipmentRepository) ListShipyardQueue(ctx context.Context, factoryID string) ([]*secondary.ShipyardQueueEntry, error) {
-	var entries []*secondary.ShipyardQueueEntry
-	for _, s := range m.shipments {
-		if s.Status != "queued" {
-			continue
-		}
-		// In mock, we don't filter by factory - return all queued entries
-		entries = append(entries, &secondary.ShipyardQueueEntry{
-			ID:           s.ID,
-			CommissionID: s.CommissionID,
-			Title:        s.Title,
-			Priority:     s.Priority,
-			TaskCount:    0,
-			DoneCount:    0,
-			CreatedAt:    s.CreatedAt,
-		})
-	}
-	return entries, nil
-}
-
-func (m *mockShipmentRepository) GetFactoryIDForCommission(ctx context.Context, commissionID string) (string, error) {
-	// Mock returns FACT-001 for any commission
-	return "FACT-001", nil
-}
-
-func (m *mockShipmentRepository) UpdatePriority(ctx context.Context, id string, priority *int) error {
-	if shipment, ok := m.shipments[id]; ok {
-		shipment.Priority = priority
-	}
-	return nil
-}
+// Deprecated methods removed: SetShipyardID, SetConclaveID, ListShipyardQueue, GetFactoryIDForCommission, UpdatePriority
 
 // mockTaskRepositoryForShipment implements minimal TaskRepository for shipment tests.
 type mockTaskRepositoryForShipment struct {
@@ -298,10 +247,6 @@ func (m *mockTaskRepositoryForShipment) TomeExists(ctx context.Context, tomeID s
 	return true, nil
 }
 
-func (m *mockTaskRepositoryForShipment) ConclaveExists(ctx context.Context, conclaveID string) (bool, error) {
-	return true, nil
-}
-
 func (m *mockTaskRepositoryForShipment) GetTag(ctx context.Context, taskID string) (*secondary.TagRecord, error) {
 	return nil, nil
 }
@@ -320,48 +265,6 @@ func (m *mockTaskRepositoryForShipment) ListByTag(ctx context.Context, tagID str
 
 func (m *mockTaskRepositoryForShipment) GetNextEntityTagID(ctx context.Context) (string, error) {
 	return "ENTITY-TAG-001", nil
-}
-
-// mockShipyardRepository implements secondary.ShipyardRepository for testing.
-type mockShipyardRepository struct {
-	shipyards map[string]*secondary.ShipyardRecord
-}
-
-func newMockShipyardRepository() *mockShipyardRepository {
-	return &mockShipyardRepository{
-		shipyards: map[string]*secondary.ShipyardRecord{
-			"YARD-001": {ID: "YARD-001", FactoryID: "FACT-001"},
-		},
-	}
-}
-
-func (m *mockShipyardRepository) Create(ctx context.Context, shipyard *secondary.ShipyardRecord) error {
-	m.shipyards[shipyard.ID] = shipyard
-	return nil
-}
-
-func (m *mockShipyardRepository) GetByID(ctx context.Context, id string) (*secondary.ShipyardRecord, error) {
-	if yard, ok := m.shipyards[id]; ok {
-		return yard, nil
-	}
-	return nil, errors.New("shipyard not found")
-}
-
-func (m *mockShipyardRepository) GetByFactoryID(ctx context.Context, factoryID string) (*secondary.ShipyardRecord, error) {
-	for _, yard := range m.shipyards {
-		if yard.FactoryID == factoryID {
-			return yard, nil
-		}
-	}
-	return nil, errors.New("shipyard not found for factory")
-}
-
-func (m *mockShipyardRepository) GetNextID(ctx context.Context) (string, error) {
-	return "YARD-002", nil
-}
-
-func (m *mockShipyardRepository) FactoryExists(ctx context.Context, factoryID string) (bool, error) {
-	return true, nil
 }
 
 // mockNoteServiceForShipment implements primary.NoteService for testing.
@@ -439,9 +342,8 @@ func (m *mockNoteServiceForShipment) SetNoteInFlight(_ context.Context, _ string
 func newTestShipmentService() (*ShipmentServiceImpl, *mockShipmentRepository, *mockTaskRepositoryForShipment) {
 	shipmentRepo := newMockShipmentRepository()
 	taskRepo := newMockTaskRepositoryForShipment()
-	shipyardRepo := newMockShipyardRepository()
 	noteService := newMockNoteServiceForShipment()
-	service := NewShipmentService(shipmentRepo, taskRepo, shipyardRepo, noteService)
+	service := NewShipmentService(shipmentRepo, taskRepo, noteService)
 	return service, shipmentRepo, taskRepo
 }
 
@@ -457,7 +359,6 @@ func TestCreateShipment_Success(t *testing.T) {
 		CommissionID: "COMM-001",
 		Title:        "Test Shipment",
 		Description:  "A test shipment",
-		ShipyardID:   "YARD-001",
 	})
 
 	if err != nil {
@@ -469,35 +370,9 @@ func TestCreateShipment_Success(t *testing.T) {
 	if resp.Shipment.Title != "Test Shipment" {
 		t.Errorf("expected title 'Test Shipment', got '%s'", resp.Shipment.Title)
 	}
-	// Status should be 'queued' when created with ShipyardID
-	if resp.Shipment.Status != "queued" {
-		t.Errorf("expected status 'queued', got '%s'", resp.Shipment.Status)
-	}
-	if resp.Shipment.ShipyardID != "YARD-001" {
-		t.Errorf("expected shipyard ID 'YARD-001', got '%s'", resp.Shipment.ShipyardID)
-	}
-}
-
-func TestCreateShipment_InConclave(t *testing.T) {
-	service, _, _ := newTestShipmentService()
-	ctx := context.Background()
-
-	resp, err := service.CreateShipment(ctx, primary.CreateShipmentRequest{
-		CommissionID: "COMM-001",
-		Title:        "Test Shipment",
-		Description:  "A test shipment",
-		ConclaveID:   "CON-001",
-	})
-
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
-	}
-	// Status should be 'draft' when created with ConclaveID
+	// Status should be 'draft' when created (shipments go directly under commissions)
 	if resp.Shipment.Status != "draft" {
 		t.Errorf("expected status 'draft', got '%s'", resp.Shipment.Status)
-	}
-	if resp.Shipment.ConclaveID != "CON-001" {
-		t.Errorf("expected conclave ID 'CON-001', got '%s'", resp.Shipment.ConclaveID)
 	}
 }
 
@@ -511,7 +386,6 @@ func TestCreateShipment_CommissionNotFound(t *testing.T) {
 		CommissionID: "COMM-NONEXISTENT",
 		Title:        "Test Shipment",
 		Description:  "A test shipment",
-		ShipyardID:   "YARD-001",
 	})
 
 	if err == nil {
@@ -529,7 +403,6 @@ func TestCreateShipment_CommissionValidationError(t *testing.T) {
 		CommissionID: "COMM-001",
 		Title:        "Test Shipment",
 		Description:  "A test shipment",
-		ShipyardID:   "YARD-001",
 	})
 
 	if err == nil {
@@ -1073,16 +946,14 @@ func TestDeleteShipment_Success(t *testing.T) {
 
 func TestCreateShipment_WithSpecNoteID(t *testing.T) {
 	shipmentRepo := newMockShipmentRepository()
-	taskRepo := newMockTaskRepository()
-	shipyardRepo := newMockShipyardRepository()
+	taskRepo := newMockTaskRepositoryForShipment()
 	noteService := newMockNoteServiceForShipment()
-	service := NewShipmentService(shipmentRepo, taskRepo, shipyardRepo, noteService)
+	service := NewShipmentService(shipmentRepo, taskRepo, noteService)
 	ctx := context.Background()
 
 	req := primary.CreateShipmentRequest{
 		CommissionID: "COMM-001",
 		Title:        "Shipment from Spec",
-		ConclaveID:   "CON-001",
 		SpecNoteID:   "NOTE-001",
 	}
 
@@ -1106,10 +977,9 @@ func TestCreateShipment_WithSpecNoteID(t *testing.T) {
 
 func TestCreateShipment_WithoutSpecNoteID(t *testing.T) {
 	shipmentRepo := newMockShipmentRepository()
-	taskRepo := newMockTaskRepository()
-	shipyardRepo := newMockShipyardRepository()
+	taskRepo := newMockTaskRepositoryForShipment()
 	noteService := newMockNoteServiceForShipment()
-	service := NewShipmentService(shipmentRepo, taskRepo, shipyardRepo, noteService)
+	service := NewShipmentService(shipmentRepo, taskRepo, noteService)
 	ctx := context.Background()
 
 	req := primary.CreateShipmentRequest{
@@ -1137,9 +1007,8 @@ func TestCreateShipment_WithoutSpecNoteID(t *testing.T) {
 func TestCompleteShipment_ClosesSpecNote(t *testing.T) {
 	shipmentRepo := newMockShipmentRepository()
 	taskRepo := newMockTaskRepositoryForShipment()
-	shipyardRepo := newMockShipyardRepository()
 	noteService := newMockNoteServiceForShipment()
-	service := NewShipmentService(shipmentRepo, taskRepo, shipyardRepo, noteService)
+	service := NewShipmentService(shipmentRepo, taskRepo, noteService)
 	ctx := context.Background()
 
 	// Create a shipment with a SpecNoteID
@@ -1170,9 +1039,8 @@ func TestCompleteShipment_ClosesSpecNote(t *testing.T) {
 func TestCompleteShipment_WithoutSpecNote(t *testing.T) {
 	shipmentRepo := newMockShipmentRepository()
 	taskRepo := newMockTaskRepositoryForShipment()
-	shipyardRepo := newMockShipyardRepository()
 	noteService := newMockNoteServiceForShipment()
-	service := NewShipmentService(shipmentRepo, taskRepo, shipyardRepo, noteService)
+	service := NewShipmentService(shipmentRepo, taskRepo, noteService)
 	ctx := context.Background()
 
 	// Create a shipment without SpecNoteID

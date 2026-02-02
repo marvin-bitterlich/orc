@@ -26,7 +26,6 @@ var (
 	noteService                    primary.NoteService
 	handoffService                 primary.HandoffService
 	tomeService                    primary.TomeService
-	conclaveService                primary.ConclaveService
 	operationService               primary.OperationService
 	planService                    primary.PlanService
 	tagService                     primary.TagService
@@ -46,7 +45,6 @@ var (
 	infraService                   primary.InfraService
 	commissionOrchestrationService *app.CommissionOrchestrationService
 	tmuxService                    secondary.TMuxAdapter
-	shipyardRepo                   secondary.ShipyardRepository
 	shipmentRepo                   secondary.ShipmentRepository
 	once                           sync.Once
 )
@@ -85,12 +83,6 @@ func HandoffService() primary.HandoffService {
 func TomeService() primary.TomeService {
 	once.Do(initServices)
 	return tomeService
-}
-
-// ConclaveService returns the singleton ConclaveService instance.
-func ConclaveService() primary.ConclaveService {
-	once.Do(initServices)
-	return conclaveService
 }
 
 // OperationService returns the singleton OperationService instance.
@@ -207,12 +199,6 @@ func TMuxAdapter() secondary.TMuxAdapter {
 	return tmuxService
 }
 
-// ShipyardRepository returns the singleton ShipyardRepository instance.
-func ShipyardRepository() secondary.ShipyardRepository {
-	once.Do(initServices)
-	return shipyardRepo
-}
-
 // ShipmentRepository returns the singleton ShipmentRepository instance.
 func ShipmentRepository() secondary.ShipmentRepository {
 	once.Do(initServices)
@@ -260,17 +246,12 @@ func initServices() {
 	noteService = app.NewNoteService(noteRepo)
 	handoffService = app.NewHandoffService(handoffRepo)
 
-	// Create shipyard repository (used by shipment service for park/unpark)
-	shipyardRepo = sqlite.NewShipyardRepository(database)
-
 	// Create tome and shipment services
 	tomeService = app.NewTomeService(tomeRepo, noteService)
-	shipmentService = app.NewShipmentService(shipmentRepo, taskRepo, shipyardRepo, noteService)
+	shipmentService = app.NewShipmentService(shipmentRepo, taskRepo, noteService)
 
-	// Create conclave and operation services
-	conclaveRepo := sqlite.NewConclaveRepository(database)
+	// Create operation service
 	operationRepo := sqlite.NewOperationRepository(database)
-	conclaveService = app.NewConclaveService(conclaveRepo)
 	operationService = app.NewOperationService(operationRepo)
 
 	// Create plan repository

@@ -75,7 +75,6 @@ type Plan struct {
 	CreatedAt        string
 	UpdatedAt        string
 	ApprovedAt       string
-	ConclaveID       string
 	PromotedFromID   string
 	PromotedFromType string
 	SupersedesPlanID string

@@ -35,23 +35,17 @@ func (r *ShipmentRepository) Create(ctx context.Context, shipment *secondary.Shi
 		branch = sql.NullString{String: shipment.Branch, Valid: true}
 	}
 
-	var conclaveID, shipyardID, specNoteID sql.NullString
-	if shipment.ConclaveID != "" {
-		conclaveID = sql.NullString{String: shipment.ConclaveID, Valid: true}
-	}
-	if shipment.ShipyardID != "" {
-		shipyardID = sql.NullString{String: shipment.ShipyardID, Valid: true}
-	}
+	var specNoteID sql.NullString
 	if shipment.SpecNoteID != "" {
 		specNoteID = sql.NullString{String: shipment.SpecNoteID, Valid: true}
 	}
 
-	// All new shipments start as draft - status is work state, not location
+	// All new shipments start as draft - shipments go directly under commissions
 	status := "draft"
 
 	_, err := r.db.ExecContext(ctx,
-		"INSERT INTO shipments (id, commission_id, title, description, status, repo_id, branch, conclave_id, shipyard_id, spec_note_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-		shipment.ID, shipment.CommissionID, shipment.Title, desc, status, repoID, branch, conclaveID, shipyardID, specNoteID,
+		"INSERT INTO shipments (id, commission_id, title, description, status, repo_id, branch, spec_note_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+		shipment.ID, shipment.CommissionID, shipment.Title, desc, status, repoID, branch, specNoteID,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create shipment: %w", err)
@@ -67,8 +61,6 @@ func (r *ShipmentRepository) GetByID(ctx context.Context, id string) (*secondary
 		assignedWorkbenchID sql.NullString
 		repoID              sql.NullString
 		branch              sql.NullString
-		conclaveID          sql.NullString
-		shipyardID          sql.NullString
 		specNoteID          sql.NullString
 		pinned              bool
 		createdAt           time.Time
@@ -78,9 +70,9 @@ func (r *ShipmentRepository) GetByID(ctx context.Context, id string) (*secondary
 
 	record := &secondary.ShipmentRecord{}
 	err := r.db.QueryRowContext(ctx,
-		"SELECT id, commission_id, title, description, status, assigned_workbench_id, repo_id, branch, pinned, created_at, updated_at, completed_at, conclave_id, shipyard_id, spec_note_id FROM shipments WHERE id = ?",
+		"SELECT id, commission_id, title, description, status, assigned_workbench_id, repo_id, branch, pinned, created_at, updated_at, completed_at, spec_note_id FROM shipments WHERE id = ?",
 		id,
-	).Scan(&record.ID, &record.CommissionID, &record.Title, &desc, &record.Status, &assignedWorkbenchID, &repoID, &branch, &pinned, &createdAt, &updatedAt, &completedAt, &conclaveID, &shipyardID, &specNoteID)
+	).Scan(&record.ID, &record.CommissionID, &record.Title, &desc, &record.Status, &assignedWorkbenchID, &repoID, &branch, &pinned, &createdAt, &updatedAt, &completedAt, &specNoteID)
 
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("shipment %s not found", id)
@@ -97,8 +89,6 @@ func (r *ShipmentRepository) GetByID(ctx context.Context, id string) (*secondary
 	if branch.Valid {
 		record.Branch = branch.String
 	}
-	record.ConclaveID = conclaveID.String
-	record.ShipyardID = shipyardID.String
 	record.SpecNoteID = specNoteID.String
 	record.Pinned = pinned
 	record.CreatedAt = createdAt.Format(time.RFC3339)
@@ -112,7 +102,7 @@ func (r *ShipmentRepository) GetByID(ctx context.Context, id string) (*secondary
 
 // List retrieves shipments matching the given filters.
 func (r *ShipmentRepository) List(ctx context.Context, filters secondary.ShipmentFilters) ([]*secondary.ShipmentRecord, error) {
-	query := "SELECT id, commission_id, title, description, status, assigned_workbench_id, repo_id, branch, pinned, created_at, updated_at, completed_at, conclave_id, shipyard_id, spec_note_id FROM shipments WHERE 1=1"
+	query := "SELECT id, commission_id, title, description, status, assigned_workbench_id, repo_id, branch, pinned, created_at, updated_at, completed_at, spec_note_id FROM shipments WHERE 1=1"
 	args := []any{}
 
 	if filters.CommissionID != "" {
@@ -123,11 +113,6 @@ func (r *ShipmentRepository) List(ctx context.Context, filters secondary.Shipmen
 	if filters.Status != "" {
 		query += " AND status = ?"
 		args = append(args, filters.Status)
-	}
-
-	if filters.ConclaveID != "" {
-		query += " AND conclave_id = ?"
-		args = append(args, filters.ConclaveID)
 	}
 
 	query += " ORDER BY created_at DESC"
@@ -145,8 +130,6 @@ func (r *ShipmentRepository) List(ctx context.Context, filters secondary.Shipmen
 			assignedWorkbenchID sql.NullString
 			repoID              sql.NullString
 			branch              sql.NullString
-			conclaveID          sql.NullString
-			shipyardID          sql.NullString
 			specNoteID          sql.NullString
 			pinned              bool
 			createdAt           time.Time
@@ -155,7 +138,7 @@ func (r *ShipmentRepository) List(ctx context.Context, filters secondary.Shipmen
 		)
 
 		record := &secondary.ShipmentRecord{}
-		err := rows.Scan(&record.ID, &record.CommissionID, &record.Title, &desc, &record.Status, &assignedWorkbenchID, &repoID, &branch, &pinned, &createdAt, &updatedAt, &completedAt, &conclaveID, &shipyardID, &specNoteID)
+		err := rows.Scan(&record.ID, &record.CommissionID, &record.Title, &desc, &record.Status, &assignedWorkbenchID, &repoID, &branch, &pinned, &createdAt, &updatedAt, &completedAt, &specNoteID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan shipment: %w", err)
 		}
@@ -168,8 +151,6 @@ func (r *ShipmentRepository) List(ctx context.Context, filters secondary.Shipmen
 		if branch.Valid {
 			record.Branch = branch.String
 		}
-		record.ConclaveID = conclaveID.String
-		record.ShipyardID = shipyardID.String
 		record.SpecNoteID = specNoteID.String
 		record.Pinned = pinned
 		record.CreatedAt = createdAt.Format(time.RFC3339)
@@ -281,7 +262,7 @@ func (r *ShipmentRepository) GetNextID(ctx context.Context) (string, error) {
 
 // GetByWorkbench retrieves shipments assigned to a workbench.
 func (r *ShipmentRepository) GetByWorkbench(ctx context.Context, workbenchID string) ([]*secondary.ShipmentRecord, error) {
-	query := "SELECT id, commission_id, title, description, status, assigned_workbench_id, repo_id, branch, pinned, created_at, updated_at, completed_at, conclave_id, shipyard_id, spec_note_id FROM shipments WHERE assigned_workbench_id = ?"
+	query := "SELECT id, commission_id, title, description, status, assigned_workbench_id, repo_id, branch, pinned, created_at, updated_at, completed_at, spec_note_id FROM shipments WHERE assigned_workbench_id = ?"
 	rows, err := r.db.QueryContext(ctx, query, workbenchID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get shipments by workbench: %w", err)
@@ -295,8 +276,6 @@ func (r *ShipmentRepository) GetByWorkbench(ctx context.Context, workbenchID str
 			assignedWorkbenchID sql.NullString
 			repoID              sql.NullString
 			branch              sql.NullString
-			conclaveID          sql.NullString
-			shipyardID          sql.NullString
 			specNoteID          sql.NullString
 			pinned              bool
 			createdAt           time.Time
@@ -305,7 +284,7 @@ func (r *ShipmentRepository) GetByWorkbench(ctx context.Context, workbenchID str
 		)
 
 		record := &secondary.ShipmentRecord{}
-		err := rows.Scan(&record.ID, &record.CommissionID, &record.Title, &desc, &record.Status, &assignedWorkbenchID, &repoID, &branch, &pinned, &createdAt, &updatedAt, &completedAt, &conclaveID, &shipyardID, &specNoteID)
+		err := rows.Scan(&record.ID, &record.CommissionID, &record.Title, &desc, &record.Status, &assignedWorkbenchID, &repoID, &branch, &pinned, &createdAt, &updatedAt, &completedAt, &specNoteID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan shipment: %w", err)
 		}
@@ -318,8 +297,6 @@ func (r *ShipmentRepository) GetByWorkbench(ctx context.Context, workbenchID str
 		if branch.Valid {
 			record.Branch = branch.String
 		}
-		record.ConclaveID = conclaveID.String
-		record.ShipyardID = shipyardID.String
 		record.SpecNoteID = specNoteID.String
 		record.Pinned = pinned
 		record.CreatedAt = createdAt.Format(time.RFC3339)
@@ -406,143 +383,6 @@ func (r *ShipmentRepository) WorkbenchAssignedToOther(ctx context.Context, workb
 	}
 
 	return shipmentID, nil
-}
-
-// SetShipyardID sets the shipyard_id FK.
-// Used for park operation (move to shipyard queue). Status unchanged - it's work state, not location.
-func (r *ShipmentRepository) SetShipyardID(ctx context.Context, id, shipyardID string) error {
-	result, err := r.db.ExecContext(ctx,
-		"UPDATE shipments SET shipyard_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-		shipyardID, id,
-	)
-	if err != nil {
-		return fmt.Errorf("failed to set shipyard for shipment: %w", err)
-	}
-
-	rowsAffected, _ := result.RowsAffected()
-	if rowsAffected == 0 {
-		return fmt.Errorf("shipment %s not found", id)
-	}
-
-	return nil
-}
-
-// SetConclaveID sets the conclave_id FK and clears shipyard_id.
-// Used for unpark operation (move from queue to conclave). Status unchanged - it's work state, not location.
-func (r *ShipmentRepository) SetConclaveID(ctx context.Context, id, conclaveID string) error {
-	result, err := r.db.ExecContext(ctx,
-		"UPDATE shipments SET conclave_id = ?, shipyard_id = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-		conclaveID, id,
-	)
-	if err != nil {
-		return fmt.Errorf("failed to set conclave for shipment: %w", err)
-	}
-
-	rowsAffected, _ := result.RowsAffected()
-	if rowsAffected == 0 {
-		return fmt.Errorf("shipment %s not found", id)
-	}
-
-	return nil
-}
-
-// ListShipyardQueue retrieves shipments in the shipyard queue (shipyard_id IS NOT NULL), ordered by priority then created_at.
-// Filters by factory via shipyard_id FK to shipyards.factory_id. Returns ALL shipments across commissions in the factory.
-func (r *ShipmentRepository) ListShipyardQueue(ctx context.Context, factoryID string) ([]*secondary.ShipyardQueueEntry, error) {
-	query := `
-		SELECT
-			s.id, s.commission_id, s.title, s.priority, s.created_at,
-			COUNT(t.id) as task_count,
-			SUM(CASE WHEN t.status = 'complete' THEN 1 ELSE 0 END) as done_count
-		FROM shipments s
-		LEFT JOIN tasks t ON t.shipment_id = s.id
-		LEFT JOIN shipyards y ON s.shipyard_id = y.id
-		WHERE s.shipyard_id IS NOT NULL
-	`
-	args := []any{}
-
-	if factoryID != "" {
-		query += " AND y.factory_id = ?"
-		args = append(args, factoryID)
-	}
-
-	query += `
-		GROUP BY s.id
-		ORDER BY COALESCE(s.priority, 999) ASC, s.created_at ASC
-	`
-
-	rows, err := r.db.QueryContext(ctx, query, args...)
-	if err != nil {
-		return nil, fmt.Errorf("failed to list shipyard queue: %w", err)
-	}
-	defer rows.Close()
-
-	var entries []*secondary.ShipyardQueueEntry
-	for rows.Next() {
-		var (
-			priority  sql.NullInt64
-			createdAt time.Time
-		)
-		entry := &secondary.ShipyardQueueEntry{}
-		err := rows.Scan(&entry.ID, &entry.CommissionID, &entry.Title, &priority, &createdAt, &entry.TaskCount, &entry.DoneCount)
-		if err != nil {
-			return nil, fmt.Errorf("failed to scan shipyard queue entry: %w", err)
-		}
-		if priority.Valid {
-			p := int(priority.Int64)
-			entry.Priority = &p
-		}
-		entry.CreatedAt = createdAt.Format(time.RFC3339)
-		entries = append(entries, entry)
-	}
-
-	return entries, nil
-}
-
-// GetFactoryIDForCommission returns the factory_id for a given commission.
-func (r *ShipmentRepository) GetFactoryIDForCommission(ctx context.Context, commissionID string) (string, error) {
-	var factoryID sql.NullString
-	err := r.db.QueryRowContext(ctx,
-		"SELECT factory_id FROM commissions WHERE id = ?",
-		commissionID,
-	).Scan(&factoryID)
-
-	if err == sql.ErrNoRows {
-		return "", fmt.Errorf("commission %s not found", commissionID)
-	}
-	if err != nil {
-		return "", fmt.Errorf("failed to get factory for commission: %w", err)
-	}
-
-	return factoryID.String, nil
-}
-
-// UpdatePriority sets the priority for a shipment (nil to clear).
-func (r *ShipmentRepository) UpdatePriority(ctx context.Context, id string, priority *int) error {
-	var result sql.Result
-	var err error
-
-	if priority == nil {
-		result, err = r.db.ExecContext(ctx,
-			"UPDATE shipments SET priority = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-			id,
-		)
-	} else {
-		result, err = r.db.ExecContext(ctx,
-			"UPDATE shipments SET priority = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-			*priority, id,
-		)
-	}
-	if err != nil {
-		return fmt.Errorf("failed to update shipment priority: %w", err)
-	}
-
-	rowsAffected, _ := result.RowsAffected()
-	if rowsAffected == 0 {
-		return fmt.Errorf("shipment %s not found", id)
-	}
-
-	return nil
 }
 
 // Ensure ShipmentRepository implements the interface

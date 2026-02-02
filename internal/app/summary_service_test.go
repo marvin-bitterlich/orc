@@ -233,22 +233,6 @@ func (m *mockShipmentServiceForSummary) DeleteShipment(_ context.Context, _ stri
 	return nil
 }
 
-func (m *mockShipmentServiceForSummary) ParkShipment(_ context.Context, _ string) error {
-	return nil
-}
-
-func (m *mockShipmentServiceForSummary) UnparkShipment(_ context.Context, _, _ string) error {
-	return nil
-}
-
-func (m *mockShipmentServiceForSummary) ListShipyardQueue(_ context.Context, _ string) ([]*primary.ShipyardQueueEntry, error) {
-	return nil, nil
-}
-
-func (m *mockShipmentServiceForSummary) SetShipmentPriority(_ context.Context, _ string, _ *int) error {
-	return nil
-}
-
 func (m *mockShipmentServiceForSummary) UpdateStatus(_ context.Context, _, _ string) error {
 	return nil
 }

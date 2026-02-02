@@ -52,9 +52,8 @@ func GetContextWorkbenchID() string {
 }
 
 // GetContextCommissionID returns the commission ID from workbench context.
-// For IMP contexts, looks up commission via workbench → workshop → goblin's focused conclave.
-// The Goblin's focus determines the active commission for all IMPs in the workshop.
-// Returns empty string if no context found (e.g., goblin has nothing focused).
+// For IMP contexts, looks up commission via workbench's focused shipment or tome.
+// Returns empty string if no context found.
 func GetContextCommissionID() string {
 	dir, err := os.Getwd()
 	if err != nil {
@@ -66,7 +65,7 @@ func GetContextCommissionID() string {
 		return ""
 	}
 
-	// For workbench place, look up commission through workbench chain
+	// For workbench place, look up commission through focused container
 	if config.IsWorkbench(cfg.PlaceID) {
 		return getCommissionFromWorkbench(cfg.PlaceID)
 	}
@@ -74,30 +73,34 @@ func GetContextCommissionID() string {
 	return ""
 }
 
-// getCommissionFromWorkbench looks up commission ID via workbench → workshop → goblin focus chain.
-// Returns the commission that the Goblin has focused (via their focused conclave).
+// getCommissionFromWorkbench looks up commission ID via workbench's focused container.
+// Returns the commission that the workbench's focused shipment/tome belongs to.
 func getCommissionFromWorkbench(workbenchID string) string {
 	ctx := gocontext.Background()
 
-	// 1. Get workbench to find workshop
-	bench, err := wire.WorkbenchService().GetWorkbench(ctx, workbenchID)
-	if err != nil || bench.WorkshopID == "" {
+	// Get workbench's focused ID
+	focusedID, err := wire.WorkbenchService().GetFocusedID(ctx, workbenchID)
+	if err != nil || focusedID == "" {
 		return ""
 	}
 
-	// 2. Get goblin's focused conclave
-	focusedConclaveID, err := wire.WorkshopService().GetFocusedConclaveID(ctx, bench.WorkshopID)
-	if err != nil || focusedConclaveID == "" {
-		return ""
+	// Look up commission from focused container
+	switch {
+	case len(focusedID) > 5 && focusedID[:5] == "SHIP-":
+		ship, err := wire.ShipmentService().GetShipment(ctx, focusedID)
+		if err != nil {
+			return ""
+		}
+		return ship.CommissionID
+	case len(focusedID) > 5 && focusedID[:5] == "TOME-":
+		tome, err := wire.TomeService().GetTome(ctx, focusedID)
+		if err != nil {
+			return ""
+		}
+		return tome.CommissionID
 	}
 
-	// 3. Get conclave to find commission
-	conclave, err := wire.ConclaveService().GetConclave(ctx, focusedConclaveID)
-	if err != nil {
-		return ""
-	}
-
-	return conclave.CommissionID
+	return ""
 }
 
 // GetContextFactoryID returns the factory ID from workbench context.

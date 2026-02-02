@@ -32,13 +32,6 @@ type WorkshopService interface {
 	// CloseWorkshop kills the workshop's TMux session.
 	CloseWorkshop(ctx context.Context, workshopID string) error
 
-	// UpdateFocusedConclaveID sets or clears the focused conclave for a workshop (Goblin focus).
-	// Pass empty string to clear focus.
-	UpdateFocusedConclaveID(ctx context.Context, workshopID, conclaveID string) error
-
-	// GetFocusedConclaveID returns the currently focused conclave ID for a workshop.
-	GetFocusedConclaveID(ctx context.Context, workshopID string) (string, error)
-
 	// SetActiveCommission sets the active commission for a workshop (Goblin context).
 	// Pass empty string to clear.
 	SetActiveCommission(ctx context.Context, workshopID, commissionID string) error

@@ -231,26 +231,6 @@ func TestCreateNote_WithShipmentContainer(t *testing.T) {
 	}
 }
 
-func TestCreateNote_WithConclaveContainer(t *testing.T) {
-	service, noteRepo := newTestNoteService()
-	ctx := context.Background()
-
-	resp, err := service.CreateNote(ctx, primary.CreateNoteRequest{
-		CommissionID:  "COMM-001",
-		Title:         "Conclave Note",
-		Content:       "Note for conclave",
-		ContainerType: "conclave",
-		ContainerID:   "CON-001",
-	})
-
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
-	}
-	if noteRepo.notes[resp.NoteID].ConclaveID != "CON-001" {
-		t.Errorf("expected conclave ID 'CON-001', got '%s'", noteRepo.notes[resp.NoteID].ConclaveID)
-	}
-}
-
 func TestCreateNote_WithTomeContainer(t *testing.T) {
 	service, noteRepo := newTestNoteService()
 	ctx := context.Background()

@@ -178,8 +178,6 @@ var noteListCmd = &cobra.Command{
 				container = n.ShipmentID
 			} else if n.TomeID != "" {
 				container = n.TomeID
-			} else if n.ConclaveID != "" {
-				container = n.ConclaveID
 			}
 			fmt.Fprintf(w, "%s\t%s%s\t%s\t%s\t%s\n", n.ID, n.Title, pinnedMark, typeStr, statusStr, container)
 		}
@@ -220,9 +218,6 @@ var noteShowCmd = &cobra.Command{
 		}
 		if note.TomeID != "" {
 			fmt.Printf("Tome: %s\n", note.TomeID)
-		}
-		if note.ConclaveID != "" {
-			fmt.Printf("Conclave: %s\n", note.ConclaveID)
 		}
 		if note.Pinned {
 			fmt.Printf("Pinned: yes\n")
@@ -410,7 +405,6 @@ var noteMoveCmd = &cobra.Command{
 		noteID := args[0]
 		toTome, _ := cmd.Flags().GetString("to-tome")
 		toShipment, _ := cmd.Flags().GetString("to-shipment")
-		toConclave, _ := cmd.Flags().GetString("to-conclave")
 
 		// Validate exactly one target specified
 		targetCount := 0
@@ -420,12 +414,9 @@ var noteMoveCmd = &cobra.Command{
 		if toShipment != "" {
 			targetCount++
 		}
-		if toConclave != "" {
-			targetCount++
-		}
 
 		if targetCount == 0 {
-			return fmt.Errorf("must specify exactly one target: --to-tome, --to-shipment, or --to-conclave")
+			return fmt.Errorf("must specify exactly one target: --to-tome or --to-shipment")
 		}
 		if targetCount > 1 {
 			return fmt.Errorf("cannot specify multiple targets")
@@ -435,7 +426,6 @@ var noteMoveCmd = &cobra.Command{
 			NoteID:       noteID,
 			ToTomeID:     toTome,
 			ToShipmentID: toShipment,
-			ToConclaveID: toConclave,
 		})
 		if err != nil {
 			return fmt.Errorf("failed to move note: %w", err)
@@ -444,10 +434,8 @@ var noteMoveCmd = &cobra.Command{
 		target := ""
 		if toTome != "" {
 			target = toTome
-		} else if toShipment != "" {
-			target = toShipment
 		} else {
-			target = toConclave
+			target = toShipment
 		}
 
 		fmt.Printf("✓ Note %s moved to %s\n", noteID, target)

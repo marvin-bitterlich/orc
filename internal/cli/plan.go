@@ -146,9 +146,6 @@ var planShowCmd = &cobra.Command{
 		if plan.TaskID != "" {
 			fmt.Printf("Task: %s\n", plan.TaskID)
 		}
-		if plan.ConclaveID != "" {
-			fmt.Printf("Conclave: %s\n", plan.ConclaveID)
-		}
 		if plan.Pinned {
 			fmt.Printf("Pinned: yes\n")
 		}
