@@ -7,21 +7,12 @@ import (
 	"text/template"
 )
 
-//go:embed entity/*.tmpl migration/*.tmpl
+//go:embed entity/*.tmpl
 var scaffoldTemplates embed.FS
 
 // GetEntityTemplate returns the content of an entity template.
 func GetEntityTemplate(name string) (string, error) {
 	content, err := scaffoldTemplates.ReadFile("entity/" + name + ".tmpl")
-	if err != nil {
-		return "", err
-	}
-	return string(content), nil
-}
-
-// GetMigrationTemplate returns the content of the migration template.
-func GetMigrationTemplate() (string, error) {
-	content, err := scaffoldTemplates.ReadFile("migration/migration.go.tmpl")
 	if err != nil {
 		return "", err
 	}

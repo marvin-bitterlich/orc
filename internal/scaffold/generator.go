@@ -83,39 +83,6 @@ func (g *Generator) GenerateEntity(spec *EntitySpec) (*GeneratorResult, error) {
 	return result, nil
 }
 
-// GenerateMigration generates a migration file.
-func (g *Generator) GenerateMigration(spec *MigrationSpec, entitySpec *EntitySpec) (*GeneratorResult, error) {
-	result := &GeneratorResult{}
-
-	// Combine specs for template
-	data := struct {
-		*MigrationSpec
-		Entity *EntitySpec
-	}{
-		MigrationSpec: spec,
-		Entity:        entitySpec,
-	}
-
-	content, err := g.renderMigrationTemplate(data)
-	if err != nil {
-		return nil, fmt.Errorf("failed to render migration: %w", err)
-	}
-
-	result.Files = append(result.Files, GeneratedFile{
-		Path:      "internal/db/migrations.go",
-		Snippet:   content,
-		InsertAt:  "// END MIGRATION MARKER",
-		Operation: "insert_before",
-	})
-
-	result.NextSteps = []string{
-		"Edit migrationV" + fmt.Sprint(spec.Version) + "() in internal/db/migrations.go to add your schema changes",
-		"Run './orc init' to apply migration (on dev DB)",
-	}
-
-	return result, nil
-}
-
 // renderTemplate renders an entity template.
 func (g *Generator) renderTemplate(name string, spec *EntitySpec) (string, error) {
 	tmplContent, err := scaffoldtmpl.GetEntityTemplate(name)
@@ -130,26 +97,6 @@ func (g *Generator) renderTemplate(name string, spec *EntitySpec) (string, error
 
 	var buf bytes.Buffer
 	if err := tmpl.Execute(&buf, spec); err != nil {
-		return "", err
-	}
-
-	return buf.String(), nil
-}
-
-// renderMigrationTemplate renders the migration template.
-func (g *Generator) renderMigrationTemplate(data any) (string, error) {
-	tmplContent, err := scaffoldtmpl.GetMigrationTemplate()
-	if err != nil {
-		return "", err
-	}
-
-	tmpl, err := template.New("migration").Funcs(g.funcs).Parse(tmplContent)
-	if err != nil {
-		return "", err
-	}
-
-	var buf bytes.Buffer
-	if err := tmpl.Execute(&buf, data); err != nil {
 		return "", err
 	}
 

@@ -32,13 +32,6 @@ type Field struct {
 	GoNullType string // sql.NullString, sql.NullInt64, etc.
 }
 
-// MigrationSpec contains information for generating a migration.
-type MigrationSpec struct {
-	Version   int    // Migration version number
-	Name      string // PascalCase: "AddPriorityToWidgets"
-	NameSnake string // snake_case: "add_priority_to_widgets"
-}
-
 // GeneratedFile represents a file to be created or modified.
 type GeneratedFile struct {
 	Path      string // File path relative to project root

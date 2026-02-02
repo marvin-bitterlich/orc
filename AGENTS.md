@@ -456,7 +456,7 @@ When adding a new entity that requires persistence (e.g., CycleWorkOrder, Receip
 
 ## Database Migrations (Atlas)
 
-ORC uses [Atlas](https://atlasgo.io/) for declarative schema migrations. Atlas prevents FK reference corruption by validating the entire schema graph before applying changes.
+ORC uses [Atlas](https://atlasgo.io/) for declarative schema migrations. The source of truth is `internal/db/schema.sql`.
 
 ### Why Atlas?
 
@@ -470,42 +470,28 @@ brew install ariga/tap/atlas
 
 ### Core Workflow
 
-**CRITICAL: Always use `--exclude` for SQLite autoindexes.**
+**1. Edit the schema:**
+Edit `internal/db/schema.sql` (the single source of truth)
 
-SQLite auto-generates indexes named `sqlite_autoindex_<table>_N` for UNIQUE and PRIMARY KEY constraints. Atlas has a bug where it generates incorrect names when trying to drop these, causing migrations to fail with "no such index" errors.
-
-**1. Inspect current schema:**
+**2. Preview changes:**
 ```bash
-atlas schema inspect \
-  -u "sqlite:///$HOME/.orc/orc.db" \
-  --exclude "*.sqlite_autoindex*[type=index]"
+make schema-diff
 ```
 
-**2. Edit desired schema** in `schema_inspected.hcl` (declarative - say what you want, not how to get there)
-
-**3. Preview migration:**
+**3. Apply changes:**
 ```bash
-atlas schema diff \
-  --from "sqlite:///$HOME/.orc/orc.db" \
-  --to "file://schema_inspected.hcl" \
-  --dev-url "sqlite://dev?mode=memory" \
-  --exclude "*.sqlite_autoindex*[type=index]"
+make schema-apply
 ```
 
-**4. Apply migration:**
+**4. Inspect current database:**
 ```bash
-atlas schema apply \
-  --url "sqlite:///$HOME/.orc/orc.db" \
-  --to "file://schema_inspected.hcl" \
-  --dev-url "sqlite://dev?mode=memory" \
-  --exclude "*.sqlite_autoindex*[type=index]"
+make schema-inspect
 ```
 
-**Why the `--exclude` flag?**
-- SQLite manages `sqlite_autoindex_*` indexes internally for unique constraints
-- Atlas inspect captures them, but diff generates wrong drop statements (e.g., `DROP INDEX tags_name` instead of `DROP INDEX sqlite_autoindex_tags_2`)
-- The exclude pattern tells Atlas to ignore these on both sides of the diff
-- This is an Atlas bug (confirmed with canary v1.0.1), not a config issue
+All Makefile targets use `--env local` from `atlas.hcl`, which handles:
+- Schema source (`internal/db/schema.sql`)
+- Database URL (`~/.orc/orc.db`)
+- SQLite autoindex exclusion (required due to Atlas bug)
 
 ### Key Behaviors
 
@@ -514,20 +500,9 @@ atlas schema apply \
 - **Dependency ordering**: Knows which tables reference which, applies changes in safe order
 - **Data preservation**: Copies data during table recreates
 
-### Example: Renaming a Table
-
-If you rename `users` → `accounts`, Atlas will:
-1. `PRAGMA foreign_keys = off`
-2. Recreate any tables with FKs pointing to `users` (updating refs to `accounts`)
-3. Copy data
-4. Create `accounts`
-5. `PRAGMA foreign_keys = on`
-
-You just declare the end state. Atlas figures out the migration path.
-
 ### Golden Rule
 
-**Never write migration SQL by hand.** Declare the desired schema, let Atlas diff and apply.
+**Never write migration SQL by hand.** Edit `schema.sql`, let Atlas diff and apply.
 
 ---
 
@@ -560,6 +535,6 @@ You just declare the end state. Atlas figures out the migration path.
 ❌ Claiming checks passed without running them
 ✅ Run them and report explicitly
 
-❌ Running Atlas without `--exclude "*.sqlite_autoindex*[type=index]"`
-✅ Always include the exclude flag for SQLite migrations (see Atlas section above)
+❌ Running Atlas commands manually without the exclude flag
+✅ Use Makefile targets (`make schema-diff`, `make schema-apply`) which handle this via atlas.hcl
 

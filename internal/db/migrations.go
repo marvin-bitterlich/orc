@@ -1,5 +1,19 @@
 package db
 
+// =============================================================================
+// FROZEN - DO NOT ADD NEW MIGRATIONS
+// =============================================================================
+//
+// This file contains legacy migrations for upgrading existing databases.
+// For schema changes going forward, use the Atlas workflow:
+//
+//   1. Edit internal/db/schema.sql
+//   2. Run: make schema-diff   (preview changes)
+//   3. Run: make schema-apply  (apply changes)
+//
+// See AGENTS.md "Database Migrations (Atlas)" section for details.
+// =============================================================================
+
 import (
 	"database/sql"
 	"fmt"

@@ -1,4 +1,4 @@
-.PHONY: install install-binary install-shim uninstall-shim dev build test lint lint-fix schema-check check-test-presence check-coverage init install-hooks clean help deploy-glue
+.PHONY: install install-binary install-shim uninstall-shim dev build test lint lint-fix schema-check check-test-presence check-coverage init install-hooks clean help deploy-glue schema-diff schema-apply schema-inspect
 
 # Go binary location (handles empty GOBIN)
 GOBIN := $(shell go env GOPATH)/bin
@@ -129,6 +129,28 @@ lint-fix:
 	@echo "✓ Lint fixes applied"
 
 #---------------------------------------------------------------------------
+# Schema Management (Atlas)
+#---------------------------------------------------------------------------
+
+# Preview schema changes (diff current DB vs schema.sql)
+schema-diff:
+	@echo "Comparing current database to schema.sql..."
+	@command -v atlas >/dev/null 2>&1 || { echo "atlas not installed. Run: brew install ariga/tap/atlas"; exit 1; }
+	atlas schema diff --env local
+
+# Apply schema changes from schema.sql to database
+schema-apply:
+	@echo "Applying schema.sql to database..."
+	@command -v atlas >/dev/null 2>&1 || { echo "atlas not installed. Run: brew install ariga/tap/atlas"; exit 1; }
+	atlas schema apply --env local
+
+# Dump current database schema
+schema-inspect:
+	@echo "Inspecting current database schema..."
+	@command -v atlas >/dev/null 2>&1 || { echo "atlas not installed. Run: brew install ariga/tap/atlas"; exit 1; }
+	atlas schema inspect --env local
+
+#---------------------------------------------------------------------------
 # Development Environment Setup
 #---------------------------------------------------------------------------
 
@@ -199,6 +221,11 @@ help:
 	@echo "  make lint-fix      Run golangci-lint with auto-fix"
 	@echo "  make schema-check  Verify test files use authoritative schema"
 	@echo "  make clean         Remove local build artifacts"
+	@echo ""
+	@echo "Schema Management (Atlas):"
+	@echo "  make schema-diff     Preview schema changes (DB vs schema.sql)"
+	@echo "  make schema-apply    Apply schema.sql to database"
+	@echo "  make schema-inspect  Dump current database schema"
 	@echo ""
 	@echo "Installation:"
 	@echo "  make install    Install global orc-bin + local-first shim"
