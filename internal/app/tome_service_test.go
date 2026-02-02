@@ -238,48 +238,6 @@ func (m *mockNoteServiceForTome) MergeNotes(ctx context.Context, req primary.Mer
 	return nil
 }
 
-// mockLibraryRepository implements secondary.LibraryRepository for testing.
-type mockLibraryRepository struct {
-	libraries map[string]*secondary.LibraryRecord
-}
-
-func newMockLibraryRepository() *mockLibraryRepository {
-	return &mockLibraryRepository{
-		libraries: map[string]*secondary.LibraryRecord{
-			"LIB-001": {ID: "LIB-001", CommissionID: "COMM-001"},
-		},
-	}
-}
-
-func (m *mockLibraryRepository) Create(ctx context.Context, library *secondary.LibraryRecord) error {
-	m.libraries[library.ID] = library
-	return nil
-}
-
-func (m *mockLibraryRepository) GetByID(ctx context.Context, id string) (*secondary.LibraryRecord, error) {
-	if lib, ok := m.libraries[id]; ok {
-		return lib, nil
-	}
-	return nil, errors.New("library not found")
-}
-
-func (m *mockLibraryRepository) GetByCommissionID(ctx context.Context, commissionID string) (*secondary.LibraryRecord, error) {
-	for _, lib := range m.libraries {
-		if lib.CommissionID == commissionID {
-			return lib, nil
-		}
-	}
-	return nil, errors.New("library not found for commission")
-}
-
-func (m *mockLibraryRepository) GetNextID(ctx context.Context) (string, error) {
-	return "LIB-002", nil
-}
-
-func (m *mockLibraryRepository) CommissionExists(ctx context.Context, commissionID string) (bool, error) {
-	return true, nil
-}
-
 // ============================================================================
 // Test Helper
 // ============================================================================
@@ -287,8 +245,7 @@ func (m *mockLibraryRepository) CommissionExists(ctx context.Context, commission
 func newTestTomeService() (*TomeServiceImpl, *mockTomeRepository, *mockNoteServiceForTome) {
 	tomeRepo := newMockTomeRepository()
 	noteService := newMockNoteServiceForTome()
-	libraryRepo := newMockLibraryRepository()
-	service := NewTomeService(tomeRepo, noteService, libraryRepo)
+	service := NewTomeService(tomeRepo, noteService)
 	return service, tomeRepo, noteService
 }
 
@@ -304,8 +261,8 @@ func TestCreateTome_Success(t *testing.T) {
 		CommissionID:  "COMM-001",
 		Title:         "Test Tome",
 		Description:   "A test tome",
-		ContainerID:   "LIB-001",
-		ContainerType: "library",
+		ContainerID:   "CON-001",
+		ContainerType: "conclave",
 	})
 
 	if err != nil {
@@ -318,28 +275,34 @@ func TestCreateTome_Success(t *testing.T) {
 		t.Errorf("expected title 'Test Tome', got '%s'", resp.Tome.Title)
 	}
 	if resp.Tome.Status != "open" {
-		t.Errorf("expected status 'active', got '%s'", resp.Tome.Status)
+		t.Errorf("expected status 'open', got '%s'", resp.Tome.Status)
 	}
-	if resp.Tome.ContainerID != "LIB-001" {
-		t.Errorf("expected container ID 'LIB-001', got '%s'", resp.Tome.ContainerID)
+	if resp.Tome.ContainerID != "CON-001" {
+		t.Errorf("expected container ID 'CON-001', got '%s'", resp.Tome.ContainerID)
 	}
-	if resp.Tome.ContainerType != "library" {
-		t.Errorf("expected container type 'library', got '%s'", resp.Tome.ContainerType)
+	if resp.Tome.ContainerType != "conclave" {
+		t.Errorf("expected container type 'conclave', got '%s'", resp.Tome.ContainerType)
 	}
 }
 
-func TestCreateTome_MissingContainer(t *testing.T) {
+func TestCreateTome_NoContainer(t *testing.T) {
 	service, _, _ := newTestTomeService()
 	ctx := context.Background()
 
-	_, err := service.CreateTome(ctx, primary.CreateTomeRequest{
+	resp, err := service.CreateTome(ctx, primary.CreateTomeRequest{
 		CommissionID: "COMM-001",
-		Title:        "Test Tome",
-		Description:  "A test tome",
+		Title:        "Root Tome",
+		Description:  "A tome at commission root",
 	})
 
-	if err == nil {
-		t.Fatal("expected error for missing container, got nil")
+	if err != nil {
+		t.Fatalf("expected success for root tome, got error: %v", err)
+	}
+	if resp.Tome.ContainerID != "" {
+		t.Errorf("expected empty ContainerID for root tome, got '%s'", resp.Tome.ContainerID)
+	}
+	if resp.Tome.ContainerType != "" {
+		t.Errorf("expected empty ContainerType for root tome, got '%s'", resp.Tome.ContainerType)
 	}
 }
 
@@ -353,8 +316,8 @@ func TestCreateTome_CommissionNotFound(t *testing.T) {
 		CommissionID:  "COMM-NONEXISTENT",
 		Title:         "Test Tome",
 		Description:   "A test tome",
-		ContainerID:   "LIB-001",
-		ContainerType: "library",
+		ContainerID:   "CON-001",
+		ContainerType: "conclave",
 	})
 
 	if err == nil {

@@ -37,10 +37,7 @@ type TomeService interface {
 	// GetTomeNotes retrieves all notes in a tome.
 	GetTomeNotes(ctx context.Context, tomeID string) ([]*Note, error)
 
-	// ParkTome moves a tome to the commission's Library.
-	ParkTome(ctx context.Context, tomeID string) error
-
-	// UnparkTome moves a tome from Library to a specific Conclave.
+	// UnparkTome moves a tome from commission root to a specific Conclave.
 	UnparkTome(ctx context.Context, tomeID, conclaveID string) error
 }
 
@@ -50,8 +47,8 @@ type CreateTomeRequest struct {
 	ConclaveID    string // DEPRECATED: use ContainerID/ContainerType instead
 	Title         string
 	Description   string
-	ContainerID   string // Required: CON-xxx or LIB-xxx
-	ContainerType string // Required: "conclave" or "library"
+	ContainerID   string // Optional: CON-xxx (empty for root tome)
+	ContainerType string // Optional: "conclave" (empty for root tome)
 }
 
 // CreateTomeResponse contains the result of creating a tome.
@@ -77,8 +74,8 @@ type Tome struct {
 	Status              string
 	AssignedWorkbenchID string
 	Pinned              bool
-	ContainerID         string // CON-xxx or LIB-xxx
-	ContainerType       string // "conclave" or "library"
+	ContainerID         string // CON-xxx
+	ContainerType       string // "conclave"
 	CreatedAt           string
 	UpdatedAt           string
 	ClosedAt            string

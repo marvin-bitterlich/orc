@@ -325,14 +325,14 @@ func TestShipmentRepository_UpdateStatus(t *testing.T) {
 	shipment := createTestShipment(t, repo, ctx, "COMM-001", "Status Test", "")
 
 	// Update status without completed timestamp
-	err := repo.UpdateStatus(ctx, shipment.ID, "in_progress", false)
+	err := repo.UpdateStatus(ctx, shipment.ID, "active", false)
 	if err != nil {
 		t.Fatalf("UpdateStatus failed: %v", err)
 	}
 
 	retrieved, _ := repo.GetByID(ctx, shipment.ID)
-	if retrieved.Status != "in_progress" {
-		t.Errorf("expected status 'in_progress', got '%s'", retrieved.Status)
+	if retrieved.Status != "active" {
+		t.Errorf("expected status 'active', got '%s'", retrieved.Status)
 	}
 	if retrieved.CompletedAt != "" {
 		t.Error("expected CompletedAt to be empty")

@@ -249,6 +249,16 @@ var migrations = []Migration{
 		Name:    "add_priority_column_to_shipments",
 		Up:      migrationV47,
 	},
+	{
+		Version: 48,
+		Name:    "change_shipyards_commission_id_to_factory_id",
+		Up:      migrationV48,
+	},
+	{
+		Version: 49,
+		Name:    "replace_shipment_container_with_explicit_fks",
+		Up:      migrationV49,
+	},
 }
 
 // RunMigrations executes all pending migrations
@@ -4189,6 +4199,150 @@ func migrationV47(db *sql.DB) error {
 	_, err := db.Exec(`ALTER TABLE shipments ADD COLUMN priority INTEGER`)
 	if err != nil {
 		return fmt.Errorf("failed to add priority column to shipments: %w", err)
+	}
+
+	return nil
+}
+
+func migrationV48(db *sql.DB) error {
+	// Change shipyards from commission-level to factory-level.
+	// Shipyards are now scoped to factories, not commissions.
+	// This enables factory-wide shipyard queues across all commissions.
+
+	// Step 1: Create new shipyards table with factory_id FK
+	_, err := db.Exec(`
+		CREATE TABLE shipyards_new (
+			id TEXT PRIMARY KEY,
+			factory_id TEXT NOT NULL UNIQUE,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			FOREIGN KEY (factory_id) REFERENCES factories(id)
+		)
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to create shipyards_new: %w", err)
+	}
+
+	// Step 2: Migrate data, joining through commissions to get factory_id
+	// commission → factory mapping via commissions.factory_id
+	_, err = db.Exec(`
+		INSERT INTO shipyards_new (id, factory_id, created_at, updated_at)
+		SELECT DISTINCT s.id, c.factory_id, s.created_at, s.updated_at
+		FROM shipyards s
+		JOIN commissions c ON s.commission_id = c.id
+		WHERE c.factory_id IS NOT NULL
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to migrate shipyards data: %w", err)
+	}
+
+	// Step 3: Drop old index and table
+	_, _ = db.Exec(`DROP INDEX IF EXISTS idx_shipyards_commission`)
+	_, err = db.Exec(`DROP TABLE shipyards`)
+	if err != nil {
+		return fmt.Errorf("failed to drop old shipyards table: %w", err)
+	}
+
+	// Step 4: Rename new table
+	_, err = db.Exec(`ALTER TABLE shipyards_new RENAME TO shipyards`)
+	if err != nil {
+		return fmt.Errorf("failed to rename shipyards_new: %w", err)
+	}
+
+	// Step 5: Create new index
+	_, err = db.Exec(`CREATE INDEX idx_shipyards_factory ON shipyards(factory_id)`)
+	if err != nil {
+		return fmt.Errorf("failed to create idx_shipyards_factory: %w", err)
+	}
+
+	return nil
+}
+
+func migrationV49(db *sql.DB) error {
+	// Replace polymorphic container_id/container_type with explicit FKs:
+	// conclave_id (source/origin), shipyard_id (when queued)
+	// Status lifecycle: draft → queued → assigned → active → complete
+
+	// Step 1: Create new shipments table with explicit FKs
+	_, err := db.Exec(`
+		CREATE TABLE shipments_new (
+			id TEXT PRIMARY KEY,
+			commission_id TEXT NOT NULL,
+			title TEXT NOT NULL,
+			description TEXT,
+			status TEXT NOT NULL CHECK(status IN ('draft', 'queued', 'assigned', 'active', 'complete')) DEFAULT 'draft',
+			assigned_workbench_id TEXT,
+			repo_id TEXT,
+			branch TEXT,
+			pinned INTEGER DEFAULT 0,
+			conclave_id TEXT,
+			shipyard_id TEXT,
+			autorun INTEGER DEFAULT 0,
+			priority INTEGER,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			completed_at DATETIME,
+			FOREIGN KEY (commission_id) REFERENCES commissions(id),
+			FOREIGN KEY (assigned_workbench_id) REFERENCES workbenches(id),
+			FOREIGN KEY (repo_id) REFERENCES repos(id),
+			FOREIGN KEY (conclave_id) REFERENCES conclaves(id),
+			FOREIGN KEY (shipyard_id) REFERENCES shipyards(id)
+		)
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to create shipments_new: %w", err)
+	}
+
+	// Step 2: Migrate data, mapping container_id/container_type to explicit FKs
+	// Old status mapping: launched→draft, in_progress→active, blocked→active, merged→complete
+	_, err = db.Exec(`
+		INSERT INTO shipments_new (
+			id, commission_id, title, description, status,
+			assigned_workbench_id, repo_id, branch, pinned,
+			conclave_id, shipyard_id, autorun, priority,
+			created_at, updated_at, completed_at
+		)
+		SELECT
+			id, commission_id, title, description,
+			CASE
+				WHEN status = 'launched' THEN 'draft'
+				WHEN status = 'in_progress' THEN 'active'
+				WHEN status = 'blocked' THEN 'active'
+				WHEN status = 'merged' THEN 'complete'
+				WHEN container_type = 'shipyard' AND status NOT IN ('complete') THEN 'queued'
+				ELSE status
+			END,
+			assigned_workbench_id, repo_id, branch, pinned,
+			CASE WHEN container_type = 'conclave' THEN container_id ELSE NULL END,
+			CASE WHEN container_type = 'shipyard' THEN container_id ELSE NULL END,
+			autorun, priority, created_at, updated_at, completed_at
+		FROM shipments
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to migrate shipments data: %w", err)
+	}
+
+	// Step 3: Drop old indexes and table
+	_, _ = db.Exec(`DROP INDEX IF EXISTS idx_shipments_container`)
+	_, err = db.Exec(`DROP TABLE shipments`)
+	if err != nil {
+		return fmt.Errorf("failed to drop old shipments table: %w", err)
+	}
+
+	// Step 4: Rename new table
+	_, err = db.Exec(`ALTER TABLE shipments_new RENAME TO shipments`)
+	if err != nil {
+		return fmt.Errorf("failed to rename shipments_new: %w", err)
+	}
+
+	// Step 5: Create new indexes
+	_, err = db.Exec(`CREATE INDEX idx_shipments_conclave ON shipments(conclave_id)`)
+	if err != nil {
+		return fmt.Errorf("failed to create idx_shipments_conclave: %w", err)
+	}
+	_, err = db.Exec(`CREATE INDEX idx_shipments_shipyard ON shipments(shipyard_id)`)
+	if err != nil {
+		return fmt.Errorf("failed to create idx_shipments_shipyard: %w", err)
 	}
 
 	return nil

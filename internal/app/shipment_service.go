@@ -32,16 +32,6 @@ func NewShipmentService(
 
 // CreateShipment creates a new shipment for a commission.
 func (s *ShipmentServiceImpl) CreateShipment(ctx context.Context, req primary.CreateShipmentRequest) (*primary.CreateShipmentResponse, error) {
-	// Validate container assignment is provided
-	if req.ContainerID == "" || req.ContainerType == "" {
-		return nil, fmt.Errorf("container assignment required: specify --conclave CON-xxx or --shipyard")
-	}
-
-	// Validate container type
-	if req.ContainerType != "conclave" && req.ContainerType != "shipyard" {
-		return nil, fmt.Errorf("invalid container type %q: must be 'conclave' or 'shipyard'", req.ContainerType)
-	}
-
 	// Validate commission exists
 	exists, err := s.shipmentRepo.CommissionExists(ctx, req.CommissionID)
 	if err != nil {
@@ -68,17 +58,17 @@ func (s *ShipmentServiceImpl) CreateShipment(ctx context.Context, req primary.Cr
 		}
 	}
 
-	// Create record
+	// Create record with explicit FKs
+	// Status is determined by repo: draft (conclave) or queued (shipyard)
 	record := &secondary.ShipmentRecord{
-		ID:            nextID,
-		CommissionID:  req.CommissionID,
-		Title:         req.Title,
-		Description:   req.Description,
-		RepoID:        req.RepoID,
-		Branch:        branch,
-		Status:        "active",
-		ContainerID:   req.ContainerID,
-		ContainerType: req.ContainerType,
+		ID:           nextID,
+		CommissionID: req.CommissionID,
+		Title:        req.Title,
+		Description:  req.Description,
+		RepoID:       req.RepoID,
+		Branch:       branch,
+		ConclaveID:   req.ConclaveID,
+		ShipyardID:   req.ShipyardID,
 	}
 
 	if err := s.shipmentRepo.Create(ctx, record); err != nil {
@@ -277,19 +267,24 @@ func (s *ShipmentServiceImpl) ParkShipment(ctx context.Context, shipmentID strin
 		return err
 	}
 
-	// If already in shipyard, return early (no-op, CLI handles message)
-	if shipment.ContainerType == "shipyard" {
+	// If already queued (in shipyard), return early (no-op, CLI handles message)
+	if shipment.Status == "queued" {
 		return nil
 	}
 
-	// Look up shipyard for commission
-	yard, err := s.shipyardRepo.GetByCommissionID(ctx, shipment.CommissionID)
+	// Look up factory for commission, then shipyard for factory
+	factoryID, err := s.shipmentRepo.GetFactoryIDForCommission(ctx, shipment.CommissionID)
+	if err != nil {
+		return fmt.Errorf("failed to get factory for commission: %w", err)
+	}
+
+	yard, err := s.shipyardRepo.GetByFactoryID(ctx, factoryID)
 	if err != nil {
 		return fmt.Errorf("failed to get shipyard: %w", err)
 	}
 
-	// Update container
-	return s.shipmentRepo.UpdateContainer(ctx, shipmentID, yard.ID, "shipyard")
+	// Set shipyard_id and status='queued'
+	return s.shipmentRepo.SetShipyardID(ctx, shipmentID, yard.ID)
 }
 
 // UnparkShipment moves a shipment from Shipyard to a specific Conclave.
@@ -300,8 +295,8 @@ func (s *ShipmentServiceImpl) UnparkShipment(ctx context.Context, shipmentID, co
 		return err
 	}
 
-	// Update container
-	return s.shipmentRepo.UpdateContainer(ctx, shipmentID, conclaveID, "conclave")
+	// Set conclave_id, clear shipyard_id, status='draft'
+	return s.shipmentRepo.SetConclaveID(ctx, shipmentID, conclaveID)
 }
 
 // Helper methods
@@ -317,8 +312,8 @@ func (s *ShipmentServiceImpl) recordToShipment(r *secondary.ShipmentRecord) *pri
 		RepoID:              r.RepoID,
 		Branch:              r.Branch,
 		Pinned:              r.Pinned,
-		ContainerID:         r.ContainerID,
-		ContainerType:       r.ContainerType,
+		ConclaveID:          r.ConclaveID,
+		ShipyardID:          r.ShipyardID,
 		CreatedAt:           r.CreatedAt,
 		UpdatedAt:           r.UpdatedAt,
 		CompletedAt:         r.CompletedAt,
@@ -348,8 +343,8 @@ func recordToTask(r *secondary.TaskRecord) *primary.Task {
 }
 
 // ListShipyardQueue retrieves shipments in the shipyard queue, ordered by priority.
-func (s *ShipmentServiceImpl) ListShipyardQueue(ctx context.Context, commissionID string) ([]*primary.ShipyardQueueEntry, error) {
-	entries, err := s.shipmentRepo.ListShipyardQueue(ctx, commissionID)
+func (s *ShipmentServiceImpl) ListShipyardQueue(ctx context.Context, factoryID string) ([]*primary.ShipyardQueueEntry, error) {
+	entries, err := s.shipmentRepo.ListShipyardQueue(ctx, factoryID)
 	if err != nil {
 		return nil, err
 	}

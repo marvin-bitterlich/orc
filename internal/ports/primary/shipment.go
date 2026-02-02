@@ -44,14 +44,16 @@ type ShipmentService interface {
 	// DeleteShipment deletes a shipment.
 	DeleteShipment(ctx context.Context, shipmentID string) error
 
-	// ParkShipment moves a shipment to the commission's Shipyard.
+	// ParkShipment moves a shipment to the factory's Shipyard.
+	// Resolves factory from the shipment's commission.
 	ParkShipment(ctx context.Context, shipmentID string) error
 
 	// UnparkShipment moves a shipment from Shipyard to a specific Conclave.
 	UnparkShipment(ctx context.Context, shipmentID, conclaveID string) error
 
 	// ListShipyardQueue retrieves shipments in the shipyard queue, ordered by priority.
-	ListShipyardQueue(ctx context.Context, commissionID string) ([]*ShipyardQueueEntry, error)
+	// Filters by factory (shipyards are factory-scoped). Returns ALL shipments across commissions.
+	ListShipyardQueue(ctx context.Context, factoryID string) ([]*ShipyardQueueEntry, error)
 
 	// SetShipmentPriority sets the priority for a shipment in the queue.
 	SetShipmentPriority(ctx context.Context, shipmentID string, priority *int) error
@@ -59,13 +61,13 @@ type ShipmentService interface {
 
 // CreateShipmentRequest contains parameters for creating a shipment.
 type CreateShipmentRequest struct {
-	CommissionID  string
-	Title         string
-	Description   string
-	RepoID        string // Optional - link shipment to a repository for branch ownership
-	Branch        string // Optional - override auto-generated branch name
-	ContainerID   string // Required: CON-xxx or YARD-xxx
-	ContainerType string // Required: "conclave" or "shipyard"
+	CommissionID string
+	Title        string
+	Description  string
+	RepoID       string // Optional - link shipment to a repository for branch ownership
+	Branch       string // Optional - override auto-generated branch name
+	ConclaveID   string // Optional: CON-xxx - source/origin conclave
+	ShipyardID   string // Optional: YARD-xxx - for direct creation in shipyard queue
 }
 
 // CreateShipmentResponse contains the result of creating a shipment.
@@ -82,18 +84,19 @@ type UpdateShipmentRequest struct {
 }
 
 // Shipment represents a shipment entity at the port boundary.
+// Status lifecycle: draft → queued → assigned → active → complete
 type Shipment struct {
 	ID                  string
 	CommissionID        string
 	Title               string
 	Description         string
-	Status              string
+	Status              string // draft, queued, assigned, active, complete
 	AssignedWorkbenchID string
 	RepoID              string // Linked repository for branch ownership
 	Branch              string // Owned branch (e.g., ml/SHIP-001-feature-name)
 	Pinned              bool
-	ContainerID         string // CON-xxx or YARD-xxx
-	ContainerType       string // "conclave" or "shipyard"
+	ConclaveID          string // Source/origin conclave (CON-xxx)
+	ShipyardID          string // When in shipyard queue (YARD-xxx)
 	CreatedAt           string
 	UpdatedAt           string
 	CompletedAt         string

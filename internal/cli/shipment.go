@@ -54,29 +54,29 @@ var shipmentCreateCmd = &cobra.Command{
 			return fmt.Errorf("specify either --conclave or --shipyard, not both")
 		}
 
-		// Resolve container
-		var containerID, containerType string
+		// Resolve shipyard ID if --shipyard flag is set
+		var shipyardID string
 		if useShipyard {
-			// Look up shipyard for this commission
-			yard, err := wire.ShipyardRepository().GetByCommissionID(ctx, commissionID)
+			// Look up factory for this commission, then shipyard for factory
+			factoryID, err := wire.ShipmentRepository().GetFactoryIDForCommission(ctx, commissionID)
 			if err != nil {
-				return fmt.Errorf("failed to get shipyard for commission: %w", err)
+				return fmt.Errorf("failed to get factory for commission: %w", err)
 			}
-			containerID = yard.ID
-			containerType = "shipyard"
-		} else {
-			containerID = conclaveID
-			containerType = "conclave"
+			yard, err := wire.ShipyardRepository().GetByFactoryID(ctx, factoryID)
+			if err != nil {
+				return fmt.Errorf("failed to get shipyard for factory: %w", err)
+			}
+			shipyardID = yard.ID
 		}
 
 		resp, err := wire.ShipmentService().CreateShipment(ctx, primary.CreateShipmentRequest{
-			CommissionID:  commissionID,
-			Title:         title,
-			Description:   description,
-			RepoID:        repoID,
-			Branch:        branch,
-			ContainerID:   containerID,
-			ContainerType: containerType,
+			CommissionID: commissionID,
+			Title:        title,
+			Description:  description,
+			RepoID:       repoID,
+			Branch:       branch,
+			ConclaveID:   conclaveID,
+			ShipyardID:   shipyardID,
 		})
 		if err != nil {
 			return fmt.Errorf("failed to create shipment: %w", err)
@@ -84,10 +84,11 @@ var shipmentCreateCmd = &cobra.Command{
 
 		fmt.Printf("✓ Created shipment %s: %s\n", resp.Shipment.ID, resp.Shipment.Title)
 		fmt.Printf("  Under commission: %s\n", resp.Shipment.CommissionID)
-		if resp.Shipment.ContainerType == "conclave" {
-			fmt.Printf("  Conclave: %s\n", resp.Shipment.ContainerID)
-		} else if resp.Shipment.ContainerType == "shipyard" {
-			fmt.Printf("  Shipyard: %s\n", resp.Shipment.ContainerID)
+		if resp.Shipment.ConclaveID != "" {
+			fmt.Printf("  Conclave: %s\n", resp.Shipment.ConclaveID)
+		}
+		if resp.Shipment.ShipyardID != "" {
+			fmt.Printf("  Shipyard: %s\n", resp.Shipment.ShipyardID)
 		}
 		if resp.Shipment.Branch != "" {
 			fmt.Printf("  Branch: %s\n", resp.Shipment.Branch)

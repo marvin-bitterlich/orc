@@ -14,8 +14,8 @@ type Tome struct {
 	Status              string
 	AssignedWorkbenchID sql.NullString
 	Pinned              bool
-	ContainerID         sql.NullString // CON-xxx or LIB-xxx
-	ContainerType       sql.NullString // "conclave" or "library"
+	ContainerID         sql.NullString // CON-xxx
+	ContainerType       sql.NullString // "conclave"
 	CreatedAt           time.Time
 	UpdatedAt           time.Time
 	ClosedAt            sql.NullTime

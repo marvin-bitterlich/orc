@@ -63,6 +63,65 @@ func TestCommissionRepository_Create(t *testing.T) {
 	}
 }
 
+func TestCommissionRepository_Create_WithWorkshopID(t *testing.T) {
+	db := setupTestDB(t)
+	repo := sqlite.NewCommissionRepository(db)
+	ctx := context.Background()
+
+	// Create a workshop first (FK constraint)
+	_, _ = db.Exec("INSERT INTO factories (id, name) VALUES (?, ?)", "FACT-001", "Test Factory")
+	_, _ = db.Exec("INSERT INTO workshops (id, factory_id, name, status) VALUES (?, ?, ?, ?)", "WORK-001", "FACT-001", "Test Workshop", "active")
+
+	// Create commission with workshop_id
+	commission := &secondary.CommissionRecord{
+		ID:         "COMM-001",
+		WorkshopID: "WORK-001",
+		Title:      "Workshop Commission",
+		Status:     "active",
+	}
+
+	err := repo.Create(ctx, commission)
+	if err != nil {
+		t.Fatalf("Create with workshop_id failed: %v", err)
+	}
+
+	// Verify workshop_id was persisted
+	retrieved, err := repo.GetByID(ctx, "COMM-001")
+	if err != nil {
+		t.Fatalf("GetByID failed: %v", err)
+	}
+	if retrieved.WorkshopID != "WORK-001" {
+		t.Errorf("expected workshop_id 'WORK-001', got '%s'", retrieved.WorkshopID)
+	}
+}
+
+func TestCommissionRepository_Create_WithoutWorkshopID(t *testing.T) {
+	db := setupTestDB(t)
+	repo := sqlite.NewCommissionRepository(db)
+	ctx := context.Background()
+
+	// Create commission without workshop_id (should be allowed - nullable)
+	commission := &secondary.CommissionRecord{
+		ID:     "COMM-001",
+		Title:  "No Workshop Commission",
+		Status: "active",
+	}
+
+	err := repo.Create(ctx, commission)
+	if err != nil {
+		t.Fatalf("Create without workshop_id failed: %v", err)
+	}
+
+	// Verify workshop_id is empty
+	retrieved, err := repo.GetByID(ctx, "COMM-001")
+	if err != nil {
+		t.Fatalf("GetByID failed: %v", err)
+	}
+	if retrieved.WorkshopID != "" {
+		t.Errorf("expected empty workshop_id, got '%s'", retrieved.WorkshopID)
+	}
+}
+
 func TestCommissionRepository_Create_RequiresID(t *testing.T) {
 	db := setupTestDB(t)
 	repo := sqlite.NewCommissionRepository(db)

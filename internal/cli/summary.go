@@ -340,8 +340,12 @@ func buildWorkshopFocusMap(ctx context.Context, workshopID, currentWorkbenchID, 
 
 // renderSummary renders the commission tree view
 func renderSummary(summary *primary.CommissionSummary, _ string, workshopFocus workshopFocusInfo) {
-	// Commission header
-	fmt.Printf("%s - %s\n", colorizeID(summary.ID), summary.Title)
+	// Commission header with focused marker
+	focusedMarker := ""
+	if summary.IsFocusedCommission {
+		focusedMarker = color.New(color.FgHiMagenta).Sprint(" [focused]")
+	}
+	fmt.Printf("%s%s - %s\n", colorizeID(summary.ID), focusedMarker, summary.Title)
 	fmt.Println("│")
 
 	// Sort conclaves: my focus first, then other actors' focus, then active work, then rest
@@ -510,31 +514,33 @@ func renderSummary(summary *primary.CommissionSummary, _ string, workshopFocus w
 		}
 
 		// Add spacing between conclaves
-		if i < len(conclaves)-1 || summary.Library.TomeCount > 0 || summary.Shipyard.ShipmentCount > 0 {
+		if i < len(conclaves)-1 || len(summary.OrphanTomes) > 0 || summary.Library.TomeCount > 0 || summary.Shipyard.ShipmentCount > 0 {
 			fmt.Println("│")
 		}
 	}
 
-	// Library (always shown)
-	libPrefix := "├── "
-	libChildPrefix := "│   "
-	if summary.Shipyard.ShipmentCount == 0 {
-		libPrefix = "└── "
-		libChildPrefix = "    "
-	}
-	fmt.Printf("%s%s (%s)\n", libPrefix, colorizeLabel("LIBRARY"), pluralize(summary.Library.TomeCount, "tome", "tomes"))
+	// Orphan tomes (at commission root, without container)
+	if len(summary.OrphanTomes) > 0 {
+		orphanPrefix := "├── "
+		orphanChildPrefix := "│   "
+		if summary.Library.TomeCount == 0 && summary.Shipyard.ShipmentCount == 0 {
+			orphanPrefix = "└── "
+			orphanChildPrefix = "    "
+		}
+		fmt.Printf("%s%s (%s)\n", orphanPrefix, colorizeLabel("ROOT TOMES"), pluralize(len(summary.OrphanTomes), "tome", "tomes"))
 
-	// Expanded library tomes
-	if len(summary.Library.Tomes) > 0 {
-		for i, tome := range summary.Library.Tomes {
-			isLast := i == len(summary.Library.Tomes)-1
-			tomePrefix := libChildPrefix + "├── "
+		for i, tome := range summary.OrphanTomes {
+			isLast := i == len(summary.OrphanTomes)-1
+			tomePrefix := orphanChildPrefix + "├── "
+			tomeChildPrefix := orphanChildPrefix + "│   "
 			if isLast {
-				tomePrefix = libChildPrefix + "└── "
+				tomePrefix = orphanChildPrefix + "└── "
+				tomeChildPrefix = orphanChildPrefix + "    "
 			}
+
 			noteInfo := ""
-			if tome.NoteCount > 0 {
-				noteInfo = fmt.Sprintf(" (%d notes)", tome.NoteCount)
+			if tome.NoteCount > 0 && len(tome.Notes) == 0 {
+				noteInfo = fmt.Sprintf(" (%s)", pluralize(tome.NoteCount, "note", "notes"))
 			}
 			pinnedMark := ""
 			if tome.Pinned {
@@ -546,8 +552,26 @@ func renderSummary(summary *primary.CommissionSummary, _ string, workshopFocus w
 			} else if who := workshopFocus.containerToWorkbench[tome.ID]; who != "" {
 				focusMark = color.New(color.FgCyan).Sprintf(" [focused by %s]", who)
 			}
+
 			fmt.Printf("%s%s%s%s - %s%s\n", tomePrefix, colorizeID(tome.ID), focusMark, pinnedMark, tome.Title, noteInfo)
+
+			// Expand notes for focused tome
+			if len(tome.Notes) > 0 {
+				for j, note := range tome.Notes {
+					isLastNote := j == len(tome.Notes)-1
+					notePrefix := tomeChildPrefix + "├── "
+					if isLastNote {
+						notePrefix = tomeChildPrefix + "└── "
+					}
+					typeMarker := ""
+					if note.Type != "" {
+						typeMarker = color.New(color.FgYellow).Sprintf("[%s] ", note.Type)
+					}
+					fmt.Printf("%s%s %s- %s\n", notePrefix, colorizeID(note.ID), typeMarker, note.Title)
+				}
+			}
 		}
+		fmt.Println("│")
 	}
 
 	// Shipyard (always shown)

@@ -47,8 +47,8 @@ var (
 	infraService                   primary.InfraService
 	commissionOrchestrationService *app.CommissionOrchestrationService
 	tmuxService                    secondary.TMuxAdapter
-	libraryRepo                    secondary.LibraryRepository
 	shipyardRepo                   secondary.ShipyardRepository
+	shipmentRepo                   secondary.ShipmentRepository
 	once                           sync.Once
 )
 
@@ -214,16 +214,16 @@ func TMuxAdapter() secondary.TMuxAdapter {
 	return tmuxService
 }
 
-// LibraryRepository returns the singleton LibraryRepository instance.
-func LibraryRepository() secondary.LibraryRepository {
-	once.Do(initServices)
-	return libraryRepo
-}
-
 // ShipyardRepository returns the singleton ShipyardRepository instance.
 func ShipyardRepository() secondary.ShipyardRepository {
 	once.Do(initServices)
 	return shipyardRepo
+}
+
+// ShipmentRepository returns the singleton ShipmentRepository instance.
+func ShipmentRepository() secondary.ShipmentRepository {
+	once.Do(initServices)
+	return shipmentRepo
 }
 
 // initServices initializes all services and their dependencies.
@@ -255,7 +255,7 @@ func initServices() {
 	commissionService = app.NewCommissionService(commissionRepo, agentProvider, executor)
 
 	// Create shipment and task services
-	shipmentRepo := sqlite.NewShipmentRepository(database)
+	shipmentRepo = sqlite.NewShipmentRepository(database)
 	taskRepo := sqlite.NewTaskRepository(database)
 	tagRepo := sqlite.NewTagRepository(database)
 	taskService = app.NewTaskService(taskRepo, tagRepo)
@@ -267,12 +267,11 @@ func initServices() {
 	noteService = app.NewNoteService(noteRepo)
 	handoffService = app.NewHandoffService(handoffRepo)
 
-	// Create library and shipyard repositories (used by services for park/unpark)
-	libraryRepo = sqlite.NewLibraryRepository(database)
+	// Create shipyard repository (used by shipment service for park/unpark)
 	shipyardRepo = sqlite.NewShipyardRepository(database)
 
-	// Create tome and shipment services (need library/shipyard repos for park/unpark)
-	tomeService = app.NewTomeService(tomeRepo, noteService, libraryRepo)
+	// Create tome and shipment services
+	tomeService = app.NewTomeService(tomeRepo, noteService)
 	shipmentService = app.NewShipmentService(shipmentRepo, taskRepo, shipyardRepo)
 
 	// Create conclave and operation services

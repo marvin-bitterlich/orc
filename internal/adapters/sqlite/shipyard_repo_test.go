@@ -14,11 +14,11 @@ func TestShipyardRepository_Create(t *testing.T) {
 	repo := sqlite.NewShipyardRepository(db)
 	ctx := context.Background()
 
-	// Seed required commission
-	seedCommission(t, db, "COMM-001", "Test Commission")
+	// Seed required factory
+	seedFactory(t, db, "FACT-001", "Test Factory")
 
 	shipyard := &secondary.ShipyardRecord{
-		CommissionID: "COMM-001",
+		FactoryID: "FACT-001",
 	}
 
 	err := repo.Create(ctx, shipyard)
@@ -39,46 +39,46 @@ func TestShipyardRepository_Create(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetByID failed: %v", err)
 	}
-	if got.CommissionID != "COMM-001" {
-		t.Errorf("expected commission_id 'COMM-001', got %q", got.CommissionID)
+	if got.FactoryID != "FACT-001" {
+		t.Errorf("expected factory_id 'FACT-001', got %q", got.FactoryID)
 	}
 }
 
-func TestShipyardRepository_Create_CommissionNotFound(t *testing.T) {
+func TestShipyardRepository_Create_FactoryNotFound(t *testing.T) {
 	db := setupTestDB(t)
 	repo := sqlite.NewShipyardRepository(db)
 	ctx := context.Background()
 
 	shipyard := &secondary.ShipyardRecord{
-		CommissionID: "COMM-999",
+		FactoryID: "FACT-999",
 	}
 
 	err := repo.Create(ctx, shipyard)
 	if err == nil {
-		t.Error("expected error for non-existent commission")
+		t.Error("expected error for non-existent factory")
 	}
 }
 
-func TestShipyardRepository_Create_DuplicateCommission(t *testing.T) {
+func TestShipyardRepository_Create_DuplicateFactory(t *testing.T) {
 	db := setupTestDB(t)
 	repo := sqlite.NewShipyardRepository(db)
 	ctx := context.Background()
 
-	// Seed required commission
-	seedCommission(t, db, "COMM-001", "Test Commission")
+	// Seed required factory
+	seedFactory(t, db, "FACT-001", "Test Factory")
 
 	// Create first shipyard
-	shipyard1 := &secondary.ShipyardRecord{CommissionID: "COMM-001"}
+	shipyard1 := &secondary.ShipyardRecord{FactoryID: "FACT-001"}
 	err := repo.Create(ctx, shipyard1)
 	if err != nil {
 		t.Fatalf("First Create failed: %v", err)
 	}
 
-	// Try to create second shipyard for same commission
-	shipyard2 := &secondary.ShipyardRecord{CommissionID: "COMM-001"}
+	// Try to create second shipyard for same factory
+	shipyard2 := &secondary.ShipyardRecord{FactoryID: "FACT-001"}
 	err = repo.Create(ctx, shipyard2)
 	if err == nil {
-		t.Error("expected error for duplicate commission")
+		t.Error("expected error for duplicate factory")
 	}
 }
 
@@ -87,16 +87,16 @@ func TestShipyardRepository_GetByID(t *testing.T) {
 	repo := sqlite.NewShipyardRepository(db)
 	ctx := context.Background()
 
-	// Seed commission and shipyard
-	seedCommission(t, db, "COMM-001", "Test Commission")
-	seedShipyard(t, db, "YARD-001", "COMM-001")
+	// Seed factory and shipyard
+	seedFactory(t, db, "FACT-001", "Test Factory")
+	seedShipyard(t, db, "YARD-001", "FACT-001")
 
 	got, err := repo.GetByID(ctx, "YARD-001")
 	if err != nil {
 		t.Fatalf("GetByID failed: %v", err)
 	}
-	if got.CommissionID != "COMM-001" {
-		t.Errorf("expected commission_id 'COMM-001', got %q", got.CommissionID)
+	if got.FactoryID != "FACT-001" {
+		t.Errorf("expected factory_id 'FACT-001', got %q", got.FactoryID)
 	}
 	if got.CreatedAt == "" {
 		t.Error("expected CreatedAt to be set")
@@ -117,35 +117,35 @@ func TestShipyardRepository_GetByID_NotFound(t *testing.T) {
 	}
 }
 
-func TestShipyardRepository_GetByCommissionID(t *testing.T) {
+func TestShipyardRepository_GetByFactoryID(t *testing.T) {
 	db := setupTestDB(t)
 	repo := sqlite.NewShipyardRepository(db)
 	ctx := context.Background()
 
-	// Seed commission and shipyard
-	seedCommission(t, db, "COMM-001", "Test Commission")
-	seedShipyard(t, db, "YARD-001", "COMM-001")
+	// Seed factory and shipyard
+	seedFactory(t, db, "FACT-001", "Test Factory")
+	seedShipyard(t, db, "YARD-001", "FACT-001")
 
-	got, err := repo.GetByCommissionID(ctx, "COMM-001")
+	got, err := repo.GetByFactoryID(ctx, "FACT-001")
 	if err != nil {
-		t.Fatalf("GetByCommissionID failed: %v", err)
+		t.Fatalf("GetByFactoryID failed: %v", err)
 	}
 	if got.ID != "YARD-001" {
 		t.Errorf("expected ID 'YARD-001', got %q", got.ID)
 	}
 }
 
-func TestShipyardRepository_GetByCommissionID_NotFound(t *testing.T) {
+func TestShipyardRepository_GetByFactoryID_NotFound(t *testing.T) {
 	db := setupTestDB(t)
 	repo := sqlite.NewShipyardRepository(db)
 	ctx := context.Background()
 
-	// Seed commission without shipyard
-	seedCommission(t, db, "COMM-001", "Test Commission")
+	// Seed factory without shipyard
+	seedFactory(t, db, "FACT-001", "Test Factory")
 
-	_, err := repo.GetByCommissionID(ctx, "COMM-001")
+	_, err := repo.GetByFactoryID(ctx, "FACT-001")
 	if err == nil {
-		t.Error("expected error for commission without shipyard")
+		t.Error("expected error for factory without shipyard")
 	}
 }
 
@@ -164,10 +164,10 @@ func TestShipyardRepository_GetNextID(t *testing.T) {
 	}
 
 	// Seed some shipyards
-	seedCommission(t, db, "COMM-001", "Test Commission 1")
-	seedCommission(t, db, "COMM-002", "Test Commission 2")
-	seedShipyard(t, db, "YARD-001", "COMM-001")
-	seedShipyard(t, db, "YARD-002", "COMM-002")
+	seedFactory(t, db, "FACT-001", "Test Factory 1")
+	seedFactory(t, db, "FACT-002", "Test Factory 2")
+	seedShipyard(t, db, "YARD-001", "FACT-001")
+	seedShipyard(t, db, "YARD-002", "FACT-002")
 
 	// Next ID after existing
 	nextID, err = repo.GetNextID(ctx)
@@ -179,37 +179,37 @@ func TestShipyardRepository_GetNextID(t *testing.T) {
 	}
 }
 
-func TestShipyardRepository_CommissionExists(t *testing.T) {
+func TestShipyardRepository_FactoryExists(t *testing.T) {
 	db := setupTestDB(t)
 	repo := sqlite.NewShipyardRepository(db)
 	ctx := context.Background()
 
-	// Commission doesn't exist
-	exists, err := repo.CommissionExists(ctx, "COMM-001")
+	// Factory doesn't exist
+	exists, err := repo.FactoryExists(ctx, "FACT-001")
 	if err != nil {
-		t.Fatalf("CommissionExists failed: %v", err)
+		t.Fatalf("FactoryExists failed: %v", err)
 	}
 	if exists {
-		t.Error("expected commission to not exist")
+		t.Error("expected factory to not exist")
 	}
 
-	// Seed commission
-	seedCommission(t, db, "COMM-001", "Test Commission")
+	// Seed factory
+	seedFactory(t, db, "FACT-001", "Test Factory")
 
-	// Commission exists
-	exists, err = repo.CommissionExists(ctx, "COMM-001")
+	// Factory exists
+	exists, err = repo.FactoryExists(ctx, "FACT-001")
 	if err != nil {
-		t.Fatalf("CommissionExists failed: %v", err)
+		t.Fatalf("FactoryExists failed: %v", err)
 	}
 	if !exists {
-		t.Error("expected commission to exist")
+		t.Error("expected factory to exist")
 	}
 }
 
 // seedShipyard inserts a test shipyard.
-func seedShipyard(t *testing.T, db *sql.DB, id, commissionID string) {
+func seedShipyard(t *testing.T, db *sql.DB, id, factoryID string) {
 	t.Helper()
-	_, err := db.Exec("INSERT INTO shipyards (id, commission_id) VALUES (?, ?)", id, commissionID)
+	_, err := db.Exec("INSERT INTO shipyards (id, factory_id) VALUES (?, ?)", id, factoryID)
 	if err != nil {
 		t.Fatalf("failed to seed shipyard: %v", err)
 	}

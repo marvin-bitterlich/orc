@@ -23,25 +23,25 @@ func NewShipyardRepository(db *sql.DB) *ShipyardRepository {
 
 // Create persists a new shipyard.
 func (r *ShipyardRepository) Create(ctx context.Context, shipyard *secondary.ShipyardRecord) error {
-	// Verify commission exists
-	exists, err := r.CommissionExists(ctx, shipyard.CommissionID)
+	// Verify factory exists
+	exists, err := r.FactoryExists(ctx, shipyard.FactoryID)
 	if err != nil {
 		return err
 	}
 	if !exists {
-		return fmt.Errorf("commission %s not found", shipyard.CommissionID)
+		return fmt.Errorf("factory %s not found", shipyard.FactoryID)
 	}
 
-	// Check if shipyard already exists for this commission
+	// Check if shipyard already exists for this factory
 	var count int
 	err = r.db.QueryRowContext(ctx,
-		"SELECT COUNT(*) FROM shipyards WHERE commission_id = ?", shipyard.CommissionID,
+		"SELECT COUNT(*) FROM shipyards WHERE factory_id = ?", shipyard.FactoryID,
 	).Scan(&count)
 	if err != nil {
 		return fmt.Errorf("failed to check existing shipyard: %w", err)
 	}
 	if count > 0 {
-		return fmt.Errorf("shipyard already exists for commission %s", shipyard.CommissionID)
+		return fmt.Errorf("shipyard already exists for factory %s", shipyard.FactoryID)
 	}
 
 	// Generate shipyard ID if not provided
@@ -58,8 +58,8 @@ func (r *ShipyardRepository) Create(ctx context.Context, shipyard *secondary.Shi
 	}
 
 	_, err = r.db.ExecContext(ctx,
-		"INSERT INTO shipyards (id, commission_id) VALUES (?, ?)",
-		id, shipyard.CommissionID,
+		"INSERT INTO shipyards (id, factory_id) VALUES (?, ?)",
+		id, shipyard.FactoryID,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create shipyard: %w", err)
@@ -78,9 +78,9 @@ func (r *ShipyardRepository) GetByID(ctx context.Context, id string) (*secondary
 
 	record := &secondary.ShipyardRecord{}
 	err := r.db.QueryRowContext(ctx,
-		"SELECT id, commission_id, created_at, updated_at FROM shipyards WHERE id = ?",
+		"SELECT id, factory_id, created_at, updated_at FROM shipyards WHERE id = ?",
 		id,
-	).Scan(&record.ID, &record.CommissionID, &createdAt, &updatedAt)
+	).Scan(&record.ID, &record.FactoryID, &createdAt, &updatedAt)
 
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("shipyard %s not found", id)
@@ -94,8 +94,8 @@ func (r *ShipyardRepository) GetByID(ctx context.Context, id string) (*secondary
 	return record, nil
 }
 
-// GetByCommissionID retrieves the shipyard for a commission.
-func (r *ShipyardRepository) GetByCommissionID(ctx context.Context, commissionID string) (*secondary.ShipyardRecord, error) {
+// GetByFactoryID retrieves the shipyard for a factory.
+func (r *ShipyardRepository) GetByFactoryID(ctx context.Context, factoryID string) (*secondary.ShipyardRecord, error) {
 	var (
 		createdAt time.Time
 		updatedAt time.Time
@@ -103,15 +103,15 @@ func (r *ShipyardRepository) GetByCommissionID(ctx context.Context, commissionID
 
 	record := &secondary.ShipyardRecord{}
 	err := r.db.QueryRowContext(ctx,
-		"SELECT id, commission_id, created_at, updated_at FROM shipyards WHERE commission_id = ?",
-		commissionID,
-	).Scan(&record.ID, &record.CommissionID, &createdAt, &updatedAt)
+		"SELECT id, factory_id, created_at, updated_at FROM shipyards WHERE factory_id = ?",
+		factoryID,
+	).Scan(&record.ID, &record.FactoryID, &createdAt, &updatedAt)
 
 	if err == sql.ErrNoRows {
-		return nil, fmt.Errorf("shipyard for commission %s not found", commissionID)
+		return nil, fmt.Errorf("shipyard for factory %s not found", factoryID)
 	}
 	if err != nil {
-		return nil, fmt.Errorf("failed to get shipyard by commission: %w", err)
+		return nil, fmt.Errorf("failed to get shipyard by factory: %w", err)
 	}
 
 	record.CreatedAt = createdAt.Format(time.RFC3339)
@@ -132,15 +132,15 @@ func (r *ShipyardRepository) GetNextID(ctx context.Context) (string, error) {
 	return coreshipyard.GenerateShipyardID(maxID), nil
 }
 
-// CommissionExists checks if a commission exists.
-func (r *ShipyardRepository) CommissionExists(ctx context.Context, commissionID string) (bool, error) {
+// FactoryExists checks if a factory exists.
+func (r *ShipyardRepository) FactoryExists(ctx context.Context, factoryID string) (bool, error) {
 	var count int
 	err := r.db.QueryRowContext(ctx,
-		"SELECT COUNT(*) FROM commissions WHERE id = ?",
-		commissionID,
+		"SELECT COUNT(*) FROM factories WHERE id = ?",
+		factoryID,
 	).Scan(&count)
 	if err != nil {
-		return false, fmt.Errorf("failed to check commission existence: %w", err)
+		return false, fmt.Errorf("failed to check factory existence: %w", err)
 	}
 
 	return count > 0, nil

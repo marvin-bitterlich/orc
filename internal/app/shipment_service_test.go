@@ -40,6 +40,12 @@ func (m *mockShipmentRepository) Create(ctx context.Context, shipment *secondary
 	if m.createErr != nil {
 		return m.createErr
 	}
+	// Set status based on container: draft (conclave) or queued (shipyard)
+	if shipment.ShipyardID != "" {
+		shipment.Status = "queued"
+	} else {
+		shipment.Status = "draft"
+	}
 	m.shipments[shipment.ID] = shipment
 	return nil
 }
@@ -160,26 +166,30 @@ func (m *mockShipmentRepository) WorkbenchAssignedToOther(ctx context.Context, w
 	return "", nil
 }
 
-func (m *mockShipmentRepository) UpdateContainer(ctx context.Context, id, containerID, containerType string) error {
+func (m *mockShipmentRepository) SetShipyardID(ctx context.Context, id, shipyardID string) error {
 	if shipment, ok := m.shipments[id]; ok {
-		shipment.ContainerID = containerID
-		shipment.ContainerType = containerType
+		shipment.ShipyardID = shipyardID
+		shipment.Status = "queued"
 	}
 	return nil
 }
 
-func (m *mockShipmentRepository) ListShipyardQueue(ctx context.Context, commissionID string) ([]*secondary.ShipyardQueueEntry, error) {
+func (m *mockShipmentRepository) SetConclaveID(ctx context.Context, id, conclaveID string) error {
+	if shipment, ok := m.shipments[id]; ok {
+		shipment.ConclaveID = conclaveID
+		shipment.ShipyardID = ""
+		shipment.Status = "draft"
+	}
+	return nil
+}
+
+func (m *mockShipmentRepository) ListShipyardQueue(ctx context.Context, factoryID string) ([]*secondary.ShipyardQueueEntry, error) {
 	var entries []*secondary.ShipyardQueueEntry
 	for _, s := range m.shipments {
-		if s.ContainerType != "shipyard" {
+		if s.Status != "queued" {
 			continue
 		}
-		if commissionID != "" && s.CommissionID != commissionID {
-			continue
-		}
-		if s.Status == "complete" || s.Status == "merged" {
-			continue
-		}
+		// In mock, we don't filter by factory - return all queued entries
 		entries = append(entries, &secondary.ShipyardQueueEntry{
 			ID:           s.ID,
 			CommissionID: s.CommissionID,
@@ -191,6 +201,11 @@ func (m *mockShipmentRepository) ListShipyardQueue(ctx context.Context, commissi
 		})
 	}
 	return entries, nil
+}
+
+func (m *mockShipmentRepository) GetFactoryIDForCommission(ctx context.Context, commissionID string) (string, error) {
+	// Mock returns FACT-001 for any commission
+	return "FACT-001", nil
 }
 
 func (m *mockShipmentRepository) UpdatePriority(ctx context.Context, id string, priority *int) error {
@@ -315,7 +330,7 @@ type mockShipyardRepository struct {
 func newMockShipyardRepository() *mockShipyardRepository {
 	return &mockShipyardRepository{
 		shipyards: map[string]*secondary.ShipyardRecord{
-			"YARD-001": {ID: "YARD-001", CommissionID: "COMM-001"},
+			"YARD-001": {ID: "YARD-001", FactoryID: "FACT-001"},
 		},
 	}
 }
@@ -332,20 +347,20 @@ func (m *mockShipyardRepository) GetByID(ctx context.Context, id string) (*secon
 	return nil, errors.New("shipyard not found")
 }
 
-func (m *mockShipyardRepository) GetByCommissionID(ctx context.Context, commissionID string) (*secondary.ShipyardRecord, error) {
+func (m *mockShipyardRepository) GetByFactoryID(ctx context.Context, factoryID string) (*secondary.ShipyardRecord, error) {
 	for _, yard := range m.shipyards {
-		if yard.CommissionID == commissionID {
+		if yard.FactoryID == factoryID {
 			return yard, nil
 		}
 	}
-	return nil, errors.New("shipyard not found for commission")
+	return nil, errors.New("shipyard not found for factory")
 }
 
 func (m *mockShipyardRepository) GetNextID(ctx context.Context) (string, error) {
 	return "YARD-002", nil
 }
 
-func (m *mockShipyardRepository) CommissionExists(ctx context.Context, commissionID string) (bool, error) {
+func (m *mockShipyardRepository) FactoryExists(ctx context.Context, factoryID string) (bool, error) {
 	return true, nil
 }
 
@@ -370,11 +385,10 @@ func TestCreateShipment_Success(t *testing.T) {
 	ctx := context.Background()
 
 	resp, err := service.CreateShipment(ctx, primary.CreateShipmentRequest{
-		CommissionID:  "COMM-001",
-		Title:         "Test Shipment",
-		Description:   "A test shipment",
-		ContainerID:   "YARD-001",
-		ContainerType: "shipyard",
+		CommissionID: "COMM-001",
+		Title:        "Test Shipment",
+		Description:  "A test shipment",
+		ShipyardID:   "YARD-001",
 	})
 
 	if err != nil {
@@ -386,29 +400,35 @@ func TestCreateShipment_Success(t *testing.T) {
 	if resp.Shipment.Title != "Test Shipment" {
 		t.Errorf("expected title 'Test Shipment', got '%s'", resp.Shipment.Title)
 	}
-	if resp.Shipment.Status != "active" {
-		t.Errorf("expected status 'active', got '%s'", resp.Shipment.Status)
+	// Status should be 'queued' when created with ShipyardID
+	if resp.Shipment.Status != "queued" {
+		t.Errorf("expected status 'queued', got '%s'", resp.Shipment.Status)
 	}
-	if resp.Shipment.ContainerID != "YARD-001" {
-		t.Errorf("expected container ID 'YARD-001', got '%s'", resp.Shipment.ContainerID)
-	}
-	if resp.Shipment.ContainerType != "shipyard" {
-		t.Errorf("expected container type 'shipyard', got '%s'", resp.Shipment.ContainerType)
+	if resp.Shipment.ShipyardID != "YARD-001" {
+		t.Errorf("expected shipyard ID 'YARD-001', got '%s'", resp.Shipment.ShipyardID)
 	}
 }
 
-func TestCreateShipment_MissingContainer(t *testing.T) {
+func TestCreateShipment_InConclave(t *testing.T) {
 	service, _, _ := newTestShipmentService()
 	ctx := context.Background()
 
-	_, err := service.CreateShipment(ctx, primary.CreateShipmentRequest{
+	resp, err := service.CreateShipment(ctx, primary.CreateShipmentRequest{
 		CommissionID: "COMM-001",
 		Title:        "Test Shipment",
 		Description:  "A test shipment",
+		ConclaveID:   "CON-001",
 	})
 
-	if err == nil {
-		t.Fatal("expected error for missing container, got nil")
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	// Status should be 'draft' when created with ConclaveID
+	if resp.Shipment.Status != "draft" {
+		t.Errorf("expected status 'draft', got '%s'", resp.Shipment.Status)
+	}
+	if resp.Shipment.ConclaveID != "CON-001" {
+		t.Errorf("expected conclave ID 'CON-001', got '%s'", resp.Shipment.ConclaveID)
 	}
 }
 
@@ -419,11 +439,10 @@ func TestCreateShipment_CommissionNotFound(t *testing.T) {
 	shipmentRepo.commissionExistsResult = false
 
 	_, err := service.CreateShipment(ctx, primary.CreateShipmentRequest{
-		CommissionID:  "COMM-NONEXISTENT",
-		Title:         "Test Shipment",
-		Description:   "A test shipment",
-		ContainerID:   "YARD-001",
-		ContainerType: "shipyard",
+		CommissionID: "COMM-NONEXISTENT",
+		Title:        "Test Shipment",
+		Description:  "A test shipment",
+		ShipyardID:   "YARD-001",
 	})
 
 	if err == nil {
@@ -438,11 +457,10 @@ func TestCreateShipment_CommissionValidationError(t *testing.T) {
 	shipmentRepo.commissionExistsErr = errors.New("database error")
 
 	_, err := service.CreateShipment(ctx, primary.CreateShipmentRequest{
-		CommissionID:  "COMM-001",
-		Title:         "Test Shipment",
-		Description:   "A test shipment",
-		ContainerID:   "YARD-001",
-		ContainerType: "shipyard",
+		CommissionID: "COMM-001",
+		Title:        "Test Shipment",
+		Description:  "A test shipment",
+		ShipyardID:   "YARD-001",
 	})
 
 	if err == nil {

@@ -28,7 +28,6 @@ var tomeCreateCmd = &cobra.Command{
 		title := args[0]
 		commissionID, _ := cmd.Flags().GetString("commission")
 		conclaveID, _ := cmd.Flags().GetString("conclave")
-		useLibrary, _ := cmd.Flags().GetBool("library")
 		description, _ := cmd.Flags().GetString("description")
 
 		// Get commission from context or require explicit flag
@@ -44,28 +43,13 @@ var tomeCreateCmd = &cobra.Command{
 			return err
 		}
 
-		// Validate container assignment - must specify one of --conclave or --library
-		if conclaveID == "" && !useLibrary {
-			return fmt.Errorf("container assignment required: specify --conclave CON-xxx or --library")
-		}
-		if conclaveID != "" && useLibrary {
-			return fmt.Errorf("specify either --conclave or --library, not both")
-		}
-
-		// Resolve container
+		// Resolve container (optional - tomes can exist at commission root)
 		var containerID, containerType string
-		if useLibrary {
-			// Look up library for this commission
-			lib, err := wire.LibraryRepository().GetByCommissionID(ctx, commissionID)
-			if err != nil {
-				return fmt.Errorf("failed to get library for commission: %w", err)
-			}
-			containerID = lib.ID
-			containerType = "library"
-		} else {
+		if conclaveID != "" {
 			containerID = conclaveID
 			containerType = "conclave"
 		}
+		// else: containerID and containerType remain empty (root tome at commission level)
 
 		resp, err := wire.TomeService().CreateTome(ctx, primary.CreateTomeRequest{
 			CommissionID:  commissionID,
@@ -84,8 +68,8 @@ var tomeCreateCmd = &cobra.Command{
 		fmt.Printf("  Commission: %s\n", tome.CommissionID)
 		if tome.ContainerType == "conclave" {
 			fmt.Printf("  Conclave: %s\n", tome.ContainerID)
-		} else if tome.ContainerType == "library" {
-			fmt.Printf("  Library: %s\n", tome.ContainerID)
+		} else {
+			fmt.Printf("  Location: commission root\n")
 		}
 		fmt.Printf("  Status: %s\n", tome.Status)
 		fmt.Println()
@@ -291,29 +275,10 @@ var tomeDeleteCmd = &cobra.Command{
 
 var tomeParkCmd = &cobra.Command{
 	Use:   "park [tome-id]",
-	Short: "Move tome to Library",
+	Short: "[DEPRECATED] Library entity has been removed",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
-		tomeID := args[0]
-
-		// Get current state to check if already parked
-		tome, err := wire.TomeService().GetTome(ctx, tomeID)
-		if err != nil {
-			return fmt.Errorf("tome not found: %w", err)
-		}
-
-		if tome.ContainerType == "library" {
-			fmt.Printf("%s is already in Library\n", tomeID)
-			return nil
-		}
-
-		if err := wire.TomeService().ParkTome(ctx, tomeID); err != nil {
-			return fmt.Errorf("failed to park tome: %w", err)
-		}
-
-		fmt.Printf("Moved %s to Library\n", tomeID)
-		return nil
+		return fmt.Errorf("Library entity has been removed. Tomes now exist at commission root when not in a conclave.\nTo move a tome to commission root, use: orc tome update %s (no container change needed - it's already there)", args[0])
 	},
 }
 
@@ -348,7 +313,6 @@ func init() {
 	// tome create flags
 	tomeCreateCmd.Flags().StringP("commission", "c", "", "Commission ID (defaults to context)")
 	tomeCreateCmd.Flags().String("conclave", "", "Parent conclave ID (CON-xxx)")
-	tomeCreateCmd.Flags().Bool("library", false, "Create in commission's library")
 	tomeCreateCmd.Flags().StringP("description", "d", "", "Tome description")
 
 	// tome list flags

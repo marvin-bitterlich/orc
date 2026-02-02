@@ -12,32 +12,24 @@ import (
 type TomeServiceImpl struct {
 	tomeRepo    secondary.TomeRepository
 	noteService primary.NoteService
-	libraryRepo secondary.LibraryRepository
 }
 
 // NewTomeService creates a new TomeService with injected dependencies.
 func NewTomeService(
 	tomeRepo secondary.TomeRepository,
 	noteService primary.NoteService,
-	libraryRepo secondary.LibraryRepository,
 ) *TomeServiceImpl {
 	return &TomeServiceImpl{
 		tomeRepo:    tomeRepo,
 		noteService: noteService,
-		libraryRepo: libraryRepo,
 	}
 }
 
 // CreateTome creates a new tome (knowledge container).
 func (s *TomeServiceImpl) CreateTome(ctx context.Context, req primary.CreateTomeRequest) (*primary.CreateTomeResponse, error) {
-	// Validate container assignment is provided
-	if req.ContainerID == "" || req.ContainerType == "" {
-		return nil, fmt.Errorf("container assignment required: specify --conclave CON-xxx or --library")
-	}
-
-	// Validate container type
-	if req.ContainerType != "conclave" && req.ContainerType != "library" {
-		return nil, fmt.Errorf("invalid container type %q: must be 'conclave' or 'library'", req.ContainerType)
+	// Validate container type if provided
+	if req.ContainerType != "" && req.ContainerType != "conclave" {
+		return nil, fmt.Errorf("invalid container type %q: must be 'conclave'", req.ContainerType)
 	}
 
 	// Validate commission exists
@@ -187,30 +179,7 @@ func (s *TomeServiceImpl) GetTomeNotes(ctx context.Context, tomeID string) ([]*p
 	return s.noteService.GetNotesByContainer(ctx, "tome", tomeID)
 }
 
-// ParkTome moves a tome to the commission's Library.
-func (s *TomeServiceImpl) ParkTome(ctx context.Context, tomeID string) error {
-	// Get tome to find commission and check current container
-	tome, err := s.tomeRepo.GetByID(ctx, tomeID)
-	if err != nil {
-		return err
-	}
-
-	// If already in library, return early (no-op, CLI handles message)
-	if tome.ContainerType == "library" {
-		return nil
-	}
-
-	// Look up library for commission
-	lib, err := s.libraryRepo.GetByCommissionID(ctx, tome.CommissionID)
-	if err != nil {
-		return fmt.Errorf("failed to get library: %w", err)
-	}
-
-	// Update container
-	return s.tomeRepo.UpdateContainer(ctx, tomeID, lib.ID, "library")
-}
-
-// UnparkTome moves a tome from Library to a specific Conclave.
+// UnparkTome moves a tome from commission root to a specific Conclave.
 func (s *TomeServiceImpl) UnparkTome(ctx context.Context, tomeID, conclaveID string) error {
 	// Get tome to verify it exists
 	_, err := s.tomeRepo.GetByID(ctx, tomeID)

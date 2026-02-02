@@ -37,6 +37,7 @@ type CommissionRepository interface {
 // CommissionRecord represents a commission as stored in persistence.
 type CommissionRecord struct {
 	ID          string
+	WorkshopID  string // FK to workshops - supports 1:many (workshop has many commissions)
 	Title       string
 	Description string
 	Status      string
@@ -112,9 +113,13 @@ type ShipmentRepository interface {
 	// UpdateStatus updates the status and optionally completed_at timestamp.
 	UpdateStatus(ctx context.Context, id, status string, setCompleted bool) error
 
-	// UpdateContainer updates the container assignment for a shipment.
-	// Used for park (→ shipyard) and unpark (→ conclave) operations.
-	UpdateContainer(ctx context.Context, id, containerID, containerType string) error
+	// SetShipyardID sets the shipyard_id FK and status to 'queued'.
+	// Used for park operation (move to shipyard queue).
+	SetShipyardID(ctx context.Context, id, shipyardID string) error
+
+	// SetConclaveID sets the conclave_id FK and clears shipyard_id.
+	// Used for unpark operation (move from queue to conclave).
+	SetConclaveID(ctx context.Context, id, conclaveID string) error
 
 	// CommissionExists checks if a commission exists (for validation).
 	CommissionExists(ctx context.Context, commissionID string) (bool, error)
@@ -122,9 +127,13 @@ type ShipmentRepository interface {
 	// WorkbenchAssignedToOther checks if workbench is assigned to another shipment.
 	WorkbenchAssignedToOther(ctx context.Context, workbenchID, excludeShipmentID string) (string, error)
 
-	// ListShipyardQueue retrieves shipments in the shipyard queue, ordered by priority then created_at.
-	// Excludes completed and merged shipments.
-	ListShipyardQueue(ctx context.Context, commissionID string) ([]*ShipyardQueueEntry, error)
+	// ListShipyardQueue retrieves shipments in the shipyard queue (status='queued'), ordered by priority then created_at.
+	// Filters by factory via shipyard_id FK to shipyards.factory_id.
+	ListShipyardQueue(ctx context.Context, factoryID string) ([]*ShipyardQueueEntry, error)
+
+	// GetFactoryIDForCommission returns the factory_id for a given commission.
+	// Used to resolve factory context from commission for shipyard operations.
+	GetFactoryIDForCommission(ctx context.Context, commissionID string) (string, error)
 
 	// UpdatePriority sets the priority for a shipment (nil to clear).
 	UpdatePriority(ctx context.Context, id string, priority *int) error
@@ -136,13 +145,13 @@ type ShipmentRecord struct {
 	CommissionID        string
 	Title               string
 	Description         string // Empty string means null
-	Status              string
+	Status              string // draft, queued, assigned, active, complete
 	AssignedWorkbenchID string // Empty string means null
 	RepoID              string // Empty string means null - FK to repos table
 	Branch              string // Empty string means null - owned branch (e.g., ml/SHIP-001-feature-name)
 	Pinned              bool
-	ContainerID         string // Empty string means null - CON-xxx or YARD-xxx
-	ContainerType       string // Empty string means null - "conclave" or "shipyard"
+	ConclaveID          string // Empty string means null - source/origin conclave (CON-xxx)
+	ShipyardID          string // Empty string means null - when in shipyard queue (YARD-xxx)
 	Autorun             bool   // Whether to auto-run tasks when shipment is launched
 	Priority            *int   // nil = default FIFO, 1 = highest priority
 	CreatedAt           string
@@ -446,7 +455,7 @@ type TomeRepository interface {
 	AssignWorkbench(ctx context.Context, tomeID, workbenchID string) error
 
 	// UpdateContainer updates the container assignment for a tome.
-	// Used for park (→ library) and unpark (→ conclave) operations.
+	// Used for unpark (→ conclave) operations.
 	UpdateContainer(ctx context.Context, id, containerID, containerType string) error
 
 	// CommissionExists checks if a commission exists (for validation).
@@ -463,8 +472,8 @@ type TomeRecord struct {
 	Status              string
 	AssignedWorkbenchID string // Empty string means null
 	Pinned              bool
-	ContainerID         string // Empty string means null - CON-xxx or LIB-xxx
-	ContainerType       string // Empty string means null - "conclave" or "library"
+	ContainerID         string // Empty string means null - CON-xxx
+	ContainerType       string // Empty string means null - "conclave"
 	CreatedAt           string
 	UpdatedAt           string
 	ClosedAt            string // Empty string means null
@@ -477,40 +486,13 @@ type TomeFilters struct {
 	Status       string
 }
 
-// LibraryRecord represents a library as stored in persistence.
-// One library per commission, auto-created.
-type LibraryRecord struct {
-	ID           string
-	CommissionID string
-	CreatedAt    string
-	UpdatedAt    string
-}
-
 // ShipyardRecord represents a shipyard as stored in persistence.
-// One shipyard per commission, auto-created.
+// One shipyard per factory, auto-created.
 type ShipyardRecord struct {
-	ID           string
-	CommissionID string
-	CreatedAt    string
-	UpdatedAt    string
-}
-
-// LibraryRepository defines the secondary port for library persistence.
-type LibraryRepository interface {
-	// Create persists a new library.
-	Create(ctx context.Context, library *LibraryRecord) error
-
-	// GetByID retrieves a library by its ID.
-	GetByID(ctx context.Context, id string) (*LibraryRecord, error)
-
-	// GetByCommissionID retrieves the library for a commission.
-	GetByCommissionID(ctx context.Context, commissionID string) (*LibraryRecord, error)
-
-	// GetNextID returns the next available library ID.
-	GetNextID(ctx context.Context) (string, error)
-
-	// CommissionExists checks if a commission exists (for validation).
-	CommissionExists(ctx context.Context, commissionID string) (bool, error)
+	ID        string
+	FactoryID string
+	CreatedAt string
+	UpdatedAt string
 }
 
 // ShipyardRepository defines the secondary port for shipyard persistence.
@@ -521,14 +503,14 @@ type ShipyardRepository interface {
 	// GetByID retrieves a shipyard by its ID.
 	GetByID(ctx context.Context, id string) (*ShipyardRecord, error)
 
-	// GetByCommissionID retrieves the shipyard for a commission.
-	GetByCommissionID(ctx context.Context, commissionID string) (*ShipyardRecord, error)
+	// GetByFactoryID retrieves the shipyard for a factory.
+	GetByFactoryID(ctx context.Context, factoryID string) (*ShipyardRecord, error)
 
 	// GetNextID returns the next available shipyard ID.
 	GetNextID(ctx context.Context) (string, error)
 
-	// CommissionExists checks if a commission exists (for validation).
-	CommissionExists(ctx context.Context, commissionID string) (bool, error)
+	// FactoryExists checks if a factory exists (for validation).
+	FactoryExists(ctx context.Context, factoryID string) (bool, error)
 }
 
 // ConclaveRepository defines the secondary port for conclave persistence.

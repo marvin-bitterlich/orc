@@ -145,11 +145,39 @@ func (s *SummaryServiceImpl) GetCommissionSummary(ctx context.Context, req prima
 		conclaveSummaries = append(conclaveSummaries, conSummary)
 	}
 
-	// Build library summary (tomes with container_type="library")
-	librarySummary := s.buildLibrarySummaryWithDebug(ctx, allTomes, req.ExpandLibrary, req.FocusID, addDebug)
+	// Build orphan tomes summary (tomes without container at commission root)
+	orphanTomes := s.buildOrphanTomesSummary(ctx, allTomes, req.FocusID, addDebug)
 
 	// Build shipyard summary (shipments with container_type="shipyard")
 	shipyardSummary := s.buildShipyardSummaryWithDebug(ctx, allShipments, req.ExpandLibrary, req.FocusID, addDebug)
+
+	// Determine if this is the focused commission
+	isFocusedCommission := false
+	if req.FocusID != "" {
+		// If focus is a commission, check direct match
+		if req.FocusID == commission.ID {
+			isFocusedCommission = true
+		}
+		// If focus is a container, check if it belongs to this commission
+		for _, con := range conclaves {
+			if con.ID == req.FocusID {
+				isFocusedCommission = true
+				break
+			}
+		}
+		for _, tome := range allTomes {
+			if tome.ID == req.FocusID {
+				isFocusedCommission = true
+				break
+			}
+		}
+		for _, ship := range allShipments {
+			if ship.ID == req.FocusID {
+				isFocusedCommission = true
+				break
+			}
+		}
+	}
 
 	// Build debug info if in debug mode
 	var debugInfo *primary.DebugInfo
@@ -158,16 +186,18 @@ func (s *SummaryServiceImpl) GetCommissionSummary(ctx context.Context, req prima
 	}
 
 	return &primary.CommissionSummary{
-		ID:        commission.ID,
-		Title:     commission.Title,
-		Conclaves: conclaveSummaries,
-		Library:   librarySummary,
-		Shipyard:  shipyardSummary,
-		DebugInfo: debugInfo,
+		ID:                  commission.ID,
+		Title:               commission.Title,
+		IsFocusedCommission: isFocusedCommission,
+		Conclaves:           conclaveSummaries,
+		OrphanTomes:         orphanTomes,
+		Library:             primary.LibrarySummary{}, // Library entity removed - always empty
+		Shipyard:            shipyardSummary,
+		DebugInfo:           debugInfo,
 	}, nil
 }
 
-// groupTomesByContainer groups tomes by their container ID (conclave or library).
+// groupTomesByContainer groups tomes by their container ID (conclave).
 func (s *SummaryServiceImpl) groupTomesByContainer(tomes []*primary.Tome) map[string][]*primary.Tome {
 	result := make(map[string][]*primary.Tome)
 	for _, t := range tomes {
@@ -183,12 +213,15 @@ func (s *SummaryServiceImpl) groupTomesByContainer(tomes []*primary.Tome) map[st
 	return result
 }
 
-// groupShipmentsByContainer groups shipments by their container ID (conclave or shipyard).
+// groupShipmentsByContainer groups shipments by their container (conclave or shipyard).
 func (s *SummaryServiceImpl) groupShipmentsByContainer(shipments []*primary.Shipment) map[string][]*primary.Shipment {
 	result := make(map[string][]*primary.Shipment)
 	for _, ship := range shipments {
-		if ship.ContainerID != "" {
-			result[ship.ContainerID] = append(result[ship.ContainerID], ship)
+		// Group by conclave if set, otherwise by shipyard
+		if ship.ConclaveID != "" {
+			result[ship.ConclaveID] = append(result[ship.ConclaveID], ship)
+		} else if ship.ShipyardID != "" {
+			result[ship.ShipyardID] = append(result[ship.ShipyardID], ship)
 		}
 	}
 	return result
@@ -281,28 +314,23 @@ func (s *SummaryServiceImpl) buildShipmentSummary(ctx context.Context, ship *pri
 	}, nil
 }
 
-// buildLibrarySummaryWithDebug counts tomes in the Library with debug tracking.
-func (s *SummaryServiceImpl) buildLibrarySummaryWithDebug(ctx context.Context, tomes []*primary.Tome, expand bool, focusID string, addDebug func(string)) primary.LibrarySummary {
-	var libTomes []primary.TomeSummary
-	count := 0
+// buildOrphanTomesSummary returns tomes without a container (at commission root).
+func (s *SummaryServiceImpl) buildOrphanTomesSummary(ctx context.Context, tomes []*primary.Tome, focusID string, addDebug func(string)) []primary.TomeSummary {
+	var orphanTomes []primary.TomeSummary
 	for _, t := range tomes {
-		if t.ContainerType == "library" {
+		// Orphan tome: no ContainerID and no ContainerType and no ConclaveID (backward compat)
+		if t.ContainerID == "" && t.ContainerType == "" && t.ConclaveID == "" {
 			if t.Status == "closed" {
 				addDebug(fmt.Sprintf("Hidden: %s (%s) - status is closed", t.ID, t.Title))
 				continue
 			}
-			count++
-			if expand {
-				// Expand notes if the tome itself is focused
-				expandNotes := t.ID == focusID
-				tomeSummary, err := s.buildTomeSummary(ctx, t, focusID, expandNotes)
-				if err == nil {
-					libTomes = append(libTomes, *tomeSummary)
-				}
+			tomeSummary, err := s.buildTomeSummary(ctx, t, focusID, t.ID == focusID)
+			if err == nil {
+				orphanTomes = append(orphanTomes, *tomeSummary)
 			}
 		}
 	}
-	return primary.LibrarySummary{TomeCount: count, Tomes: libTomes}
+	return orphanTomes
 }
 
 // buildShipyardSummaryWithDebug counts shipments in the Shipyard with debug tracking.
@@ -313,7 +341,7 @@ func (s *SummaryServiceImpl) buildShipyardSummaryWithDebug(ctx context.Context, 
 	// Build priority map from shipyard queue
 	priorityMap := make(map[string]*int)
 	for _, ship := range shipments {
-		if ship.ContainerType == "shipyard" && ship.CommissionID != "" {
+		if ship.Status == "queued" && ship.CommissionID != "" {
 			queue, err := s.shipmentService.ListShipyardQueue(ctx, ship.CommissionID)
 			if err == nil {
 				for _, entry := range queue {
@@ -325,7 +353,7 @@ func (s *SummaryServiceImpl) buildShipyardSummaryWithDebug(ctx context.Context, 
 	}
 
 	for _, ship := range shipments {
-		if ship.ContainerType == "shipyard" {
+		if ship.Status == "queued" {
 			if ship.Status == "complete" {
 				addDebug(fmt.Sprintf("Hidden: %s (%s) - status is complete", ship.ID, ship.Title))
 				continue

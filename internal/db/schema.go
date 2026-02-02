@@ -97,28 +97,21 @@ CREATE TABLE IF NOT EXISTS workbenches (
 	FOREIGN KEY (repo_id) REFERENCES repos(id)
 );
 
--- Libraries (one per commission, auto-created)
-CREATE TABLE IF NOT EXISTS libraries (
-	id TEXT PRIMARY KEY,
-	commission_id TEXT NOT NULL UNIQUE,
-	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-	updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-	FOREIGN KEY (commission_id) REFERENCES commissions(id)
-);
-
--- Shipyards (one per commission, auto-created)
+-- Shipyards (one per factory, auto-created)
 CREATE TABLE IF NOT EXISTS shipyards (
 	id TEXT PRIMARY KEY,
-	commission_id TEXT NOT NULL UNIQUE,
+	factory_id TEXT NOT NULL UNIQUE,
 	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 	updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-	FOREIGN KEY (commission_id) REFERENCES commissions(id)
+	FOREIGN KEY (factory_id) REFERENCES factories(id)
 );
 
 -- Commissions (Tracks of work - what you're working on)
+-- Workshop → Commissions is 1:many (a workshop can have multiple commissions)
 CREATE TABLE IF NOT EXISTS commissions (
 	id TEXT PRIMARY KEY,
 	factory_id TEXT,
+	workshop_id TEXT,
 	title TEXT NOT NULL,
 	description TEXT,
 	status TEXT NOT NULL CHECK(status IN ('initial', 'active', 'paused', 'complete', 'archived', 'deleted')) DEFAULT 'initial',
@@ -127,7 +120,8 @@ CREATE TABLE IF NOT EXISTS commissions (
 	started_at DATETIME,
 	completed_at DATETIME,
 	updated_at DATETIME,
-	FOREIGN KEY (factory_id) REFERENCES factories(id)
+	FOREIGN KEY (factory_id) REFERENCES factories(id),
+	FOREIGN KEY (workshop_id) REFERENCES workshops(id)
 );
 
 -- Messages (Agent mail system - actor-to-actor)
@@ -142,18 +136,20 @@ CREATE TABLE IF NOT EXISTS messages (
 );
 
 -- Shipments (Work containers)
+-- Lifecycle: draft → queued → assigned → active → complete
+-- conclave_id = source/origin conclave, shipyard_id = when in queue, assigned_workbench_id = when assigned
 CREATE TABLE IF NOT EXISTS shipments (
 	id TEXT PRIMARY KEY,
 	commission_id TEXT NOT NULL,
 	title TEXT NOT NULL,
 	description TEXT,
-	status TEXT NOT NULL CHECK(status IN ('draft', 'launched', 'assigned', 'in_progress', 'blocked', 'complete', 'merged')) DEFAULT 'draft',
+	status TEXT NOT NULL CHECK(status IN ('draft', 'queued', 'assigned', 'active', 'complete')) DEFAULT 'draft',
 	assigned_workbench_id TEXT,
 	repo_id TEXT,
 	branch TEXT,
 	pinned INTEGER DEFAULT 0,
-	container_id TEXT,
-	container_type TEXT CHECK(container_type IN ('conclave', 'shipyard')),
+	conclave_id TEXT,
+	shipyard_id TEXT,
 	autorun INTEGER DEFAULT 0,
 	priority INTEGER,
 	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -161,7 +157,9 @@ CREATE TABLE IF NOT EXISTS shipments (
 	completed_at DATETIME,
 	FOREIGN KEY (commission_id) REFERENCES commissions(id),
 	FOREIGN KEY (assigned_workbench_id) REFERENCES workbenches(id),
-	FOREIGN KEY (repo_id) REFERENCES repos(id)
+	FOREIGN KEY (repo_id) REFERENCES repos(id),
+	FOREIGN KEY (conclave_id) REFERENCES conclaves(id),
+	FOREIGN KEY (shipyard_id) REFERENCES shipyards(id)
 );
 
 -- Tomes (Knowledge containers)
@@ -175,7 +173,7 @@ CREATE TABLE IF NOT EXISTS tomes (
 	assigned_workbench_id TEXT,
 	pinned INTEGER DEFAULT 0,
 	container_id TEXT,
-	container_type TEXT CHECK(container_type IN ('conclave', 'library')),
+	container_type TEXT CHECK(container_type IN ('conclave')),
 	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 	updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 	closed_at DATETIME,
@@ -339,6 +337,7 @@ CREATE INDEX IF NOT EXISTS idx_workbenches_workshop ON workbenches(workshop_id);
 CREATE INDEX IF NOT EXISTS idx_workbenches_status ON workbenches(status);
 CREATE INDEX IF NOT EXISTS idx_workbenches_repo ON workbenches(repo_id);
 CREATE INDEX IF NOT EXISTS idx_commissions_factory ON commissions(factory_id);
+CREATE INDEX IF NOT EXISTS idx_commissions_workshop ON commissions(workshop_id);
 CREATE INDEX IF NOT EXISTS idx_commissions_status ON commissions(status);
 CREATE INDEX IF NOT EXISTS idx_messages_recipient ON messages(recipient, read);
 CREATE INDEX IF NOT EXISTS idx_messages_sender ON messages(sender);
@@ -368,10 +367,10 @@ CREATE INDEX IF NOT EXISTS idx_conclaves_commission ON conclaves(commission_id);
 CREATE INDEX IF NOT EXISTS idx_conclaves_status ON conclaves(status);
 CREATE INDEX IF NOT EXISTS idx_notes_commission ON notes(commission_id);
 CREATE INDEX IF NOT EXISTS idx_notes_shipment ON notes(shipment_id);
-CREATE INDEX IF NOT EXISTS idx_libraries_commission ON libraries(commission_id);
-CREATE INDEX IF NOT EXISTS idx_shipyards_commission ON shipyards(commission_id);
+CREATE INDEX IF NOT EXISTS idx_shipyards_factory ON shipyards(factory_id);
 CREATE INDEX IF NOT EXISTS idx_tomes_container ON tomes(container_id);
-CREATE INDEX IF NOT EXISTS idx_shipments_container ON shipments(container_id);
+CREATE INDEX IF NOT EXISTS idx_shipments_conclave ON shipments(conclave_id);
+CREATE INDEX IF NOT EXISTS idx_shipments_shipyard ON shipments(shipyard_id);
 
 -- Receipts (1:1 with Task)
 CREATE TABLE IF NOT EXISTS receipts (

@@ -21,12 +21,14 @@ type SummaryRequest struct {
 
 // CommissionSummary represents the hierarchical summary of a commission.
 type CommissionSummary struct {
-	ID        string
-	Title     string
-	Conclaves []ConclaveSummary
-	Library   LibrarySummary
-	Shipyard  ShipyardSummary
-	DebugInfo *DebugInfo
+	ID                  string
+	Title               string
+	IsFocusedCommission bool // true if this is the focused commission
+	Conclaves           []ConclaveSummary
+	OrphanTomes         []TomeSummary // tomes without a container (at commission root)
+	Library             LibrarySummary
+	Shipyard            ShipyardSummary
+	DebugInfo           *DebugInfo
 }
 
 // DebugInfo contains debug messages about filtering decisions.

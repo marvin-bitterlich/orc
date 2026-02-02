@@ -535,9 +535,8 @@ You just declare the end state. Atlas figures out the migration path.
 
 ### Tomes
 - Use `--conclave CON-xxx` to create in a specific conclave
-- Use `--library` to create in the commission's Library
-- `orc tome park TOME-xxx` moves to Library
-- `orc tome unpark TOME-xxx --conclave CON-xxx` moves to Conclave
+- Tomes without a conclave exist at commission root (orphan tomes)
+- `orc tome unpark TOME-xxx --conclave CON-xxx` moves tome to a Conclave
 
 ### Shipments
 - Use `--conclave CON-xxx` to create in a specific conclave

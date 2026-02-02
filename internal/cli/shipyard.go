@@ -34,8 +34,8 @@ var shipyardPushCmd = &cobra.Command{
 			return fmt.Errorf("shipment not found: %w", err)
 		}
 
-		if shipment.ContainerType == "shipyard" {
-			fmt.Printf("%s is already in shipyard\n", shipmentID)
+		if shipment.Status == "queued" {
+			fmt.Printf("%s is already in shipyard queue\n", shipmentID)
 			return nil
 		}
 
@@ -68,11 +68,11 @@ var shipyardClaimCmd = &cobra.Command{
 			return fmt.Errorf("not in workbench context\nHint: Run from a workbench directory")
 		}
 
-		// Get commission context
-		commissionID := orccontext.GetContextCommissionID()
+		// Get factory context (shipyards are factory-scoped)
+		factoryID := orccontext.GetContextFactoryID()
 
 		// Get shipyard queue
-		entries, err := wire.ShipmentService().ListShipyardQueue(ctx, commissionID)
+		entries, err := wire.ShipmentService().ListShipyardQueue(ctx, factoryID)
 		if err != nil {
 			return fmt.Errorf("failed to list shipyard queue: %w", err)
 		}
@@ -172,30 +172,30 @@ Examples:
 }
 
 var shipyardListCmd = &cobra.Command{
-	Use:   "list [COMM-xxx]",
+	Use:   "list [FACT-xxx]",
 	Short: "List queued shipments",
 	Long:  "Show shipments in the shipyard queue, ordered by priority then creation time",
 	Args:  cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
 
-		// Get commission ID from arg or context
-		var commissionID string
+		// Get factory ID from arg or context (shipyards are factory-scoped)
+		var factoryID string
 		if len(args) > 0 {
-			commissionID = args[0]
+			factoryID = args[0]
 		} else {
-			commissionID = orccontext.GetContextCommissionID()
+			factoryID = orccontext.GetContextFactoryID()
 		}
 
 		// List shipyard queue
-		entries, err := wire.ShipmentService().ListShipyardQueue(ctx, commissionID)
+		entries, err := wire.ShipmentService().ListShipyardQueue(ctx, factoryID)
 		if err != nil {
 			return fmt.Errorf("failed to list shipyard queue: %w", err)
 		}
 
 		if len(entries) == 0 {
-			if commissionID != "" {
-				fmt.Printf("No shipments queued in shipyard for %s\n", commissionID)
+			if factoryID != "" {
+				fmt.Printf("No shipments queued in shipyard for %s\n", factoryID)
 			} else {
 				fmt.Println("No shipments queued in shipyard")
 			}
@@ -204,16 +204,16 @@ var shipyardListCmd = &cobra.Command{
 
 		// Get shipyard info for display
 		var yardID string
-		if commissionID != "" {
-			yard, err := wire.ShipyardRepository().GetByCommissionID(ctx, commissionID)
+		if factoryID != "" {
+			yard, err := wire.ShipyardRepository().GetByFactoryID(ctx, factoryID)
 			if err == nil {
 				yardID = yard.ID
 			}
 		}
 
 		// Header
-		if yardID != "" && commissionID != "" {
-			fmt.Printf("%s (%s) - %d shipment(s) queued\n\n", yardID, commissionID, len(entries))
+		if yardID != "" && factoryID != "" {
+			fmt.Printf("%s (%s) - %d shipment(s) queued\n\n", yardID, factoryID, len(entries))
 		} else {
 			fmt.Printf("Shipyard Queue - %d shipment(s) queued\n\n", len(entries))
 		}

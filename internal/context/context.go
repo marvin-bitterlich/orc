@@ -100,6 +100,47 @@ func getCommissionFromWorkbench(workbenchID string) string {
 	return conclave.CommissionID
 }
 
+// GetContextFactoryID returns the factory ID from workbench context.
+// For IMP contexts, looks up factory via workbench → workshop → factory.
+// Returns empty string if no context found.
+func GetContextFactoryID() string {
+	dir, err := os.Getwd()
+	if err != nil {
+		return ""
+	}
+
+	cfg, err := config.LoadConfig(dir)
+	if err != nil {
+		return ""
+	}
+
+	// For workbench place, look up factory through workbench chain
+	if config.IsWorkbench(cfg.PlaceID) {
+		return getFactoryFromWorkbench(cfg.PlaceID)
+	}
+
+	return ""
+}
+
+// getFactoryFromWorkbench looks up factory ID via workbench → workshop → factory chain.
+func getFactoryFromWorkbench(workbenchID string) string {
+	ctx := gocontext.Background()
+
+	// 1. Get workbench to find workshop
+	bench, err := wire.WorkbenchService().GetWorkbench(ctx, workbenchID)
+	if err != nil || bench.WorkshopID == "" {
+		return ""
+	}
+
+	// 2. Get workshop to find factory
+	workshop, err := wire.WorkshopService().GetWorkshop(ctx, bench.WorkshopID)
+	if err != nil {
+		return ""
+	}
+
+	return workshop.FactoryID
+}
+
 // WriteGatehouseContext creates a .orc/config.json file for a gatehouse (Goblin territory)
 func WriteGatehouseContext(gatehousePath, gatehouseID string) error {
 	cfg := &config.Config{

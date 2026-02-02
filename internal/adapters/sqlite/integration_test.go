@@ -550,15 +550,15 @@ func TestIntegration_EntityStatusWorkflows(t *testing.T) {
 		t.Errorf("expected operation status 'ready', got '%s'", op.Status)
 	}
 
-	// Transition to in_progress
-	_ = shipmentRepo.UpdateStatus(ctx, "SHIP-001", "in_progress", false)
+	// Transition to active/in_progress
+	_ = shipmentRepo.UpdateStatus(ctx, "SHIP-001", "active", false)
 	_ = taskRepo.UpdateStatus(ctx, "TASK-001", "in_progress", false, false)
 	_ = operationRepo.UpdateStatus(ctx, "OP-001", "in_progress", false)
 
-	// Verify in_progress
+	// Verify active/in_progress
 	s, _ = shipmentRepo.GetByID(ctx, "SHIP-001")
-	if s.Status != "in_progress" {
-		t.Errorf("expected shipment status 'in_progress', got '%s'", s.Status)
+	if s.Status != "active" {
+		t.Errorf("expected shipment status 'active', got '%s'", s.Status)
 	}
 
 	// Transition to complete with timestamp

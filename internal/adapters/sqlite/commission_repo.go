@@ -36,9 +36,14 @@ func (r *CommissionRepository) Create(ctx context.Context, commission *secondary
 		desc = sql.NullString{String: commission.Description, Valid: true}
 	}
 
+	var workshopID sql.NullString
+	if commission.WorkshopID != "" {
+		workshopID = sql.NullString{String: commission.WorkshopID, Valid: true}
+	}
+
 	_, err := r.db.ExecContext(ctx,
-		"INSERT INTO commissions (id, title, description, status) VALUES (?, ?, ?, ?)",
-		commission.ID, commission.Title, desc, commission.Status,
+		"INSERT INTO commissions (id, workshop_id, title, description, status) VALUES (?, ?, ?, ?, ?)",
+		commission.ID, workshopID, commission.Title, desc, commission.Status,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create commission: %w", err)
@@ -50,6 +55,7 @@ func (r *CommissionRepository) Create(ctx context.Context, commission *secondary
 // GetByID retrieves a commission by its ID.
 func (r *CommissionRepository) GetByID(ctx context.Context, id string) (*secondary.CommissionRecord, error) {
 	var (
+		workshopID  sql.NullString
 		desc        sql.NullString
 		pinned      bool
 		createdAt   time.Time
@@ -59,9 +65,9 @@ func (r *CommissionRepository) GetByID(ctx context.Context, id string) (*seconda
 
 	record := &secondary.CommissionRecord{}
 	err := r.db.QueryRowContext(ctx,
-		"SELECT id, title, description, status, pinned, created_at, updated_at, completed_at FROM commissions WHERE id = ?",
+		"SELECT id, workshop_id, title, description, status, pinned, created_at, updated_at, completed_at FROM commissions WHERE id = ?",
 		id,
-	).Scan(&record.ID, &record.Title, &desc, &record.Status, &pinned, &createdAt, &updatedAt, &completedAt)
+	).Scan(&record.ID, &workshopID, &record.Title, &desc, &record.Status, &pinned, &createdAt, &updatedAt, &completedAt)
 
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("commission %s not found", id)
@@ -70,6 +76,7 @@ func (r *CommissionRepository) GetByID(ctx context.Context, id string) (*seconda
 		return nil, fmt.Errorf("failed to get commission: %w", err)
 	}
 
+	record.WorkshopID = workshopID.String
 	record.Description = desc.String
 	record.Pinned = pinned
 	record.CreatedAt = createdAt.Format(time.RFC3339)
@@ -85,7 +92,7 @@ func (r *CommissionRepository) GetByID(ctx context.Context, id string) (*seconda
 
 // List retrieves commissions matching the given filters.
 func (r *CommissionRepository) List(ctx context.Context, filters secondary.CommissionFilters) ([]*secondary.CommissionRecord, error) {
-	query := "SELECT id, title, description, status, pinned, created_at, updated_at, completed_at FROM commissions"
+	query := "SELECT id, workshop_id, title, description, status, pinned, created_at, updated_at, completed_at FROM commissions"
 	args := []any{}
 
 	if filters.Status != "" {
@@ -109,6 +116,7 @@ func (r *CommissionRepository) List(ctx context.Context, filters secondary.Commi
 	var commissions []*secondary.CommissionRecord
 	for rows.Next() {
 		var (
+			workshopID  sql.NullString
 			desc        sql.NullString
 			pinned      bool
 			createdAt   time.Time
@@ -117,11 +125,12 @@ func (r *CommissionRepository) List(ctx context.Context, filters secondary.Commi
 		)
 
 		record := &secondary.CommissionRecord{}
-		err := rows.Scan(&record.ID, &record.Title, &desc, &record.Status, &pinned, &createdAt, &updatedAt, &completedAt)
+		err := rows.Scan(&record.ID, &workshopID, &record.Title, &desc, &record.Status, &pinned, &createdAt, &updatedAt, &completedAt)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan commission: %w", err)
 		}
 
+		record.WorkshopID = workshopID.String
 		record.Description = desc.String
 		record.Pinned = pinned
 		record.CreatedAt = createdAt.Format(time.RFC3339)
