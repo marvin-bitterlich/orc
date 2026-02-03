@@ -448,7 +448,7 @@ func formatFocusActors(actors []string, isMeFocused bool) string {
 	return fmt.Sprintf(" [focused by %s]", strings.Join(parts, ", "))
 }
 
-// renderSummary renders the commission with flat lists of shipments and tomes
+// renderSummary renders the commission with notes, shipments, and tomes in tree format
 func renderSummary(summary *primary.CommissionSummary, _ string, workshopFocus workshopFocusInfo) {
 	// Commission header with focused marker
 	focusedMarker := ""
@@ -457,104 +457,65 @@ func renderSummary(summary *primary.CommissionSummary, _ string, workshopFocus w
 	}
 	fmt.Printf("%s%s - %s\n", colorizeID(summary.ID), focusedMarker, summary.Title)
 
-	// Render commission-level notes (always shown)
-	if len(summary.Notes) > 0 {
-		fmt.Println("│")
-		fmt.Println("│ 📝 Commission Notes:")
-		for _, note := range summary.Notes {
-			pinnedMark := ""
-			if note.Pinned {
-				pinnedMark = " 📌"
-			}
-			typeMarker := ""
-			if note.Type != "" {
-				typeMarker = color.New(color.FgYellow).Sprintf(" [%s]", note.Type)
-			}
-			fmt.Printf("│    %s%s%s - %s\n", colorizeID(note.ID), typeMarker, pinnedMark, note.Title)
+	// Split shipments into focused and non-focused groups
+	var focusedShips, otherShips []primary.ShipmentSummary
+	for _, ship := range summary.Shipments {
+		if ship.IsFocused || len(workshopFocus.containerToWorkbench[ship.ID]) > 0 {
+			focusedShips = append(focusedShips, ship)
+		} else {
+			otherShips = append(otherShips, ship)
 		}
+	}
+
+	// Calculate total items for tree rendering
+	totalItems := len(summary.Notes) + len(focusedShips) + len(otherShips) + len(summary.Tomes)
+	if totalItems == 0 {
+		return
 	}
 
 	fmt.Println("│")
-
-	totalItems := len(summary.Shipments) + len(summary.Tomes)
 	itemIdx := 0
 
-	// Render shipments
-	for _, ship := range summary.Shipments {
-		isLast := itemIdx == totalItems-1
+	// 1. Render commission-level notes as tree items
+	for _, note := range summary.Notes {
+		isLast := itemIdx == totalItems-1 && len(focusedShips) == 0 && len(otherShips) == 0 && len(summary.Tomes) == 0
 		prefix := "├── "
-		taskPrefix := "│   "
 		if isLast {
 			prefix = "└── "
-			taskPrefix = "    "
 		}
-
-		benchMarker := ""
-		if ship.BenchID != "" {
-			if ship.BenchName != "" {
-				benchMarker = color.New(color.FgCyan).Sprintf(" [assigned to %s@%s]", ship.BenchName, ship.BenchID)
-			} else {
-				benchMarker = color.New(color.FgCyan).Sprintf(" [assigned to %s]", ship.BenchID)
-			}
-		}
-		statusBadge := ""
-		if ship.Status != "" && ship.Status != "complete" {
-			statusBadge = " " + colorizeShipmentStatus(ship.Status)
-		}
-		taskInfo := fmt.Sprintf(" (%d/%d done", ship.TasksDone, ship.TasksTotal)
-		if ship.NoteCount > 0 {
-			taskInfo += fmt.Sprintf(", %s", pluralize(ship.NoteCount, "note", "notes"))
-		}
-		taskInfo += ")"
 		pinnedMark := ""
-		if ship.Pinned {
-			pinnedMark = " *"
+		if note.Pinned {
+			pinnedMark = " 📌"
 		}
-		focusMark := formatFocusActors(workshopFocus.containerToWorkbench[ship.ID], ship.IsFocused)
-
-		fmt.Printf("%s%s%s%s%s%s - %s%s\n", prefix, colorizeID(ship.ID), statusBadge, benchMarker, focusMark, pinnedMark, ship.Title, taskInfo)
-
-		// Expand children for focused shipment (notes first, then tasks)
-		if ship.IsFocused {
-			totalChildren := len(ship.Notes) + len(ship.Tasks)
-			childIdx := 0
-
-			// Render notes first (context)
-			for _, note := range ship.Notes {
-				isLastChild := childIdx == totalChildren-1
-				nPrefix := taskPrefix + "├── "
-				if isLastChild {
-					nPrefix = taskPrefix + "└── "
-				}
-				typeMarker := color.New(color.FgYellow).Sprintf("[%s] ", note.Type)
-				fmt.Printf("%s%s %s- %s\n", nPrefix, colorizeID(note.ID), typeMarker, note.Title)
-				childIdx++
-			}
-
-			// Render tasks second (work)
-			for _, task := range ship.Tasks {
-				isLastChild := childIdx == totalChildren-1
-				tPrefix := taskPrefix + "├── "
-				taskChildPrefix := taskPrefix + "│   "
-				if isLastChild {
-					tPrefix = taskPrefix + "└── "
-					taskChildPrefix = taskPrefix + "    "
-				}
-				statusMark := ""
-				if task.Status != "" && task.Status != "ready" {
-					statusMark = colorizeStatus(task.Status) + " - "
-				}
-				fmt.Printf("%s%s - %s%s\n", tPrefix, colorizeID(task.ID), statusMark, task.Title)
-				// Render task children (plans, approvals, escalations, receipts)
-				renderTaskChildren(task, taskChildPrefix)
-				childIdx++
-			}
+		typeMarker := ""
+		if note.Type != "" {
+			typeMarker = color.New(color.FgYellow).Sprintf(" [%s]", note.Type)
 		}
-
+		fmt.Printf("%s%s%s%s - %s\n", prefix, colorizeID(note.ID), typeMarker, pinnedMark, note.Title)
 		itemIdx++
 	}
 
-	// Render tomes
+	// Visual gap after notes if there are shipments or tomes following
+	if len(summary.Notes) > 0 && (len(focusedShips) > 0 || len(otherShips) > 0 || len(summary.Tomes) > 0) {
+		fmt.Println("│")
+	}
+
+	// 2. Render focused shipments
+	for _, ship := range focusedShips {
+		renderShipment(ship, workshopFocus, &itemIdx, totalItems)
+	}
+
+	// Visual gap between focused and non-focused shipments
+	if len(focusedShips) > 0 && (len(otherShips) > 0 || len(summary.Tomes) > 0) {
+		fmt.Println("│")
+	}
+
+	// 3. Render non-focused shipments
+	for _, ship := range otherShips {
+		renderShipment(ship, workshopFocus, &itemIdx, totalItems)
+	}
+
+	// 4. Render tomes
 	for _, tome := range summary.Tomes {
 		isLast := itemIdx == totalItems-1
 		tomePrefix := "├── "
@@ -594,6 +555,81 @@ func renderSummary(summary *primary.CommissionSummary, _ string, workshopFocus w
 
 		itemIdx++
 	}
+}
+
+// renderShipment renders a single shipment with its children if focused
+func renderShipment(ship primary.ShipmentSummary, workshopFocus workshopFocusInfo, itemIdx *int, totalItems int) {
+	isLast := *itemIdx == totalItems-1
+	prefix := "├── "
+	taskPrefix := "│   "
+	if isLast {
+		prefix = "└── "
+		taskPrefix = "    "
+	}
+
+	benchMarker := ""
+	if ship.BenchID != "" {
+		if ship.BenchName != "" {
+			benchMarker = color.New(color.FgCyan).Sprintf(" [assigned to %s@%s]", ship.BenchName, ship.BenchID)
+		} else {
+			benchMarker = color.New(color.FgCyan).Sprintf(" [assigned to %s]", ship.BenchID)
+		}
+	}
+	statusBadge := ""
+	if ship.Status != "" && ship.Status != "complete" {
+		statusBadge = " " + colorizeShipmentStatus(ship.Status)
+	}
+	taskInfo := fmt.Sprintf(" (%d/%d done", ship.TasksDone, ship.TasksTotal)
+	if ship.NoteCount > 0 {
+		taskInfo += fmt.Sprintf(", %s", pluralize(ship.NoteCount, "note", "notes"))
+	}
+	taskInfo += ")"
+	pinnedMark := ""
+	if ship.Pinned {
+		pinnedMark = " *"
+	}
+	focusMark := formatFocusActors(workshopFocus.containerToWorkbench[ship.ID], ship.IsFocused)
+
+	fmt.Printf("%s%s%s%s%s%s - %s%s\n", prefix, colorizeID(ship.ID), statusBadge, benchMarker, focusMark, pinnedMark, ship.Title, taskInfo)
+
+	// Expand children for focused shipment (notes first, then tasks)
+	if ship.IsFocused {
+		totalChildren := len(ship.Notes) + len(ship.Tasks)
+		childIdx := 0
+
+		// Render notes first (context)
+		for _, note := range ship.Notes {
+			isLastChild := childIdx == totalChildren-1
+			nPrefix := taskPrefix + "├── "
+			if isLastChild {
+				nPrefix = taskPrefix + "└── "
+			}
+			typeMarker := color.New(color.FgYellow).Sprintf("[%s] ", note.Type)
+			fmt.Printf("%s%s %s- %s\n", nPrefix, colorizeID(note.ID), typeMarker, note.Title)
+			childIdx++
+		}
+
+		// Render tasks second (work)
+		for _, task := range ship.Tasks {
+			isLastChild := childIdx == totalChildren-1
+			tPrefix := taskPrefix + "├── "
+			taskChildPrefix := taskPrefix + "│   "
+			if isLastChild {
+				tPrefix = taskPrefix + "└── "
+				taskChildPrefix = taskPrefix + "    "
+			}
+			statusMark := ""
+			if task.Status != "" && task.Status != "ready" {
+				statusMark = colorizeStatus(task.Status) + " - "
+			}
+			fmt.Printf("%s%s - %s%s\n", tPrefix, colorizeID(task.ID), statusMark, task.Title)
+			// Render task children (plans, approvals, escalations, receipts)
+			renderTaskChildren(task, taskChildPrefix)
+			childIdx++
+		}
+	}
+
+	*itemIdx++
 }
 
 // pluralize returns "N singular" or "N plural" based on count
