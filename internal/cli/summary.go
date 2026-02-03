@@ -237,46 +237,91 @@ func renderHeader(role, workbenchID, workshopID, gatehouseID, focusID, commissio
 	// Show workshop context (for both Goblin and IMP)
 	if workshopID != "" {
 		fmt.Printf("Workshop %s", workshopID)
-		if gatehouseID != "" {
-			fmt.Printf(" (Gatehouse: %s)", gatehouseID)
-		}
 		if config.IsGoblinRole(role) && commissionID != "" {
 			fmt.Printf(" - Active: %s", commissionID)
 		}
 		fmt.Println()
 
-		// Show workbenches in workshop
-		renderWorkshopBenches(workshopID, workbenchID)
+		// Show gatehouse and workbenches in workshop with tree format
+		renderWorkshopBenches(workshopID, workbenchID, gatehouseID)
 	}
 
 	// IMP-specific: show current workbench and focus
 	if !config.IsGoblinRole(role) && workbenchID != "" {
 		if focusID != "" {
-			fmt.Printf("Focus: %s\n", focusID)
+			fmt.Printf("\nFocus: %s\n", focusID)
 		}
 	}
 
 	fmt.Println()
 }
 
-// renderWorkshopBenches displays workbenches in the workshop
-func renderWorkshopBenches(workshopID, currentWorkbenchID string) {
+// renderWorkshopBenches displays workbenches in the workshop with tree formatting
+func renderWorkshopBenches(workshopID, currentWorkbenchID, gatehouseID string) {
 	ctx := context.Background()
 
-	workbenches, err := wire.WorkbenchService().ListWorkbenches(ctx, primary.WorkbenchFilters{
+	allWorkbenches, err := wire.WorkbenchService().ListWorkbenches(ctx, primary.WorkbenchFilters{
 		WorkshopID: workshopID,
 	})
-	if err != nil || len(workbenches) == 0 {
+	if err != nil {
 		return
 	}
 
-	fmt.Println("Workbenches:")
-	for _, wb := range workbenches {
-		marker := ""
-		if wb.ID == currentWorkbenchID {
-			marker = color.New(color.FgHiMagenta).Sprint(" ←")
+	// Filter to active workbenches only
+	var workbenches []*primary.Workbench
+	for _, wb := range allWorkbenches {
+		if wb.Status == "active" {
+			workbenches = append(workbenches, wb)
 		}
-		fmt.Printf("  - %s (%s)%s\n", wb.ID, wb.Name, marker)
+	}
+
+	// Count total tree items: gatehouse (if any) + workbenches
+	hasGatehouse := gatehouseID != ""
+	totalItems := len(workbenches)
+	if hasGatehouse {
+		totalItems++
+	}
+
+	if totalItems == 0 {
+		return
+	}
+
+	fmt.Println("│")
+	itemIdx := 0
+
+	// Render gatehouse first
+	if hasGatehouse {
+		isLast := itemIdx == totalItems-1
+		prefix := "├── "
+		if isLast {
+			prefix = "└── "
+		}
+		fmt.Printf("%s%s (Gatehouse)\n", prefix, gatehouseID)
+		itemIdx++
+	}
+
+	// Render workbenches
+	for _, wb := range workbenches {
+		isLast := itemIdx == totalItems-1
+		prefix := "├── "
+		if isLast {
+			prefix = "└── "
+		}
+
+		// Build workbench line with optional focus indicator
+		line := fmt.Sprintf("%s (%s)", wb.ID, wb.Name)
+		if wb.ID == currentWorkbenchID {
+			line = color.New(color.FgHiMagenta).Sprint(line)
+		}
+
+		// Add focused shipment inline if workbench has one
+		focusedID, _ := wire.WorkbenchService().GetFocusedID(ctx, wb.ID)
+		if focusedID != "" {
+			line += color.New(color.FgCyan).Sprintf(" → %s", focusedID)
+		}
+
+		fmt.Printf("%s%s\n", prefix, line)
+		itemIdx++
 	}
 }
 
@@ -315,15 +360,19 @@ func buildWorkshopFocusMap(ctx context.Context, workshopID, currentWorkbenchID, 
 
 	// Note: Goblin's focused_conclave_id is deprecated - conclaves removed
 
-	// Get each IMP's focus
-	workbenches, err := wire.WorkbenchService().ListWorkbenches(ctx, primary.WorkbenchFilters{
+	// Get each IMP's focus (only active workbenches)
+	allWorkbenches, err := wire.WorkbenchService().ListWorkbenches(ctx, primary.WorkbenchFilters{
 		WorkshopID: workshopID,
 	})
 	if err != nil {
 		return info
 	}
 
-	for _, wb := range workbenches {
+	for _, wb := range allWorkbenches {
+		// Skip archived workbenches
+		if wb.Status != "active" {
+			continue
+		}
 		// Skip our own workbench - handled separately for [FOCUSED] marker
 		if wb.ID == currentWorkbenchID {
 			continue
