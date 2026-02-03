@@ -22,15 +22,12 @@ Manual re-propulsion. Check current state and output the appropriate next action
    | State | Next Action |
    |-------|-------------|
    | In-progress task, no plan | "Run /imp-plan-create" |
-   | In-progress task, draft plan | "Run /imp-plan-submit" |
-   | In-progress task, submitted plan | "Plan awaiting review. Run /imp-plan-submit to re-review or /imp-escalate if concerns." |
-   | In-progress task, approved plan | "Plan approved. Implement it, then run /imp-rec" |
-   | In-progress task, escalated plan | "Waiting on ESC-xxx. El Presidente should run /imp-unblock." |
-   | Pending escalation (no task) | "Waiting on ESC-xxx resolution." |
-   | Ready tasks available | Claim next: `orc task claim`, then "Run /imp-plan-create" |
-   | No tasks (shipment complete) | "Shipment complete! All tasks done." |
-   | No tasks (blocked) | "Waiting on blocked tasks. Nothing to do." |
-   | No focused shipment | "No shipment focused. Run `orc focus SHIP-xxx`." |
+   | In-progress task, plan exists | "Implement it, then run /imp-rec" |
+   | Pending escalation | "Waiting on ESC-xxx. Resolve with El Presidente." |
+   | Ready tasks available | Claim next: `orc task claim`, then /imp-plan-create |
+   | No tasks (shipment complete) | "Shipment complete!" |
+   | No tasks (blocked) | "Waiting on blocked tasks." |
+   | No focused shipment | "Run `orc focus SHIP-xxx`" |
 
 3. **Output**
    State the current state and the recommended next action clearly.

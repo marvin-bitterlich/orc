@@ -72,7 +72,7 @@ Research the codebase and create an implementation plan for the current in_progr
    ```
 
 8. **Output**
-   "Plan PLAN-xxx created for TASK-xxx. Review the plan and run /imp-plan-submit when ready."
+   "Plan PLAN-xxx created for TASK-xxx. Run /imp-plan-submit when ready."
 
 ## Guidelines
 
@@ -81,4 +81,3 @@ Research the codebase and create an implementation plan for the current in_progr
 - Include specific verification steps
 - Don't over-engineer or add scope creep
 - **Follow AGENTS.md checklists** for the change type
-- Plans that skip documented steps will be rejected at review
