@@ -149,38 +149,19 @@ func workshopShowCmd() *cobra.Command {
 }
 
 func workshopDeleteCmd() *cobra.Command {
-	var force bool
-
 	cmd := &cobra.Command{
 		Use:   "delete [workshop-id]",
-		Short: "Delete a workshop",
-		Long: `Delete a workshop from the database.
+		Short: "Delete a workshop (DEPRECATED)",
+		Long: `DEPRECATED: Use archive + infra apply instead.
 
-WARNING: This is a destructive operation. Workshops with workbenches
-require the --force flag.
-
-Examples:
-  orc workshop delete WORK-001
-  orc workshop delete WORK-001 --force`,
+To remove a workshop:
+  orc workshop archive WORK-xxx
+  orc infra apply WORK-xxx`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := context.Background()
-			workshopID := args[0]
-
-			err := wire.WorkshopService().DeleteWorkshop(ctx, primary.DeleteWorkshopRequest{
-				WorkshopID: workshopID,
-				Force:      force,
-			})
-			if err != nil {
-				return err
-			}
-
-			fmt.Printf("✓ Workshop %s deleted\n", workshopID)
-			return nil
+			return fmt.Errorf("orc workshop delete is deprecated. Use:\n  orc workshop archive %s\n  orc infra apply %s", args[0], args[0])
 		},
 	}
-
-	cmd.Flags().BoolVarP(&force, "force", "f", false, "Force delete even with workbenches")
 
 	return cmd
 }

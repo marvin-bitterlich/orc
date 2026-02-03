@@ -21,7 +21,6 @@ type WorkbenchServiceImpl struct {
 	agentProvider secondary.AgentIdentityProvider
 	executor      EffectExecutor
 	gitService    *GitService
-	infraService  primary.InfraService // Optional: for pre-delete cleanup
 }
 
 // NewWorkbenchService creates a new WorkbenchService with injected dependencies.
@@ -38,12 +37,6 @@ func NewWorkbenchService(
 		executor:      executor,
 		gitService:    NewGitService(),
 	}
-}
-
-// SetInfraService sets the InfraService for pre-delete cleanup.
-// This is a setter to avoid circular dependency during wire initialization.
-func (s *WorkbenchServiceImpl) SetInfraService(infraService primary.InfraService) {
-	s.infraService = infraService
 }
 
 // CreateWorkbench creates a new workbench.
@@ -171,8 +164,8 @@ func (s *WorkbenchServiceImpl) RenameWorkbench(ctx context.Context, req primary.
 
 // DeleteWorkbench deletes a workbench.
 func (s *WorkbenchServiceImpl) DeleteWorkbench(ctx context.Context, req primary.DeleteWorkbenchRequest) error {
-	// 1. Fetch workbench
-	wb, err := s.workbenchRepo.GetByID(ctx, req.WorkbenchID)
+	// 1. Check workbench exists
+	_, err := s.workbenchRepo.GetByID(ctx, req.WorkbenchID)
 	if err != nil {
 		return fmt.Errorf("workbench not found: %w", err)
 	}
@@ -190,18 +183,7 @@ func (s *WorkbenchServiceImpl) DeleteWorkbench(ctx context.Context, req primary.
 		return result.Error()
 	}
 
-	// 4. Cleanup infrastructure BEFORE DB deletion
-	if s.infraService != nil {
-		if err := s.infraService.CleanupWorkbench(ctx, primary.CleanupWorkbenchRequest{
-			WorkbenchID:  req.WorkbenchID,
-			WorktreePath: wb.WorktreePath,
-			Force:        req.Force,
-		}); err != nil {
-			return fmt.Errorf("failed to cleanup workbench infrastructure: %w", err)
-		}
-	}
-
-	// 5. Delete from database
+	// 4. Delete from database (infrastructure cleanup handled by orc infra apply)
 	return s.workbenchRepo.Delete(ctx, req.WorkbenchID)
 }
 

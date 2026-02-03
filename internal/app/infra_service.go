@@ -59,6 +59,7 @@ func (s *InfraServiceImpl) PlanInfra(ctx context.Context, req primary.InfraPlanR
 	if err != nil {
 		return nil, fmt.Errorf("workshop not found: %w", err)
 	}
+	workshopArchived := workshop.Status == "archived"
 
 	// 2. Get factory
 	factory, err := s.factoryRepo.GetByID(ctx, workshop.FactoryID)
@@ -81,10 +82,13 @@ func (s *InfraServiceImpl) PlanInfra(ctx context.Context, req primary.InfraPlanR
 
 	// 5. Get workbenches and check each one's state
 	allWorkbenches, _ := s.workbenchRepo.List(ctx, req.WorkshopID)
-	// Filter out archived workbenches - they should be treated as orphans to delete
+	// Separate active vs archived workbenches
 	var workbenches []*secondary.WorkbenchRecord
+	var archivedWorkbenches []*secondary.WorkbenchRecord
 	for _, wb := range allWorkbenches {
-		if wb.Status != "archived" {
+		if wb.Status == "archived" {
+			archivedWorkbenches = append(archivedWorkbenches, wb)
+		} else {
 			workbenches = append(workbenches, wb)
 		}
 	}
@@ -107,8 +111,25 @@ func (s *InfraServiceImpl) PlanInfra(ctx context.Context, req primary.InfraPlanR
 		})
 	}
 
-	// 6. Scan for orphaned configs on disk
+	// 6. Scan for orphaned configs on disk + add archived workbenches as orphans
 	orphanWbs, orphanGhs := s.scanForOrphans(ctx, workbenches, gatehouse)
+	// Archived workbenches are also orphans (should be deleted)
+	for _, wb := range archivedWorkbenches {
+		orphanWbs = append(orphanWbs, coreinfra.WorkbenchPlanInput{
+			ID:             wb.ID,
+			Name:           wb.Name,
+			WorktreePath:   wb.WorktreePath,
+			WorktreeExists: s.dirExists(wb.WorktreePath),
+			ConfigExists:   s.fileExists(filepath.Join(wb.WorktreePath, ".orc", "config.json")),
+		})
+	}
+	// Archived workshop's gatehouse is also an orphan
+	if workshopArchived && gatehousePathExists {
+		orphanGhs = append(orphanGhs, coreinfra.GatehousePlanInput{
+			PlaceID: gatehouseID,
+			Path:    gatehousePath,
+		})
+	}
 
 	// 7. Fetch TMux session state
 	tmuxSessionName := ""
@@ -122,12 +143,19 @@ func (s *InfraServiceImpl) PlanInfra(ctx context.Context, req primary.InfraPlanR
 		if tmuxSessionExists {
 			tmuxExistingWindows, _ = s.tmuxAdapter.ListWindows(ctx, tmuxSessionName)
 		}
-		// Build expected windows from workbenches
-		for _, wb := range workbenches {
+		// Build expected windows - first "orc" (goblin), then workbenches
+		// (skip if workshop is archived - entire session should be deleted)
+		if !workshopArchived {
 			tmuxExpectedWindows = append(tmuxExpectedWindows, coreinfra.TMuxWindowInput{
-				Name: wb.Name,
-				Path: wb.WorktreePath,
+				Name: "orc",
+				Path: gatehousePath,
 			})
+			for _, wb := range workbenches {
+				tmuxExpectedWindows = append(tmuxExpectedWindows, coreinfra.TMuxWindowInput{
+					Name: wb.Name,
+					Path: wb.WorktreePath,
+				})
+			}
 		}
 	}
 

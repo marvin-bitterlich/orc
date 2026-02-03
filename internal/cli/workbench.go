@@ -281,51 +281,19 @@ Examples:
 }
 
 func workbenchDeleteCmd() *cobra.Command {
-	var force bool
-
 	cmd := &cobra.Command{
 		Use:   "delete [workbench-id]",
-		Short: "Delete a workbench from the database",
-		Long: `Delete a workbench from the database.
+		Short: "Delete a workbench (DEPRECATED)",
+		Long: `DEPRECATED: Use archive + infra apply instead.
 
-WARNING: This removes the workbench record from the database only.
-The filesystem worktree remains in place as an orphan.
-
-To clean up the filesystem after deleting workbenches:
-  orc infra apply WORK-xxx    # Detects and deletes orphaned worktrees
-
-Examples:
-  orc workbench delete BENCH-001
-  orc workbench delete BENCH-001 --force`,
+To remove a workbench:
+  orc workbench archive BENCH-xxx
+  orc infra apply WORK-xxx`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := context.Background()
-			workbenchID := args[0]
-
-			// Get workbench path before deleting
-			workbench, err := wire.WorkbenchService().GetWorkbench(ctx, workbenchID)
-			if err != nil {
-				return err
-			}
-			workbenchPath := workbench.Path
-
-			// Delete from database
-			err = wire.WorkbenchService().DeleteWorkbench(ctx, primary.DeleteWorkbenchRequest{
-				WorkbenchID: workbenchID,
-				Force:       force,
-			})
-			if err != nil {
-				return err
-			}
-
-			fmt.Printf("✓ Workbench %s deleted\n", workbenchID)
-			fmt.Printf("  Worktree cleaned up: %s\n", workbenchPath)
-
-			return nil
+			return fmt.Errorf("orc workbench delete is deprecated. Use:\n  orc workbench archive %s\n  orc infra apply <workshop-id>", args[0])
 		},
 	}
-
-	cmd.Flags().BoolVarP(&force, "force", "f", false, "Force delete even with errors")
 
 	return cmd
 }

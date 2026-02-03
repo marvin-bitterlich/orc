@@ -25,7 +25,6 @@ type WorkshopServiceImpl struct {
 	tmuxAdapter      secondary.TMuxAdapter
 	workspaceAdapter secondary.WorkspaceAdapter
 	executor         EffectExecutor
-	infraService     primary.InfraService // Optional: for pre-delete cleanup
 }
 
 // NewWorkshopService creates a new WorkshopService with injected dependencies.
@@ -49,12 +48,6 @@ func NewWorkshopService(
 		workspaceAdapter: workspaceAdapter,
 		executor:         executor,
 	}
-}
-
-// SetInfraService sets the InfraService for pre-delete cleanup.
-// This is a setter to avoid circular dependency during wire initialization.
-func (s *WorkshopServiceImpl) SetInfraService(infraService primary.InfraService) {
-	s.infraService = infraService
 }
 
 // CreateWorkshop creates a new workshop in a factory.
@@ -192,14 +185,7 @@ func (s *WorkshopServiceImpl) DeleteWorkshop(ctx context.Context, req primary.De
 		return result.Error()
 	}
 
-	// 4. Cleanup infrastructure BEFORE DB deletion
-	if s.infraService != nil {
-		if err := s.infraService.CleanupWorkshop(ctx, primary.CleanupWorkshopRequest(req)); err != nil {
-			return fmt.Errorf("failed to cleanup workshop infrastructure: %w", err)
-		}
-	}
-
-	// 5. Delete
+	// 4. Delete from database (infrastructure cleanup handled by orc infra apply)
 	return s.workshopRepo.Delete(ctx, req.WorkshopID)
 }
 

@@ -153,6 +153,27 @@ func displayInfraPlan(plan *primary.InfraPlan) {
 		}
 		fmt.Println()
 	}
+
+	// TMux Session
+	if plan.TMuxSession != nil {
+		fmt.Println("TMux Session:")
+		fmt.Printf("  %s session: %s\n", infraStatusColor(plan.TMuxSession.Status), plan.TMuxSession.SessionName)
+
+		if len(plan.TMuxSession.Windows) > 0 {
+			fmt.Println("  Windows:")
+			for _, w := range plan.TMuxSession.Windows {
+				fmt.Printf("    %s %s\n", infraStatusColor(w.Status), w.Name)
+			}
+		}
+
+		if len(plan.TMuxSession.OrphanWindows) > 0 {
+			fmt.Println("  Orphan Windows:")
+			for _, w := range plan.TMuxSession.OrphanWindows {
+				fmt.Printf("    %s %s\n", infraStatusColor(w.Status), w.Name)
+			}
+		}
+		fmt.Println()
+	}
 }
 
 // infraStatusColor returns a color-formatted status string for infra display.
