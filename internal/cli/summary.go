@@ -314,15 +314,28 @@ func renderWorkshopBenches(workshopID, currentWorkbenchID, gatehouseID string) {
 			line = color.New(color.FgHiMagenta).Sprint(line)
 		}
 
-		// Add focused shipment inline if workbench has one
+		// Add focused shipment inline if workbench has one (skip stale focus)
 		focusedID, _ := wire.WorkbenchService().GetFocusedID(ctx, wb.ID)
-		if focusedID != "" {
+		if focusedID != "" && !isStaleFocus(ctx, focusedID) {
 			line += color.New(color.FgCyan).Sprintf(" → %s", focusedID)
 		}
 
 		fmt.Printf("%s%s\n", prefix, line)
 		itemIdx++
 	}
+}
+
+// isStaleFocus returns true if the focus points to a completed/deployed shipment
+func isStaleFocus(ctx context.Context, focusedID string) bool {
+	if !strings.HasPrefix(focusedID, "SHIP-") {
+		return false // Only check shipments
+	}
+	ship, err := wire.ShipmentService().GetShipment(ctx, focusedID)
+	if err != nil {
+		return true // Can't find it, consider stale
+	}
+	// Terminal states: complete, deployed, archived
+	return ship.Status == "complete" || ship.Status == "deployed" || ship.Status == "archived"
 }
 
 // workshopFocusInfo tracks what each workbench in the workshop has focused
@@ -379,17 +392,17 @@ func buildWorkshopFocusMap(ctx context.Context, workshopID, currentWorkbenchID, 
 		}
 
 		focusedID, err := wire.WorkbenchService().GetFocusedID(ctx, wb.ID)
-		if err != nil || focusedID == "" {
+		if err != nil || focusedID == "" || isStaleFocus(ctx, focusedID) {
 			continue
 		}
 
 		info.containerToWorkbench[focusedID] = append(info.containerToWorkbench[focusedID], fmt.Sprintf("%s@%s", wb.Name, wb.ID))
 	}
 
-	// Get Goblin's focus (visible to all IMPs)
+	// Get Goblin's focus (visible to all IMPs, skip stale focus)
 	if gatehouseID != "" {
 		gh, err := wire.GatehouseService().GetGatehouse(ctx, gatehouseID)
-		if err == nil && gh.FocusedID != "" {
+		if err == nil && gh.FocusedID != "" && !isStaleFocus(ctx, gh.FocusedID) {
 			info.containerToWorkbench[gh.FocusedID] = append(info.containerToWorkbench[gh.FocusedID], "Goblin")
 		}
 	}
