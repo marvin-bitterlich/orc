@@ -53,6 +53,10 @@ type ShipmentService interface {
 	// UpdateStatus sets a shipment's status directly (used for auto-transitions).
 	UpdateStatus(ctx context.Context, shipmentID, status string) error
 
+	// SetStatus sets a shipment's status with escape hatch protection.
+	// If force is true, allows backwards transitions.
+	SetStatus(ctx context.Context, shipmentID, status string, force bool) error
+
 	// TriggerAutoTransition evaluates and applies auto-transition for a shipment.
 	// Returns the new status if a transition occurred, empty string otherwise.
 	TriggerAutoTransition(ctx context.Context, shipmentID, triggerEvent string) (string, error)

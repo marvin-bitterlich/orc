@@ -965,12 +965,44 @@ func TestDeleteTask_Success(t *testing.T) {
 		Status:       "ready",
 	}
 
-	err := service.DeleteTask(ctx, "TASK-001")
+	err := service.DeleteTask(ctx, "TASK-001", true) // force=true required
 
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
 	if _, exists := taskRepo.tasks["TASK-001"]; exists {
 		t.Error("expected task to be deleted")
+	}
+}
+
+func TestDeleteTask_RequiresForce(t *testing.T) {
+	service, taskRepo, _ := newTestTaskService()
+	ctx := context.Background()
+
+	taskRepo.tasks["TASK-001"] = &secondary.TaskRecord{
+		ID:           "TASK-001",
+		CommissionID: "COMM-001",
+		Title:        "Test Task",
+		Status:       "ready",
+	}
+
+	err := service.DeleteTask(ctx, "TASK-001", false) // force=false should fail
+
+	if err == nil {
+		t.Fatal("expected error when force=false")
+	}
+	if _, exists := taskRepo.tasks["TASK-001"]; !exists {
+		t.Error("task should not have been deleted")
+	}
+}
+
+func TestDeleteTask_NotFound(t *testing.T) {
+	service, _, _ := newTestTaskService()
+	ctx := context.Background()
+
+	err := service.DeleteTask(ctx, "TASK-999", true)
+
+	if err == nil {
+		t.Fatal("expected error for non-existent task")
 	}
 }

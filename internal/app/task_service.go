@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/example/orc/internal/core/shipment"
+	"github.com/example/orc/internal/core/task"
 	"github.com/example/orc/internal/ports/primary"
 	"github.com/example/orc/internal/ports/secondary"
 )
@@ -278,8 +279,24 @@ func (s *TaskServiceImpl) GetTasksByWorkbench(ctx context.Context, workbenchID s
 	return tasks, nil
 }
 
-// DeleteTask deletes a task.
-func (s *TaskServiceImpl) DeleteTask(ctx context.Context, taskID string) error {
+// DeleteTask deletes a task and its children (plans, receipts, approvals, escalations).
+// Requires force=true as this is an escape hatch operation.
+func (s *TaskServiceImpl) DeleteTask(ctx context.Context, taskID string, force bool) error {
+	// Check if task exists
+	_, err := s.taskRepo.GetByID(ctx, taskID)
+	taskExists := err == nil
+
+	// Guard check
+	guardCtx := task.DeleteTaskContext{
+		TaskID:     taskID,
+		TaskExists: taskExists,
+		Force:      force,
+	}
+	if result := task.CanDeleteTask(guardCtx); !result.Allowed {
+		return result.Error()
+	}
+
+	// Delete the task (cascade handled by database foreign key constraints)
 	return s.taskRepo.Delete(ctx, taskID)
 }
 

@@ -197,6 +197,74 @@ func GetAutoTransitionStatus(ctx AutoTransitionContext) string {
 	return ""
 }
 
+// OverrideStatusContext provides context for status override guards.
+type OverrideStatusContext struct {
+	ShipmentID    string
+	CurrentStatus string
+	NewStatus     string
+	Force         bool
+}
+
+// statusOrder defines the progression order for shipment statuses.
+// Lower index = earlier in lifecycle.
+var statusOrder = map[string]int{
+	"draft":             0,
+	"exploring":         1,
+	"synthesizing":      2,
+	"specced":           3,
+	"planned":           4,
+	"tasked":            5,
+	"ready_for_imp":     6,
+	"implementing":      7,
+	"auto_implementing": 8,
+	"implemented":       9,
+	"deployed":          10,
+	"verified":          11,
+	"complete":          12,
+}
+
+// ValidStatuses returns all valid shipment statuses.
+func ValidStatuses() []string {
+	return []string{
+		"draft", "exploring", "synthesizing", "specced", "planned",
+		"tasked", "ready_for_imp", "implementing", "auto_implementing",
+		"implemented", "deployed", "verified", "complete",
+	}
+}
+
+// CanOverrideStatus evaluates whether a shipment status can be overridden.
+// Rules:
+// - New status must be valid
+// - Backwards transitions require --force flag
+func CanOverrideStatus(ctx OverrideStatusContext) GuardResult {
+	// Rule 1: New status must be valid
+	if _, ok := statusOrder[ctx.NewStatus]; !ok {
+		return GuardResult{
+			Allowed: false,
+			Reason:  fmt.Sprintf("invalid status '%s'. Valid statuses: %s", ctx.NewStatus, strings.Join(ValidStatuses(), ", ")),
+		}
+	}
+
+	// Rule 2: Check for backwards transition
+	currentIdx, currentOk := statusOrder[ctx.CurrentStatus]
+	newIdx := statusOrder[ctx.NewStatus]
+
+	// If current status is unknown, allow transition
+	if !currentOk {
+		return GuardResult{Allowed: true}
+	}
+
+	// Backwards transition requires force
+	if newIdx < currentIdx && !ctx.Force {
+		return GuardResult{
+			Allowed: false,
+			Reason:  fmt.Sprintf("backwards transition from '%s' to '%s' requires --force flag", ctx.CurrentStatus, ctx.NewStatus),
+		}
+	}
+
+	return GuardResult{Allowed: true}
+}
+
 // CanAssignWorkbench evaluates whether a workbench can be assigned to a shipment.
 // Rules:
 // - Shipment must exist

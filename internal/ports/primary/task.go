@@ -37,8 +37,9 @@ type TaskService interface {
 	// GetTasksByWorkbench retrieves tasks assigned to a workbench.
 	GetTasksByWorkbench(ctx context.Context, workbenchID string) ([]*Task, error)
 
-	// DeleteTask deletes a task.
-	DeleteTask(ctx context.Context, taskID string) error
+	// DeleteTask deletes a task and its children (plans, receipts, approvals, escalations).
+	// Requires force=true as this is an escape hatch operation.
+	DeleteTask(ctx context.Context, taskID string, force bool) error
 
 	// TagTask adds a tag to a task.
 	TagTask(ctx context.Context, taskID, tagName string) error

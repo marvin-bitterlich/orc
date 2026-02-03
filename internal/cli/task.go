@@ -503,6 +503,33 @@ var taskMoveCmd = &cobra.Command{
 	},
 }
 
+var taskDeleteCmd = &cobra.Command{
+	Use:   "delete [task-id]",
+	Short: "Delete a task (escape hatch)",
+	Long: `Delete a task and all its children (plans, receipts, approvals, escalations).
+
+⚠️  This is an escape hatch. Deleting tasks is not normal workflow.
+Use this only to remove prematurely created tasks.
+
+Requires --force flag to confirm deletion.`,
+	Args: cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx := context.Background()
+		taskID := args[0]
+		force, _ := cmd.Flags().GetBool("force")
+
+		fmt.Println("⚠️  This is an escape hatch. Deleting tasks is not normal workflow.")
+
+		err := wire.TaskService().DeleteTask(ctx, taskID, force)
+		if err != nil {
+			return fmt.Errorf("failed to delete task: %w", err)
+		}
+
+		fmt.Printf("✓ Task %s deleted\n", taskID)
+		return nil
+	},
+}
+
 func init() {
 	// task create flags
 	taskCreateCmd.Flags().String("shipment", "", "Shipment ID")
@@ -527,6 +554,9 @@ func init() {
 	taskMoveCmd.Flags().String("to-tome", "", "Move to tome")
 	taskMoveCmd.Flags().String("to-conclave", "", "Move to conclave")
 
+	// task delete flags
+	taskDeleteCmd.Flags().Bool("force", false, "Confirm deletion (required)")
+
 	// Register subcommands
 	taskCmd.AddCommand(taskCreateCmd)
 	taskCmd.AddCommand(taskListCmd)
@@ -542,6 +572,7 @@ func init() {
 	taskCmd.AddCommand(taskTagCmd)
 	taskCmd.AddCommand(taskUntagCmd)
 	taskCmd.AddCommand(taskMoveCmd)
+	taskCmd.AddCommand(taskDeleteCmd)
 }
 
 // TaskCmd returns the task command

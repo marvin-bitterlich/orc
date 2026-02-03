@@ -439,6 +439,42 @@ Use this when you want human oversight or interactive development.`,
 	},
 }
 
+var shipmentStatusCmd = &cobra.Command{
+	Use:   "status [shipment-id]",
+	Short: "Override shipment status (escape hatch)",
+	Long: `Override a shipment's status manually.
+
+⚠️  This is an escape hatch. Manual status override is not normal workflow.
+Use this only to correct stuck shipments or recover from errors.
+
+Valid statuses: draft, exploring, synthesizing, specced, planned, tasked,
+ready_for_imp, implementing, auto_implementing, implemented, deployed,
+verified, complete
+
+Backwards transitions (e.g., tasked → exploring) require --force flag.`,
+	Args: cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx := context.Background()
+		shipmentID := args[0]
+		status, _ := cmd.Flags().GetString("set")
+		force, _ := cmd.Flags().GetBool("force")
+
+		if status == "" {
+			return fmt.Errorf("--set flag is required")
+		}
+
+		fmt.Println("⚠️  This is an escape hatch. Manual status override is not normal workflow.")
+
+		err := wire.ShipmentService().SetStatus(ctx, shipmentID, status, force)
+		if err != nil {
+			return fmt.Errorf("failed to set status: %w", err)
+		}
+
+		fmt.Printf("✓ Shipment %s status set to '%s'\n", shipmentID, status)
+		return nil
+	},
+}
+
 func init() {
 	// shipment create flags
 	shipmentCreateCmd.Flags().StringP("commission", "c", "", "Commission ID (defaults to context)")
@@ -458,6 +494,10 @@ func init() {
 	// Flags for complete command
 	shipmentCompleteCmd.Flags().BoolP("force", "f", false, "Complete even if tasks are incomplete")
 
+	// Flags for status command
+	shipmentStatusCmd.Flags().String("set", "", "Status to set (required)")
+	shipmentStatusCmd.Flags().Bool("force", false, "Allow backwards transitions")
+
 	// Register subcommands
 	shipmentCmd.AddCommand(shipmentCreateCmd)
 	shipmentCmd.AddCommand(shipmentListCmd)
@@ -474,6 +514,7 @@ func init() {
 	shipmentCmd.AddCommand(shipmentReadyCmd)
 	shipmentCmd.AddCommand(shipmentAutoCmd)
 	shipmentCmd.AddCommand(shipmentManualCmd)
+	shipmentCmd.AddCommand(shipmentStatusCmd)
 }
 
 // ShipmentCmd returns the shipment command

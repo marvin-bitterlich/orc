@@ -111,6 +111,35 @@ func CanResumeTask(ctx StatusTransitionContext) GuardResult {
 	return GuardResult{Allowed: true}
 }
 
+// DeleteTaskContext provides context for task deletion guards.
+type DeleteTaskContext struct {
+	TaskID     string
+	TaskExists bool
+	Force      bool
+}
+
+// CanDeleteTask evaluates whether a task can be deleted.
+// Rules:
+// - --force flag required (escape hatch protection)
+// - Task must exist
+func CanDeleteTask(ctx DeleteTaskContext) GuardResult {
+	if !ctx.Force {
+		return GuardResult{
+			Allowed: false,
+			Reason:  "task deletion requires --force flag (this is an escape hatch)",
+		}
+	}
+
+	if !ctx.TaskExists {
+		return GuardResult{
+			Allowed: false,
+			Reason:  fmt.Sprintf("task %s not found", ctx.TaskID),
+		}
+	}
+
+	return GuardResult{Allowed: true}
+}
+
 // CanTagTask evaluates whether a tag can be added to a task.
 // Rules:
 // - Task must not already have a tag (one tag per task limit)

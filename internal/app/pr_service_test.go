@@ -214,6 +214,10 @@ func (m *mockShipmentServiceForPR) VerifyShipment(ctx context.Context, shipmentI
 	return nil
 }
 
+func (m *mockShipmentServiceForPR) SetStatus(ctx context.Context, shipmentID, status string, force bool) error {
+	return nil
+}
+
 func TestPRService_CreatePR(t *testing.T) {
 	ctx := context.Background()
 

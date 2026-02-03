@@ -243,6 +243,31 @@ func (s *ShipmentServiceImpl) UpdateStatus(ctx context.Context, shipmentID, stat
 	return s.shipmentRepo.UpdateStatus(ctx, shipmentID, status, false)
 }
 
+// SetStatus sets a shipment's status with escape hatch protection.
+// If force is true, allows backwards transitions.
+func (s *ShipmentServiceImpl) SetStatus(ctx context.Context, shipmentID, status string, force bool) error {
+	record, err := s.shipmentRepo.GetByID(ctx, shipmentID)
+	if err != nil {
+		return err
+	}
+
+	// Guard: check for backwards transitions
+	guardCtx := coreshipment.OverrideStatusContext{
+		ShipmentID:    shipmentID,
+		CurrentStatus: record.Status,
+		NewStatus:     status,
+		Force:         force,
+	}
+	if result := coreshipment.CanOverrideStatus(guardCtx); !result.Allowed {
+		return result.Error()
+	}
+
+	// Set completed flag if transitioning to complete
+	setCompleted := status == "complete"
+
+	return s.shipmentRepo.UpdateStatus(ctx, shipmentID, status, setCompleted)
+}
+
 // TriggerAutoTransition evaluates and applies auto-transition for a shipment.
 func (s *ShipmentServiceImpl) TriggerAutoTransition(ctx context.Context, shipmentID, triggerEvent string) (string, error) {
 	ship, err := s.shipmentRepo.GetByID(ctx, shipmentID)

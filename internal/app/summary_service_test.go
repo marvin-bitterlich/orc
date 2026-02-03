@@ -249,6 +249,10 @@ func (m *mockShipmentServiceForSummary) VerifyShipment(_ context.Context, _ stri
 	return nil
 }
 
+func (m *mockShipmentServiceForSummary) SetStatus(_ context.Context, _, _ string, _ bool) error {
+	return nil
+}
+
 // mockTaskServiceForSummary implements primary.TaskService for testing.
 type mockTaskServiceForSummary struct{}
 
@@ -296,7 +300,7 @@ func (m *mockTaskServiceForSummary) UnpinTask(_ context.Context, _ string) error
 	return nil
 }
 
-func (m *mockTaskServiceForSummary) DeleteTask(_ context.Context, _ string) error {
+func (m *mockTaskServiceForSummary) DeleteTask(_ context.Context, _ string, _ bool) error {
 	return nil
 }
 
