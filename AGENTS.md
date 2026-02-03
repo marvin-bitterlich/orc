@@ -660,10 +660,34 @@ Skills for shipment workflow:
 | Skill | Description |
 |-------|-------------|
 | `/ship-new "Title"` | Create new shipment and focus it |
-| `/ship-plan` | Break down shipment into tasks |
+| `/ship-synthesize` | Compact exploration notes into summary note |
+| `/ship-plan` | C2/C3 engineering review, create tasks |
 | `/ship-queue` | View and manage shipyard queue |
-| `/ship-tidy` | Review and organize shipment tasks |
 | `/ship-complete` | Mark shipment as complete |
+| `/ship-deploy` | Deploy shipment to production |
+| `/ship-verify` | Post-deploy verification |
+
+### Shipment Workflow
+
+Standard flow for exploration → implementation:
+
+```
+exploring (messy notes)
+  → /ship-synthesize → Summary note (knowledge compaction)
+  → /ship-plan → Tasks (C2/C3 scope)
+  → /imp-start → Claim task
+  → /imp-plan-create → Plan (C4 file detail)
+  → Implementation
+```
+
+**ship-plan reads AGENTS.md** as part of its engineering review to understand existing patterns.
+
+### Utility Skills
+
+| Skill | Description |
+|-------|-------------|
+| `/orc-interview` | Reusable interview primitive for decisions |
+| `/orc-architecture` | Maintain ARCHITECTURE.md with C2/C3 structure |
 
 ### CLI Commands
 
@@ -673,21 +697,22 @@ orc shipment show SHIP-xxx                          # View details
 orc shipment list                                   # List all
 orc focus SHIP-xxx                                  # Focus shipment
 orc task create "Task" --shipment SHIP-xxx          # Add task
+orc note create "Title" --shipment SHIP-xxx         # Add note
+orc note close NOTE-xxx --reason synthesized --by NOTE-yyy  # Close note
 ```
 
 ---
 
-## Deprecated: Conclaves
+## Deprecated
 
-**Conclaves are deprecated.** Use shipments instead.
+**The following are deprecated and deleted:**
 
-### Migration Path
-
-| Old (Conclave) | New (Shipment) |
-|----------------|----------------|
-| `orc conclave create` | `orc shipment create` |
+| Deprecated | Replacement |
+|------------|-------------|
+| `/ship-tidy` | `/ship-plan` (handles task work) |
+| `/exorcism` | `/ship-synthesize` (knowledge compaction) |
 | `/conclave` | `/ship-new` |
-| `/exorcism` | `/ship-plan` then `/ship-complete` |
+| `orc conclave` | `orc shipment` |
 
 ### Existing Conclaves
 

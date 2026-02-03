@@ -1,11 +1,11 @@
 ---
 name: ship-plan
-description: Plan and create tasks for a shipment based on requirements. Use when user says /ship-plan or wants to break down shipment work into tasks.
+description: C2/C3 engineering review that pressure-tests synthesized knowledge and creates tasks. Use when ready to convert exploration/synthesis into actionable implementation work.
 ---
 
-# Ship Plan Skill
+# Ship Plan
 
-Plan tasks for a shipment by analyzing requirements and creating actionable tasks.
+Transform synthesized knowledge into actionable tasks through a structured engineering review. Operates at C2 (containers) and C3 (components) zoom level.
 
 ## Usage
 
@@ -13,6 +13,24 @@ Plan tasks for a shipment by analyzing requirements and creating actionable task
 /ship-plan              (plan focused shipment)
 /ship-plan SHIP-xxx     (plan specific shipment)
 ```
+
+## When to Use
+
+- After /ship-synthesize has produced a summary note
+- When exploration is complete and ready to convert to tasks
+- To pressure-test ideas against reality before implementation
+
+## Zoom Level (C4 Model)
+
+| Level | Scope | Owned By |
+|-------|-------|----------|
+| C1: System Context | External systems, actors | ship-plan (identify) |
+| C2: Container | Services, apps, databases | **ship-plan (primary)** |
+| C3: Component | Modules within containers | **ship-plan (secondary)** |
+| C4: Code | Files, functions, edits | IMP plans (exclusive) |
+
+**ship-plan** creates tasks at C2/C3: "touch the auth component in the CLI container"
+**IMP plans** operate at C4: "edit cmd/auth.go lines 45-60"
 
 ## Flow
 
@@ -22,107 +40,325 @@ If argument provided:
 - Use specified SHIP-xxx
 
 If no argument:
-- Get focused shipment from `orc focus --show`
-- If no focus, ask which shipment to plan
+```bash
+orc focus --show
+```
+- Use focused shipment
+- If no focus: "No shipment focused. Run `orc focus SHIP-xxx` first."
 
-### Step 2: Gather Context
+### Step 2: Prerequisites Check
 
 ```bash
-orc shipment show <SHIP-xxx>
-orc task list --shipment <SHIP-xxx>
+orc shipment show SHIP-xxx
+orc note list --shipment SHIP-xxx
 ```
 
-Also check:
-- If shipment has a source conclave, review its notes
-- If shipment has a spec note, review it
+**Check for summary note:**
+Look for a note with type=spec or title starting with "Summary:".
 
-### Step 3: Analyze Requirements
+If no summary found:
+```
+⚠️ No summary note found in SHIP-xxx.
 
-Based on shipment description and any linked exploration:
-- Identify distinct pieces of work
-- Determine dependencies between tasks
-- Estimate scope of each task
-- Ensure tasks are self-contained (IMP can complete without questions)
+Consider running /ship-synthesize first if notes are messy.
+Proceeding anyway...
+```
 
-### Step 4: Propose Tasks
+**Read AGENTS.md:**
+```bash
+# Review AGENTS.md for existing patterns and checklists
+```
+Reference relevant sections during interview.
 
-Present proposed tasks:
+### Step 3: Gather Context
+
+Read all open notes, especially:
+- Summary note (if exists)
+- Spec notes
+- Decision notes
+
+Build understanding of:
+- What needs to be built
+- What decisions have been made
+- What constraints exist
+
+---
+
+## Engineering Review (5 Phases)
+
+Each phase uses the orc-interview format:
+- Natural language questions
+- Options: 1=approve, 2=alternative, 3=skip, 4=discuss
+- Max 5 questions per phase
+- Progress indicator [Question X/Y]
+
+### Phase 1: Environmental Assumptions
+
+Surface and validate assumptions about the environment.
+
+**What to check:**
+- Dependencies that must exist
+- Existing behavior being relied upon
+- Infrastructure or tooling assumptions
+- Permission or access assumptions
+
+**Example questions:**
+```
+[Question 1/5]
+
+The summary assumes the orc note close command supports --reason and --by flags.
+This is fundamental to the synthesis flow. If it doesn't exist, we'd need to
+add it first.
+
+Based on our CLI exploration, this command does exist and works as expected.
+
+1. Approve - assumption validated
+2. Needs verification - let me check
+3. Skip
+4. Discuss
+```
+
+```
+[Question 2/5]
+
+The plan depends on skills being deployed automatically via git hooks. This
+means changes to glue/skills/ will appear in ~/.claude/skills/ after commit.
+If this isn't working, IMPs won't see new skills.
+
+1. Approve - git hooks are configured
+2. Need to verify hook setup
+3. Skip
+4. Discuss
+```
+
+### Phase 2: Specification Gaps
+
+Identify underspecified areas that would force IMP decisions.
+
+**What to check:**
+- Edge cases not covered
+- Behavior in error scenarios
+- Format/structure details left vague
+- Authority or ownership unclear
+
+**Goal:** IMPs should implement without asking questions. Gaps requiring human judgment must be resolved here.
+
+**Example questions:**
+```
+[Question 1/5]
+
+The ship-synthesize flow says "identify themes" but doesn't specify what
+happens if there's only one note. Should it skip theme identification and
+go straight to summary, or still run through the full flow?
+
+I'd recommend: skip theme identification with <3 notes, just summarize directly.
+
+1. Approve - skip themes for small note counts
+2. Always run full flow
+3. Skip - let IMP decide
+4. Discuss
+```
+
+**Resolution options:**
+- **Specify now**: Add detail to summary note or task description
+- **Defer to IMP**: Mark as acceptable ambiguity
+- **Out of scope**: Explicitly exclude from this shipment
+
+### Phase 3: System Touchpoints (C2/C3 Mapping)
+
+Map what containers and components are affected.
+
+**Reference:** ARCHITECTURE.md (if exists) or explore codebase.
+
+**Example output:**
+```
+Systems affected (C2 - Containers):
+
+| Container | Touched | Notes |
+|-----------|---------|-------|
+| Skills (glue/skills/) | ✓ | Create/modify skill files |
+| CLI (cmd/, internal/) | ✗ | No CLI changes |
+| Database | ✗ | No schema changes |
+| Config | ✗ | No config changes |
+| Documentation | ✓ | CLAUDE.md, AGENTS.md |
+
+Components within Skills (C3):
+- ship-synthesize/ [NEW]
+- ship-plan/ [MODIFY]
+- orc-interview/ [NEW]
+
+Confirm scope? [y/edit/expand]
+```
+
+### Phase 4: Tooling Compatibility
+
+Check against development tooling and workflows.
+
+**Checklist:**
+```
+Tooling compatibility:
+
+| Item | Status | Notes |
+|------|--------|-------|
+| Works with test setup? | ✓ | Skills are markdown, no code tests |
+| New CLI commands needed? | ✓ | Uses existing orc commands |
+| Database migrations? | ✓ | None required |
+| Git hooks deploy? | ✓ | Skills auto-deploy |
+| Config schema changes? | ✓ | None |
+| Doc updates needed? | ⚠️ | CLAUDE.md, AGENTS.md |
+
+Issues found: [list or none]
+```
+
+### Phase 5: Reality Checks
+
+Final validation against known constraints.
+
+**What to check:**
+- Conflicts with existing behavior
+- Technical limitations
+- Resource constraints
+- Timeline dependencies
+
+**Example questions:**
+```
+[Question 1/5]
+
+Deleting ship-tidy and exorcism is a breaking change for anyone using those
+commands. They'll get "skill not found" errors. Since this is an internal
+tool, that's probably fine - users can adapt. But worth confirming.
+
+1. Approve - breaking change is acceptable
+2. Add deprecation period
+3. Skip
+4. Discuss
+```
+
+---
+
+## Task Generation
+
+After engineering review, generate tasks.
+
+### Task Format
+
+Each task includes C2/C3 scope:
+
 ```
 Proposed tasks for SHIP-xxx:
 
-1. [Task title]
-   Description: ...
+1. Create orc-interview skill
+   Containers: Skills
+   Components: glue/skills/orc-interview/
+   Description: Foundation skill for structured interviews...
 
-2. [Task title]
-   Description: ...
+2. Create ship-synthesize skill
+   Containers: Skills
+   Components: glue/skills/ship-synthesize/
+   Description: Knowledge compaction skill...
+
+3. Update documentation
+   Containers: Documentation
+   Components: CLAUDE.md, AGENTS.md
+   Description: Document new workflow...
 
 Create these tasks? [y/n/edit]
 ```
 
-### Step 5: Create Tasks
+### Task Creation
 
 For each approved task:
 ```bash
 orc task create "<Title>" \
-  --shipment <SHIP-xxx> \
-  --description "<Description>"
+  --shipment SHIP-xxx \
+  --description "<Description with C2/C3 scope>"
 ```
 
-### Step 6: Update Shipment Status
+### Summary Output
 
-If tasks were created and shipment was in exploring status:
-```bash
-# Status auto-transitions: exploring → tasked when first task created
-```
-
-### Step 7: Summary
-
-Output:
 ```
 Shipment planned:
   SHIP-xxx: <Title>
   Status: tasked
   Tasks created: X
 
-Ready for work:
+Engineering review complete:
+  ✓ Assumptions validated: N
+  ✓ Gaps resolved: N
+  ✓ Systems mapped: N containers, M components
+  ✓ Tooling compatible
+  ✓ Reality checks passed
+
+Ready for implementation:
   orc task claim TASK-xxx
   /imp-start
 ```
 
 ## Guidelines
 
-- Tasks should be completable in one session
-- Each task should be self-contained
-- Include verification steps in description
-- Don't over-decompose (3-10 tasks typical)
+- **Read AGENTS.md** for existing patterns before proposing changes
+- **Tasks should be self-contained** - IMP can complete without questions
+- **Include C2/C3 scope** in every task description
+- **Don't over-decompose** - 3-10 tasks typical
+- **Validate assumptions** - don't pass uncertainty to IMPs
+
+## Task vs Plan Distinction
+
+| Artifact | Created By | Zoom Level | Contains |
+|----------|------------|------------|----------|
+| Task | ship-plan | C2/C3 | What systems/components to touch |
+| Plan | IMP (imp-plan-create) | C4 | What files/functions/edits to make |
+
+Tasks are work packages with scope. Plans are implementation details.
 
 ## Example Session
 
 ```
-User: /ship-plan
+> /ship-plan
 
-Agent: [gets focused shipment SHIP-300]
-       [runs orc shipment show SHIP-300]
-       [checks for linked notes/specs]
+[gets focused shipment SHIP-276]
+[checks for summary note - found NOTE-514]
+[reads AGENTS.md]
 
-Agent: Planning SHIP-300: Add User Preferences
+Planning SHIP-276: Skill Cognitive Redesign
 
-       Based on the shipment description, I propose:
+Prerequisites:
+  ✓ Summary note found: NOTE-514
+  ✓ AGENTS.md reviewed
 
-       1. Add preferences table to schema
-          - Create schema.sql entry
-          - Run atlas apply
+Starting engineering review...
 
-       2. Create preferences repository
-          - Interface in ports/secondary
-          - SQLite implementation
+## Phase 1: Environmental Assumptions
 
-       3. Add preferences service
-          - Interface in ports/primary
-          - Implementation in app/
+[Question 1/5]
 
-       4. Add CLI commands
-          - orc preferences get/set
+The summary assumes skills in glue/skills/ are auto-deployed via git hooks...
 
-       Create these 4 tasks? [y/n/edit]
+1. Approve
+> 1
+
+[continues through all 5 phases...]
+
+## Task Generation
+
+Proposed tasks for SHIP-276:
+
+1. Create orc-interview skill
+   Containers: Skills
+   Components: glue/skills/orc-interview/
+   ...
+
+Create these 8 tasks? [y/n/edit]
+> y
+
+[creates tasks...]
+
+Shipment planned:
+  SHIP-276: Skill Cognitive Redesign
+  Status: tasked
+  Tasks created: 8
+
+Ready for implementation:
+  orc task claim TASK-672
+  /imp-start
 ```

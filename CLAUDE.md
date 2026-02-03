@@ -50,3 +50,34 @@ orc prime               # Restore context
 ```
 
 *Complete workflow procedures in `docs/orchestrator-workflow.md`*
+
+## Shipment Workflow
+
+The standard flow for turning exploration into implementation:
+
+```
+exploring (messy notes)
+  → /ship-synthesize → Summary note (knowledge compaction)
+  → /ship-plan → Tasks (C2/C3 engineering review)
+  → /imp-plan-create → Plans (C4 file-level detail)
+  → Implementation → Code
+```
+
+### Key Skills
+
+| Skill | Purpose | When to Use |
+|-------|---------|-------------|
+| `/ship-synthesize` | Compact notes into summary | Shipment has accumulated exploration notes |
+| `/ship-plan` | Create tasks from synthesis | Ready to convert knowledge to work |
+| `/orc-interview` | Structured decision-making | Need to resolve questions with human |
+| `/orc-architecture` | Update ARCHITECTURE.md | Codebase structure has changed |
+
+### C4 Zoom Levels
+
+| Level | Scope | Owned By |
+|-------|-------|----------|
+| C2: Container | Services, apps, DBs | ship-plan |
+| C3: Component | Modules within containers | ship-plan |
+| C4: Code | Files, functions, edits | IMP plans |
+
+Tasks say *what systems* to touch. IMP plans say *what files* to edit.

@@ -1,33 +1,135 @@
-# ORC 2.0 - System Overview
+# ORC Architecture
 
-**Generated:** 2026-01-14
-**Updated:** 2026-01-16
-
----
-
-## Executive Summary
-
-ORC (Orchestrator) is a commission coordination system for managing complex, multi-repository software development work. It combines traditional task management with AI-powered context preservation, enabling seamless handoffs between human operators and Claude AI agents across multiple workspaces.
-
-**Key Innovation:** ORC uses SQLite as the single source of truth for all operational data, combined with handoff narratives that preserve context across sessions. This enables seamless handoffs between human operators and Claude AI agents.
+**Updated:** 2026-02-03
 
 ---
 
-## Core Architecture: "Forest Factory Model"
+## C4 Model Overview
 
-ORC 2.0 uses a simplified, flat hierarchy optimized for real-world workflows:
+This document uses C4 model terminology for architectural description:
+
+| Level | Scope | Documented Here |
+|-------|-------|-----------------|
+| C1: System Context | External systems, actors | Yes |
+| C2: Container | Deployable/distinct units | Yes |
+| C3: Component | Modules within containers | Yes |
+| C4: Code | Files, functions, classes | No (too granular) |
+
+---
+
+## C1: System Context
+
+ORC (Orchestrator) is a commission coordination system for managing complex, multi-repository software development work. It coordinates between human operators and Claude AI agents.
+
+**External Actors:**
+- **El Presidente** - Human operator who drives commissions
+- **Claude Code** - AI agent runtime that executes skills
+- **Git** - Version control (worktrees for isolation)
+- **TMux** - Terminal multiplexer for agent sessions
+
+---
+
+## C2: Containers
+
+| Container | Location | Description |
+|-----------|----------|-------------|
+| CLI | cmd/orc/, internal/ | ORC command-line tool binary |
+| Database | internal/db/, schema/ | SQLite ledger with Atlas migrations |
+| Skills | glue/skills/ | Claude Code skill definitions |
+| Hooks | glue/hooks/ | Git and Claude Code hooks |
+| Config | .orc/ | Runtime configuration per workspace |
+| Documentation | *.md, docs/ | Project and workflow documentation |
+
+---
+
+## C3: Components
+
+### CLI (cmd/orc/, internal/)
+
+| Component | Location | Description |
+|-----------|----------|-------------|
+| Entry | cmd/orc/ | CLI entry and command registration |
+| App | internal/app/ | Application services and use cases |
+| CLI | internal/cli/ | Cobra command implementations |
+| Core | internal/core/ | Domain entities and logic |
+| Models | internal/models/ | Data models |
+| Adapters | internal/adapters/ | Interface adapters |
+| Ports | internal/ports/ | Port interfaces |
+| DB | internal/db/ | Database access layer |
+| TMux | internal/tmux/ | TMux integration |
+
+### Skills (glue/skills/)
+
+**Shipment Workflow:**
+| Skill | Description |
+|-------|-------------|
+| ship-new | Create new shipments |
+| ship-synthesize | Knowledge compaction → summary note |
+| ship-plan | C2/C3 engineering review → tasks |
+| ship-queue | View shipyard queue |
+| ship-complete | Complete shipments |
+| ship-deploy | Deploy shipments |
+| ship-verify | Verify shipments |
+
+**IMP Workflow:**
+| Skill | Description |
+|-------|-------------|
+| imp-start | Begin IMP work on shipment |
+| imp-plan-create | Create C4 implementation plans |
+| imp-plan-submit | Submit plans for review |
+| imp-auto | Toggle auto mode |
+| imp-rec | Create receipts |
+| imp-escalate | Escalate to gatehouse |
+
+**Utilities:**
+| Skill | Description |
+|-------|-------------|
+| orc-interview | Reusable interview primitive |
+| orc-architecture | Maintain ARCHITECTURE.md |
+| orc-debug | Debug utilities |
+
+### Database (internal/db/, schema/)
+
+| Component | Description |
+|-----------|-------------|
+| schema.sql | Database schema definition |
+| migrations/ | Atlas migration files |
+
+---
+
+## Skill Workflow
+
+```
+/ship-synthesize → Summary note (knowledge compaction)
+       ↓
+/ship-plan → Tasks (C2/C3 engineering review)
+       ↓
+/imp-plan-create → Plans (C4 file-level detail)
+       ↓
+Implementation → Code
+```
+
+**Zoom Level Ownership:**
+- C2/C3 (containers, components): ship-plan, orc-architecture
+- C4 (files, functions): imp-plan-create
+
+---
+
+## Core Hierarchy
 
 ```
 Commission (coordination scope)
-├── Work Orders (tasks, flat structure with optional parent/child grouping)
-└── Workbenches (git worktrees - isolated workspaces with IMP agents)
+├── Shipments (execution containers with lifecycle)
+│   ├── Notes (ideas, questions, decisions, specs)
+│   └── Tasks (atomic units of work)
+└── Workbenches (git worktrees with IMP agents)
 ```
 
 **Design Principles:**
-- **Simplicity Over Hierarchy** - Removed Operations and Expeditions layers
+- **Simplicity Over Hierarchy** - Flat structure where possible
 - **Commission-Centric Organization** - Commission is the coordination boundary
 - **Database as Source of Truth** - Single authoritative data source (SQLite)
-- **Physical Reality Wins** - Model matches actual workflow, not idealized process
+- **Skill-Driven Workflows** - Claude skills encode process knowledge
 
 ---
 
