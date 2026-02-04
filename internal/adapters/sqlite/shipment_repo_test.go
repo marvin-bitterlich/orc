@@ -43,7 +43,7 @@ func createTestShipment(t *testing.T, repo *sqlite.ShipmentRepository, ctx conte
 
 func TestShipmentRepository_Create(t *testing.T) {
 	db := setupShipmentTestDB(t)
-	repo := sqlite.NewShipmentRepository(db)
+	repo := sqlite.NewShipmentRepository(db, nil)
 	ctx := context.Background()
 
 	shipment := &secondary.ShipmentRecord{
@@ -73,7 +73,7 @@ func TestShipmentRepository_Create(t *testing.T) {
 
 func TestShipmentRepository_GetByID(t *testing.T) {
 	db := setupShipmentTestDB(t)
-	repo := sqlite.NewShipmentRepository(db)
+	repo := sqlite.NewShipmentRepository(db, nil)
 	ctx := context.Background()
 
 	// Create a shipment using helper
@@ -100,7 +100,7 @@ func TestShipmentRepository_GetByID(t *testing.T) {
 
 func TestShipmentRepository_GetByID_NotFound(t *testing.T) {
 	db := setupShipmentTestDB(t)
-	repo := sqlite.NewShipmentRepository(db)
+	repo := sqlite.NewShipmentRepository(db, nil)
 	ctx := context.Background()
 
 	_, err := repo.GetByID(ctx, "SHIP-999")
@@ -111,7 +111,7 @@ func TestShipmentRepository_GetByID_NotFound(t *testing.T) {
 
 func TestShipmentRepository_List(t *testing.T) {
 	db := setupShipmentTestDB(t)
-	repo := sqlite.NewShipmentRepository(db)
+	repo := sqlite.NewShipmentRepository(db, nil)
 	ctx := context.Background()
 
 	// Create multiple shipments
@@ -131,7 +131,7 @@ func TestShipmentRepository_List(t *testing.T) {
 
 func TestShipmentRepository_List_FilterByCommission(t *testing.T) {
 	db := setupShipmentTestDB(t)
-	repo := sqlite.NewShipmentRepository(db)
+	repo := sqlite.NewShipmentRepository(db, nil)
 	ctx := context.Background()
 
 	// Add another commission
@@ -154,7 +154,7 @@ func TestShipmentRepository_List_FilterByCommission(t *testing.T) {
 
 func TestShipmentRepository_List_FilterByStatus(t *testing.T) {
 	db := setupShipmentTestDB(t)
-	repo := sqlite.NewShipmentRepository(db)
+	repo := sqlite.NewShipmentRepository(db, nil)
 	ctx := context.Background()
 
 	// Create active shipment
@@ -177,7 +177,7 @@ func TestShipmentRepository_List_FilterByStatus(t *testing.T) {
 
 func TestShipmentRepository_Update(t *testing.T) {
 	db := setupShipmentTestDB(t)
-	repo := sqlite.NewShipmentRepository(db)
+	repo := sqlite.NewShipmentRepository(db, nil)
 	ctx := context.Background()
 
 	// Create a shipment
@@ -201,7 +201,7 @@ func TestShipmentRepository_Update(t *testing.T) {
 
 func TestShipmentRepository_Update_NotFound(t *testing.T) {
 	db := setupShipmentTestDB(t)
-	repo := sqlite.NewShipmentRepository(db)
+	repo := sqlite.NewShipmentRepository(db, nil)
 	ctx := context.Background()
 
 	err := repo.Update(ctx, &secondary.ShipmentRecord{
@@ -215,7 +215,7 @@ func TestShipmentRepository_Update_NotFound(t *testing.T) {
 
 func TestShipmentRepository_Delete(t *testing.T) {
 	db := setupShipmentTestDB(t)
-	repo := sqlite.NewShipmentRepository(db)
+	repo := sqlite.NewShipmentRepository(db, nil)
 	ctx := context.Background()
 
 	// Create a shipment
@@ -236,7 +236,7 @@ func TestShipmentRepository_Delete(t *testing.T) {
 
 func TestShipmentRepository_Delete_NotFound(t *testing.T) {
 	db := setupShipmentTestDB(t)
-	repo := sqlite.NewShipmentRepository(db)
+	repo := sqlite.NewShipmentRepository(db, nil)
 	ctx := context.Background()
 
 	err := repo.Delete(ctx, "SHIP-999")
@@ -247,7 +247,7 @@ func TestShipmentRepository_Delete_NotFound(t *testing.T) {
 
 func TestShipmentRepository_Pin_Unpin(t *testing.T) {
 	db := setupShipmentTestDB(t)
-	repo := sqlite.NewShipmentRepository(db)
+	repo := sqlite.NewShipmentRepository(db, nil)
 	ctx := context.Background()
 
 	// Create a shipment
@@ -280,7 +280,7 @@ func TestShipmentRepository_Pin_Unpin(t *testing.T) {
 
 func TestShipmentRepository_Pin_NotFound(t *testing.T) {
 	db := setupShipmentTestDB(t)
-	repo := sqlite.NewShipmentRepository(db)
+	repo := sqlite.NewShipmentRepository(db, nil)
 	ctx := context.Background()
 
 	err := repo.Pin(ctx, "SHIP-999")
@@ -291,7 +291,7 @@ func TestShipmentRepository_Pin_NotFound(t *testing.T) {
 
 func TestShipmentRepository_GetNextID(t *testing.T) {
 	db := setupShipmentTestDB(t)
-	repo := sqlite.NewShipmentRepository(db)
+	repo := sqlite.NewShipmentRepository(db, nil)
 	ctx := context.Background()
 
 	// First ID should be SHIP-001
@@ -318,7 +318,7 @@ func TestShipmentRepository_GetNextID(t *testing.T) {
 
 func TestShipmentRepository_UpdateStatus(t *testing.T) {
 	db := setupShipmentTestDB(t)
-	repo := sqlite.NewShipmentRepository(db)
+	repo := sqlite.NewShipmentRepository(db, nil)
 	ctx := context.Background()
 
 	// Create a shipment
@@ -355,7 +355,7 @@ func TestShipmentRepository_UpdateStatus(t *testing.T) {
 
 func TestShipmentRepository_UpdateStatus_NotFound(t *testing.T) {
 	db := setupShipmentTestDB(t)
-	repo := sqlite.NewShipmentRepository(db)
+	repo := sqlite.NewShipmentRepository(db, nil)
 	ctx := context.Background()
 
 	err := repo.UpdateStatus(ctx, "SHIP-999", "complete", true)
@@ -366,7 +366,7 @@ func TestShipmentRepository_UpdateStatus_NotFound(t *testing.T) {
 
 func TestShipmentRepository_AssignWorkbench(t *testing.T) {
 	db := setupShipmentTestDB(t)
-	repo := sqlite.NewShipmentRepository(db)
+	repo := sqlite.NewShipmentRepository(db, nil)
 	ctx := context.Background()
 
 	// Insert a test workbench
@@ -390,7 +390,7 @@ func TestShipmentRepository_AssignWorkbench(t *testing.T) {
 
 func TestShipmentRepository_AssignWorkbench_NotFound(t *testing.T) {
 	db := setupShipmentTestDB(t)
-	repo := sqlite.NewShipmentRepository(db)
+	repo := sqlite.NewShipmentRepository(db, nil)
 	ctx := context.Background()
 
 	err := repo.AssignWorkbench(ctx, "SHIP-999", "BENCH-001")
@@ -401,7 +401,7 @@ func TestShipmentRepository_AssignWorkbench_NotFound(t *testing.T) {
 
 func TestShipmentRepository_GetByWorkbench(t *testing.T) {
 	db := setupShipmentTestDB(t)
-	repo := sqlite.NewShipmentRepository(db)
+	repo := sqlite.NewShipmentRepository(db, nil)
 	ctx := context.Background()
 
 	// Insert a test workbench
@@ -428,7 +428,7 @@ func TestShipmentRepository_GetByWorkbench(t *testing.T) {
 
 func TestShipmentRepository_CommissionExists(t *testing.T) {
 	db := setupShipmentTestDB(t)
-	repo := sqlite.NewShipmentRepository(db)
+	repo := sqlite.NewShipmentRepository(db, nil)
 	ctx := context.Background()
 
 	// Existing commission
@@ -452,7 +452,7 @@ func TestShipmentRepository_CommissionExists(t *testing.T) {
 
 func TestShipmentRepository_WorkbenchAssignedToOther(t *testing.T) {
 	db := setupShipmentTestDB(t)
-	repo := sqlite.NewShipmentRepository(db)
+	repo := sqlite.NewShipmentRepository(db, nil)
 	ctx := context.Background()
 
 	// Insert a test workbench
@@ -486,7 +486,7 @@ func TestShipmentRepository_WorkbenchAssignedToOther(t *testing.T) {
 
 func TestShipmentRepository_SpecNoteID(t *testing.T) {
 	db := setupShipmentTestDB(t)
-	repo := sqlite.NewShipmentRepository(db)
+	repo := sqlite.NewShipmentRepository(db, nil)
 	ctx := context.Background()
 
 	// Create a note to reference

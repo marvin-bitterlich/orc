@@ -43,6 +43,7 @@ var (
 	approvalService                primary.ApprovalService
 	escalationService              primary.EscalationService
 	infraService                   primary.InfraService
+	logService                     primary.LogService
 	commissionOrchestrationService *app.CommissionOrchestrationService
 	tmuxService                    secondary.TMuxAdapter
 	shipmentRepo                   secondary.ShipmentRepository
@@ -187,6 +188,12 @@ func InfraService() primary.InfraService {
 	return infraService
 }
 
+// LogService returns the singleton LogService instance.
+func LogService() primary.LogService {
+	once.Do(initServices)
+	return logService
+}
+
 // CommissionOrchestrationService returns the singleton CommissionOrchestrationService instance.
 func CommissionOrchestrationService() *app.CommissionOrchestrationService {
 	once.Do(initServices)
@@ -215,7 +222,7 @@ func initServices() {
 	}
 
 	// Create repository adapters (secondary ports) - sqlite adapters with injected DB
-	commissionRepo := sqlite.NewCommissionRepository(database)
+	commissionRepo := sqlite.NewCommissionRepository(database, nil) // TODO: inject LogWriter once wired
 	agentProvider := persistence.NewAgentIdentityProvider()
 	tmuxAdapter := tmuxadapter.NewAdapter()
 	tmuxService = tmuxAdapter // Store for getter
@@ -234,15 +241,15 @@ func initServices() {
 	commissionService = app.NewCommissionService(commissionRepo, agentProvider, executor)
 
 	// Create shipment and task services
-	shipmentRepo = sqlite.NewShipmentRepository(database)
-	taskRepo := sqlite.NewTaskRepository(database)
+	shipmentRepo = sqlite.NewShipmentRepository(database, nil) // TODO: inject LogWriter once wired
+	taskRepo := sqlite.NewTaskRepository(database, nil)        // TODO: inject LogWriter once wired
 	tagRepo := sqlite.NewTagRepository(database)
 	taskService = app.NewTaskService(taskRepo, tagRepo, shipmentRepo)
 
 	// Create note, handoff, and tome services
-	noteRepo := sqlite.NewNoteRepository(database)
+	noteRepo := sqlite.NewNoteRepository(database, nil) // TODO: inject LogWriter once wired
 	handoffRepo := sqlite.NewHandoffRepository(database)
-	tomeRepo := sqlite.NewTomeRepository(database)
+	tomeRepo := sqlite.NewTomeRepository(database, nil) // TODO: inject LogWriter once wired
 	noteService = app.NewNoteService(noteRepo)
 	handoffService = app.NewHandoffService(handoffRepo)
 
@@ -255,7 +262,7 @@ func initServices() {
 	operationService = app.NewOperationService(operationRepo)
 
 	// Create plan repository
-	planRepo := sqlite.NewPlanRepository(database)
+	planRepo := sqlite.NewPlanRepository(database, nil) // TODO: inject LogWriter once wired
 
 	// Create tag and message services
 	tagService = app.NewTagService(tagRepo)
@@ -271,15 +278,15 @@ func initServices() {
 	// Create factory, workshop, and workbench services
 	factoryRepo := sqlite.NewFactoryRepository(database)
 	workshopRepo := sqlite.NewWorkshopRepository(database)
-	workbenchRepo := sqlite.NewWorkbenchRepository(database)
-	gatehouseRepo := sqlite.NewGatehouseRepository(database) // needed by workshop service for auto-creation
+	workbenchRepo := sqlite.NewWorkbenchRepository(database, nil) // TODO: inject LogWriter once wired
+	gatehouseRepo := sqlite.NewGatehouseRepository(database)      // needed by workshop service for auto-creation
 	factoryService = app.NewFactoryService(factoryRepo)
 	workshopService = app.NewWorkshopService(factoryRepo, workshopRepo, workbenchRepo, repoRepo, gatehouseRepo, tmuxService, workspaceAdapter, executor)
 	workbenchService = app.NewWorkbenchService(workbenchRepo, workshopRepo, agentProvider, executor)
 
 	// Create approval and escalation repositories early (needed by plan service)
-	approvalRepo := sqlite.NewApprovalRepository(database)
-	escalationRepo := sqlite.NewEscalationRepository(database)
+	approvalRepo := sqlite.NewApprovalRepository(database, nil)     // TODO: inject LogWriter once wired
+	escalationRepo := sqlite.NewEscalationRepository(database, nil) // TODO: inject LogWriter once wired
 
 	// Create plan service (needs multiple dependencies for escalation workflow)
 	planService = app.NewPlanService(
@@ -314,6 +321,10 @@ func initServices() {
 
 	// Create infra service for infrastructure planning
 	infraService = app.NewInfraService(factoryRepo, workshopRepo, workbenchRepo, repoRepo, gatehouseRepo, workspaceAdapter, tmuxAdapter, executor)
+
+	// Create log service for activity logs
+	workshopLogRepo := sqlite.NewWorkshopLogRepository(database)
+	logService = app.NewLogService(workshopLogRepo)
 
 	// Create orchestration services
 	commissionOrchestrationService = app.NewCommissionOrchestrationService(commissionService, agentProvider)

@@ -44,7 +44,7 @@ func createTestTask(t *testing.T, repo *sqlite.TaskRepository, ctx context.Conte
 
 func TestTaskRepository_Create(t *testing.T) {
 	db := setupTaskTestDB(t)
-	repo := sqlite.NewTaskRepository(db)
+	repo := sqlite.NewTaskRepository(db, nil)
 	ctx := context.Background()
 
 	task := &secondary.TaskRecord{
@@ -79,7 +79,7 @@ func TestTaskRepository_Create(t *testing.T) {
 
 func TestTaskRepository_Create_WithoutShipment(t *testing.T) {
 	db := setupTaskTestDB(t)
-	repo := sqlite.NewTaskRepository(db)
+	repo := sqlite.NewTaskRepository(db, nil)
 	ctx := context.Background()
 
 	task := &secondary.TaskRecord{
@@ -101,7 +101,7 @@ func TestTaskRepository_Create_WithoutShipment(t *testing.T) {
 
 func TestTaskRepository_GetByID(t *testing.T) {
 	db := setupTaskTestDB(t)
-	repo := sqlite.NewTaskRepository(db)
+	repo := sqlite.NewTaskRepository(db, nil)
 	ctx := context.Background()
 
 	task := createTestTask(t, repo, ctx, "COMM-001", "SHIP-001", "Test Task")
@@ -121,7 +121,7 @@ func TestTaskRepository_GetByID(t *testing.T) {
 
 func TestTaskRepository_GetByID_NotFound(t *testing.T) {
 	db := setupTaskTestDB(t)
-	repo := sqlite.NewTaskRepository(db)
+	repo := sqlite.NewTaskRepository(db, nil)
 	ctx := context.Background()
 
 	_, err := repo.GetByID(ctx, "TASK-999")
@@ -132,7 +132,7 @@ func TestTaskRepository_GetByID_NotFound(t *testing.T) {
 
 func TestTaskRepository_List(t *testing.T) {
 	db := setupTaskTestDB(t)
-	repo := sqlite.NewTaskRepository(db)
+	repo := sqlite.NewTaskRepository(db, nil)
 	ctx := context.Background()
 
 	createTestTask(t, repo, ctx, "COMM-001", "", "Task 1")
@@ -151,7 +151,7 @@ func TestTaskRepository_List(t *testing.T) {
 
 func TestTaskRepository_List_FilterByShipment(t *testing.T) {
 	db := setupTaskTestDB(t)
-	repo := sqlite.NewTaskRepository(db)
+	repo := sqlite.NewTaskRepository(db, nil)
 	ctx := context.Background()
 
 	// Add another shipment
@@ -173,7 +173,7 @@ func TestTaskRepository_List_FilterByShipment(t *testing.T) {
 
 func TestTaskRepository_List_FilterByStatus(t *testing.T) {
 	db := setupTaskTestDB(t)
-	repo := sqlite.NewTaskRepository(db)
+	repo := sqlite.NewTaskRepository(db, nil)
 	ctx := context.Background()
 
 	task1 := createTestTask(t, repo, ctx, "COMM-001", "", "Ready Task")
@@ -194,7 +194,7 @@ func TestTaskRepository_List_FilterByStatus(t *testing.T) {
 
 func TestTaskRepository_List_FilterByCommission(t *testing.T) {
 	db := setupTaskTestDB(t)
-	repo := sqlite.NewTaskRepository(db)
+	repo := sqlite.NewTaskRepository(db, nil)
 	ctx := context.Background()
 
 	// Add another commission
@@ -215,7 +215,7 @@ func TestTaskRepository_List_FilterByCommission(t *testing.T) {
 
 func TestTaskRepository_Update(t *testing.T) {
 	db := setupTaskTestDB(t)
-	repo := sqlite.NewTaskRepository(db)
+	repo := sqlite.NewTaskRepository(db, nil)
 	ctx := context.Background()
 
 	task := createTestTask(t, repo, ctx, "COMM-001", "", "Original Title")
@@ -236,7 +236,7 @@ func TestTaskRepository_Update(t *testing.T) {
 
 func TestTaskRepository_Update_NotFound(t *testing.T) {
 	db := setupTaskTestDB(t)
-	repo := sqlite.NewTaskRepository(db)
+	repo := sqlite.NewTaskRepository(db, nil)
 	ctx := context.Background()
 
 	err := repo.Update(ctx, &secondary.TaskRecord{
@@ -250,7 +250,7 @@ func TestTaskRepository_Update_NotFound(t *testing.T) {
 
 func TestTaskRepository_Delete(t *testing.T) {
 	db := setupTaskTestDB(t)
-	repo := sqlite.NewTaskRepository(db)
+	repo := sqlite.NewTaskRepository(db, nil)
 	ctx := context.Background()
 
 	task := createTestTask(t, repo, ctx, "COMM-001", "", "To Delete")
@@ -268,7 +268,7 @@ func TestTaskRepository_Delete(t *testing.T) {
 
 func TestTaskRepository_Delete_NotFound(t *testing.T) {
 	db := setupTaskTestDB(t)
-	repo := sqlite.NewTaskRepository(db)
+	repo := sqlite.NewTaskRepository(db, nil)
 	ctx := context.Background()
 
 	err := repo.Delete(ctx, "TASK-999")
@@ -279,7 +279,7 @@ func TestTaskRepository_Delete_NotFound(t *testing.T) {
 
 func TestTaskRepository_Pin_Unpin(t *testing.T) {
 	db := setupTaskTestDB(t)
-	repo := sqlite.NewTaskRepository(db)
+	repo := sqlite.NewTaskRepository(db, nil)
 	ctx := context.Background()
 
 	task := createTestTask(t, repo, ctx, "COMM-001", "", "Pin Test")
@@ -309,7 +309,7 @@ func TestTaskRepository_Pin_Unpin(t *testing.T) {
 
 func TestTaskRepository_GetNextID(t *testing.T) {
 	db := setupTaskTestDB(t)
-	repo := sqlite.NewTaskRepository(db)
+	repo := sqlite.NewTaskRepository(db, nil)
 	ctx := context.Background()
 
 	id, err := repo.GetNextID(ctx)
@@ -333,7 +333,7 @@ func TestTaskRepository_GetNextID(t *testing.T) {
 
 func TestTaskRepository_UpdateStatus(t *testing.T) {
 	db := setupTaskTestDB(t)
-	repo := sqlite.NewTaskRepository(db)
+	repo := sqlite.NewTaskRepository(db, nil)
 	ctx := context.Background()
 
 	task := createTestTask(t, repo, ctx, "COMM-001", "", "Status Test")
@@ -372,7 +372,7 @@ func TestTaskRepository_UpdateStatus(t *testing.T) {
 
 func TestTaskRepository_UpdateStatus_NotFound(t *testing.T) {
 	db := setupTaskTestDB(t)
-	repo := sqlite.NewTaskRepository(db)
+	repo := sqlite.NewTaskRepository(db, nil)
 	ctx := context.Background()
 
 	err := repo.UpdateStatus(ctx, "TASK-999", "complete", false, true)
@@ -383,7 +383,7 @@ func TestTaskRepository_UpdateStatus_NotFound(t *testing.T) {
 
 func TestTaskRepository_Claim(t *testing.T) {
 	db := setupTaskTestDB(t)
-	repo := sqlite.NewTaskRepository(db)
+	repo := sqlite.NewTaskRepository(db, nil)
 	ctx := context.Background()
 
 	task := createTestTask(t, repo, ctx, "COMM-001", "", "Claim Test")
@@ -407,7 +407,7 @@ func TestTaskRepository_Claim(t *testing.T) {
 
 func TestTaskRepository_Claim_NotFound(t *testing.T) {
 	db := setupTaskTestDB(t)
-	repo := sqlite.NewTaskRepository(db)
+	repo := sqlite.NewTaskRepository(db, nil)
 	ctx := context.Background()
 
 	err := repo.Claim(ctx, "TASK-999", "BENCH-001")
@@ -418,7 +418,7 @@ func TestTaskRepository_Claim_NotFound(t *testing.T) {
 
 func TestTaskRepository_GetByWorkbench(t *testing.T) {
 	db := setupTaskTestDB(t)
-	repo := sqlite.NewTaskRepository(db)
+	repo := sqlite.NewTaskRepository(db, nil)
 	ctx := context.Background()
 
 	task1 := createTestTask(t, repo, ctx, "COMM-001", "", "Task 1")
@@ -440,7 +440,7 @@ func TestTaskRepository_GetByWorkbench(t *testing.T) {
 
 func TestTaskRepository_GetByShipment(t *testing.T) {
 	db := setupTaskTestDB(t)
-	repo := sqlite.NewTaskRepository(db)
+	repo := sqlite.NewTaskRepository(db, nil)
 	ctx := context.Background()
 
 	createTestTask(t, repo, ctx, "COMM-001", "SHIP-001", "Task 1")
@@ -459,7 +459,7 @@ func TestTaskRepository_GetByShipment(t *testing.T) {
 
 func TestTaskRepository_AssignWorkbenchByShipment(t *testing.T) {
 	db := setupTaskTestDB(t)
-	repo := sqlite.NewTaskRepository(db)
+	repo := sqlite.NewTaskRepository(db, nil)
 	ctx := context.Background()
 
 	task1 := createTestTask(t, repo, ctx, "COMM-001", "SHIP-001", "Task 1")
@@ -491,7 +491,7 @@ func TestTaskRepository_AssignWorkbenchByShipment(t *testing.T) {
 
 func TestTaskRepository_CommissionExists(t *testing.T) {
 	db := setupTaskTestDB(t)
-	repo := sqlite.NewTaskRepository(db)
+	repo := sqlite.NewTaskRepository(db, nil)
 	ctx := context.Background()
 
 	exists, err := repo.CommissionExists(ctx, "COMM-001")
@@ -513,7 +513,7 @@ func TestTaskRepository_CommissionExists(t *testing.T) {
 
 func TestTaskRepository_ShipmentExists(t *testing.T) {
 	db := setupTaskTestDB(t)
-	repo := sqlite.NewTaskRepository(db)
+	repo := sqlite.NewTaskRepository(db, nil)
 	ctx := context.Background()
 
 	exists, err := repo.ShipmentExists(ctx, "SHIP-001")
@@ -537,7 +537,7 @@ func TestTaskRepository_ShipmentExists(t *testing.T) {
 
 func TestTaskRepository_AddTag_GetTag_RemoveTag(t *testing.T) {
 	db := setupTaskTestDB(t)
-	repo := sqlite.NewTaskRepository(db)
+	repo := sqlite.NewTaskRepository(db, nil)
 	ctx := context.Background()
 
 	// Insert a test tag
@@ -593,7 +593,7 @@ func TestTaskRepository_AddTag_GetTag_RemoveTag(t *testing.T) {
 
 func TestTaskRepository_ListByTag(t *testing.T) {
 	db := setupTaskTestDB(t)
-	repo := sqlite.NewTaskRepository(db)
+	repo := sqlite.NewTaskRepository(db, nil)
 	ctx := context.Background()
 
 	// Insert test tags
@@ -619,7 +619,7 @@ func TestTaskRepository_ListByTag(t *testing.T) {
 
 func TestTaskRepository_GetNextEntityTagID(t *testing.T) {
 	db := setupTaskTestDB(t)
-	repo := sqlite.NewTaskRepository(db)
+	repo := sqlite.NewTaskRepository(db, nil)
 	ctx := context.Background()
 
 	id, err := repo.GetNextEntityTagID(ctx)

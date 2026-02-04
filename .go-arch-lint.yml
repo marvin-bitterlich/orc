@@ -66,6 +66,9 @@ components:
   context:
     in: internal/context/**
 
+  ctxutil:
+    in: internal/ctxutil/**
+
   templates:
     in: internal/templates/**
 
@@ -119,6 +122,7 @@ deps:
       - core
       - config
       - context
+      - ctxutil
       - agent
       - tmux
 
@@ -171,7 +175,14 @@ deps:
     anyVendorDeps: true
 
   context:
-    anyProjectDeps: true
+    mayDependOn:
+      - ctxutil
+      - wire
+      - config
+
+  ctxutil:
+    mayDependOn:
+      - ctxutil
 
   templates:
     anyProjectDeps: false

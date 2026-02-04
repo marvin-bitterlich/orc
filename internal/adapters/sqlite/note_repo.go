@@ -12,12 +12,14 @@ import (
 
 // NoteRepository implements secondary.NoteRepository with SQLite.
 type NoteRepository struct {
-	db *sql.DB
+	db        *sql.DB
+	logWriter secondary.LogWriter
 }
 
 // NewNoteRepository creates a new SQLite note repository.
-func NewNoteRepository(db *sql.DB) *NoteRepository {
-	return &NoteRepository{db: db}
+// logWriter is optional - if nil, no audit logging is performed.
+func NewNoteRepository(db *sql.DB, logWriter secondary.LogWriter) *NoteRepository {
+	return &NoteRepository{db: db, logWriter: logWriter}
 }
 
 // Create persists a new note.
@@ -52,6 +54,11 @@ func (r *NoteRepository) Create(ctx context.Context, note *secondary.NoteRecord)
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create note: %w", err)
+	}
+
+	// Log create operation
+	if r.logWriter != nil {
+		_ = r.logWriter.LogCreate(ctx, "note", note.ID)
 	}
 
 	return nil

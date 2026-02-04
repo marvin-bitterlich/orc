@@ -12,12 +12,14 @@ import (
 
 // ShipmentRepository implements secondary.ShipmentRepository with SQLite.
 type ShipmentRepository struct {
-	db *sql.DB
+	db        *sql.DB
+	logWriter secondary.LogWriter
 }
 
 // NewShipmentRepository creates a new SQLite shipment repository.
-func NewShipmentRepository(db *sql.DB) *ShipmentRepository {
-	return &ShipmentRepository{db: db}
+// logWriter is optional - if nil, no audit logging is performed.
+func NewShipmentRepository(db *sql.DB, logWriter secondary.LogWriter) *ShipmentRepository {
+	return &ShipmentRepository{db: db, logWriter: logWriter}
 }
 
 // Create persists a new shipment.
@@ -49,6 +51,11 @@ func (r *ShipmentRepository) Create(ctx context.Context, shipment *secondary.Shi
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create shipment: %w", err)
+	}
+
+	// Log create operation
+	if r.logWriter != nil {
+		_ = r.logWriter.LogCreate(ctx, "shipment", shipment.ID)
 	}
 
 	return nil

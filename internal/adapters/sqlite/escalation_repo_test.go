@@ -10,7 +10,7 @@ import (
 
 func TestEscalationRepository_Create(t *testing.T) {
 	db := setupTestDB(t)
-	repo := sqlite.NewEscalationRepository(db)
+	repo := sqlite.NewEscalationRepository(db, nil)
 	ctx := context.Background()
 
 	// Create test fixtures
@@ -88,7 +88,7 @@ func TestEscalationRepository_Create(t *testing.T) {
 
 func TestEscalationRepository_GetByID(t *testing.T) {
 	db := setupTestDB(t)
-	repo := sqlite.NewEscalationRepository(db)
+	repo := sqlite.NewEscalationRepository(db, nil)
 	ctx := context.Background()
 
 	// Setup
@@ -127,7 +127,7 @@ func TestEscalationRepository_GetByID(t *testing.T) {
 
 func TestEscalationRepository_List(t *testing.T) {
 	db := setupTestDB(t)
-	repo := sqlite.NewEscalationRepository(db)
+	repo := sqlite.NewEscalationRepository(db, nil)
 	ctx := context.Background()
 
 	// Setup
@@ -179,7 +179,7 @@ func TestEscalationRepository_List(t *testing.T) {
 
 func TestEscalationRepository_Delete(t *testing.T) {
 	db := setupTestDB(t)
-	repo := sqlite.NewEscalationRepository(db)
+	repo := sqlite.NewEscalationRepository(db, nil)
 	ctx := context.Background()
 
 	// Setup
@@ -212,7 +212,7 @@ func TestEscalationRepository_Delete(t *testing.T) {
 
 func TestEscalationRepository_GetNextID(t *testing.T) {
 	db := setupTestDB(t)
-	repo := sqlite.NewEscalationRepository(db)
+	repo := sqlite.NewEscalationRepository(db, nil)
 	ctx := context.Background()
 
 	t.Run("returns ESC-001 for empty table", func(t *testing.T) {
@@ -228,7 +228,7 @@ func TestEscalationRepository_GetNextID(t *testing.T) {
 
 func TestEscalationRepository_UpdateStatus(t *testing.T) {
 	db := setupTestDB(t)
-	repo := sqlite.NewEscalationRepository(db)
+	repo := sqlite.NewEscalationRepository(db, nil)
 	ctx := context.Background()
 
 	// Setup
@@ -272,7 +272,7 @@ func TestEscalationRepository_UpdateStatus(t *testing.T) {
 
 func TestEscalationRepository_Resolve(t *testing.T) {
 	db := setupTestDB(t)
-	repo := sqlite.NewEscalationRepository(db)
+	repo := sqlite.NewEscalationRepository(db, nil)
 	ctx := context.Background()
 
 	// Setup
@@ -322,7 +322,7 @@ func TestEscalationRepository_Resolve(t *testing.T) {
 
 func TestEscalationRepository_Exists(t *testing.T) {
 	db := setupTestDB(t)
-	repo := sqlite.NewEscalationRepository(db)
+	repo := sqlite.NewEscalationRepository(db, nil)
 	ctx := context.Background()
 
 	// Setup

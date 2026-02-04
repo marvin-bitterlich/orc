@@ -10,7 +10,7 @@ import (
 
 func TestApprovalRepository_Create(t *testing.T) {
 	db := setupTestDB(t)
-	repo := sqlite.NewApprovalRepository(db)
+	repo := sqlite.NewApprovalRepository(db, nil)
 	ctx := context.Background()
 
 	// Create test fixtures: commission -> shipment -> task, plan
@@ -98,7 +98,7 @@ func TestApprovalRepository_Create(t *testing.T) {
 
 func TestApprovalRepository_GetByID(t *testing.T) {
 	db := setupTestDB(t)
-	repo := sqlite.NewApprovalRepository(db)
+	repo := sqlite.NewApprovalRepository(db, nil)
 	ctx := context.Background()
 
 	// Setup
@@ -135,7 +135,7 @@ func TestApprovalRepository_GetByID(t *testing.T) {
 
 func TestApprovalRepository_GetByPlan(t *testing.T) {
 	db := setupTestDB(t)
-	repo := sqlite.NewApprovalRepository(db)
+	repo := sqlite.NewApprovalRepository(db, nil)
 	ctx := context.Background()
 
 	// Setup
@@ -175,7 +175,7 @@ func TestApprovalRepository_GetByPlan(t *testing.T) {
 
 func TestApprovalRepository_List(t *testing.T) {
 	db := setupTestDB(t)
-	repo := sqlite.NewApprovalRepository(db)
+	repo := sqlite.NewApprovalRepository(db, nil)
 	ctx := context.Background()
 
 	// Setup
@@ -228,7 +228,7 @@ func TestApprovalRepository_List(t *testing.T) {
 
 func TestApprovalRepository_Delete(t *testing.T) {
 	db := setupTestDB(t)
-	repo := sqlite.NewApprovalRepository(db)
+	repo := sqlite.NewApprovalRepository(db, nil)
 	ctx := context.Background()
 
 	// Setup
@@ -261,7 +261,7 @@ func TestApprovalRepository_Delete(t *testing.T) {
 
 func TestApprovalRepository_GetNextID(t *testing.T) {
 	db := setupTestDB(t)
-	repo := sqlite.NewApprovalRepository(db)
+	repo := sqlite.NewApprovalRepository(db, nil)
 	ctx := context.Background()
 
 	t.Run("returns APPR-001 for empty table", func(t *testing.T) {
@@ -277,7 +277,7 @@ func TestApprovalRepository_GetNextID(t *testing.T) {
 
 func TestApprovalRepository_PlanExists(t *testing.T) {
 	db := setupTestDB(t)
-	repo := sqlite.NewApprovalRepository(db)
+	repo := sqlite.NewApprovalRepository(db, nil)
 	ctx := context.Background()
 
 	// Setup
@@ -308,7 +308,7 @@ func TestApprovalRepository_PlanExists(t *testing.T) {
 
 func TestApprovalRepository_TaskExists(t *testing.T) {
 	db := setupTestDB(t)
-	repo := sqlite.NewApprovalRepository(db)
+	repo := sqlite.NewApprovalRepository(db, nil)
 	ctx := context.Background()
 
 	// Setup
@@ -338,7 +338,7 @@ func TestApprovalRepository_TaskExists(t *testing.T) {
 
 func TestApprovalRepository_PlanHasApproval(t *testing.T) {
 	db := setupTestDB(t)
-	repo := sqlite.NewApprovalRepository(db)
+	repo := sqlite.NewApprovalRepository(db, nil)
 	ctx := context.Background()
 
 	// Setup

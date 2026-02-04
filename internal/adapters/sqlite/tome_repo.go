@@ -12,12 +12,14 @@ import (
 
 // TomeRepository implements secondary.TomeRepository with SQLite.
 type TomeRepository struct {
-	db *sql.DB
+	db        *sql.DB
+	logWriter secondary.LogWriter
 }
 
 // NewTomeRepository creates a new SQLite tome repository.
-func NewTomeRepository(db *sql.DB) *TomeRepository {
-	return &TomeRepository{db: db}
+// logWriter is optional - if nil, no audit logging is performed.
+func NewTomeRepository(db *sql.DB, logWriter secondary.LogWriter) *TomeRepository {
+	return &TomeRepository{db: db, logWriter: logWriter}
 }
 
 // Create persists a new tome.
@@ -46,6 +48,11 @@ func (r *TomeRepository) Create(ctx context.Context, tome *secondary.TomeRecord)
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create tome: %w", err)
+	}
+
+	// Log create operation
+	if r.logWriter != nil {
+		_ = r.logWriter.LogCreate(ctx, "tome", tome.ID)
 	}
 
 	return nil

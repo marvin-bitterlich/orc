@@ -490,3 +490,23 @@ CREATE INDEX IF NOT EXISTS idx_escalations_plan ON escalations(plan_id);
 CREATE INDEX IF NOT EXISTS idx_escalations_task ON escalations(task_id);
 CREATE INDEX IF NOT EXISTS idx_escalations_status ON escalations(status);
 CREATE INDEX IF NOT EXISTS idx_escalations_target ON escalations(target_actor_id);
+
+-- Workshop Logs (audit trail for workshop changes)
+CREATE TABLE IF NOT EXISTS workshop_logs (
+	id TEXT PRIMARY KEY,
+	workshop_id TEXT NOT NULL,
+	timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+	actor_id TEXT,
+	entity_type TEXT NOT NULL,
+	entity_id TEXT NOT NULL,
+	action TEXT NOT NULL CHECK(action IN ('create', 'update', 'delete')),
+	field_name TEXT,
+	old_value TEXT,
+	new_value TEXT,
+	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+	FOREIGN KEY (workshop_id) REFERENCES workshops(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_workshop_logs_workshop ON workshop_logs(workshop_id);
+CREATE INDEX IF NOT EXISTS idx_workshop_logs_timestamp ON workshop_logs(timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_workshop_logs_actor ON workshop_logs(actor_id);
+CREATE INDEX IF NOT EXISTS idx_workshop_logs_entity ON workshop_logs(entity_type, entity_id);

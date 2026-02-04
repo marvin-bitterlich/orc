@@ -1423,3 +1423,51 @@ type StuckFilters struct {
 	PatrolID string
 	Status   string
 }
+
+// WorkshopLogRepository defines the secondary port for workshop log (audit trail) persistence.
+// Logs are immutable - no Update operations, but old entries can be pruned.
+type WorkshopLogRepository interface {
+	// Create persists a new workshop log entry.
+	Create(ctx context.Context, log *WorkshopLogRecord) error
+
+	// GetByID retrieves a log entry by its ID.
+	GetByID(ctx context.Context, id string) (*WorkshopLogRecord, error)
+
+	// List retrieves log entries matching the given filters.
+	List(ctx context.Context, filters WorkshopLogFilters) ([]*WorkshopLogRecord, error)
+
+	// GetNextID returns the next available log ID.
+	GetNextID(ctx context.Context) (string, error)
+
+	// WorkshopExists checks if a workshop exists (for validation).
+	WorkshopExists(ctx context.Context, workshopID string) (bool, error)
+
+	// PruneOlderThan deletes log entries older than the given number of days.
+	// Returns the number of deleted entries.
+	PruneOlderThan(ctx context.Context, days int) (int, error)
+}
+
+// WorkshopLogRecord represents a workshop log entry as stored in persistence.
+type WorkshopLogRecord struct {
+	ID         string
+	WorkshopID string
+	Timestamp  string
+	ActorID    string // Empty string means null
+	EntityType string
+	EntityID   string
+	Action     string // 'create', 'update', 'delete'
+	FieldName  string // Empty string means null - for updates only
+	OldValue   string // Empty string means null
+	NewValue   string // Empty string means null
+	CreatedAt  string
+}
+
+// WorkshopLogFilters contains filter options for querying logs.
+type WorkshopLogFilters struct {
+	WorkshopID string
+	EntityType string
+	EntityID   string
+	ActorID    string
+	Action     string
+	Limit      int
+}

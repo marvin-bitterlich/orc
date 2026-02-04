@@ -12,12 +12,14 @@ import (
 
 // EscalationRepository implements secondary.EscalationRepository with SQLite.
 type EscalationRepository struct {
-	db *sql.DB
+	db        *sql.DB
+	logWriter secondary.LogWriter
 }
 
 // NewEscalationRepository creates a new SQLite escalation repository.
-func NewEscalationRepository(db *sql.DB) *EscalationRepository {
-	return &EscalationRepository{db: db}
+// logWriter is optional - if nil, no audit logging is performed.
+func NewEscalationRepository(db *sql.DB, logWriter secondary.LogWriter) *EscalationRepository {
+	return &EscalationRepository{db: db, logWriter: logWriter}
 }
 
 // Create persists a new escalation.
@@ -44,6 +46,11 @@ func (r *EscalationRepository) Create(ctx context.Context, escalation *secondary
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create escalation: %w", err)
+	}
+
+	// Log create operation
+	if r.logWriter != nil {
+		_ = r.logWriter.LogCreate(ctx, "escalation", escalation.ID)
 	}
 
 	return nil

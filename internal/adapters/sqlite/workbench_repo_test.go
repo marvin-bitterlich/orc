@@ -10,7 +10,7 @@ import (
 
 func TestWorkbenchRepository_Create(t *testing.T) {
 	db := setupTestDB(t)
-	repo := sqlite.NewWorkbenchRepository(db)
+	repo := sqlite.NewWorkbenchRepository(db, nil)
 	ctx := context.Background()
 
 	// Seed required factory and workshop
@@ -47,7 +47,7 @@ func TestWorkbenchRepository_Create(t *testing.T) {
 
 func TestWorkbenchRepository_Create_WorkshopNotFound(t *testing.T) {
 	db := setupTestDB(t)
-	repo := sqlite.NewWorkbenchRepository(db)
+	repo := sqlite.NewWorkbenchRepository(db, nil)
 	ctx := context.Background()
 
 	workbench := &secondary.WorkbenchRecord{
@@ -63,7 +63,7 @@ func TestWorkbenchRepository_Create_WorkshopNotFound(t *testing.T) {
 
 func TestWorkbenchRepository_Create_WithOptionalFields(t *testing.T) {
 	db := setupTestDB(t)
-	repo := sqlite.NewWorkbenchRepository(db)
+	repo := sqlite.NewWorkbenchRepository(db, nil)
 	ctx := context.Background()
 
 	// Seed required factory and workshop
@@ -98,7 +98,7 @@ func TestWorkbenchRepository_Create_WithOptionalFields(t *testing.T) {
 
 func TestWorkbenchRepository_GetByID(t *testing.T) {
 	db := setupTestDB(t)
-	repo := sqlite.NewWorkbenchRepository(db)
+	repo := sqlite.NewWorkbenchRepository(db, nil)
 	ctx := context.Background()
 
 	// Seed workbench (includes factory and workshop)
@@ -121,7 +121,7 @@ func TestWorkbenchRepository_GetByID(t *testing.T) {
 
 func TestWorkbenchRepository_GetByID_NotFound(t *testing.T) {
 	db := setupTestDB(t)
-	repo := sqlite.NewWorkbenchRepository(db)
+	repo := sqlite.NewWorkbenchRepository(db, nil)
 	ctx := context.Background()
 
 	_, err := repo.GetByID(ctx, "BENCH-999")
@@ -132,7 +132,7 @@ func TestWorkbenchRepository_GetByID_NotFound(t *testing.T) {
 
 func TestWorkbenchRepository_GetByPath(t *testing.T) {
 	db := setupTestDB(t)
-	repo := sqlite.NewWorkbenchRepository(db)
+	repo := sqlite.NewWorkbenchRepository(db, nil)
 	ctx := context.Background()
 
 	// Seed workbench with known name
@@ -151,7 +151,7 @@ func TestWorkbenchRepository_GetByPath(t *testing.T) {
 
 func TestWorkbenchRepository_GetByPath_NotFound(t *testing.T) {
 	db := setupTestDB(t)
-	repo := sqlite.NewWorkbenchRepository(db)
+	repo := sqlite.NewWorkbenchRepository(db, nil)
 	ctx := context.Background()
 
 	_, err := repo.GetByPath(ctx, "/nonexistent/path")
@@ -162,7 +162,7 @@ func TestWorkbenchRepository_GetByPath_NotFound(t *testing.T) {
 
 func TestWorkbenchRepository_GetByWorkshop(t *testing.T) {
 	db := setupTestDB(t)
-	repo := sqlite.NewWorkbenchRepository(db)
+	repo := sqlite.NewWorkbenchRepository(db, nil)
 	ctx := context.Background()
 
 	// Seed factory, workshops, and workbenches
@@ -184,7 +184,7 @@ func TestWorkbenchRepository_GetByWorkshop(t *testing.T) {
 
 func TestWorkbenchRepository_List(t *testing.T) {
 	db := setupTestDB(t)
-	repo := sqlite.NewWorkbenchRepository(db)
+	repo := sqlite.NewWorkbenchRepository(db, nil)
 	ctx := context.Background()
 
 	// Seed factory, workshop, and workbenches
@@ -205,7 +205,7 @@ func TestWorkbenchRepository_List(t *testing.T) {
 
 func TestWorkbenchRepository_List_FilterByWorkshop(t *testing.T) {
 	db := setupTestDB(t)
-	repo := sqlite.NewWorkbenchRepository(db)
+	repo := sqlite.NewWorkbenchRepository(db, nil)
 	ctx := context.Background()
 
 	// Seed factory, workshops, and workbenches
@@ -227,7 +227,7 @@ func TestWorkbenchRepository_List_FilterByWorkshop(t *testing.T) {
 
 func TestWorkbenchRepository_Update(t *testing.T) {
 	db := setupTestDB(t)
-	repo := sqlite.NewWorkbenchRepository(db)
+	repo := sqlite.NewWorkbenchRepository(db, nil)
 	ctx := context.Background()
 
 	// Seed workbench
@@ -251,7 +251,7 @@ func TestWorkbenchRepository_Update(t *testing.T) {
 
 func TestWorkbenchRepository_Update_MultipleFields(t *testing.T) {
 	db := setupTestDB(t)
-	repo := sqlite.NewWorkbenchRepository(db)
+	repo := sqlite.NewWorkbenchRepository(db, nil)
 	ctx := context.Background()
 
 	// Seed workbench
@@ -284,7 +284,7 @@ func TestWorkbenchRepository_Update_MultipleFields(t *testing.T) {
 
 func TestWorkbenchRepository_Update_NotFound(t *testing.T) {
 	db := setupTestDB(t)
-	repo := sqlite.NewWorkbenchRepository(db)
+	repo := sqlite.NewWorkbenchRepository(db, nil)
 	ctx := context.Background()
 
 	err := repo.Update(ctx, &secondary.WorkbenchRecord{
@@ -298,7 +298,7 @@ func TestWorkbenchRepository_Update_NotFound(t *testing.T) {
 
 func TestWorkbenchRepository_Delete(t *testing.T) {
 	db := setupTestDB(t)
-	repo := sqlite.NewWorkbenchRepository(db)
+	repo := sqlite.NewWorkbenchRepository(db, nil)
 	ctx := context.Background()
 
 	// Seed workbench
@@ -319,7 +319,7 @@ func TestWorkbenchRepository_Delete(t *testing.T) {
 
 func TestWorkbenchRepository_Delete_NotFound(t *testing.T) {
 	db := setupTestDB(t)
-	repo := sqlite.NewWorkbenchRepository(db)
+	repo := sqlite.NewWorkbenchRepository(db, nil)
 	ctx := context.Background()
 
 	err := repo.Delete(ctx, "BENCH-999")
@@ -330,7 +330,7 @@ func TestWorkbenchRepository_Delete_NotFound(t *testing.T) {
 
 func TestWorkbenchRepository_Rename(t *testing.T) {
 	db := setupTestDB(t)
-	repo := sqlite.NewWorkbenchRepository(db)
+	repo := sqlite.NewWorkbenchRepository(db, nil)
 	ctx := context.Background()
 
 	// Seed workbench
@@ -351,7 +351,7 @@ func TestWorkbenchRepository_Rename(t *testing.T) {
 
 func TestWorkbenchRepository_Rename_NotFound(t *testing.T) {
 	db := setupTestDB(t)
-	repo := sqlite.NewWorkbenchRepository(db)
+	repo := sqlite.NewWorkbenchRepository(db, nil)
 	ctx := context.Background()
 
 	err := repo.Rename(ctx, "BENCH-999", "renamed")
@@ -362,7 +362,7 @@ func TestWorkbenchRepository_Rename_NotFound(t *testing.T) {
 
 func TestWorkbenchRepository_UpdatePath_IsNoOp(t *testing.T) {
 	db := setupTestDB(t)
-	repo := sqlite.NewWorkbenchRepository(db)
+	repo := sqlite.NewWorkbenchRepository(db, nil)
 	ctx := context.Background()
 
 	// Seed workbench
@@ -378,7 +378,7 @@ func TestWorkbenchRepository_UpdatePath_IsNoOp(t *testing.T) {
 
 func TestWorkbenchRepository_GetNextID(t *testing.T) {
 	db := setupTestDB(t)
-	repo := sqlite.NewWorkbenchRepository(db)
+	repo := sqlite.NewWorkbenchRepository(db, nil)
 	ctx := context.Background()
 
 	// First ID should be BENCH-001
@@ -405,7 +405,7 @@ func TestWorkbenchRepository_GetNextID(t *testing.T) {
 
 func TestWorkbenchRepository_WorkshopExists(t *testing.T) {
 	db := setupTestDB(t)
-	repo := sqlite.NewWorkbenchRepository(db)
+	repo := sqlite.NewWorkbenchRepository(db, nil)
 	ctx := context.Background()
 
 	// Workshop doesn't exist
@@ -433,7 +433,7 @@ func TestWorkbenchRepository_WorkshopExists(t *testing.T) {
 
 func TestWorkbenchRepository_UpdateFocusedID(t *testing.T) {
 	db := setupTestDB(t)
-	repo := sqlite.NewWorkbenchRepository(db)
+	repo := sqlite.NewWorkbenchRepository(db, nil)
 	ctx := context.Background()
 
 	// Seed workbench
@@ -466,7 +466,7 @@ func TestWorkbenchRepository_UpdateFocusedID(t *testing.T) {
 
 func TestWorkbenchRepository_UpdateFocusedID_NotFound(t *testing.T) {
 	db := setupTestDB(t)
-	repo := sqlite.NewWorkbenchRepository(db)
+	repo := sqlite.NewWorkbenchRepository(db, nil)
 	ctx := context.Background()
 
 	err := repo.UpdateFocusedID(ctx, "BENCH-999", "SHIP-001")
@@ -477,7 +477,7 @@ func TestWorkbenchRepository_UpdateFocusedID_NotFound(t *testing.T) {
 
 func TestWorkbenchRepository_GetByFocusedID(t *testing.T) {
 	db := setupTestDB(t)
-	repo := sqlite.NewWorkbenchRepository(db)
+	repo := sqlite.NewWorkbenchRepository(db, nil)
 	ctx := context.Background()
 
 	// Seed factory, workshop, and workbenches
@@ -523,7 +523,7 @@ func TestWorkbenchRepository_GetByFocusedID(t *testing.T) {
 
 func TestWorkbenchRepository_GetByFocusedID_EmptyString(t *testing.T) {
 	db := setupTestDB(t)
-	repo := sqlite.NewWorkbenchRepository(db)
+	repo := sqlite.NewWorkbenchRepository(db, nil)
 	ctx := context.Background()
 
 	// Empty string should return nil, nil

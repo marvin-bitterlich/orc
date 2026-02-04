@@ -12,12 +12,14 @@ import (
 
 // TaskRepository implements secondary.TaskRepository with SQLite.
 type TaskRepository struct {
-	db *sql.DB
+	db        *sql.DB
+	logWriter secondary.LogWriter
 }
 
 // NewTaskRepository creates a new SQLite task repository.
-func NewTaskRepository(db *sql.DB) *TaskRepository {
-	return &TaskRepository{db: db}
+// logWriter is optional - if nil, no audit logging is performed.
+func NewTaskRepository(db *sql.DB, logWriter secondary.LogWriter) *TaskRepository {
+	return &TaskRepository{db: db, logWriter: logWriter}
 }
 
 // scanTask scans a task row into a TaskRecord.
@@ -94,6 +96,11 @@ func (r *TaskRepository) Create(ctx context.Context, task *secondary.TaskRecord)
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create task: %w", err)
+	}
+
+	// Log create operation
+	if r.logWriter != nil {
+		_ = r.logWriter.LogCreate(ctx, "task", task.ID)
 	}
 
 	return nil
@@ -213,6 +220,11 @@ func (r *TaskRepository) Delete(ctx context.Context, id string) error {
 		return fmt.Errorf("task %s not found", id)
 	}
 
+	// Log delete operation
+	if r.logWriter != nil {
+		_ = r.logWriter.LogDelete(ctx, "task", id)
+	}
+
 	return nil
 }
 
@@ -309,6 +321,12 @@ func (r *TaskRepository) GetByShipment(ctx context.Context, shipmentID string) (
 
 // UpdateStatus updates the status with optional timestamps.
 func (r *TaskRepository) UpdateStatus(ctx context.Context, id, status string, setClaimed, setCompleted bool) error {
+	// Get old status for logging
+	var oldStatus string
+	if r.logWriter != nil {
+		_ = r.db.QueryRowContext(ctx, "SELECT status FROM tasks WHERE id = ?", id).Scan(&oldStatus)
+	}
+
 	query := "UPDATE tasks SET status = ?, updated_at = CURRENT_TIMESTAMP"
 	args := []any{status}
 
@@ -330,6 +348,11 @@ func (r *TaskRepository) UpdateStatus(ctx context.Context, id, status string, se
 	rowsAffected, _ := result.RowsAffected()
 	if rowsAffected == 0 {
 		return fmt.Errorf("task %s not found", id)
+	}
+
+	// Log status change
+	if r.logWriter != nil && oldStatus != status {
+		_ = r.logWriter.LogUpdate(ctx, "task", id, "status", oldStatus, status)
 	}
 
 	return nil

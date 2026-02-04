@@ -43,7 +43,7 @@ func createTestNote(t *testing.T, repo *sqlite.NoteRepository, ctx context.Conte
 
 func TestNoteRepository_Create(t *testing.T) {
 	db := setupNoteTestDB(t)
-	repo := sqlite.NewNoteRepository(db)
+	repo := sqlite.NewNoteRepository(db, nil)
 	ctx := context.Background()
 
 	note := &secondary.NoteRecord{
@@ -77,7 +77,7 @@ func TestNoteRepository_Create(t *testing.T) {
 
 func TestNoteRepository_Create_WithContainer(t *testing.T) {
 	db := setupNoteTestDB(t)
-	repo := sqlite.NewNoteRepository(db)
+	repo := sqlite.NewNoteRepository(db, nil)
 	ctx := context.Background()
 
 	note := &secondary.NoteRecord{
@@ -100,7 +100,7 @@ func TestNoteRepository_Create_WithContainer(t *testing.T) {
 
 func TestNoteRepository_GetByID(t *testing.T) {
 	db := setupNoteTestDB(t)
-	repo := sqlite.NewNoteRepository(db)
+	repo := sqlite.NewNoteRepository(db, nil)
 	ctx := context.Background()
 
 	note := createTestNote(t, repo, ctx, "COMM-001", "Test Note", "Content")
@@ -117,7 +117,7 @@ func TestNoteRepository_GetByID(t *testing.T) {
 
 func TestNoteRepository_GetByID_NotFound(t *testing.T) {
 	db := setupNoteTestDB(t)
-	repo := sqlite.NewNoteRepository(db)
+	repo := sqlite.NewNoteRepository(db, nil)
 	ctx := context.Background()
 
 	_, err := repo.GetByID(ctx, "NOTE-999")
@@ -128,7 +128,7 @@ func TestNoteRepository_GetByID_NotFound(t *testing.T) {
 
 func TestNoteRepository_List(t *testing.T) {
 	db := setupNoteTestDB(t)
-	repo := sqlite.NewNoteRepository(db)
+	repo := sqlite.NewNoteRepository(db, nil)
 	ctx := context.Background()
 
 	createTestNote(t, repo, ctx, "COMM-001", "Note 1", "")
@@ -147,7 +147,7 @@ func TestNoteRepository_List(t *testing.T) {
 
 func TestNoteRepository_List_FilterByType(t *testing.T) {
 	db := setupNoteTestDB(t)
-	repo := sqlite.NewNoteRepository(db)
+	repo := sqlite.NewNoteRepository(db, nil)
 	ctx := context.Background()
 
 	// Create notes with different types
@@ -172,7 +172,7 @@ func TestNoteRepository_List_FilterByType(t *testing.T) {
 
 func TestNoteRepository_List_FilterByCommission(t *testing.T) {
 	db := setupNoteTestDB(t)
-	repo := sqlite.NewNoteRepository(db)
+	repo := sqlite.NewNoteRepository(db, nil)
 	ctx := context.Background()
 
 	// Add another commission
@@ -193,7 +193,7 @@ func TestNoteRepository_List_FilterByCommission(t *testing.T) {
 
 func TestNoteRepository_Update(t *testing.T) {
 	db := setupNoteTestDB(t)
-	repo := sqlite.NewNoteRepository(db)
+	repo := sqlite.NewNoteRepository(db, nil)
 	ctx := context.Background()
 
 	note := createTestNote(t, repo, ctx, "COMM-001", "Original Title", "Original content")
@@ -218,7 +218,7 @@ func TestNoteRepository_Update(t *testing.T) {
 
 func TestNoteRepository_Update_NotFound(t *testing.T) {
 	db := setupNoteTestDB(t)
-	repo := sqlite.NewNoteRepository(db)
+	repo := sqlite.NewNoteRepository(db, nil)
 	ctx := context.Background()
 
 	err := repo.Update(ctx, &secondary.NoteRecord{
@@ -232,7 +232,7 @@ func TestNoteRepository_Update_NotFound(t *testing.T) {
 
 func TestNoteRepository_Delete(t *testing.T) {
 	db := setupNoteTestDB(t)
-	repo := sqlite.NewNoteRepository(db)
+	repo := sqlite.NewNoteRepository(db, nil)
 	ctx := context.Background()
 
 	note := createTestNote(t, repo, ctx, "COMM-001", "To Delete", "")
@@ -250,7 +250,7 @@ func TestNoteRepository_Delete(t *testing.T) {
 
 func TestNoteRepository_Delete_NotFound(t *testing.T) {
 	db := setupNoteTestDB(t)
-	repo := sqlite.NewNoteRepository(db)
+	repo := sqlite.NewNoteRepository(db, nil)
 	ctx := context.Background()
 
 	err := repo.Delete(ctx, "NOTE-999")
@@ -261,7 +261,7 @@ func TestNoteRepository_Delete_NotFound(t *testing.T) {
 
 func TestNoteRepository_Pin_Unpin(t *testing.T) {
 	db := setupNoteTestDB(t)
-	repo := sqlite.NewNoteRepository(db)
+	repo := sqlite.NewNoteRepository(db, nil)
 	ctx := context.Background()
 
 	note := createTestNote(t, repo, ctx, "COMM-001", "Pin Test", "")
@@ -291,7 +291,7 @@ func TestNoteRepository_Pin_Unpin(t *testing.T) {
 
 func TestNoteRepository_Pin_NotFound(t *testing.T) {
 	db := setupNoteTestDB(t)
-	repo := sqlite.NewNoteRepository(db)
+	repo := sqlite.NewNoteRepository(db, nil)
 	ctx := context.Background()
 
 	err := repo.Pin(ctx, "NOTE-999")
@@ -302,7 +302,7 @@ func TestNoteRepository_Pin_NotFound(t *testing.T) {
 
 func TestNoteRepository_GetNextID(t *testing.T) {
 	db := setupNoteTestDB(t)
-	repo := sqlite.NewNoteRepository(db)
+	repo := sqlite.NewNoteRepository(db, nil)
 	ctx := context.Background()
 
 	id, err := repo.GetNextID(ctx)
@@ -328,7 +328,7 @@ func TestNoteRepository_GetNextID(t *testing.T) {
 
 func TestNoteRepository_GetByContainer_Shipment(t *testing.T) {
 	db := setupNoteTestDB(t)
-	repo := sqlite.NewNoteRepository(db)
+	repo := sqlite.NewNoteRepository(db, nil)
 	ctx := context.Background()
 
 	// Create notes for different containers
@@ -348,7 +348,7 @@ func TestNoteRepository_GetByContainer_Shipment(t *testing.T) {
 
 func TestNoteRepository_GetByContainer_Conclave(t *testing.T) {
 	db := setupNoteTestDB(t)
-	repo := sqlite.NewNoteRepository(db)
+	repo := sqlite.NewNoteRepository(db, nil)
 	ctx := context.Background()
 
 	_, _ = db.Exec(`INSERT INTO notes (id, commission_id, title, conclave_id) VALUES ('NOTE-001', 'COMM-001', 'Conclave Note', 'CON-001')`)
@@ -365,7 +365,7 @@ func TestNoteRepository_GetByContainer_Conclave(t *testing.T) {
 
 func TestNoteRepository_GetByContainer_Tome(t *testing.T) {
 	db := setupNoteTestDB(t)
-	repo := sqlite.NewNoteRepository(db)
+	repo := sqlite.NewNoteRepository(db, nil)
 	ctx := context.Background()
 
 	_, _ = db.Exec(`INSERT INTO notes (id, commission_id, title, tome_id) VALUES ('NOTE-001', 'COMM-001', 'Tome Note', 'TOME-001')`)
@@ -382,7 +382,7 @@ func TestNoteRepository_GetByContainer_Tome(t *testing.T) {
 
 func TestNoteRepository_GetByContainer_UnknownType(t *testing.T) {
 	db := setupNoteTestDB(t)
-	repo := sqlite.NewNoteRepository(db)
+	repo := sqlite.NewNoteRepository(db, nil)
 	ctx := context.Background()
 
 	_, err := repo.GetByContainer(ctx, "unknown", "ID-001")
@@ -393,7 +393,7 @@ func TestNoteRepository_GetByContainer_UnknownType(t *testing.T) {
 
 func TestNoteRepository_CommissionExists(t *testing.T) {
 	db := setupNoteTestDB(t)
-	repo := sqlite.NewNoteRepository(db)
+	repo := sqlite.NewNoteRepository(db, nil)
 	ctx := context.Background()
 
 	exists, err := repo.CommissionExists(ctx, "COMM-001")

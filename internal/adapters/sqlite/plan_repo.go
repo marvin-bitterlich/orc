@@ -12,12 +12,14 @@ import (
 
 // PlanRepository implements secondary.PlanRepository with SQLite.
 type PlanRepository struct {
-	db *sql.DB
+	db        *sql.DB
+	logWriter secondary.LogWriter
 }
 
 // NewPlanRepository creates a new SQLite plan repository.
-func NewPlanRepository(db *sql.DB) *PlanRepository {
-	return &PlanRepository{db: db}
+// logWriter is optional - if nil, no audit logging is performed.
+func NewPlanRepository(db *sql.DB, logWriter secondary.LogWriter) *PlanRepository {
+	return &PlanRepository{db: db, logWriter: logWriter}
 }
 
 // Create persists a new plan.
@@ -43,6 +45,11 @@ func (r *PlanRepository) Create(ctx context.Context, plan *secondary.PlanRecord)
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create plan: %w", err)
+	}
+
+	// Log create operation
+	if r.logWriter != nil {
+		_ = r.logWriter.LogCreate(ctx, "plan", plan.ID)
 	}
 
 	return nil

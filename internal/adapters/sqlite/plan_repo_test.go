@@ -44,7 +44,7 @@ func createTestPlan(t *testing.T, repo *sqlite.PlanRepository, ctx context.Conte
 
 func TestPlanRepository_Create(t *testing.T) {
 	db := setupPlanTestDB(t)
-	repo := sqlite.NewPlanRepository(db)
+	repo := sqlite.NewPlanRepository(db, nil)
 	ctx := context.Background()
 
 	plan := &secondary.PlanRecord{
@@ -79,7 +79,7 @@ func TestPlanRepository_Create(t *testing.T) {
 
 func TestPlanRepository_Create_WithoutTask(t *testing.T) {
 	db := setupPlanTestDB(t)
-	repo := sqlite.NewPlanRepository(db)
+	repo := sqlite.NewPlanRepository(db, nil)
 	ctx := context.Background()
 
 	plan := &secondary.PlanRecord{
@@ -101,7 +101,7 @@ func TestPlanRepository_Create_WithoutTask(t *testing.T) {
 
 func TestPlanRepository_GetByID(t *testing.T) {
 	db := setupPlanTestDB(t)
-	repo := sqlite.NewPlanRepository(db)
+	repo := sqlite.NewPlanRepository(db, nil)
 	ctx := context.Background()
 
 	plan := createTestPlan(t, repo, ctx, "COMM-001", "TASK-001", "Test Plan")
@@ -121,7 +121,7 @@ func TestPlanRepository_GetByID(t *testing.T) {
 
 func TestPlanRepository_GetByID_NotFound(t *testing.T) {
 	db := setupPlanTestDB(t)
-	repo := sqlite.NewPlanRepository(db)
+	repo := sqlite.NewPlanRepository(db, nil)
 	ctx := context.Background()
 
 	_, err := repo.GetByID(ctx, "PLAN-999")
@@ -132,7 +132,7 @@ func TestPlanRepository_GetByID_NotFound(t *testing.T) {
 
 func TestPlanRepository_List(t *testing.T) {
 	db := setupPlanTestDB(t)
-	repo := sqlite.NewPlanRepository(db)
+	repo := sqlite.NewPlanRepository(db, nil)
 	ctx := context.Background()
 
 	createTestPlan(t, repo, ctx, "COMM-001", "", "Plan 1")
@@ -151,7 +151,7 @@ func TestPlanRepository_List(t *testing.T) {
 
 func TestPlanRepository_List_FilterByTask(t *testing.T) {
 	db := setupPlanTestDB(t)
-	repo := sqlite.NewPlanRepository(db)
+	repo := sqlite.NewPlanRepository(db, nil)
 	ctx := context.Background()
 
 	// Add another task
@@ -172,7 +172,7 @@ func TestPlanRepository_List_FilterByTask(t *testing.T) {
 
 func TestPlanRepository_List_FilterByCommission(t *testing.T) {
 	db := setupPlanTestDB(t)
-	repo := sqlite.NewPlanRepository(db)
+	repo := sqlite.NewPlanRepository(db, nil)
 	ctx := context.Background()
 
 	// Add another commission
@@ -193,7 +193,7 @@ func TestPlanRepository_List_FilterByCommission(t *testing.T) {
 
 func TestPlanRepository_List_FilterByStatus(t *testing.T) {
 	db := setupPlanTestDB(t)
-	repo := sqlite.NewPlanRepository(db)
+	repo := sqlite.NewPlanRepository(db, nil)
 	ctx := context.Background()
 
 	plan1 := createTestPlan(t, repo, ctx, "COMM-001", "", "Draft Plan")
@@ -214,7 +214,7 @@ func TestPlanRepository_List_FilterByStatus(t *testing.T) {
 
 func TestPlanRepository_Update(t *testing.T) {
 	db := setupPlanTestDB(t)
-	repo := sqlite.NewPlanRepository(db)
+	repo := sqlite.NewPlanRepository(db, nil)
 	ctx := context.Background()
 
 	plan := createTestPlan(t, repo, ctx, "COMM-001", "", "Original Title")
@@ -239,7 +239,7 @@ func TestPlanRepository_Update(t *testing.T) {
 
 func TestPlanRepository_Update_NotFound(t *testing.T) {
 	db := setupPlanTestDB(t)
-	repo := sqlite.NewPlanRepository(db)
+	repo := sqlite.NewPlanRepository(db, nil)
 	ctx := context.Background()
 
 	err := repo.Update(ctx, &secondary.PlanRecord{
@@ -253,7 +253,7 @@ func TestPlanRepository_Update_NotFound(t *testing.T) {
 
 func TestPlanRepository_Delete(t *testing.T) {
 	db := setupPlanTestDB(t)
-	repo := sqlite.NewPlanRepository(db)
+	repo := sqlite.NewPlanRepository(db, nil)
 	ctx := context.Background()
 
 	plan := createTestPlan(t, repo, ctx, "COMM-001", "", "To Delete")
@@ -271,7 +271,7 @@ func TestPlanRepository_Delete(t *testing.T) {
 
 func TestPlanRepository_Delete_NotFound(t *testing.T) {
 	db := setupPlanTestDB(t)
-	repo := sqlite.NewPlanRepository(db)
+	repo := sqlite.NewPlanRepository(db, nil)
 	ctx := context.Background()
 
 	err := repo.Delete(ctx, "PLAN-999")
@@ -282,7 +282,7 @@ func TestPlanRepository_Delete_NotFound(t *testing.T) {
 
 func TestPlanRepository_Pin_Unpin(t *testing.T) {
 	db := setupPlanTestDB(t)
-	repo := sqlite.NewPlanRepository(db)
+	repo := sqlite.NewPlanRepository(db, nil)
 	ctx := context.Background()
 
 	plan := createTestPlan(t, repo, ctx, "COMM-001", "", "Pin Test")
@@ -312,7 +312,7 @@ func TestPlanRepository_Pin_Unpin(t *testing.T) {
 
 func TestPlanRepository_Pin_NotFound(t *testing.T) {
 	db := setupPlanTestDB(t)
-	repo := sqlite.NewPlanRepository(db)
+	repo := sqlite.NewPlanRepository(db, nil)
 	ctx := context.Background()
 
 	err := repo.Pin(ctx, "PLAN-999")
@@ -323,7 +323,7 @@ func TestPlanRepository_Pin_NotFound(t *testing.T) {
 
 func TestPlanRepository_GetNextID(t *testing.T) {
 	db := setupPlanTestDB(t)
-	repo := sqlite.NewPlanRepository(db)
+	repo := sqlite.NewPlanRepository(db, nil)
 	ctx := context.Background()
 
 	id, err := repo.GetNextID(ctx)
@@ -347,7 +347,7 @@ func TestPlanRepository_GetNextID(t *testing.T) {
 
 func TestPlanRepository_Approve(t *testing.T) {
 	db := setupPlanTestDB(t)
-	repo := sqlite.NewPlanRepository(db)
+	repo := sqlite.NewPlanRepository(db, nil)
 	ctx := context.Background()
 
 	plan := createTestPlan(t, repo, ctx, "COMM-001", "", "Plan to Approve")
@@ -368,7 +368,7 @@ func TestPlanRepository_Approve(t *testing.T) {
 
 func TestPlanRepository_Approve_NotFound(t *testing.T) {
 	db := setupPlanTestDB(t)
-	repo := sqlite.NewPlanRepository(db)
+	repo := sqlite.NewPlanRepository(db, nil)
 	ctx := context.Background()
 
 	err := repo.Approve(ctx, "PLAN-999")
@@ -379,7 +379,7 @@ func TestPlanRepository_Approve_NotFound(t *testing.T) {
 
 func TestPlanRepository_GetActivePlanForTask(t *testing.T) {
 	db := setupPlanTestDB(t)
-	repo := sqlite.NewPlanRepository(db)
+	repo := sqlite.NewPlanRepository(db, nil)
 	ctx := context.Background()
 
 	// Create a draft plan for task
@@ -412,7 +412,7 @@ func TestPlanRepository_GetActivePlanForTask(t *testing.T) {
 
 func TestPlanRepository_GetActivePlanForTask_NoPlan(t *testing.T) {
 	db := setupPlanTestDB(t)
-	repo := sqlite.NewPlanRepository(db)
+	repo := sqlite.NewPlanRepository(db, nil)
 	ctx := context.Background()
 
 	active, err := repo.GetActivePlanForTask(ctx, "TASK-001")
@@ -426,7 +426,7 @@ func TestPlanRepository_GetActivePlanForTask_NoPlan(t *testing.T) {
 
 func TestPlanRepository_HasActivePlanForTask(t *testing.T) {
 	db := setupPlanTestDB(t)
-	repo := sqlite.NewPlanRepository(db)
+	repo := sqlite.NewPlanRepository(db, nil)
 	ctx := context.Background()
 
 	// Initially no active plan
@@ -463,7 +463,7 @@ func TestPlanRepository_HasActivePlanForTask(t *testing.T) {
 
 func TestPlanRepository_CommissionExists(t *testing.T) {
 	db := setupPlanTestDB(t)
-	repo := sqlite.NewPlanRepository(db)
+	repo := sqlite.NewPlanRepository(db, nil)
 	ctx := context.Background()
 
 	exists, err := repo.CommissionExists(ctx, "COMM-001")
@@ -485,7 +485,7 @@ func TestPlanRepository_CommissionExists(t *testing.T) {
 
 func TestPlanRepository_TaskExists(t *testing.T) {
 	db := setupPlanTestDB(t)
-	repo := sqlite.NewPlanRepository(db)
+	repo := sqlite.NewPlanRepository(db, nil)
 	ctx := context.Background()
 
 	exists, err := repo.TaskExists(ctx, "TASK-001")

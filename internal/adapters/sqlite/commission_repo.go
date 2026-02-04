@@ -13,12 +13,14 @@ import (
 
 // CommissionRepository implements secondary.CommissionRepository with SQLite.
 type CommissionRepository struct {
-	db *sql.DB
+	db        *sql.DB
+	logWriter secondary.LogWriter
 }
 
 // NewCommissionRepository creates a new SQLite commission repository.
-func NewCommissionRepository(db *sql.DB) *CommissionRepository {
-	return &CommissionRepository{db: db}
+// logWriter is optional - if nil, no audit logging is performed.
+func NewCommissionRepository(db *sql.DB, logWriter secondary.LogWriter) *CommissionRepository {
+	return &CommissionRepository{db: db, logWriter: logWriter}
 }
 
 // Create persists a new commission.
@@ -47,6 +49,11 @@ func (r *CommissionRepository) Create(ctx context.Context, commission *secondary
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create commission: %w", err)
+	}
+
+	// Log create operation
+	if r.logWriter != nil {
+		_ = r.logWriter.LogCreate(ctx, "commission", commission.ID)
 	}
 
 	return nil

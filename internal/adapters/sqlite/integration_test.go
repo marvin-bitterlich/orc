@@ -19,8 +19,8 @@ func TestIntegration_CommissionWithShipmentsAndTasks(t *testing.T) {
 	db := setupTestDB(t)
 	ctx := context.Background()
 
-	shipmentRepo := sqlite.NewShipmentRepository(db)
-	taskRepo := sqlite.NewTaskRepository(db)
+	shipmentRepo := sqlite.NewShipmentRepository(db, nil)
+	taskRepo := sqlite.NewTaskRepository(db, nil)
 
 	// Commission doesn't exist - should return false
 	exists, err := shipmentRepo.CommissionExists(ctx, "COMM-NONEXISTENT")
@@ -64,7 +64,7 @@ func TestIntegration_CommissionExistsConstraint(t *testing.T) {
 	db := setupTestDB(t)
 	ctx := context.Background()
 
-	taskRepo := sqlite.NewTaskRepository(db)
+	taskRepo := sqlite.NewTaskRepository(db, nil)
 
 	// Check non-existent commission
 	exists, err := taskRepo.CommissionExists(ctx, "COMM-NONE")
@@ -96,8 +96,8 @@ func TestIntegration_TaskWithPlan(t *testing.T) {
 
 	seedCommission(t, db, "COMM-001", "Test Commission")
 
-	planRepo := sqlite.NewPlanRepository(db)
-	taskRepo := sqlite.NewTaskRepository(db)
+	planRepo := sqlite.NewPlanRepository(db, nil)
+	taskRepo := sqlite.NewTaskRepository(db, nil)
 
 	// Create task
 	task := &secondary.TaskRecord{
@@ -150,8 +150,8 @@ func TestIntegration_WorkbenchAssignmentPropagation(t *testing.T) {
 	seedCommission(t, db, "COMM-001", "Test")
 	seedWorkbench(t, db, "BENCH-001", "COMM-001", "test-bench")
 
-	shipmentRepo := sqlite.NewShipmentRepository(db)
-	taskRepo := sqlite.NewTaskRepository(db)
+	shipmentRepo := sqlite.NewShipmentRepository(db, nil)
+	taskRepo := sqlite.NewTaskRepository(db, nil)
 
 	// Create shipment and tasks
 	if err := shipmentRepo.Create(ctx, &secondary.ShipmentRecord{ID: "SHIP-001", CommissionID: "COMM-001", Title: "Test"}); err != nil {
@@ -200,8 +200,8 @@ func TestIntegration_MultipleEntitiesAssignedToWorkbench(t *testing.T) {
 	seedCommission(t, db, "COMM-001", "Test")
 	seedWorkbench(t, db, "BENCH-001", "COMM-001", "shared-bench")
 
-	shipmentRepo := sqlite.NewShipmentRepository(db)
-	taskRepo := sqlite.NewTaskRepository(db)
+	shipmentRepo := sqlite.NewShipmentRepository(db, nil)
+	taskRepo := sqlite.NewTaskRepository(db, nil)
 
 	// Create multiple shipments
 	if err := shipmentRepo.Create(ctx, &secondary.ShipmentRecord{ID: "SHIP-001", CommissionID: "COMM-001", Title: "Shipment 1"}); err != nil {
@@ -261,9 +261,9 @@ func TestIntegration_ShipmentWithTasksAndPlans(t *testing.T) {
 
 	seedCommission(t, db, "COMM-001", "Test Commission")
 
-	shipmentRepo := sqlite.NewShipmentRepository(db)
-	taskRepo := sqlite.NewTaskRepository(db)
-	planRepo := sqlite.NewPlanRepository(db)
+	shipmentRepo := sqlite.NewShipmentRepository(db, nil)
+	taskRepo := sqlite.NewTaskRepository(db, nil)
+	planRepo := sqlite.NewPlanRepository(db, nil)
 
 	// Create shipment
 	if err := shipmentRepo.Create(ctx, &secondary.ShipmentRecord{
@@ -322,7 +322,7 @@ func TestIntegration_TagAcrossEntities(t *testing.T) {
 	seedCommission(t, db, "COMM-001", "Test Commission")
 	seedTag(t, db, "TAG-001", "urgent")
 
-	taskRepo := sqlite.NewTaskRepository(db)
+	taskRepo := sqlite.NewTaskRepository(db, nil)
 	tagRepo := sqlite.NewTagRepository(db)
 
 	// Create tasks
@@ -423,9 +423,9 @@ func TestIntegration_NotesAcrossContainers(t *testing.T) {
 
 	seedCommission(t, db, "COMM-001", "Test Commission")
 
-	noteRepo := sqlite.NewNoteRepository(db)
-	shipmentRepo := sqlite.NewShipmentRepository(db)
-	tomeRepo := sqlite.NewTomeRepository(db)
+	noteRepo := sqlite.NewNoteRepository(db, nil)
+	shipmentRepo := sqlite.NewShipmentRepository(db, nil)
+	tomeRepo := sqlite.NewTomeRepository(db, nil)
 
 	// Create containers
 	_ = shipmentRepo.Create(ctx, &secondary.ShipmentRecord{ID: "SHIP-001", CommissionID: "COMM-001", Title: "Shipment"})
@@ -528,8 +528,8 @@ func TestIntegration_EntityStatusWorkflows(t *testing.T) {
 
 	seedCommission(t, db, "COMM-001", "Test Commission")
 
-	shipmentRepo := sqlite.NewShipmentRepository(db)
-	taskRepo := sqlite.NewTaskRepository(db)
+	shipmentRepo := sqlite.NewShipmentRepository(db, nil)
+	taskRepo := sqlite.NewTaskRepository(db, nil)
 	operationRepo := sqlite.NewOperationRepository(db)
 
 	// Create entities
@@ -593,9 +593,9 @@ func TestIntegration_PinAcrossEntities(t *testing.T) {
 
 	seedCommission(t, db, "COMM-001", "Test Commission")
 
-	shipmentRepo := sqlite.NewShipmentRepository(db)
-	taskRepo := sqlite.NewTaskRepository(db)
-	noteRepo := sqlite.NewNoteRepository(db)
+	shipmentRepo := sqlite.NewShipmentRepository(db, nil)
+	taskRepo := sqlite.NewTaskRepository(db, nil)
+	noteRepo := sqlite.NewNoteRepository(db, nil)
 
 	// Create entities
 	_ = shipmentRepo.Create(ctx, &secondary.ShipmentRecord{ID: "SHIP-001", CommissionID: "COMM-001", Title: "Shipment"})
@@ -645,9 +645,9 @@ func TestIntegration_IDGenerationAcrossRepositories(t *testing.T) {
 
 	seedCommission(t, db, "COMM-001", "Test Commission")
 
-	shipmentRepo := sqlite.NewShipmentRepository(db)
-	taskRepo := sqlite.NewTaskRepository(db)
-	planRepo := sqlite.NewPlanRepository(db)
+	shipmentRepo := sqlite.NewShipmentRepository(db, nil)
+	taskRepo := sqlite.NewTaskRepository(db, nil)
+	planRepo := sqlite.NewPlanRepository(db, nil)
 
 	// Get initial IDs
 	shipID, _ := shipmentRepo.GetNextID(ctx)

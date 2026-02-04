@@ -12,12 +12,14 @@ import (
 
 // ApprovalRepository implements secondary.ApprovalRepository with SQLite.
 type ApprovalRepository struct {
-	db *sql.DB
+	db        *sql.DB
+	logWriter secondary.LogWriter
 }
 
 // NewApprovalRepository creates a new SQLite approval repository.
-func NewApprovalRepository(db *sql.DB) *ApprovalRepository {
-	return &ApprovalRepository{db: db}
+// logWriter is optional - if nil, no audit logging is performed.
+func NewApprovalRepository(db *sql.DB, logWriter secondary.LogWriter) *ApprovalRepository {
+	return &ApprovalRepository{db: db, logWriter: logWriter}
 }
 
 // Create persists a new approval.
@@ -42,6 +44,11 @@ func (r *ApprovalRepository) Create(ctx context.Context, approval *secondary.App
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create approval: %w", err)
+	}
+
+	// Log create operation
+	if r.logWriter != nil {
+		_ = r.logWriter.LogCreate(ctx, "approval", approval.ID)
 	}
 
 	return nil

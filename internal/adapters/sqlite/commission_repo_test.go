@@ -37,7 +37,7 @@ func createTestCommission(t *testing.T, repo *sqlite.CommissionRepository, ctx c
 
 func TestCommissionRepository_Create(t *testing.T) {
 	db := setupTestDB(t)
-	repo := sqlite.NewCommissionRepository(db)
+	repo := sqlite.NewCommissionRepository(db, nil)
 	ctx := context.Background()
 
 	// Pre-populate ID and Status as service layer would
@@ -65,7 +65,7 @@ func TestCommissionRepository_Create(t *testing.T) {
 
 func TestCommissionRepository_Create_WithWorkshopID(t *testing.T) {
 	db := setupTestDB(t)
-	repo := sqlite.NewCommissionRepository(db)
+	repo := sqlite.NewCommissionRepository(db, nil)
 	ctx := context.Background()
 
 	// Create a workshop first (FK constraint)
@@ -97,7 +97,7 @@ func TestCommissionRepository_Create_WithWorkshopID(t *testing.T) {
 
 func TestCommissionRepository_Create_WithoutWorkshopID(t *testing.T) {
 	db := setupTestDB(t)
-	repo := sqlite.NewCommissionRepository(db)
+	repo := sqlite.NewCommissionRepository(db, nil)
 	ctx := context.Background()
 
 	// Create commission without workshop_id (should be allowed - nullable)
@@ -124,7 +124,7 @@ func TestCommissionRepository_Create_WithoutWorkshopID(t *testing.T) {
 
 func TestCommissionRepository_Create_RequiresID(t *testing.T) {
 	db := setupTestDB(t)
-	repo := sqlite.NewCommissionRepository(db)
+	repo := sqlite.NewCommissionRepository(db, nil)
 	ctx := context.Background()
 
 	// Missing ID should fail
@@ -141,7 +141,7 @@ func TestCommissionRepository_Create_RequiresID(t *testing.T) {
 
 func TestCommissionRepository_Create_RequiresStatus(t *testing.T) {
 	db := setupTestDB(t)
-	repo := sqlite.NewCommissionRepository(db)
+	repo := sqlite.NewCommissionRepository(db, nil)
 	ctx := context.Background()
 
 	// Missing Status should fail
@@ -158,7 +158,7 @@ func TestCommissionRepository_Create_RequiresStatus(t *testing.T) {
 
 func TestCommissionRepository_GetByID(t *testing.T) {
 	db := setupTestDB(t)
-	repo := sqlite.NewCommissionRepository(db)
+	repo := sqlite.NewCommissionRepository(db, nil)
 	ctx := context.Background()
 
 	// Create a commission using helper
@@ -185,7 +185,7 @@ func TestCommissionRepository_GetByID(t *testing.T) {
 
 func TestCommissionRepository_GetByID_NotFound(t *testing.T) {
 	db := setupTestDB(t)
-	repo := sqlite.NewCommissionRepository(db)
+	repo := sqlite.NewCommissionRepository(db, nil)
 	ctx := context.Background()
 
 	_, err := repo.GetByID(ctx, "COMM-999")
@@ -196,7 +196,7 @@ func TestCommissionRepository_GetByID_NotFound(t *testing.T) {
 
 func TestCommissionRepository_List(t *testing.T) {
 	db := setupTestDB(t)
-	repo := sqlite.NewCommissionRepository(db)
+	repo := sqlite.NewCommissionRepository(db, nil)
 	ctx := context.Background()
 
 	// Create multiple commissions using helper
@@ -216,7 +216,7 @@ func TestCommissionRepository_List(t *testing.T) {
 
 func TestCommissionRepository_List_FilterByStatus(t *testing.T) {
 	db := setupTestDB(t)
-	repo := sqlite.NewCommissionRepository(db)
+	repo := sqlite.NewCommissionRepository(db, nil)
 	ctx := context.Background()
 
 	// Create active commission
@@ -239,7 +239,7 @@ func TestCommissionRepository_List_FilterByStatus(t *testing.T) {
 
 func TestCommissionRepository_Update(t *testing.T) {
 	db := setupTestDB(t)
-	repo := sqlite.NewCommissionRepository(db)
+	repo := sqlite.NewCommissionRepository(db, nil)
 	ctx := context.Background()
 
 	// Create a commission
@@ -263,7 +263,7 @@ func TestCommissionRepository_Update(t *testing.T) {
 
 func TestCommissionRepository_Update_CompletedAt(t *testing.T) {
 	db := setupTestDB(t)
-	repo := sqlite.NewCommissionRepository(db)
+	repo := sqlite.NewCommissionRepository(db, nil)
 	ctx := context.Background()
 
 	// Create a commission
@@ -291,7 +291,7 @@ func TestCommissionRepository_Update_CompletedAt(t *testing.T) {
 
 func TestCommissionRepository_Delete(t *testing.T) {
 	db := setupTestDB(t)
-	repo := sqlite.NewCommissionRepository(db)
+	repo := sqlite.NewCommissionRepository(db, nil)
 	ctx := context.Background()
 
 	// Create a commission
@@ -312,7 +312,7 @@ func TestCommissionRepository_Delete(t *testing.T) {
 
 func TestCommissionRepository_Pin_Unpin(t *testing.T) {
 	db := setupTestDB(t)
-	repo := sqlite.NewCommissionRepository(db)
+	repo := sqlite.NewCommissionRepository(db, nil)
 	ctx := context.Background()
 
 	// Create a commission
@@ -345,7 +345,7 @@ func TestCommissionRepository_Pin_Unpin(t *testing.T) {
 
 func TestCommissionRepository_GetNextID(t *testing.T) {
 	db := setupTestDB(t)
-	repo := sqlite.NewCommissionRepository(db)
+	repo := sqlite.NewCommissionRepository(db, nil)
 	ctx := context.Background()
 
 	// First ID should be COMM-001
@@ -372,7 +372,7 @@ func TestCommissionRepository_GetNextID(t *testing.T) {
 
 func TestCommissionRepository_CountShipments(t *testing.T) {
 	db := setupTestDB(t)
-	repo := sqlite.NewCommissionRepository(db)
+	repo := sqlite.NewCommissionRepository(db, nil)
 	ctx := context.Background()
 
 	// Create a commission

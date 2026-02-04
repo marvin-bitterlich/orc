@@ -43,7 +43,7 @@ func createTestTome(t *testing.T, repo *sqlite.TomeRepository, ctx context.Conte
 
 func TestTomeRepository_Create(t *testing.T) {
 	db := setupTomeTestDB(t)
-	repo := sqlite.NewTomeRepository(db)
+	repo := sqlite.NewTomeRepository(db, nil)
 	ctx := context.Background()
 
 	tome := &secondary.TomeRecord{
@@ -73,7 +73,7 @@ func TestTomeRepository_Create(t *testing.T) {
 
 func TestTomeRepository_GetByID(t *testing.T) {
 	db := setupTomeTestDB(t)
-	repo := sqlite.NewTomeRepository(db)
+	repo := sqlite.NewTomeRepository(db, nil)
 	ctx := context.Background()
 
 	tome := createTestTome(t, repo, ctx, "COMM-001", "Test Tome", "Description")
@@ -93,7 +93,7 @@ func TestTomeRepository_GetByID(t *testing.T) {
 
 func TestTomeRepository_GetByID_NotFound(t *testing.T) {
 	db := setupTomeTestDB(t)
-	repo := sqlite.NewTomeRepository(db)
+	repo := sqlite.NewTomeRepository(db, nil)
 	ctx := context.Background()
 
 	_, err := repo.GetByID(ctx, "TOME-999")
@@ -104,7 +104,7 @@ func TestTomeRepository_GetByID_NotFound(t *testing.T) {
 
 func TestTomeRepository_List(t *testing.T) {
 	db := setupTomeTestDB(t)
-	repo := sqlite.NewTomeRepository(db)
+	repo := sqlite.NewTomeRepository(db, nil)
 	ctx := context.Background()
 
 	createTestTome(t, repo, ctx, "COMM-001", "Tome 1", "")
@@ -123,7 +123,7 @@ func TestTomeRepository_List(t *testing.T) {
 
 func TestTomeRepository_List_FilterByCommission(t *testing.T) {
 	db := setupTomeTestDB(t)
-	repo := sqlite.NewTomeRepository(db)
+	repo := sqlite.NewTomeRepository(db, nil)
 	ctx := context.Background()
 
 	// Add another commission
@@ -144,7 +144,7 @@ func TestTomeRepository_List_FilterByCommission(t *testing.T) {
 
 func TestTomeRepository_List_FilterByStatus(t *testing.T) {
 	db := setupTomeTestDB(t)
-	repo := sqlite.NewTomeRepository(db)
+	repo := sqlite.NewTomeRepository(db, nil)
 	ctx := context.Background()
 
 	t1 := createTestTome(t, repo, ctx, "COMM-001", "Active Tome", "")
@@ -165,7 +165,7 @@ func TestTomeRepository_List_FilterByStatus(t *testing.T) {
 
 func TestTomeRepository_Update(t *testing.T) {
 	db := setupTomeTestDB(t)
-	repo := sqlite.NewTomeRepository(db)
+	repo := sqlite.NewTomeRepository(db, nil)
 	ctx := context.Background()
 
 	tome := createTestTome(t, repo, ctx, "COMM-001", "Original Title", "")
@@ -186,7 +186,7 @@ func TestTomeRepository_Update(t *testing.T) {
 
 func TestTomeRepository_Update_NotFound(t *testing.T) {
 	db := setupTomeTestDB(t)
-	repo := sqlite.NewTomeRepository(db)
+	repo := sqlite.NewTomeRepository(db, nil)
 	ctx := context.Background()
 
 	err := repo.Update(ctx, &secondary.TomeRecord{
@@ -200,7 +200,7 @@ func TestTomeRepository_Update_NotFound(t *testing.T) {
 
 func TestTomeRepository_Delete(t *testing.T) {
 	db := setupTomeTestDB(t)
-	repo := sqlite.NewTomeRepository(db)
+	repo := sqlite.NewTomeRepository(db, nil)
 	ctx := context.Background()
 
 	tome := createTestTome(t, repo, ctx, "COMM-001", "To Delete", "")
@@ -218,7 +218,7 @@ func TestTomeRepository_Delete(t *testing.T) {
 
 func TestTomeRepository_Delete_NotFound(t *testing.T) {
 	db := setupTomeTestDB(t)
-	repo := sqlite.NewTomeRepository(db)
+	repo := sqlite.NewTomeRepository(db, nil)
 	ctx := context.Background()
 
 	err := repo.Delete(ctx, "TOME-999")
@@ -229,7 +229,7 @@ func TestTomeRepository_Delete_NotFound(t *testing.T) {
 
 func TestTomeRepository_Pin_Unpin(t *testing.T) {
 	db := setupTomeTestDB(t)
-	repo := sqlite.NewTomeRepository(db)
+	repo := sqlite.NewTomeRepository(db, nil)
 	ctx := context.Background()
 
 	tome := createTestTome(t, repo, ctx, "COMM-001", "Pin Test", "")
@@ -259,7 +259,7 @@ func TestTomeRepository_Pin_Unpin(t *testing.T) {
 
 func TestTomeRepository_Pin_NotFound(t *testing.T) {
 	db := setupTomeTestDB(t)
-	repo := sqlite.NewTomeRepository(db)
+	repo := sqlite.NewTomeRepository(db, nil)
 	ctx := context.Background()
 
 	err := repo.Pin(ctx, "TOME-999")
@@ -270,7 +270,7 @@ func TestTomeRepository_Pin_NotFound(t *testing.T) {
 
 func TestTomeRepository_GetNextID(t *testing.T) {
 	db := setupTomeTestDB(t)
-	repo := sqlite.NewTomeRepository(db)
+	repo := sqlite.NewTomeRepository(db, nil)
 	ctx := context.Background()
 
 	id, err := repo.GetNextID(ctx)
@@ -294,7 +294,7 @@ func TestTomeRepository_GetNextID(t *testing.T) {
 
 func TestTomeRepository_UpdateStatus(t *testing.T) {
 	db := setupTomeTestDB(t)
-	repo := sqlite.NewTomeRepository(db)
+	repo := sqlite.NewTomeRepository(db, nil)
 	ctx := context.Background()
 
 	tome := createTestTome(t, repo, ctx, "COMM-001", "Status Test", "")
@@ -325,7 +325,7 @@ func TestTomeRepository_UpdateStatus(t *testing.T) {
 
 func TestTomeRepository_UpdateStatus_NotFound(t *testing.T) {
 	db := setupTomeTestDB(t)
-	repo := sqlite.NewTomeRepository(db)
+	repo := sqlite.NewTomeRepository(db, nil)
 	ctx := context.Background()
 
 	err := repo.UpdateStatus(ctx, "TOME-999", "closed", true)
@@ -336,7 +336,7 @@ func TestTomeRepository_UpdateStatus_NotFound(t *testing.T) {
 
 func TestTomeRepository_AssignWorkbench(t *testing.T) {
 	db := setupTomeTestDB(t)
-	repo := sqlite.NewTomeRepository(db)
+	repo := sqlite.NewTomeRepository(db, nil)
 	ctx := context.Background()
 
 	tome := createTestTome(t, repo, ctx, "COMM-001", "Workbench Test", "")
@@ -354,7 +354,7 @@ func TestTomeRepository_AssignWorkbench(t *testing.T) {
 
 func TestTomeRepository_AssignWorkbench_NotFound(t *testing.T) {
 	db := setupTomeTestDB(t)
-	repo := sqlite.NewTomeRepository(db)
+	repo := sqlite.NewTomeRepository(db, nil)
 	ctx := context.Background()
 
 	err := repo.AssignWorkbench(ctx, "TOME-999", "BENCH-001")
@@ -365,7 +365,7 @@ func TestTomeRepository_AssignWorkbench_NotFound(t *testing.T) {
 
 func TestTomeRepository_GetByWorkbench(t *testing.T) {
 	db := setupTomeTestDB(t)
-	repo := sqlite.NewTomeRepository(db)
+	repo := sqlite.NewTomeRepository(db, nil)
 	ctx := context.Background()
 
 	t1 := createTestTome(t, repo, ctx, "COMM-001", "Tome 1", "")
@@ -387,7 +387,7 @@ func TestTomeRepository_GetByWorkbench(t *testing.T) {
 
 func TestTomeRepository_CommissionExists(t *testing.T) {
 	db := setupTomeTestDB(t)
-	repo := sqlite.NewTomeRepository(db)
+	repo := sqlite.NewTomeRepository(db, nil)
 	ctx := context.Background()
 
 	exists, err := repo.CommissionExists(ctx, "COMM-001")
@@ -409,7 +409,7 @@ func TestTomeRepository_CommissionExists(t *testing.T) {
 
 func TestTomeRepository_CreateWithConclaveID(t *testing.T) {
 	testDB := setupTomeTestDB(t)
-	repo := sqlite.NewTomeRepository(testDB)
+	repo := sqlite.NewTomeRepository(testDB, nil)
 	ctx := context.Background()
 
 	// Create a conclave first
@@ -440,7 +440,7 @@ func TestTomeRepository_CreateWithConclaveID(t *testing.T) {
 
 func TestTomeRepository_GetByConclave(t *testing.T) {
 	testDB := setupTomeTestDB(t)
-	repo := sqlite.NewTomeRepository(testDB)
+	repo := sqlite.NewTomeRepository(testDB, nil)
 	ctx := context.Background()
 
 	// Create conclaves
@@ -481,7 +481,7 @@ func TestTomeRepository_GetByConclave(t *testing.T) {
 
 func TestTomeRepository_List_FilterByConclaveID(t *testing.T) {
 	testDB := setupTomeTestDB(t)
-	repo := sqlite.NewTomeRepository(testDB)
+	repo := sqlite.NewTomeRepository(testDB, nil)
 	ctx := context.Background()
 
 	// Create a conclave

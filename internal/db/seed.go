@@ -69,15 +69,15 @@ func SeedFixtures(database *sql.DB) error {
 		}
 	}
 
-	// Workbenches
-	workbenches := []struct{ id, workshopID, name, path string }{
-		{"BENCH-001", "WORK-001", "dev-bench", "/Users/dev/wb/dev-bench"},
-		{"BENCH-002", "WORK-002", "feature-bench", "/Users/dev/wb/feature-bench"},
+	// Workbenches (path is computed dynamically as ~/wb/{name}, not stored)
+	workbenches := []struct{ id, workshopID, name string }{
+		{"BENCH-001", "WORK-001", "dev-bench"},
+		{"BENCH-002", "WORK-002", "feature-bench"},
 	}
 	for _, b := range workbenches {
 		if _, err := database.Exec(
-			"INSERT INTO workbenches (id, workshop_id, name, path, status, created_at) VALUES (?, ?, ?, ?, 'active', ?)",
-			b.id, b.workshopID, b.name, b.path, now,
+			"INSERT INTO workbenches (id, workshop_id, name, status, created_at) VALUES (?, ?, ?, 'active', ?)",
+			b.id, b.workshopID, b.name, now,
 		); err != nil {
 			return fmt.Errorf("seed workbenches: %w", err)
 		}

@@ -13,12 +13,14 @@ import (
 
 // WorkbenchRepository implements secondary.WorkbenchRepository with SQLite.
 type WorkbenchRepository struct {
-	db *sql.DB
+	db        *sql.DB
+	logWriter secondary.LogWriter
 }
 
 // NewWorkbenchRepository creates a new SQLite workbench repository.
-func NewWorkbenchRepository(db *sql.DB) *WorkbenchRepository {
-	return &WorkbenchRepository{db: db}
+// logWriter is optional - if nil, no audit logging is performed.
+func NewWorkbenchRepository(db *sql.DB, logWriter secondary.LogWriter) *WorkbenchRepository {
+	return &WorkbenchRepository{db: db, logWriter: logWriter}
 }
 
 // Create persists a new workbench.
@@ -74,6 +76,12 @@ func (r *WorkbenchRepository) Create(ctx context.Context, workbench *secondary.W
 
 	// Update the record with the generated ID
 	workbench.ID = id
+
+	// Log create operation
+	if r.logWriter != nil {
+		_ = r.logWriter.LogCreate(ctx, "workbench", id)
+	}
+
 	return nil
 }
 
