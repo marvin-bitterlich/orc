@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"strconv"
@@ -54,7 +53,7 @@ Examples:
   orc workbench create frontend --workshop WORK-001 --repo-id REPO-001`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := context.Background()
+			ctx := NewContext()
 			name := args[0]
 
 			if workshopID == "" {
@@ -107,7 +106,7 @@ Examples:
   orc workbench like auth-refactor-v2   # Specify name`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := context.Background()
+			ctx := NewContext()
 
 			// Get current directory
 			cwd, err := os.Getwd()
@@ -175,7 +174,7 @@ func workbenchListCmd() *cobra.Command {
 		Short: "List all workbenches",
 		Long:  `List all workbenches with their current status.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := context.Background()
+			ctx := NewContext()
 
 			workbenches, err := wire.WorkbenchService().ListWorkbenches(ctx, primary.WorkbenchFilters{
 				WorkshopID: workshopID,
@@ -222,7 +221,7 @@ func workbenchShowCmd() *cobra.Command {
 		Short: "Show workbench details",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := context.Background()
+			ctx := NewContext()
 
 			workbench, err := wire.WorkbenchService().GetWorkbench(ctx, args[0])
 			if err != nil {
@@ -258,7 +257,7 @@ Examples:
   orc workbench rename BENCH-001 backend-refactor`,
 		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := context.Background()
+			ctx := NewContext()
 			id := args[0]
 			newName := args[1]
 
@@ -312,7 +311,7 @@ Examples:
   orc workbench archive BENCH-001`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := context.Background()
+			ctx := NewContext()
 			workbenchID := args[0]
 
 			// Get workbench info for display
@@ -356,7 +355,7 @@ Examples:
   orc workbench checkout BENCH-001 ml/SHIP-205-feature`,
 		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := context.Background()
+			ctx := NewContext()
 			workbenchID := args[0]
 			targetBranch := args[1]
 
@@ -394,7 +393,7 @@ Examples:
   orc workbench status BENCH-001`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := context.Background()
+			ctx := NewContext()
 			workbenchID := args[0]
 
 			status, err := wire.WorkbenchService().GetWorkbenchStatus(ctx, workbenchID)

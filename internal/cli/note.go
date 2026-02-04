@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"text/tabwriter"
@@ -29,7 +28,7 @@ directly under the commission. If no container flag is provided, the note
 is created at the commission level.`,
 	Args: cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		title := args[0]
 		commissionID, _ := cmd.Flags().GetString("commission")
 		content, _ := cmd.Flags().GetString("content")
@@ -121,7 +120,7 @@ var noteListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List notes",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		commissionID, _ := cmd.Flags().GetString("commission")
 		noteType, _ := cmd.Flags().GetString("type")
 		shipmentID, _ := cmd.Flags().GetString("shipment")
@@ -205,7 +204,7 @@ var noteShowCmd = &cobra.Command{
 	Short: "Show note details",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		noteID := args[0]
 
 		note, err := wire.NoteService().GetNote(ctx, noteID)
@@ -260,7 +259,7 @@ var noteUpdateCmd = &cobra.Command{
 	Short: "Update note title, content, and/or type",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		noteID := args[0]
 		title, _ := cmd.Flags().GetString("title")
 		content, _ := cmd.Flags().GetString("content")
@@ -311,7 +310,7 @@ var notePinCmd = &cobra.Command{
 	Short: "Pin note to keep it visible",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		noteID := args[0]
 
 		err := wire.NoteService().PinNote(ctx, noteID)
@@ -329,7 +328,7 @@ var noteUnpinCmd = &cobra.Command{
 	Short: "Unpin note",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		noteID := args[0]
 
 		err := wire.NoteService().UnpinNote(ctx, noteID)
@@ -347,7 +346,7 @@ var noteDeleteCmd = &cobra.Command{
 	Short: "Delete a note",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		noteID := args[0]
 
 		err := wire.NoteService().DeleteNote(ctx, noteID)
@@ -365,7 +364,7 @@ var noteCloseCmd = &cobra.Command{
 	Short: "Close a note with a reason",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		noteID := args[0]
 		reason, _ := cmd.Flags().GetString("reason")
 		byNoteID, _ := cmd.Flags().GetString("by")
@@ -397,7 +396,7 @@ var noteReopenCmd = &cobra.Command{
 	Short: "Reopen a closed note",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		noteID := args[0]
 
 		err := wire.NoteService().ReopenNote(ctx, noteID)
@@ -415,7 +414,7 @@ var noteMoveCmd = &cobra.Command{
 	Short: "Move a note to a different container",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		noteID := args[0]
 		toTome, _ := cmd.Flags().GetString("to-tome")
 		toShipment, _ := cmd.Flags().GetString("to-shipment")
@@ -463,7 +462,7 @@ var noteMergeCmd = &cobra.Command{
 	Long:  "Merges content from source note into target note, then closes source with a merge reference",
 	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		sourceID := args[0]
 		targetID := args[1]
 

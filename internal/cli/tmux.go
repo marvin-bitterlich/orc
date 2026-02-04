@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -41,7 +40,7 @@ Examples:
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			workshopID := args[0]
-			ctx := context.Background()
+			ctx := NewContext()
 
 			// 1. Verify workshop exists
 			_, err := wire.WorkshopService().GetWorkshop(ctx, workshopID)

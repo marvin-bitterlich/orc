@@ -2,7 +2,6 @@ package cli
 
 import (
 	"bufio"
-	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -48,7 +47,7 @@ Examples:
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			workshopID := args[0]
-			ctx := context.Background()
+			ctx := NewContext()
 
 			plan, err := wire.InfraService().PlanInfra(ctx, primary.InfraPlanRequest{
 				WorkshopID: workshopID,
@@ -219,7 +218,7 @@ Examples:
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			workshopID := args[0]
-			ctx := context.Background()
+			ctx := NewContext()
 
 			// 1. Generate plan
 			plan, err := wire.InfraService().PlanInfra(ctx, primary.InfraPlanRequest{
@@ -339,7 +338,7 @@ This is a convenience command for the statusline menu that:
 Examples:
   cd ~/wb/my-workbench && orc infra archive-workbench`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := context.Background()
+			ctx := NewContext()
 
 			// 1. Get current working directory
 			cwd, err := os.Getwd()
@@ -411,7 +410,7 @@ Examples:
   orc infra cleanup          # Show orphans and confirm before deleting
   orc infra cleanup --force  # Delete orphans with uncommitted changes`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := context.Background()
+			ctx := NewContext()
 
 			resp, err := wire.InfraService().CleanupOrphans(ctx, primary.CleanupOrphansRequest{
 				Force: forceDelete,

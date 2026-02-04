@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -53,7 +52,7 @@ Examples:
 
 			// 1. Clean up test commissions
 			fmt.Println("📦 Cleaning up test commissions...")
-			ctx := context.Background()
+			ctx := NewContext()
 			commissions, err := wire.CommissionService().ListCommissions(ctx, primary.CommissionFilters{})
 			if err != nil {
 				return fmt.Errorf("failed to list commissions: %w", err)

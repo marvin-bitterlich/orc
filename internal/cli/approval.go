@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"text/tabwriter"
@@ -22,7 +21,7 @@ var approvalListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List approvals",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		taskID, _ := cmd.Flags().GetString("task")
 		outcome, _ := cmd.Flags().GetString("outcome")
 
@@ -62,7 +61,7 @@ var approvalShowCmd = &cobra.Command{
 	Short: "Show approval details",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		approvalID := args[0]
 
 		approval, err := wire.ApprovalService().GetApproval(ctx, approvalID)

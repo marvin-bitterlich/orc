@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"text/tabwriter"
@@ -43,7 +42,7 @@ Examples:
   orc factory create staging-env`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := context.Background()
+			ctx := NewContext()
 			name := args[0]
 
 			resp, err := wire.FactoryService().CreateFactory(ctx, primary.CreateFactoryRequest{
@@ -67,7 +66,7 @@ func factoryListCmd() *cobra.Command {
 		Short: "List all factories",
 		Long:  `List all factories with their current status.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := context.Background()
+			ctx := NewContext()
 
 			factories, err := wire.FactoryService().ListFactories(ctx, primary.FactoryFilters{})
 			if err != nil {
@@ -109,7 +108,7 @@ func factoryShowCmd() *cobra.Command {
 		Short: "Show factory details",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := context.Background()
+			ctx := NewContext()
 
 			factory, err := wire.FactoryService().GetFactory(ctx, args[0])
 			if err != nil {
@@ -142,7 +141,7 @@ Examples:
   orc factory delete FACT-001 --force`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := context.Background()
+			ctx := NewContext()
 			factoryID := args[0]
 
 			err := wire.FactoryService().DeleteFactory(ctx, primary.DeleteFactoryRequest{

@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"text/tabwriter"
@@ -23,7 +22,7 @@ var escalationListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List escalations",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		status, _ := cmd.Flags().GetString("status")
 
 		escalations, err := wire.EscalationService().ListEscalations(ctx, primary.EscalationFilters{
@@ -66,7 +65,7 @@ var escalationShowCmd = &cobra.Command{
 	Short: "Show escalation details",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		escalationID := args[0]
 
 		escalation, err := wire.EscalationService().GetEscalation(ctx, escalationID)
@@ -125,7 +124,7 @@ var escalationResolveCmd = &cobra.Command{
 		// Note: Gatehouses use GATE-xxx IDs, but they're detected same way as workbenches
 		// If no context, allow resolution without resolver ID (for admin use)
 
-		ctx := context.Background()
+		ctx := NewContext()
 		err := wire.EscalationService().ResolveEscalation(ctx, primary.ResolveEscalationRequest{
 			EscalationID: escalationID,
 			Outcome:      outcome,

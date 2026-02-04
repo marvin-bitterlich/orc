@@ -22,7 +22,7 @@ var commissionCreateCmd = &cobra.Command{
 	Short: "Create a new commission",
 	Args:  cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		title := args[0]
 		description, _ := cmd.Flags().GetString("description")
 
@@ -34,7 +34,7 @@ var commissionListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List commissions",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		status, _ := cmd.Flags().GetString("status")
 
 		return wire.CommissionAdapter().List(ctx, status)
@@ -46,7 +46,7 @@ var commissionShowCmd = &cobra.Command{
 	Short: "Show commission details",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		id := args[0]
 
 		// Show commission details via adapter
@@ -84,7 +84,7 @@ Examples:
   orc commission start COMM-001`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 
 		// Check agent identity - only ORC can start commissions
 		if err := wire.CommissionOrchestrationService().CheckLaunchPermission(ctx); err != nil {
@@ -152,7 +152,7 @@ var commissionCompleteCmd = &cobra.Command{
 	Short: "Mark a commission as complete",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		return wire.CommissionAdapter().Complete(ctx, args[0])
 	},
 }
@@ -162,7 +162,7 @@ var commissionArchiveCmd = &cobra.Command{
 	Short: "Archive a completed commission",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		return wire.CommissionAdapter().Archive(ctx, args[0])
 	},
 }
@@ -172,7 +172,7 @@ var commissionUpdateCmd = &cobra.Command{
 	Short: "Update commission title and/or description",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		id := args[0]
 		title, _ := cmd.Flags().GetString("title")
 		description, _ := cmd.Flags().GetString("description")
@@ -194,7 +194,7 @@ Examples:
   orc commission delete COMM-001 --force`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		id := args[0]
 		force, _ := cmd.Flags().GetBool("force")
 
@@ -207,7 +207,7 @@ var commissionPinCmd = &cobra.Command{
 	Short: "Pin commission to keep it visible",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		return wire.CommissionAdapter().Pin(ctx, args[0])
 	},
 }
@@ -217,7 +217,7 @@ var commissionUnpinCmd = &cobra.Command{
 	Short: "Unpin commission",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		return wire.CommissionAdapter().Unpin(ctx, args[0])
 	},
 }

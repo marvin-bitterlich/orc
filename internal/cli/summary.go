@@ -32,7 +32,7 @@ func resolveCommissionAlias(input string) string {
 
 // resolveContainerCommission looks up the commission_id for any container type
 func resolveContainerCommission(containerID string) string {
-	ctx := context.Background()
+	ctx := NewContext()
 
 	// Determine container type from ID prefix
 	switch {
@@ -258,7 +258,7 @@ func renderHeader(role, workbenchID, workshopID, gatehouseID, focusID, commissio
 
 // renderWorkshopBenches displays workbenches in the workshop with tree formatting
 func renderWorkshopBenches(workshopID, currentWorkbenchID, gatehouseID string) {
-	ctx := context.Background()
+	ctx := NewContext()
 
 	allWorkbenches, err := wire.WorkbenchService().ListWorkbenches(ctx, primary.WorkbenchFilters{
 		WorkshopID: workshopID,

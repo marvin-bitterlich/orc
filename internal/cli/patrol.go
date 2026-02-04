@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"text/tabwriter"
@@ -31,7 +30,7 @@ Examples:
   orc patrol start BENCH-014`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		workbenchID := args[0]
 
 		patrol, err := wire.PatrolService().StartPatrol(ctx, workbenchID)
@@ -59,7 +58,7 @@ Examples:
   orc patrol end PATROL-001`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		patrolID := args[0]
 
 		if err := wire.PatrolService().EndPatrol(ctx, patrolID); err != nil {
@@ -80,7 +79,7 @@ Examples:
   orc patrol status PATROL-001`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		patrolID := args[0]
 
 		patrol, err := wire.PatrolService().GetPatrol(ctx, patrolID)
@@ -113,7 +112,7 @@ Examples:
   orc patrol list --status active
   orc patrol list --kennel KENNEL-001`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		kennelID, _ := cmd.Flags().GetString("kennel")
 		status, _ := cmd.Flags().GetString("status")
 

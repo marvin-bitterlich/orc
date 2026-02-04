@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"context"
 	"fmt"
 	"os"
 
@@ -23,7 +22,7 @@ var taskCreateCmd = &cobra.Command{
 	Short: "Create a new task",
 	Args:  cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		title := args[0]
 		shipmentID, _ := cmd.Flags().GetString("shipment")
 		commissionID, _ := cmd.Flags().GetString("commission")
@@ -68,7 +67,7 @@ var taskListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List tasks",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		shipmentID, _ := cmd.Flags().GetString("shipment")
 		status, _ := cmd.Flags().GetString("status")
 		tag, _ := cmd.Flags().GetString("tag")
@@ -147,7 +146,7 @@ var taskShowCmd = &cobra.Command{
 	Short: "Show task details",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		taskID := args[0]
 
 		task, err := wire.TaskService().GetTask(ctx, taskID)
@@ -201,7 +200,7 @@ var taskClaimCmd = &cobra.Command{
 	Short: "Claim a task (mark as implement)",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		taskID := args[0]
 
 		// Try to get workbench from current directory
@@ -238,7 +237,7 @@ var taskCompleteCmd = &cobra.Command{
 	Short: "Mark task as complete",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		taskID := args[0]
 
 		err := wire.TaskService().CompleteTask(ctx, taskID)
@@ -260,7 +259,7 @@ var taskPauseCmd = &cobra.Command{
 	Short: "Pause an in-progress task",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		taskID := args[0]
 
 		err := wire.TaskService().PauseTask(ctx, taskID)
@@ -278,7 +277,7 @@ var taskResumeCmd = &cobra.Command{
 	Short: "Resume a paused task",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		taskID := args[0]
 
 		err := wire.TaskService().ResumeTask(ctx, taskID)
@@ -296,7 +295,7 @@ var taskUpdateCmd = &cobra.Command{
 	Short: "Update task title and/or description",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		taskID := args[0]
 		title, _ := cmd.Flags().GetString("title")
 		description, _ := cmd.Flags().GetString("description")
@@ -324,7 +323,7 @@ var taskPinCmd = &cobra.Command{
 	Short: "Pin task to keep it visible",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		taskID := args[0]
 
 		err := wire.TaskService().PinTask(ctx, taskID)
@@ -342,7 +341,7 @@ var taskUnpinCmd = &cobra.Command{
 	Short: "Unpin task",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		taskID := args[0]
 
 		err := wire.TaskService().UnpinTask(ctx, taskID)
@@ -360,7 +359,7 @@ var taskDiscoverCmd = &cobra.Command{
 	Short: "Find and optionally claim ready tasks",
 	Long:  "Discover ready tasks assigned to the current workbench",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		autoClaim, _ := cmd.Flags().GetBool("auto-claim")
 
 		// Get current workbench
@@ -425,7 +424,7 @@ var taskTagCmd = &cobra.Command{
 	Short: "Add a tag to a task",
 	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		taskID := args[0]
 		tagName := args[1]
 
@@ -444,7 +443,7 @@ var taskUntagCmd = &cobra.Command{
 	Short: "Remove tag from a task",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		taskID := args[0]
 
 		err := wire.TaskService().UntagTask(ctx, taskID)
@@ -462,7 +461,7 @@ var taskMoveCmd = &cobra.Command{
 	Short: "Move a task to a different container",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		taskID := args[0]
 		toShipment, _ := cmd.Flags().GetString("to-shipment")
 		toTome, _ := cmd.Flags().GetString("to-tome")
@@ -514,7 +513,7 @@ Use this only to remove prematurely created tasks.
 Requires --force flag to confirm deletion.`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		taskID := args[0]
 		force, _ := cmd.Flags().GetBool("force")
 

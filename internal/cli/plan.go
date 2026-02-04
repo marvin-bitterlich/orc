@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"text/tabwriter"
@@ -39,7 +38,7 @@ var planCreateCmd = &cobra.Command{
 			}
 		}
 
-		ctx := context.Background()
+		ctx := NewContext()
 		resp, err := wire.PlanService().CreatePlan(ctx, primary.CreatePlanRequest{
 			CommissionID:     commissionID,
 			TaskID:           taskID,
@@ -80,7 +79,7 @@ var planListCmd = &cobra.Command{
 			commissionID = orcctx.GetContextCommissionID()
 		}
 
-		ctx := context.Background()
+		ctx := NewContext()
 		plans, err := wire.PlanService().ListPlans(ctx, primary.PlanFilters{
 			CommissionID: commissionID,
 			TaskID:       taskID,
@@ -127,7 +126,7 @@ var planShowCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		planID := args[0]
 
-		ctx := context.Background()
+		ctx := NewContext()
 		plan, err := wire.PlanService().GetPlan(ctx, planID)
 		if err != nil {
 			return fmt.Errorf("plan not found: %w", err)
@@ -171,7 +170,7 @@ var planSubmitCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		planID := args[0]
 
-		ctx := context.Background()
+		ctx := NewContext()
 		err := wire.PlanService().SubmitPlan(ctx, planID)
 		if err != nil {
 			return fmt.Errorf("failed to submit plan: %w", err)
@@ -189,7 +188,7 @@ var planApproveCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		planID := args[0]
 
-		ctx := context.Background()
+		ctx := NewContext()
 		approval, err := wire.PlanService().ApprovePlan(ctx, planID)
 		if err != nil {
 			return fmt.Errorf("failed to approve plan: %w", err)
@@ -214,7 +213,7 @@ var planUpdateCmd = &cobra.Command{
 			return fmt.Errorf("must specify --title, --description, and/or --content")
 		}
 
-		ctx := context.Background()
+		ctx := NewContext()
 		err := wire.PlanService().UpdatePlan(ctx, primary.UpdatePlanRequest{
 			PlanID:      planID,
 			Title:       title,
@@ -237,7 +236,7 @@ var planPinCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		planID := args[0]
 
-		ctx := context.Background()
+		ctx := NewContext()
 		err := wire.PlanService().PinPlan(ctx, planID)
 		if err != nil {
 			return fmt.Errorf("failed to pin plan: %w", err)
@@ -255,7 +254,7 @@ var planUnpinCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		planID := args[0]
 
-		ctx := context.Background()
+		ctx := NewContext()
 		err := wire.PlanService().UnpinPlan(ctx, planID)
 		if err != nil {
 			return fmt.Errorf("failed to unpin plan: %w", err)
@@ -273,7 +272,7 @@ var planDeleteCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		planID := args[0]
 
-		ctx := context.Background()
+		ctx := NewContext()
 		err := wire.PlanService().DeletePlan(ctx, planID)
 		if err != nil {
 			return fmt.Errorf("failed to delete plan: %w", err)
@@ -303,7 +302,7 @@ var planEscalateCmd = &cobra.Command{
 			return fmt.Errorf("no workbench context detected\nHint: Run this command from a workbench directory")
 		}
 
-		ctx := context.Background()
+		ctx := NewContext()
 		resp, err := wire.PlanService().EscalatePlan(ctx, primary.EscalatePlanRequest{
 			PlanID:        planID,
 			Reason:        reason,

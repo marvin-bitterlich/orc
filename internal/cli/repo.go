@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"text/tabwriter"
@@ -45,7 +44,7 @@ Examples:
   orc repo create api --default-branch develop`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := context.Background()
+			ctx := NewContext()
 			name := args[0]
 
 			resp, err := wire.RepoService().CreateRepo(ctx, primary.CreateRepoRequest{
@@ -87,7 +86,7 @@ func repoListCmd() *cobra.Command {
 		Short: "List all repositories",
 		Long:  `List all repository configurations.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := context.Background()
+			ctx := NewContext()
 
 			filters := primary.RepoFilters{}
 			if !all && status == "" {
@@ -144,7 +143,7 @@ func repoShowCmd() *cobra.Command {
 		Short: "Show repository details",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := context.Background()
+			ctx := NewContext()
 			repoID := args[0]
 
 			repo, err := wire.RepoService().GetRepo(ctx, repoID)
@@ -184,7 +183,7 @@ Examples:
   orc repo update REPO-001 --default-branch develop`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := context.Background()
+			ctx := NewContext()
 			repoID := args[0]
 
 			err := wire.RepoService().UpdateRepo(ctx, primary.UpdateRepoRequest{
@@ -217,7 +216,7 @@ func repoArchiveCmd() *cobra.Command {
 		Long:  `Archive a repository (soft delete). Archived repositories cannot be used for new PRs.`,
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := context.Background()
+			ctx := NewContext()
 			repoID := args[0]
 
 			err := wire.RepoService().ArchiveRepo(ctx, repoID)
@@ -239,7 +238,7 @@ func repoRestoreCmd() *cobra.Command {
 		Long:  `Restore an archived repository to active status.`,
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := context.Background()
+			ctx := NewContext()
 			repoID := args[0]
 
 			err := wire.RepoService().RestoreRepo(ctx, repoID)
@@ -268,7 +267,7 @@ Examples:
   orc repo delete REPO-001`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := context.Background()
+			ctx := NewContext()
 			repoID := args[0]
 
 			// Get repo details before deleting

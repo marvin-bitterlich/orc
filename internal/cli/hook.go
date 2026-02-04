@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -64,7 +63,7 @@ func hookStopCmd() *cobra.Command {
 }
 
 func runHookStop() error {
-	ctx := context.Background()
+	ctx := NewContext()
 
 	// 1. Read stdin JSON
 	data, err := io.ReadAll(os.Stdin)

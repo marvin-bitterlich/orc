@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"text/tabwriter"
@@ -49,7 +48,7 @@ Examples:
   orc pr create SHIP-001 "Update docs" --repo REPO-001 --branch docs/update --target main`,
 		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := context.Background()
+			ctx := NewContext()
 			shipmentID := args[0]
 			title := args[1]
 
@@ -111,7 +110,7 @@ func prListCmd() *cobra.Command {
 		Short: "List pull requests",
 		Long:  `List pull requests with optional filters.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := context.Background()
+			ctx := NewContext()
 
 			// Try to get commission from context if not specified
 			if commissionID == "" {
@@ -179,7 +178,7 @@ func prShowCmd() *cobra.Command {
 		Short: "Show PR details",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := context.Background()
+			ctx := NewContext()
 			prID := args[0]
 
 			pr, err := wire.PRService().GetPR(ctx, prID)
@@ -227,7 +226,7 @@ func prOpenCmd() *cobra.Command {
 		Long:  `Open a draft PR, making it ready for review.`,
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := context.Background()
+			ctx := NewContext()
 			prID := args[0]
 
 			err := wire.PRService().OpenPR(ctx, prID)
@@ -249,7 +248,7 @@ func prApproveCmd() *cobra.Command {
 		Long:  `Mark a PR as approved, indicating it's ready to merge.`,
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := context.Background()
+			ctx := NewContext()
 			prID := args[0]
 
 			err := wire.PRService().ApprovePR(ctx, prID)
@@ -278,7 +277,7 @@ Examples:
   orc pr merge PR-001`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := context.Background()
+			ctx := NewContext()
 			prID := args[0]
 
 			// Get PR to show shipment info
@@ -307,7 +306,7 @@ func prCloseCmd() *cobra.Command {
 		Long:  `Close a PR without merging. The associated shipment will NOT be completed.`,
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := context.Background()
+			ctx := NewContext()
 			prID := args[0]
 
 			err := wire.PRService().ClosePR(ctx, prID)
@@ -334,7 +333,7 @@ Examples:
   orc pr link SHIP-001 https://github.com/org/repo/pull/123 --number 123`,
 		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := context.Background()
+			ctx := NewContext()
 			shipmentID := args[0]
 			url := args[1]
 
