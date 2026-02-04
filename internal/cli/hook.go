@@ -158,11 +158,10 @@ func runHookStop() error {
 		Reason: `STOP. You are an IMP operating autonomously in an orchestration system. Your focused shipment has incomplete tasks. You do not stop until the shipment is complete.
 
 WORKFLOW:
-1. No plan exists? Run /imp-plan-create
-2. Plan is draft? Run /imp-plan-submit
-3. Plan is approved? Implement it, then run /imp-rec
-4. Plan is escalated/pending? Run /imp-nudge to check status
-5. Task complete? Run /imp-rec to close it and chain to the next
+1. No plan? Run /imp-plan-create
+2. Plan exists? Implement it, then run /imp-rec
+3. Stuck? Run /imp-escalate
+4. Task complete? Run /imp-rec to chain to next
 
 DO NOT STOP. Execute the appropriate /imp- command now.`,
 	}
