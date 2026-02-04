@@ -83,6 +83,7 @@ Examples:
 			commissionFilter, _ := cmd.Flags().GetString("commission")
 			expandAll, _ := cmd.Flags().GetBool("all")
 			debugMode, _ := cmd.Flags().GetBool("debug")
+			expandAllCommissions, _ := cmd.Flags().GetBool("expand-all-commissions")
 
 			// Load config for role detection (with Goblin migration if needed)
 			cfg, _ := MigrateGoblinConfigIfNeeded(cmd.Context(), cwd)
@@ -184,6 +185,22 @@ Examples:
 				return nil
 			}
 
+			// Determine which commission is "focused" based on focusID
+			focusedCommissionID := ""
+			if focusID != "" {
+				focusedCommissionID = resolveContainerCommission(focusID)
+			}
+
+			// Sort commissions: focused commission first, then others by ID
+			sort.SliceStable(openCommissions, func(i, j int) bool {
+				isFocusedI := openCommissions[i].ID == focusedCommissionID
+				isFocusedJ := openCommissions[j].ID == focusedCommissionID
+				if isFocusedI != isFocusedJ {
+					return isFocusedI // Focused commission first
+				}
+				return openCommissions[i].ID < openCommissions[j].ID
+			})
+
 			// Render header based on role
 			renderHeader(role, workbenchID, workshopID, gatehouseID, focusID, filterCommissionID)
 
@@ -192,6 +209,9 @@ Examples:
 
 			// Display each commission
 			for i, commission := range openCommissions {
+				isFocusedCommission := commission.ID == focusedCommissionID
+				shouldExpand := isFocusedCommission || expandAllCommissions
+
 				// Build summary request
 				req := primary.SummaryRequest{
 					CommissionID: commission.ID,
@@ -207,13 +227,18 @@ Examples:
 					continue
 				}
 
-				// Render summary (unified view for all roles)
-				renderSummary(summary, focusID, workshopFocus)
+				if shouldExpand {
+					// Render full summary for focused or expanded commissions
+					renderSummary(summary, focusID, workshopFocus)
 
-				// Render debug info if present
-				if summary.DebugInfo != nil && len(summary.DebugInfo.Messages) > 0 {
-					fmt.Println()
-					renderDebugInfo(summary.DebugInfo)
+					// Render debug info if present
+					if summary.DebugInfo != nil && len(summary.DebugInfo.Messages) > 0 {
+						fmt.Println()
+						renderDebugInfo(summary.DebugInfo)
+					}
+				} else {
+					// Render collapsed summary for non-focused commissions
+					renderCollapsedCommission(summary)
 				}
 
 				if i < len(openCommissions)-1 {
@@ -228,6 +253,7 @@ Examples:
 	cmd.Flags().StringP("commission", "c", "", "Commission filter: commission ID or 'current' for context commission")
 	cmd.Flags().Bool("all", false, "Show all containers (default: only show focused container if set)")
 	cmd.Flags().Bool("debug", false, "Show debug info about hidden/filtered content")
+	cmd.Flags().Bool("expand-all-commissions", false, "Expand all commissions (default: only focused commission expanded)")
 
 	return cmd
 }
@@ -446,6 +472,33 @@ func formatFocusActors(actors []string, isMeFocused bool) string {
 		return ""
 	}
 	return fmt.Sprintf(" [focused by %s]", strings.Join(parts, ", "))
+}
+
+// renderCollapsedCommission renders a commission as a single collapsed line with counts
+func renderCollapsedCommission(summary *primary.CommissionSummary) {
+	// Count items
+	shipmentCount := len(summary.Shipments)
+	noteCount := len(summary.Notes)
+	tomeCount := len(summary.Tomes)
+
+	// Build counts string
+	var counts []string
+	if shipmentCount > 0 {
+		counts = append(counts, pluralize(shipmentCount, "shipment", "shipments"))
+	}
+	if noteCount > 0 {
+		counts = append(counts, pluralize(noteCount, "note", "notes"))
+	}
+	if tomeCount > 0 {
+		counts = append(counts, pluralize(tomeCount, "tome", "tomes"))
+	}
+
+	countsStr := ""
+	if len(counts) > 0 {
+		countsStr = fmt.Sprintf(" (%s)", strings.Join(counts, ", "))
+	}
+
+	fmt.Printf("%s - %s%s\n", colorizeID(summary.ID), summary.Title, countsStr)
 }
 
 // renderSummary renders the commission with notes, shipments, and tomes in tree format
