@@ -54,7 +54,7 @@ Examples:
   orc workshop create --factory FACT-001           # uses specific factory
   orc workshop create --name "Custom Workshop"     # uses default factory with custom name`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := context.Background()
+			ctx := NewContext()
 
 			resp, err := wire.WorkshopService().CreateWorkshop(ctx, primary.CreateWorkshopRequest{
 				FactoryID: factoryID,
@@ -84,7 +84,7 @@ func workshopListCmd() *cobra.Command {
 		Short: "List all workshops",
 		Long:  `List all workshops with their current status.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := context.Background()
+			ctx := NewContext()
 
 			workshops, err := wire.WorkshopService().ListWorkshops(ctx, primary.WorkshopFilters{
 				FactoryID: factoryID,
@@ -130,7 +130,7 @@ func workshopShowCmd() *cobra.Command {
 		Short: "Show workshop details",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := context.Background()
+			ctx := NewContext()
 
 			workshop, err := wire.WorkshopService().GetWorkshop(ctx, args[0])
 			if err != nil {
@@ -185,7 +185,7 @@ Examples:
   orc workshop archive WORK-001`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := context.Background()
+			ctx := NewContext()
 			workshopID := args[0]
 
 			// Get workshop info for display
@@ -221,7 +221,7 @@ Examples:
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			workshopID := args[0]
-			ctx := context.Background()
+			ctx := NewContext()
 
 			if err := wire.WorkshopService().CloseWorkshop(ctx, workshopID); err != nil {
 				return fmt.Errorf("failed to close session: %w", err)
@@ -259,7 +259,7 @@ Examples:
 }
 
 func runSetCommission(args []string, clearFlag bool) error {
-	ctx := context.Background()
+	ctx := NewContext()
 
 	// Get workshop ID from config (Goblin context)
 	cwd, err := os.Getwd()

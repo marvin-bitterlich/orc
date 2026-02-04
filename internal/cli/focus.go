@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -108,7 +107,7 @@ func runIMPFocus(_ *cobra.Command, args []string, cfg *config.Config, showOnly, 
 // validateFocusTarget validates the container ID exists and returns its type and title
 // Supports COMM-xxx, SHIP-xxx, TOME-xxx (any actor can focus any type)
 func validateFocusTarget(id string) (containerType string, title string, err error) {
-	ctx := context.Background()
+	ctx := NewContext()
 	switch {
 	case strings.HasPrefix(id, "COMM-"):
 		comm, err := wire.CommissionService().GetCommission(ctx, id)
@@ -149,7 +148,7 @@ func validateFocusTarget(id string) (containerType string, title string, err err
 
 // resolveToCommission resolves any focusable entity to its commission ID
 func resolveToCommission(id string) string {
-	ctx := context.Background()
+	ctx := NewContext()
 	switch {
 	case strings.HasPrefix(id, "COMM-"):
 		return id
@@ -171,7 +170,7 @@ func resolveToCommission(id string) string {
 
 // showIMPFocus displays the current IMP focus from DB
 func showIMPFocus(workbenchID string) error {
-	ctx := context.Background()
+	ctx := NewContext()
 
 	focusID, err := wire.WorkbenchService().GetFocusedID(ctx, workbenchID)
 	if err != nil {
@@ -198,7 +197,7 @@ func showIMPFocus(workbenchID string) error {
 
 // setIMPFocus sets the IMP focus in the DB
 func setIMPFocus(workbenchID, containerID, containerType, title string) error {
-	ctx := context.Background()
+	ctx := NewContext()
 
 	// Check for focus exclusivity - another IMP cannot focus the same container
 	// Notes are exempt from exclusivity (multiple actors can focus the same note)
@@ -246,7 +245,7 @@ func setIMPFocus(workbenchID, containerID, containerType, title string) error {
 
 // autoCheckoutShipmentBranch checks out the shipment's branch in the workbench
 func autoCheckoutShipmentBranch(workbenchID, shipmentID string) error {
-	ctx := context.Background()
+	ctx := NewContext()
 
 	// Get shipment to find its branch
 	ship, err := wire.ShipmentService().GetShipment(ctx, shipmentID)
@@ -271,7 +270,7 @@ func autoCheckoutShipmentBranch(workbenchID, shipmentID string) error {
 // If force=false, smart clear: refocus to the commission of the current focus
 // If force=true, fully clear focus (no fallback)
 func clearIMPFocus(workbenchID string, force bool) error {
-	ctx := context.Background()
+	ctx := NewContext()
 
 	// Get current focus
 	currentFocusID, _ := wire.WorkbenchService().GetFocusedID(ctx, workbenchID)
@@ -345,7 +344,7 @@ func runGoblinFocus(_ *cobra.Command, args []string, cfg *config.Config, showOnl
 
 // showGoblinFocus displays the current Goblin focus from DB
 func showGoblinFocus(gatehouseID string) error {
-	ctx := context.Background()
+	ctx := NewContext()
 
 	focusID, err := wire.GatehouseService().GetFocusedID(ctx, gatehouseID)
 	if err != nil {
@@ -372,7 +371,7 @@ func showGoblinFocus(gatehouseID string) error {
 
 // setGoblinFocus sets the Goblin focus in the DB
 func setGoblinFocus(gatehouseID, containerID, containerType, title string) error {
-	ctx := context.Background()
+	ctx := NewContext()
 
 	// Update focus in DB
 	if err := wire.GatehouseService().UpdateFocusedID(ctx, gatehouseID, containerID); err != nil {
@@ -389,7 +388,7 @@ func setGoblinFocus(gatehouseID, containerID, containerType, title string) error
 // If force=false, smart clear: refocus to the commission of the current focus
 // If force=true, fully clear focus (no fallback)
 func clearGoblinFocus(gatehouseID string, force bool) error {
-	ctx := context.Background()
+	ctx := NewContext()
 
 	// Get current focus
 	currentFocusID, _ := wire.GatehouseService().GetFocusedID(ctx, gatehouseID)
@@ -440,7 +439,7 @@ func GetCurrentFocus(cfg *config.Config) string {
 		return ""
 	}
 
-	ctx := context.Background()
+	ctx := NewContext()
 
 	placeType := config.GetPlaceType(cfg.PlaceID)
 	switch placeType {
@@ -469,7 +468,7 @@ func GetFocusInfo(focusID string) (containerType, title, status string) {
 		return "", "", ""
 	}
 
-	ctx := context.Background()
+	ctx := NewContext()
 	switch {
 	case strings.HasPrefix(focusID, "COMM-"):
 		if comm, err := wire.CommissionService().GetCommission(ctx, focusID); err == nil {

@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -21,7 +20,7 @@ var tagCreateCmd = &cobra.Command{
 	Short: "Create a new tag",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		name := args[0]
 		description, _ := cmd.Flags().GetString("description")
 
@@ -46,7 +45,7 @@ var tagListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List all tags",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		tags, err := wire.TagService().ListTags(ctx)
 		if err != nil {
 			return fmt.Errorf("failed to list tags: %w", err)
@@ -74,7 +73,7 @@ var tagShowCmd = &cobra.Command{
 	Short: "Show tag details and associated tasks",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		name := args[0]
 
 		tag, err := wire.TagService().GetTagByName(ctx, name)
@@ -115,7 +114,7 @@ var tagDeleteCmd = &cobra.Command{
 	Short: "Delete a tag (removes from all tasks)",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		name := args[0]
 
 		// Get tag by name

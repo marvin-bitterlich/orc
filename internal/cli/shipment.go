@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"text/tabwriter"
@@ -24,7 +23,7 @@ var shipmentCreateCmd = &cobra.Command{
 	Short: "Create a new shipment",
 	Args:  cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		title := args[0]
 		commissionID, _ := cmd.Flags().GetString("commission")
 		description, _ := cmd.Flags().GetString("description")
@@ -66,7 +65,7 @@ var shipmentListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List shipments",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		commissionID, _ := cmd.Flags().GetString("commission")
 		status, _ := cmd.Flags().GetString("status")
 		available, _ := cmd.Flags().GetBool("available")
@@ -129,7 +128,7 @@ var shipmentShowCmd = &cobra.Command{
 	Short: "Show shipment details",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		shipmentID := args[0]
 
 		shipment, err := wire.ShipmentService().GetShipment(ctx, shipmentID)
@@ -184,7 +183,7 @@ var shipmentCompleteCmd = &cobra.Command{
 	Short: "Mark shipment as complete",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		shipmentID := args[0]
 		force, _ := cmd.Flags().GetBool("force")
 
@@ -203,7 +202,7 @@ var shipmentPauseCmd = &cobra.Command{
 	Short: "Pause an active shipment",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		shipmentID := args[0]
 
 		err := wire.ShipmentService().PauseShipment(ctx, shipmentID)
@@ -221,7 +220,7 @@ var shipmentResumeCmd = &cobra.Command{
 	Short: "Resume a paused shipment",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		shipmentID := args[0]
 
 		err := wire.ShipmentService().ResumeShipment(ctx, shipmentID)
@@ -243,7 +242,7 @@ This is typically called by the ship-deploy skill after a successful merge to ma
 The shipment must be in 'implemented' or 'complete' status.`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		shipmentID := args[0]
 
 		if err := validateEntityID(shipmentID, "shipment"); err != nil {
@@ -269,7 +268,7 @@ This is typically called by the ship-verify skill after validation tests pass.
 The shipment must be in 'deployed' status.`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		shipmentID := args[0]
 
 		if err := validateEntityID(shipmentID, "shipment"); err != nil {
@@ -291,7 +290,7 @@ var shipmentUpdateCmd = &cobra.Command{
 	Short: "Update shipment title and/or description",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		shipmentID := args[0]
 		title, _ := cmd.Flags().GetString("title")
 		description, _ := cmd.Flags().GetString("description")
@@ -319,7 +318,7 @@ var shipmentPinCmd = &cobra.Command{
 	Short: "Pin shipment to keep it visible",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		shipmentID := args[0]
 
 		err := wire.ShipmentService().PinShipment(ctx, shipmentID)
@@ -337,7 +336,7 @@ var shipmentUnpinCmd = &cobra.Command{
 	Short: "Unpin shipment",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		shipmentID := args[0]
 
 		err := wire.ShipmentService().UnpinShipment(ctx, shipmentID)
@@ -355,7 +354,7 @@ var shipmentAssignCmd = &cobra.Command{
 	Short: "Assign shipment to a workbench",
 	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		shipmentID := args[0]
 		workbenchID := args[1]
 
@@ -378,7 +377,7 @@ This status indicates the shipment is ready to be picked up by an IMP.
 The IMP will transition it to 'implementing' or 'auto_implementing' when work begins.`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		shipmentID := args[0]
 
 		err := wire.ShipmentService().UpdateStatus(ctx, shipmentID, "ready_for_imp")
@@ -402,7 +401,7 @@ are complete. The IMP will be propelled forward automatically through the
 /imp-* workflow commands.`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		shipmentID := args[0]
 
 		err := wire.ShipmentService().UpdateStatus(ctx, shipmentID, "auto_implementing")
@@ -425,7 +424,7 @@ In this mode, the IMP can stop at any time. The Stop hook will not block.
 Use this when you want human oversight or interactive development.`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		shipmentID := args[0]
 
 		err := wire.ShipmentService().UpdateStatus(ctx, shipmentID, "implementing")
@@ -454,7 +453,7 @@ verified, complete
 Backwards transitions (e.g., tasked → exploring) require --force flag.`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		shipmentID := args[0]
 		status, _ := cmd.Flags().GetString("set")
 		force, _ := cmd.Flags().GetBool("force")

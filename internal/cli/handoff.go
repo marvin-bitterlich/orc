@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -36,7 +35,7 @@ Examples:
   orc handoff create --file handoff.md
   echo "Context..." | orc handoff create --stdin`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		var note string
 		var err error
 
@@ -119,7 +118,7 @@ var handoffShowCmd = &cobra.Command{
 	Short: "Show handoff details",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		id := args[0]
 
 		handoff, err := wire.HandoffService().GetHandoff(ctx, id)
@@ -150,7 +149,7 @@ var handoffListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List recent handoffs",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		limit, _ := cmd.Flags().GetInt("limit")
 
 		handoffs, err := wire.HandoffService().ListHandoffs(ctx, limit)

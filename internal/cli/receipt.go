@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"text/tabwriter"
@@ -23,7 +22,7 @@ var recCreateCmd = &cobra.Command{
 	Short: "Create a new receipt",
 	Args:  cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		taskID, _ := cmd.Flags().GetString("task")
 		evidence, _ := cmd.Flags().GetString("evidence")
 		notes, _ := cmd.Flags().GetString("notes")
@@ -57,7 +56,7 @@ var recListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List receipts",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		taskID, _ := cmd.Flags().GetString("task")
 		status, _ := cmd.Flags().GetString("status")
 
@@ -100,7 +99,7 @@ var recShowCmd = &cobra.Command{
 	Short: "Show receipt details",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		recID := args[0]
 
 		rec, err := wire.ReceiptService().GetReceipt(ctx, recID)
@@ -130,7 +129,7 @@ var recUpdateCmd = &cobra.Command{
 	Short: "Update a receipt",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		recID := args[0]
 
 		outcome, _ := cmd.Flags().GetString("outcome")
@@ -159,7 +158,7 @@ var recSubmitCmd = &cobra.Command{
 	Short: "Submit a draft receipt for verification",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		recID := args[0]
 
 		err := wire.ReceiptService().SubmitReceipt(ctx, recID)
@@ -177,7 +176,7 @@ var recVerifyCmd = &cobra.Command{
 	Short: "Verify a submitted receipt",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		recID := args[0]
 
 		err := wire.ReceiptService().VerifyReceipt(ctx, recID)
@@ -195,7 +194,7 @@ var recDeleteCmd = &cobra.Command{
 	Short: "Delete a receipt",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		recID := args[0]
 
 		err := wire.ReceiptService().DeleteReceipt(ctx, recID)

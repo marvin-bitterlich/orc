@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"context"
 	"fmt"
 	"time"
 
@@ -22,7 +21,7 @@ var logTailCmd = &cobra.Command{
 	Short: "Show recent activity",
 	Long:  "Show recent activity log entries (default 50)",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		limit, _ := cmd.Flags().GetInt("limit")
 		workshopID, _ := cmd.Flags().GetString("workshop")
 		actorID, _ := cmd.Flags().GetString("actor")
@@ -87,7 +86,7 @@ var logShowCmd = &cobra.Command{
 	Long:  "Show activity history for a specific entity (e.g., SHIP-243, TASK-001)",
 	Args:  cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		actorID, _ := cmd.Flags().GetString("actor")
 		limit, _ := cmd.Flags().GetInt("limit")
 
@@ -121,7 +120,7 @@ var logPruneCmd = &cobra.Command{
 	Short: "Delete old log entries",
 	Long:  "Delete log entries older than the specified number of days (default 30)",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		days, _ := cmd.Flags().GetInt("days")
 
 		if days <= 0 {

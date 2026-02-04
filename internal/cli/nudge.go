@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -34,7 +33,7 @@ Examples:
 				return fmt.Errorf("invalid agent ID: %w", err)
 			}
 
-			ctx := context.Background()
+			ctx := NewContext()
 			tmuxAdapter := wire.TMuxAdapter()
 
 			var sessionName string

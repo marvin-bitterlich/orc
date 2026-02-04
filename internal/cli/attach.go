@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -34,7 +33,7 @@ If the session already exists, provides attach instructions.
 Examples:
   orc attach`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		sessionName := "orc-master"
 		tmuxAdapter := wire.TMuxAdapter()
 

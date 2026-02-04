@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"text/tabwriter"
@@ -22,7 +21,7 @@ var kennelListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List kennels",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		workbenchID, _ := cmd.Flags().GetString("workbench")
 		status, _ := cmd.Flags().GetString("status")
 
@@ -60,7 +59,7 @@ var kennelShowCmd = &cobra.Command{
 	Short: "Show kennel details",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		kennelID := args[0]
 
 		kennel, err := wire.KennelService().GetKennel(ctx, kennelID)
@@ -88,7 +87,7 @@ Each workbench should have exactly one kennel (1:1 relationship).
 
 This command is idempotent - running it multiple times is safe.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 
 		created, err := wire.KennelService().EnsureAllWorkbenchesHaveKennels(ctx)
 		if err != nil {

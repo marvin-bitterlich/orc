@@ -47,7 +47,7 @@ Examples:
   orc mail send "Task complete" --to ORC --subject "Update"`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := context.Background()
+			ctx := NewContext()
 			body := args[0]
 
 			// Get current agent identity
@@ -155,7 +155,7 @@ func mailInboxCmd() *cobra.Command {
 By default, shows only unread messages.
 Use --all to show all messages.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := context.Background()
+			ctx := NewContext()
 
 			// Get current agent identity
 			identity, err := agent.GetCurrentAgentID()
@@ -217,7 +217,7 @@ Example:
   orc mail read MSG-COMM-001-005`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := context.Background()
+			ctx := NewContext()
 			messageID := args[0]
 
 			// Get message
@@ -259,7 +259,7 @@ Example:
   orc mail conversation IMP-WB-001`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := context.Background()
+			ctx := NewContext()
 			otherAgentID := args[0]
 
 			// Validate other agent ID

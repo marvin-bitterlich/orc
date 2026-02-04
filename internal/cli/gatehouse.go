@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"text/tabwriter"
@@ -22,7 +21,7 @@ var gatehouseListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List gatehouses",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		workshopID, _ := cmd.Flags().GetString("workshop")
 		status, _ := cmd.Flags().GetString("status")
 
@@ -60,7 +59,7 @@ var gatehouseShowCmd = &cobra.Command{
 	Short: "Show gatehouse details",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		gatehouseID := args[0]
 
 		gatehouse, err := wire.GatehouseService().GetGatehouse(ctx, gatehouseID)
@@ -88,7 +87,7 @@ Each workshop should have exactly one gatehouse (1:1 relationship).
 
 This command is idempotent - running it multiple times is safe.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 
 		created, err := wire.GatehouseService().EnsureAllWorkshopsHaveGatehouses(ctx)
 		if err != nil {

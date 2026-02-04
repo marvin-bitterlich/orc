@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"text/tabwriter"
@@ -24,7 +23,7 @@ var tomeCreateCmd = &cobra.Command{
 	Short: "Create a new tome",
 	Args:  cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		title := args[0]
 		commissionID, _ := cmd.Flags().GetString("commission")
 		description, _ := cmd.Flags().GetString("description")
@@ -61,7 +60,7 @@ var tomeListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List tomes",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		commissionID, _ := cmd.Flags().GetString("commission")
 		status, _ := cmd.Flags().GetString("status")
 
@@ -107,7 +106,7 @@ var tomeShowCmd = &cobra.Command{
 	Short: "Show tome details",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		tomeID := args[0]
 
 		tome, err := wire.TomeService().GetTome(ctx, tomeID)
@@ -156,7 +155,7 @@ var tomeCloseCmd = &cobra.Command{
 	Short: "Mark tome as closed",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		tomeID := args[0]
 
 		err := wire.TomeService().CloseTome(ctx, tomeID)
@@ -174,7 +173,7 @@ var tomeUpdateCmd = &cobra.Command{
 	Short: "Update tome title and/or description",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		tomeID := args[0]
 		title, _ := cmd.Flags().GetString("title")
 		description, _ := cmd.Flags().GetString("description")
@@ -202,7 +201,7 @@ var tomePinCmd = &cobra.Command{
 	Short: "Pin tome to keep it visible",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		tomeID := args[0]
 
 		err := wire.TomeService().PinTome(ctx, tomeID)
@@ -220,7 +219,7 @@ var tomeUnpinCmd = &cobra.Command{
 	Short: "Unpin tome",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		tomeID := args[0]
 
 		err := wire.TomeService().UnpinTome(ctx, tomeID)
@@ -238,7 +237,7 @@ var tomeDeleteCmd = &cobra.Command{
 	Short: "Delete a tome",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+		ctx := NewContext()
 		tomeID := args[0]
 
 		err := wire.TomeService().DeleteTome(ctx, tomeID)
