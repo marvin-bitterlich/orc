@@ -156,10 +156,16 @@ func (s *InfraServiceImpl) PlanInfra(ctx context.Context, req primary.InfraPlanR
 				Path: gatehousePath,
 			})
 			for _, wb := range workbenches {
-				tmuxExpectedWindows = append(tmuxExpectedWindows, coreinfra.TMuxWindowInput{
+				wbPath := coreworkbench.ComputePath(wb.Name)
+				windowInput := coreinfra.TMuxWindowInput{
 					Name: wb.Name,
-					Path: coreworkbench.ComputePath(wb.Name),
-				})
+					Path: wbPath,
+				}
+				// Fetch pane data if window exists
+				if tmuxSessionExists && s.tmuxAdapter.WindowExists(ctx, tmuxSessionName, wb.Name) {
+					windowInput.Panes = s.fetchPaneData(ctx, tmuxSessionName, wb.Name, wbPath)
+				}
+				tmuxExpectedWindows = append(tmuxExpectedWindows, windowInput)
 			}
 		}
 	}
@@ -386,11 +392,24 @@ func (s *InfraServiceImpl) corePlanToPrimary(core *coreinfra.Plan) *primary.Infr
 		}
 		// Map expected windows
 		for _, w := range core.TMuxSession.Windows {
-			plan.TMuxSession.Windows = append(plan.TMuxSession.Windows, primary.InfraTMuxWindowOp{
+			windowOp := primary.InfraTMuxWindowOp{
 				Name:   w.Name,
 				Path:   w.Path,
 				Status: boolToOpStatus(w.Exists),
-			})
+			}
+			// Map pane verification data
+			for _, p := range w.Panes {
+				windowOp.Panes = append(windowOp.Panes, primary.InfraTMuxPaneOp{
+					Index:           p.Index,
+					PathOK:          p.PathOK,
+					CommandOK:       p.CommandOK,
+					ActualPath:      p.ActualPath,
+					ActualCommand:   p.ActualCommand,
+					ExpectedPath:    p.ExpectedPath,
+					ExpectedCommand: p.ExpectedCommand,
+				})
+			}
+			plan.TMuxSession.Windows = append(plan.TMuxSession.Windows, windowOp)
 		}
 		// Map orphan windows (exist but shouldn't)
 		for _, w := range core.TMuxSession.OrphanWindows {
@@ -413,6 +432,41 @@ func (s *InfraServiceImpl) dirExists(path string) bool {
 func (s *InfraServiceImpl) fileExists(path string) bool {
 	info, err := os.Stat(path)
 	return err == nil && !info.IsDir()
+}
+
+// fetchPaneData retrieves pane verification data for an existing window.
+// Expected layout: Pane 1 (vim), Pane 2 (orc connect), Pane 3 (shell).
+func (s *InfraServiceImpl) fetchPaneData(ctx context.Context, sessionName, windowName, expectedPath string) []coreinfra.TMuxPaneInput {
+	var panes []coreinfra.TMuxPaneInput
+
+	// Pane 1: vim (expected command = "vim")
+	panes = append(panes, coreinfra.TMuxPaneInput{
+		Index:           1,
+		StartPath:       s.tmuxAdapter.GetPaneStartPath(ctx, sessionName, windowName, 1),
+		StartCommand:    s.tmuxAdapter.GetPaneStartCommand(ctx, sessionName, windowName, 1),
+		ExpectedPath:    expectedPath,
+		ExpectedCommand: "vim",
+	})
+
+	// Pane 2: IMP (expected command = "orc connect")
+	panes = append(panes, coreinfra.TMuxPaneInput{
+		Index:           2,
+		StartPath:       s.tmuxAdapter.GetPaneStartPath(ctx, sessionName, windowName, 2),
+		StartCommand:    s.tmuxAdapter.GetPaneStartCommand(ctx, sessionName, windowName, 2),
+		ExpectedPath:    expectedPath,
+		ExpectedCommand: "orc connect",
+	})
+
+	// Pane 3: shell (no expected command, just verify path)
+	panes = append(panes, coreinfra.TMuxPaneInput{
+		Index:           3,
+		StartPath:       s.tmuxAdapter.GetPaneStartPath(ctx, sessionName, windowName, 3),
+		StartCommand:    s.tmuxAdapter.GetPaneStartCommand(ctx, sessionName, windowName, 3),
+		ExpectedPath:    expectedPath,
+		ExpectedCommand: "", // Shell - no command expected
+	})
+
+	return panes
 }
 
 // ApplyInfra executes the infrastructure plan, creating directories, worktrees, and configs.

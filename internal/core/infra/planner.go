@@ -48,8 +48,18 @@ type WorkbenchPlanInput struct {
 
 // TMuxWindowInput contains pre-fetched data for an expected tmux window.
 type TMuxWindowInput struct {
-	Name string // Window name (usually workbench name)
-	Path string // Working directory for the window
+	Name  string          // Window name (usually workbench name)
+	Path  string          // Working directory for the window
+	Panes []TMuxPaneInput // Pane state (if window exists)
+}
+
+// TMuxPaneInput contains pre-fetched data for a tmux pane.
+type TMuxPaneInput struct {
+	Index           int    // Pane index (1-based)
+	StartPath       string // Initial directory (pane_start_path)
+	StartCommand    string // Initial command (pane_start_command, only set via respawn-pane)
+	ExpectedPath    string // Expected directory for verification
+	ExpectedCommand string // Expected command for verification (empty means no check)
 }
 
 // Plan describes infrastructure state for a workshop.
@@ -102,6 +112,18 @@ type TMuxWindowOp struct {
 	Name   string
 	Path   string
 	Exists bool
+	Panes  []TMuxPaneOp // Pane verification results (only populated if window exists)
+}
+
+// TMuxPaneOp describes tmux pane verification state.
+type TMuxPaneOp struct {
+	Index           int    // Pane index (1-based)
+	PathOK          bool   // StartPath matches expected
+	CommandOK       bool   // StartCommand matches expected (true if no expected command)
+	ActualPath      string // Actual pane_start_path
+	ActualCommand   string // Actual pane_start_command
+	ExpectedPath    string // Expected path
+	ExpectedCommand string // Expected command (empty if shell)
 }
 
 // GeneratePlan creates an infrastructure plan.
@@ -183,11 +205,35 @@ func buildTMuxSessionOp(input PlanInput) *TMuxSessionOp {
 
 	// Check each expected window
 	for _, expected := range input.TMuxExpectedWindows {
-		sessionOp.Windows = append(sessionOp.Windows, TMuxWindowOp{
+		windowOp := TMuxWindowOp{
 			Name:   expected.Name,
 			Path:   expected.Path,
 			Exists: existingSet[expected.Name],
-		})
+		}
+
+		// Add pane verification if window exists and has pane data
+		if windowOp.Exists && len(expected.Panes) > 0 {
+			for _, pane := range expected.Panes {
+				paneOp := TMuxPaneOp{
+					Index:           pane.Index,
+					ActualPath:      pane.StartPath,
+					ActualCommand:   pane.StartCommand,
+					ExpectedPath:    pane.ExpectedPath,
+					ExpectedCommand: pane.ExpectedCommand,
+				}
+				// Check path match
+				paneOp.PathOK = pane.StartPath == pane.ExpectedPath
+				// Check command match (OK if no expected command)
+				if pane.ExpectedCommand == "" {
+					paneOp.CommandOK = true
+				} else {
+					paneOp.CommandOK = pane.StartCommand == pane.ExpectedCommand
+				}
+				windowOp.Panes = append(windowOp.Panes, paneOp)
+			}
+		}
+
+		sessionOp.Windows = append(sessionOp.Windows, windowOp)
 	}
 
 	// Find orphan windows (exist but not expected)

@@ -514,6 +514,12 @@ func (m *mockTMuxAdapterForPlan) ListWindows(ctx context.Context, sessionName st
 func (m *mockTMuxAdapterForPlan) JoinPane(ctx context.Context, source, target string, vertical bool, size int) error {
 	return nil
 }
+func (m *mockTMuxAdapterForPlan) GetPaneStartPath(ctx context.Context, sessionName, windowName string, paneIndex int) string {
+	return ""
+}
+func (m *mockTMuxAdapterForPlan) GetPaneStartCommand(ctx context.Context, sessionName, windowName string, paneIndex int) string {
+	return ""
+}
 
 // ============================================================================
 // Test Helper

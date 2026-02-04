@@ -88,6 +88,32 @@ func GetPaneCommand(sessionName, windowName string, paneNum int) string {
 	return strings.TrimSpace(string(output))
 }
 
+// GetPaneStartPath returns the initial directory for a pane (pane_start_path).
+// This is set when the pane is created and does not change.
+// Returns empty string if pane doesn't exist or error occurs.
+func GetPaneStartPath(sessionName, windowName string, paneNum int) string {
+	target := fmt.Sprintf("%s:%s.%d", sessionName, windowName, paneNum)
+	cmd := exec.Command("tmux", "display-message", "-t", target, "-p", "#{pane_start_path}")
+	output, err := cmd.Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(output))
+}
+
+// GetPaneStartCommand returns the initial command for a pane (pane_start_command).
+// This is only set when the pane is created with respawn-pane or similar.
+// Returns empty string if not set, pane doesn't exist, or error occurs.
+func GetPaneStartCommand(sessionName, windowName string, paneNum int) string {
+	target := fmt.Sprintf("%s:%s.%d", sessionName, windowName, paneNum)
+	cmd := exec.Command("tmux", "display-message", "-t", target, "-p", "#{pane_start_command}")
+	output, err := cmd.Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(output))
+}
+
 // CapturePaneContent captures visible content from a pane.
 // target is in format "session:window.pane" (e.g., "workshop:bench.2")
 // lines specifies how many lines to capture (0 for all visible)

@@ -163,6 +163,10 @@ func displayInfraPlan(plan *primary.InfraPlan) {
 			fmt.Println("  Windows:")
 			for _, w := range plan.TMuxSession.Windows {
 				fmt.Printf("    %s %s\n", infraStatusColor(w.Status), w.Name)
+				// Show pane tree if window exists and has panes
+				if w.Status == primary.OpExists && len(w.Panes) > 0 {
+					displayPaneTree(w.Panes)
+				}
 			}
 		}
 
@@ -173,6 +177,50 @@ func displayInfraPlan(plan *primary.InfraPlan) {
 			}
 		}
 		fmt.Println()
+	}
+}
+
+// displayPaneTree shows the pane verification tree for a window.
+func displayPaneTree(panes []primary.InfraTMuxPaneOp) {
+	paneNames := []string{"vim", "IMP", "shell"}
+	for i, p := range panes {
+		paneName := "pane"
+		if i < len(paneNames) {
+			paneName = paneNames[i]
+		}
+
+		// Determine overall status
+		allOK := p.PathOK && p.CommandOK
+
+		// Build status indicator
+		var statusIcon string
+		if allOK {
+			statusIcon = color.New(color.FgGreen).Sprint("✓")
+		} else {
+			statusIcon = color.New(color.FgYellow).Sprint("!")
+		}
+
+		fmt.Printf("      %s pane %d (%s)\n", statusIcon, p.Index, paneName)
+
+		// Show path verification
+		if p.PathOK {
+			fmt.Printf("        path: %s\n", color.New(color.FgGreen).Sprint("OK"))
+		} else {
+			fmt.Printf("        path: %s\n", color.New(color.FgYellow).Sprint("MISMATCH"))
+			fmt.Printf("          expected: %s\n", p.ExpectedPath)
+			fmt.Printf("          actual:   %s\n", p.ActualPath)
+		}
+
+		// Show command verification (if expected)
+		if p.ExpectedCommand != "" {
+			if p.CommandOK {
+				fmt.Printf("        cmd:  %s (%s)\n", color.New(color.FgGreen).Sprint("OK"), p.ExpectedCommand)
+			} else {
+				fmt.Printf("        cmd:  %s\n", color.New(color.FgYellow).Sprint("MISMATCH"))
+				fmt.Printf("          expected: %s\n", p.ExpectedCommand)
+				fmt.Printf("          actual:   %s\n", p.ActualCommand)
+			}
+		}
 	}
 }
 
