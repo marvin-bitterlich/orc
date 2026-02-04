@@ -85,4 +85,8 @@ type TMuxAdapter interface {
 	ListSessions(ctx context.Context) ([]string, error)
 	FindSessionByWorkshopID(ctx context.Context, workshopID string) string
 	ListWindows(ctx context.Context, sessionName string) ([]string, error)
+
+	// Pane info (for verification)
+	GetPaneStartPath(ctx context.Context, sessionName, windowName string, paneIndex int) string
+	GetPaneStartCommand(ctx context.Context, sessionName, windowName string, paneIndex int) string
 }

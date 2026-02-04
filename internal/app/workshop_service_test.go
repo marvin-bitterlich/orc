@@ -587,6 +587,14 @@ func (m *mockTMuxAdapter) JoinPane(ctx context.Context, source, target string, v
 	return nil
 }
 
+func (m *mockTMuxAdapter) GetPaneStartPath(ctx context.Context, sessionName, windowName string, paneIndex int) string {
+	return ""
+}
+
+func (m *mockTMuxAdapter) GetPaneStartCommand(ctx context.Context, sessionName, windowName string, paneIndex int) string {
+	return ""
+}
+
 // mockWorkspaceAdapter implements secondary.WorkspaceAdapter for testing.
 type mockWorkspaceAdapter struct {
 	worktrees map[string]bool
