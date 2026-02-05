@@ -260,7 +260,7 @@ Examples:
 }
 
 // renderHeader prints the header line based on role
-func renderHeader(role, workbenchID, workshopID, gatehouseID, focusID, commissionID string) {
+func renderHeader(role, workbenchID, workshopID, gatehouseID, _, commissionID string) {
 	// Show workshop context (for both Goblin and IMP)
 	if workshopID != "" {
 		// Fetch workshop name
@@ -280,13 +280,6 @@ func renderHeader(role, workbenchID, workshopID, gatehouseID, focusID, commissio
 
 		// Show gatehouse and workbenches in workshop with tree format
 		renderWorkshopBenches(workshopID, workbenchID, gatehouseID)
-	}
-
-	// IMP-specific: show current workbench and focus
-	if !config.IsGoblinRole(role) && workbenchID != "" {
-		if focusID != "" {
-			fmt.Printf("\nFocus: %s\n", focusID)
-		}
 	}
 
 	fmt.Println()
@@ -573,6 +566,15 @@ func renderSummary(summary *primary.CommissionSummary, _ string, workshopFocus w
 			otherShips = append(otherShips, ship)
 		}
 	}
+
+	// Sort focused shipments: YOUR focus first, then others
+	sort.SliceStable(focusedShips, func(i, j int) bool {
+		// IsFocused means "focused by you" - put these first
+		if focusedShips[i].IsFocused != focusedShips[j].IsFocused {
+			return focusedShips[i].IsFocused
+		}
+		return false // Keep original order otherwise
+	})
 
 	// Calculate total items for tree rendering
 	totalItems := len(summary.Notes) + len(focusedShips) + len(otherShips) + len(summary.Tomes)
