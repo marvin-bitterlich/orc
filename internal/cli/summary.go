@@ -553,7 +553,7 @@ func renderSummary(summary *primary.CommissionSummary, _ string, workshopFocus w
 	// Commission header with focused marker
 	focusedMarker := ""
 	if summary.IsFocusedCommission {
-		focusedMarker = color.New(color.FgHiMagenta).Sprint(" ✨ [focused by you] ✨")
+		focusedMarker = fmt.Sprintf(" ✨ [focused by %s] ✨", color.New(color.FgHiMagenta).Sprint("you"))
 	}
 	fmt.Printf("%s%s - %s\n", colorizeID(summary.ID), focusedMarker, summary.Title)
 
