@@ -242,6 +242,9 @@ func setIMPFocus(workbenchID, containerID, containerType, title string) error {
 	// Update tmux ORC_CONTEXT for session browser
 	updateWorkshopContext(workbenchID)
 
+	// Update tmux @orc_focus window option for session picker
+	updateFocusWindowOption(containerID, title)
+
 	fmt.Println("\nRun 'orc prime' to see updated context.")
 	return nil
 }
@@ -267,6 +270,28 @@ func autoCheckoutShipmentBranch(workbenchID, shipmentID string) error {
 		TargetBranch: ship.Branch,
 	})
 	return err
+}
+
+// updateFocusWindowOption sets the @orc_focus tmux window option for the session picker.
+// Format: "{ID}: {title}" where ID is SHIP-xxx, TOME-xxx, COMM-xxx, etc.
+func updateFocusWindowOption(containerID, title string) {
+	ctx := NewContext()
+
+	// Get current tmux session and window
+	sessionName := wire.TMuxAdapter().GetCurrentSessionName(ctx)
+	if sessionName == "" {
+		return // Not in tmux
+	}
+
+	// Build focus string
+	focusStr := ""
+	if containerID != "" && title != "" {
+		focusStr = fmt.Sprintf("%s: %s", containerID, title)
+	}
+
+	// Set window option on current window (session:)
+	target := sessionName + ":"
+	_ = wire.TMuxAdapter().SetWindowOption(ctx, target, "@orc_focus", focusStr)
 }
 
 // updateWorkshopContext computes active commissions for the workshop and sets ORC_CONTEXT tmux env var.
@@ -330,6 +355,7 @@ func clearIMPFocus(workbenchID string, force bool) error {
 		if err := wire.WorkbenchService().UpdateFocusedID(ctx, workbenchID, ""); err != nil {
 			return fmt.Errorf("failed to clear focus: %w", err)
 		}
+		updateFocusWindowOption("", "") // Clear @orc_focus
 		fmt.Println("Focus fully cleared")
 		return nil
 	}
@@ -347,14 +373,21 @@ func clearIMPFocus(workbenchID string, force bool) error {
 		if err := wire.WorkbenchService().UpdateFocusedID(ctx, workbenchID, ""); err != nil {
 			return fmt.Errorf("failed to clear focus: %w", err)
 		}
+		updateFocusWindowOption("", "") // Clear @orc_focus
 		fmt.Println("Focus cleared")
 		return nil
 	}
 
-	// Refocus to commission
+	// Refocus to commission - get commission title for @orc_focus
+	comm, _ := wire.CommissionService().GetCommission(ctx, commissionID)
+	commTitle := ""
+	if comm != nil {
+		commTitle = comm.Title
+	}
 	if err := wire.WorkbenchService().UpdateFocusedID(ctx, workbenchID, commissionID); err != nil {
 		return fmt.Errorf("failed to refocus to commission: %w", err)
 	}
+	updateFocusWindowOption(commissionID, commTitle)
 	fmt.Printf("Focus cleared from %s → %s (commission)\n", currentFocusID, commissionID)
 	return nil
 }
@@ -423,6 +456,9 @@ func setGoblinFocus(gatehouseID, containerID, containerType, title string) error
 		return fmt.Errorf("failed to set focus: %w", err)
 	}
 
+	// Update tmux @orc_focus window option for session picker
+	updateFocusWindowOption(containerID, title)
+
 	fmt.Printf("Focused on %s: %s\n", containerType, containerID)
 	fmt.Printf("  %s\n", title)
 	fmt.Println("\nRun 'orc prime' to see updated context.")
@@ -448,6 +484,7 @@ func clearGoblinFocus(gatehouseID string, force bool) error {
 		if err := wire.GatehouseService().UpdateFocusedID(ctx, gatehouseID, ""); err != nil {
 			return fmt.Errorf("failed to clear focus: %w", err)
 		}
+		updateFocusWindowOption("", "") // Clear @orc_focus
 		fmt.Println("Focus fully cleared")
 		return nil
 	}
@@ -465,14 +502,21 @@ func clearGoblinFocus(gatehouseID string, force bool) error {
 		if err := wire.GatehouseService().UpdateFocusedID(ctx, gatehouseID, ""); err != nil {
 			return fmt.Errorf("failed to clear focus: %w", err)
 		}
+		updateFocusWindowOption("", "") // Clear @orc_focus
 		fmt.Println("Focus cleared")
 		return nil
 	}
 
-	// Refocus to commission
+	// Refocus to commission - get commission title for @orc_focus
+	comm, _ := wire.CommissionService().GetCommission(ctx, commissionID)
+	commTitle := ""
+	if comm != nil {
+		commTitle = comm.Title
+	}
 	if err := wire.GatehouseService().UpdateFocusedID(ctx, gatehouseID, commissionID); err != nil {
 		return fmt.Errorf("failed to refocus to commission: %w", err)
 	}
+	updateFocusWindowOption(commissionID, commTitle)
 	fmt.Printf("Focus cleared from %s → %s (commission)\n", currentFocusID, commissionID)
 	return nil
 }

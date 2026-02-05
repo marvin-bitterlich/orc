@@ -488,6 +488,11 @@ func ApplyGlobalBindings() {
 		"choose-tree", "-sZ", "-F",
 		`#{session_name} [#{ORC_WORKSHOP_ID}] - #{?#{ORC_CONTEXT},#{ORC_CONTEXT},(idle)}`).Run()
 
+	// ORC session picker (prefix+S) with rich agent/focus display
+	// Uses display-menu for custom formatting with colors
+	_ = exec.Command("tmux", "bind-key", "-T", "prefix", "S",
+		"run-shell", "$HOME/.orc/tmux/orc-session-picker.sh").Run()
+
 	// Double-click status bar → orc summary popup
 	_ = BindKeyPopup("", "DoubleClick1Status",
 		"CLICOLOR_FORCE=1 orc summary | less -R",
@@ -565,6 +570,24 @@ func FindSessionByWorkshopID(workshopID string) string {
 		}
 	}
 	return ""
+}
+
+// GetWindowOption gets a window option value.
+// target format: "session:window" (e.g., "mysession:1" or "mysession:mywindow")
+func GetWindowOption(target, option string) string {
+	cmd := exec.Command("tmux", "show-options", "-t", target, "-wqv", option)
+	output, err := cmd.Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(output))
+}
+
+// SetWindowOption sets a window option value.
+// target format: "session:window" (e.g., "mysession:1" or "mysession:mywindow")
+func SetWindowOption(target, option, value string) error {
+	cmd := exec.Command("tmux", "set-option", "-t", target, "-w", option, value)
+	return cmd.Run()
 }
 
 // ListWindows returns window names in a session.
