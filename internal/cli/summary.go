@@ -343,18 +343,15 @@ func renderWorkshopBenches(workshopID, currentWorkbenchID, gatehouseID string) {
 			line = color.New(color.FgHiMagenta).Sprint(line)
 		}
 
-		// Add git branch and dirty status
+		// Add git branch and dirty status (colored branch name)
 		if wb.Path != "" {
 			branch, dirty, err := getGitBranchStatus(wb.Path)
 			if err != nil {
-				line += " ⚪" // Unknown/error
+				line += color.New(color.FgHiBlack).Sprint(" [?]")
+			} else if dirty {
+				line += color.New(color.FgYellow).Sprintf(" [%s]", branch)
 			} else {
-				line += fmt.Sprintf(" [%s]", branch)
-				if dirty {
-					line += " 🟡" // Dirty
-				} else {
-					line += " 🟢" // Clean
-				}
+				line += color.New(color.FgGreen).Sprintf(" [%s]", branch)
 			}
 		}
 
