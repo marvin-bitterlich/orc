@@ -287,22 +287,24 @@ The shipment must be in 'deployed' status.`,
 
 var shipmentUpdateCmd = &cobra.Command{
 	Use:   "update [shipment-id]",
-	Short: "Update shipment title and/or description",
+	Short: "Update shipment title, description, and/or branch",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := NewContext()
 		shipmentID := args[0]
 		title, _ := cmd.Flags().GetString("title")
 		description, _ := cmd.Flags().GetString("description")
+		branch, _ := cmd.Flags().GetString("branch")
 
-		if title == "" && description == "" {
-			return fmt.Errorf("must specify --title and/or --description")
+		if title == "" && description == "" && branch == "" {
+			return fmt.Errorf("must specify --title, --description, and/or --branch")
 		}
 
 		err := wire.ShipmentService().UpdateShipment(ctx, primary.UpdateShipmentRequest{
 			ShipmentID:  shipmentID,
 			Title:       title,
 			Description: description,
+			Branch:      branch,
 		})
 		if err != nil {
 			return fmt.Errorf("failed to update shipment: %w", err)
@@ -489,6 +491,7 @@ func init() {
 	// shipment update flags
 	shipmentUpdateCmd.Flags().String("title", "", "New title")
 	shipmentUpdateCmd.Flags().StringP("description", "d", "", "New description")
+	shipmentUpdateCmd.Flags().StringP("branch", "b", "", "New branch name")
 
 	// Flags for complete command
 	shipmentCompleteCmd.Flags().BoolP("force", "f", false, "Complete even if tasks are incomplete")

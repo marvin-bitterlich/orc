@@ -187,6 +187,11 @@ func (r *ShipmentRepository) Update(ctx context.Context, shipment *secondary.Shi
 		args = append(args, sql.NullString{String: shipment.Description, Valid: true})
 	}
 
+	if shipment.Branch != "" {
+		query += ", branch = ?"
+		args = append(args, sql.NullString{String: shipment.Branch, Valid: true})
+	}
+
 	query += " WHERE id = ?"
 	args = append(args, shipment.ID)
 

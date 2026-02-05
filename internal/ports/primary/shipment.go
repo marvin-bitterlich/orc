@@ -83,6 +83,7 @@ type UpdateShipmentRequest struct {
 	ShipmentID  string
 	Title       string
 	Description string
+	Branch      string
 }
 
 // Shipment represents a shipment entity at the port boundary.

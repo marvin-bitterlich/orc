@@ -228,12 +228,13 @@ func (s *ShipmentServiceImpl) VerifyShipment(ctx context.Context, shipmentID str
 	return s.shipmentRepo.UpdateStatus(ctx, shipmentID, "verified", false)
 }
 
-// UpdateShipment updates a shipment's title and/or description.
+// UpdateShipment updates a shipment's title, description, and/or branch.
 func (s *ShipmentServiceImpl) UpdateShipment(ctx context.Context, req primary.UpdateShipmentRequest) error {
 	record := &secondary.ShipmentRecord{
 		ID:          req.ShipmentID,
 		Title:       req.Title,
 		Description: req.Description,
+		Branch:      req.Branch,
 	}
 	return s.shipmentRepo.Update(ctx, record)
 }
