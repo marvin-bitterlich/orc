@@ -101,22 +101,9 @@ Ask: "Does this look right? Want to add/remove any workbenches?"
 **Iterate as needed:**
 - Add more workbenches → repeat Step 5
 - Remove a workbench → `orc workbench archive BENCH-xxx`, re-run plan
-- Satisfied → proceed to apply
+- Satisfied → proceed to commission linking
 
-### Step 7: Apply Infrastructure
-
-```bash
-orc infra apply WORK-xxx
-```
-
-**If issues arise** (e.g., path already exists):
-- Show the error
-- Offer specific remediation:
-  - Path exists: "Remove the directory or choose a different name"
-  - Permission denied: "Check directory permissions"
-  - Git worktree error: "The repo may have uncommitted changes"
-
-### Step 8: Commission Linking
+### Step 7: Commission Linking
 
 ```bash
 orc commission list
@@ -130,15 +117,34 @@ Show active commissions and ask:
 ```bash
 orc workshop set-commission WORK-xxx COMM-yyy
 ```
+(Note: Must run from gatehouse directory, but gatehouse doesn't exist yet. Use `cd ~/.orc/ws/WORK-xxx-*` won't work. Need to link after apply - see Step 8.)
 
 **If creating new:**
 ```bash
 orc commission create "<title>" --description "<description>"
-orc workshop set-commission WORK-xxx COMM-yyy
 ```
 
 **If skipping:**
-That's fine - workshop can be linked later.
+Warn: "⚠️ Workshop will be created without a commission. IMPs/goblins won't have focus context. You can link later with `orc workshop set-commission`."
+
+### Step 8: Apply Infrastructure
+
+```bash
+orc infra apply WORK-xxx
+```
+
+**If issues arise** (e.g., path already exists):
+- Show the error
+- Offer specific remediation:
+  - Path exists: "Remove the directory or choose a different name"
+  - Permission denied: "Check directory permissions"
+  - Git worktree error: "The repo may have uncommitted changes"
+
+**After successful apply, if commission was selected:**
+```bash
+cd ~/.orc/ws/WORK-xxx-*/
+orc workshop set-commission COMM-yyy
+```
 
 ### Step 9: Confirm Ready
 
@@ -193,20 +199,20 @@ Agent: Here's the infrastructure plan:
 
 User: yes
 
-Agent: [runs orc infra apply WORK-005]
-       ✓ Infrastructure created
-
-       [runs orc commission list]
+Agent: [runs orc commission list]
 
        Active commissions:
          COMM-001: ORC 3.1 Implementation
          COMM-002: DLQ Cleanup Project
 
-       Link to a commission?
+       Link to a commission? (IMPs/goblins will start with this focus)
 
 User: COMM-002
 
-Agent: [runs orc workshop set-commission WORK-005 COMM-002]
+Agent: [runs orc infra apply WORK-005]
+       ✓ Infrastructure created
+
+       [runs cd ~/.orc/ws/WORK-005-*/ && orc workshop set-commission COMM-002]
        ✓ Workshop linked to commission
 
        Workshop created:
