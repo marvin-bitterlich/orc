@@ -495,14 +495,14 @@ func ApplyGlobalBindings() {
 
 	// Double-click status bar → orc summary popup
 	_ = BindKeyPopup("", "DoubleClick1Status",
-		"CLICOLOR_FORCE=1 orc summary | less -R -F -X",
+		"CLICOLOR_FORCE=1 orc summary | less -R -X",
 		100, 30, "ORC Summary", "#{pane_current_path}")
 
 	// Right-click status bar → context menu
 	_ = BindContextMenu("MouseDown3Status", " ORC ", []MenuItem{
 		// ORC custom options
 		{Label: "New Workbench Like This", Key: "n", Command: "run-shell 'cd #{pane_current_path} && orc workbench like'"},
-		{Label: "Show Summary", Key: "s", Command: "display-popup -E -w 100 -h 30 -T 'ORC Summary' 'cd #{pane_current_path} && CLICOLOR_FORCE=1 orc summary | less -R -F -X'"},
+		{Label: "Show Summary", Key: "s", Command: "display-popup -E -w 100 -h 30 -T 'ORC Summary' 'cd #{pane_current_path} && CLICOLOR_FORCE=1 orc summary | less -R -X'"},
 		{Label: "Archive Workbench", Key: "a", Command: "display-popup -E -w 80 -h 20 -T 'Archive Workbench' 'cd #{pane_current_path} && orc infra archive-workbench'"},
 		// Separator
 		{Label: "", Key: "", Command: ""},
