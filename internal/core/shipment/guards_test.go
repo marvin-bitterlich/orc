@@ -236,6 +236,94 @@ func TestCanResumeShipment(t *testing.T) {
 	}
 }
 
+func TestCanDeployShipment(t *testing.T) {
+	tests := []struct {
+		name        string
+		ctx         StatusTransitionContext
+		wantAllowed bool
+		wantReason  string
+	}{
+		{
+			name: "can deploy implemented shipment with no open tasks",
+			ctx: StatusTransitionContext{
+				ShipmentID:    "SHIP-001",
+				Status:        "implemented",
+				OpenTaskCount: 0,
+			},
+			wantAllowed: true,
+		},
+		{
+			name: "can deploy implementing shipment with no open tasks",
+			ctx: StatusTransitionContext{
+				ShipmentID:    "SHIP-001",
+				Status:        "implementing",
+				OpenTaskCount: 0,
+			},
+			wantAllowed: true,
+		},
+		{
+			name: "can deploy auto_implementing shipment with no open tasks",
+			ctx: StatusTransitionContext{
+				ShipmentID:    "SHIP-001",
+				Status:        "auto_implementing",
+				OpenTaskCount: 0,
+			},
+			wantAllowed: true,
+		},
+		{
+			name: "can deploy complete shipment with no open tasks",
+			ctx: StatusTransitionContext{
+				ShipmentID:    "SHIP-001",
+				Status:        "complete",
+				OpenTaskCount: 0,
+			},
+			wantAllowed: true,
+		},
+		{
+			name: "cannot deploy shipment with open tasks",
+			ctx: StatusTransitionContext{
+				ShipmentID:    "SHIP-001",
+				Status:        "implemented",
+				OpenTaskCount: 2,
+			},
+			wantAllowed: false,
+			wantReason:  "cannot deploy: 2 task(s) still open",
+		},
+		{
+			name: "cannot deploy exploring shipment",
+			ctx: StatusTransitionContext{
+				ShipmentID:    "SHIP-001",
+				Status:        "exploring",
+				OpenTaskCount: 0,
+			},
+			wantAllowed: false,
+			wantReason:  "can only deploy implementing/implemented shipments (current status: exploring)",
+		},
+		{
+			name: "cannot deploy tasked shipment",
+			ctx: StatusTransitionContext{
+				ShipmentID:    "SHIP-001",
+				Status:        "tasked",
+				OpenTaskCount: 0,
+			},
+			wantAllowed: false,
+			wantReason:  "can only deploy implementing/implemented shipments (current status: tasked)",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := CanDeployShipment(tt.ctx)
+			if result.Allowed != tt.wantAllowed {
+				t.Errorf("Allowed = %v, want %v", result.Allowed, tt.wantAllowed)
+			}
+			if !tt.wantAllowed && result.Reason != tt.wantReason {
+				t.Errorf("Reason = %q, want %q", result.Reason, tt.wantReason)
+			}
+		})
+	}
+}
+
 func TestGetAutoTransitionStatus(t *testing.T) {
 	tests := []struct {
 		name       string

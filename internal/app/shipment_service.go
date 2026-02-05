@@ -203,8 +203,25 @@ func (s *ShipmentServiceImpl) DeployShipment(ctx context.Context, shipmentID str
 		return err
 	}
 
-	// Guard: can only deploy implemented or complete shipments
-	guardCtx := coreshipment.StatusTransitionContext{Status: record.Status}
+	// Get tasks to count open (non-complete) tasks
+	taskRecords, err := s.taskRepo.List(ctx, secondary.TaskFilters{ShipmentID: shipmentID})
+	if err != nil {
+		return fmt.Errorf("failed to get tasks for shipment: %w", err)
+	}
+
+	openCount := 0
+	for _, t := range taskRecords {
+		if t.Status != "complete" {
+			openCount++
+		}
+	}
+
+	// Guard: check deploy preconditions
+	guardCtx := coreshipment.StatusTransitionContext{
+		ShipmentID:    shipmentID,
+		Status:        record.Status,
+		OpenTaskCount: openCount,
+	}
 	if result := coreshipment.CanDeployShipment(guardCtx); !result.Allowed {
 		return result.Error()
 	}

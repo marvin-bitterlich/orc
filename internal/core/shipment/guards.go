@@ -41,10 +41,11 @@ type CompleteShipmentContext struct {
 	ForceCompletion bool // Skip task check if explicitly forced
 }
 
-// StatusTransitionContext provides context for pause/resume guards.
+// StatusTransitionContext provides context for pause/resume/deploy guards.
 type StatusTransitionContext struct {
-	ShipmentID string
-	Status     string // "active", "paused", "complete"
+	ShipmentID    string
+	Status        string // "active", "paused", "complete"
+	OpenTaskCount int    // count of non-complete tasks (for deploy guard)
 }
 
 // AssignWorkbenchContext provides context for workbench assignment guards.
@@ -131,12 +132,26 @@ func CanResumeShipment(ctx StatusTransitionContext) GuardResult {
 
 // CanDeployShipment evaluates whether a shipment can be marked as deployed.
 // Rules:
-// - Status must be "implemented" or "complete"
+// - Status must be "implementing", "auto_implementing", "implemented", or "complete"
+// - All tasks must be complete (OpenTaskCount == 0)
 func CanDeployShipment(ctx StatusTransitionContext) GuardResult {
-	if ctx.Status != "implemented" && ctx.Status != "complete" {
+	validStatuses := map[string]bool{
+		"implementing":      true,
+		"auto_implementing": true,
+		"implemented":       true,
+		"complete":          true,
+	}
+	if !validStatuses[ctx.Status] {
 		return GuardResult{
 			Allowed: false,
-			Reason:  fmt.Sprintf("can only deploy implemented shipments (current status: %s)", ctx.Status),
+			Reason:  fmt.Sprintf("can only deploy implementing/implemented shipments (current status: %s)", ctx.Status),
+		}
+	}
+
+	if ctx.OpenTaskCount > 0 {
+		return GuardResult{
+			Allowed: false,
+			Reason:  fmt.Sprintf("cannot deploy: %d task(s) still open", ctx.OpenTaskCount),
 		}
 	}
 
