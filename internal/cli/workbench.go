@@ -39,30 +39,33 @@ func workbenchCreateCmd() *cobra.Command {
 	var repoID string
 
 	cmd := &cobra.Command{
-		Use:   "create [name]",
+		Use:   "create",
 		Short: "Create a new workbench record in a workshop",
 		Long: `Create a new workbench record in the database.
 
-This command creates the database record. The workbench will be
-located at ~/wb/<name>. To create the physical infrastructure
-(git worktrees, config files), run:
+The workbench name is auto-generated as {repo}-{number} based on the
+linked repo. The workbench will be located at ~/wb/<name>.
+
+To create the physical infrastructure (git worktrees, config files), run:
   orc infra apply WORK-xxx
 
 Examples:
-  orc workbench create auth-backend --workshop WORK-001
-  orc workbench create frontend --workshop WORK-001 --repo-id REPO-001`,
-		Args: cobra.ExactArgs(1),
+  orc workbench create --workshop WORK-001 --repo-id REPO-001`,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := NewContext()
-			name := args[0]
 
 			if workshopID == "" {
 				return fmt.Errorf("--workshop flag is required")
 			}
+			if repoID == "" {
+				return fmt.Errorf("--repo-id flag is required")
+			}
 
 			// Create workbench via service (DB only, no filesystem operations)
+			// Name is auto-generated from repo name + bench number
 			resp, err := wire.WorkbenchService().CreateWorkbench(ctx, primary.CreateWorkbenchRequest{
-				Name:            name,
+				Name:            "", // Auto-generated
 				WorkshopID:      workshopID,
 				RepoID:          repoID,
 				SkipConfigWrite: true, // Infrastructure handled by orc infra apply
@@ -84,7 +87,9 @@ Examples:
 	}
 
 	cmd.Flags().StringVarP(&workshopID, "workshop", "w", "", "Workshop ID (required)")
-	cmd.Flags().StringVar(&repoID, "repo-id", "", "Link to a repo entity (optional)")
+	cmd.Flags().StringVar(&repoID, "repo-id", "", "Repo ID for name generation (required)")
+	_ = cmd.MarkFlagRequired("workshop")
+	_ = cmd.MarkFlagRequired("repo-id")
 
 	return cmd
 }
