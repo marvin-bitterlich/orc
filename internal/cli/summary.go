@@ -391,14 +391,19 @@ func getGitBranchStatus(path string) (branch string, dirty bool, err error) {
 	}
 	branch = strings.TrimSpace(string(out))
 
-	// Check dirty status
-	cmd = exec.Command("git", "status", "--porcelain")
+	// Check dirty status using diff-index (10x faster than git status on large repos)
+	cmd = exec.Command("git", "diff-index", "--quiet", "HEAD", "--")
 	cmd.Dir = path
-	out, err = cmd.Output()
+	err = cmd.Run()
+	// Exit 0 = clean, Exit 1 = dirty, other = error
 	if err != nil {
-		return branch, false, err
+		if exitErr, ok := err.(*exec.ExitError); ok && exitErr.ExitCode() == 1 {
+			dirty = true
+		} else {
+			// Any other error (no commits, not a repo, etc.) - return error
+			return branch, false, err
+		}
 	}
-	dirty = len(strings.TrimSpace(string(out))) > 0
 
 	return branch, dirty, nil
 }
