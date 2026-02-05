@@ -85,4 +85,8 @@ type TMuxAdapter interface {
 	ListSessions(ctx context.Context) ([]string, error)
 	FindSessionByWorkshopID(ctx context.Context, workshopID string) string
 	ListWindows(ctx context.Context, sessionName string) ([]string, error)
+
+	// Window options (for @orc_agent, @orc_focus, etc.)
+	GetWindowOption(ctx context.Context, target, option string) string
+	SetWindowOption(ctx context.Context, target, option, value string) error
 }

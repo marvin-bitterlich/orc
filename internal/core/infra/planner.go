@@ -48,9 +48,11 @@ type WorkbenchPlanInput struct {
 
 // TMuxWindowInput contains pre-fetched data for an expected tmux window.
 type TMuxWindowInput struct {
-	Name  string          // Window name (usually workbench name)
-	Path  string          // Working directory for the window
-	Panes []TMuxPaneInput // Pane state (if window exists)
+	Name          string          // Window name (usually workbench name)
+	Path          string          // Working directory for the window
+	Panes         []TMuxPaneInput // Pane state (if window exists)
+	ActualAgent   string          // Current @orc_agent value (empty if not set)
+	ExpectedAgent string          // Expected agent (e.g., "IMP-name@BENCH-xxx" or "GOBLIN@GATE-xxx")
 }
 
 // TMuxPaneInput contains pre-fetched data for a tmux pane.
@@ -109,10 +111,13 @@ type TMuxSessionOp struct {
 
 // TMuxWindowOp describes tmux window infrastructure state.
 type TMuxWindowOp struct {
-	Name   string
-	Path   string
-	Exists bool
-	Panes  []TMuxPaneOp // Pane verification results (only populated if window exists)
+	Name          string
+	Path          string
+	Exists        bool
+	Panes         []TMuxPaneOp // Pane verification results (only populated if window exists)
+	AgentOK       bool         // @orc_agent matches expected
+	ActualAgent   string       // Current @orc_agent value
+	ExpectedAgent string       // Expected agent (e.g., "IMP-name@BENCH-xxx")
 }
 
 // TMuxPaneOp describes tmux pane verification state.
@@ -206,9 +211,12 @@ func buildTMuxSessionOp(input PlanInput) *TMuxSessionOp {
 	// Check each expected window
 	for _, expected := range input.TMuxExpectedWindows {
 		windowOp := TMuxWindowOp{
-			Name:   expected.Name,
-			Path:   expected.Path,
-			Exists: existingSet[expected.Name],
+			Name:          expected.Name,
+			Path:          expected.Path,
+			Exists:        existingSet[expected.Name],
+			ActualAgent:   expected.ActualAgent,
+			ExpectedAgent: expected.ExpectedAgent,
+			AgentOK:       expected.ActualAgent == expected.ExpectedAgent,
 		}
 
 		// Add pane verification if window exists and has pane data

@@ -89,10 +89,13 @@ type InfraTMuxSessionOp struct {
 
 // InfraTMuxWindowOp describes tmux window infrastructure state.
 type InfraTMuxWindowOp struct {
-	Name   string
-	Path   string
-	Status OpStatus // EXISTS, CREATE, or DELETE
-	Panes  []InfraTMuxPaneOp
+	Name          string
+	Path          string
+	Status        OpStatus // EXISTS, CREATE, or DELETE
+	Panes         []InfraTMuxPaneOp
+	AgentOK       bool   // @orc_agent matches expected
+	ActualAgent   string // Current @orc_agent value
+	ExpectedAgent string // Expected agent (e.g., "IMP-name@BENCH-xxx")
 }
 
 // InfraTMuxPaneOp describes tmux pane verification state.

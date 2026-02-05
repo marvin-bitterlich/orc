@@ -567,6 +567,24 @@ func FindSessionByWorkshopID(workshopID string) string {
 	return ""
 }
 
+// GetWindowOption gets a window option value.
+// target format: "session:window" (e.g., "mysession:1" or "mysession:mywindow")
+func GetWindowOption(target, option string) string {
+	cmd := exec.Command("tmux", "show-options", "-t", target, "-wqv", option)
+	output, err := cmd.Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(output))
+}
+
+// SetWindowOption sets a window option value.
+// target format: "session:window" (e.g., "mysession:1" or "mysession:mywindow")
+func SetWindowOption(target, option, value string) error {
+	cmd := exec.Command("tmux", "set-option", "-t", target, "-w", option, value)
+	return cmd.Run()
+}
+
 // ListWindows returns window names in a session.
 func ListWindows(sessionName string) ([]string, error) {
 	cmd := exec.Command("tmux", "list-windows", "-t", sessionName, "-F", "#{window_name}")

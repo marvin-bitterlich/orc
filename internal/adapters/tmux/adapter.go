@@ -216,6 +216,16 @@ func (a *Adapter) ListWindows(ctx context.Context, sessionName string) ([]string
 	return tmuxpkg.ListWindows(sessionName)
 }
 
+// GetWindowOption gets a window option value.
+func (a *Adapter) GetWindowOption(ctx context.Context, target, option string) string {
+	return tmuxpkg.GetWindowOption(target, option)
+}
+
+// SetWindowOption sets a window option value.
+func (a *Adapter) SetWindowOption(ctx context.Context, target, option, value string) error {
+	return tmuxpkg.SetWindowOption(target, option, value)
+}
+
 // ApplyGlobalBindings sets up ORC's global tmux key bindings.
 // Safe to call repeatedly (idempotent). Silently ignores errors (tmux may not be running).
 func ApplyGlobalBindings() {

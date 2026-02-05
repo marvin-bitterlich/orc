@@ -586,6 +586,12 @@ func (m *mockTMuxAdapter) ListWindows(ctx context.Context, sessionName string) (
 func (m *mockTMuxAdapter) JoinPane(ctx context.Context, source, target string, vertical bool, size int) error {
 	return nil
 }
+func (m *mockTMuxAdapter) GetWindowOption(ctx context.Context, target, option string) string {
+	return ""
+}
+func (m *mockTMuxAdapter) SetWindowOption(ctx context.Context, target, option, value string) error {
+	return nil
+}
 
 // mockWorkspaceAdapter implements secondary.WorkspaceAdapter for testing.
 type mockWorkspaceAdapter struct {

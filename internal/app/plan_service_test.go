@@ -520,6 +520,12 @@ func (m *mockTMuxAdapterForPlan) ListWindows(ctx context.Context, sessionName st
 func (m *mockTMuxAdapterForPlan) JoinPane(ctx context.Context, source, target string, vertical bool, size int) error {
 	return nil
 }
+func (m *mockTMuxAdapterForPlan) GetWindowOption(ctx context.Context, target, option string) string {
+	return ""
+}
+func (m *mockTMuxAdapterForPlan) SetWindowOption(ctx context.Context, target, option, value string) error {
+	return nil
+}
 
 // ============================================================================
 // Test Helper

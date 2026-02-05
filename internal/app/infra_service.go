@@ -151,15 +151,31 @@ func (s *InfraServiceImpl) PlanInfra(ctx context.Context, req primary.InfraPlanR
 		// Build expected windows - first "orc" (goblin), then workbenches
 		// (skip if workshop is archived - entire session should be deleted)
 		if !workshopArchived {
+			// Goblin window (orc)
+			goblinExpectedAgent := fmt.Sprintf("GOBLIN@%s", gatehouseID)
+			goblinActualAgent := ""
+			if tmuxSessionExists {
+				goblinActualAgent = s.tmuxAdapter.GetWindowOption(ctx, tmuxSessionName+":orc", "@orc_agent")
+			}
 			tmuxExpectedWindows = append(tmuxExpectedWindows, coreinfra.TMuxWindowInput{
-				Name: "orc",
-				Path: gatehousePath,
+				Name:          "orc",
+				Path:          gatehousePath,
+				ExpectedAgent: goblinExpectedAgent,
+				ActualAgent:   goblinActualAgent,
 			})
+			// Workbench windows (IMPs)
 			for _, wb := range workbenches {
 				wbPath := coreworkbench.ComputePath(wb.Name)
+				expectedAgent := fmt.Sprintf("IMP-%s@%s", wb.Name, wb.ID)
+				actualAgent := ""
+				if tmuxSessionExists && s.tmuxAdapter.WindowExists(ctx, tmuxSessionName, wb.Name) {
+					actualAgent = s.tmuxAdapter.GetWindowOption(ctx, tmuxSessionName+":"+wb.Name, "@orc_agent")
+				}
 				windowInput := coreinfra.TMuxWindowInput{
-					Name: wb.Name,
-					Path: wbPath,
+					Name:          wb.Name,
+					Path:          wbPath,
+					ExpectedAgent: expectedAgent,
+					ActualAgent:   actualAgent,
 				}
 				// Fetch pane data if window exists
 				if tmuxSessionExists && s.tmuxAdapter.WindowExists(ctx, tmuxSessionName, wb.Name) {
@@ -393,9 +409,12 @@ func (s *InfraServiceImpl) corePlanToPrimary(core *coreinfra.Plan) *primary.Infr
 		// Map expected windows
 		for _, w := range core.TMuxSession.Windows {
 			windowOp := primary.InfraTMuxWindowOp{
-				Name:   w.Name,
-				Path:   w.Path,
-				Status: boolToOpStatus(w.Exists),
+				Name:          w.Name,
+				Path:          w.Path,
+				Status:        boolToOpStatus(w.Exists),
+				AgentOK:       w.AgentOK,
+				ActualAgent:   w.ActualAgent,
+				ExpectedAgent: w.ExpectedAgent,
 			}
 			// Map pane verification data
 			for _, p := range w.Panes {
@@ -624,6 +643,11 @@ func (s *InfraServiceImpl) ApplyInfra(ctx context.Context, plan *primary.InfraPl
 				if err := s.tmuxAdapter.CreateWorkbenchWindowShell(ctx, sessionName, windowIndex, w.Name, w.Path); err != nil {
 					return nil, fmt.Errorf("failed to create tmux window %s: %w", w.Name, err)
 				}
+			}
+			// Set @orc_agent if not matching expected
+			if !w.AgentOK && w.ExpectedAgent != "" {
+				target := sessionName + ":" + w.Name
+				_ = s.tmuxAdapter.SetWindowOption(ctx, target, "@orc_agent", w.ExpectedAgent)
 			}
 			windowIndex++
 		}
