@@ -262,7 +262,16 @@ Examples:
 func renderHeader(role, workbenchID, workshopID, gatehouseID, focusID, commissionID string) {
 	// Show workshop context (for both Goblin and IMP)
 	if workshopID != "" {
-		fmt.Printf("Workshop %s", workshopID)
+		// Fetch workshop name
+		workshopName := ""
+		if ws, err := wire.WorkshopService().GetWorkshop(NewContext(), workshopID); err == nil {
+			workshopName = ws.Name
+		}
+
+		fmt.Printf("🏭 Workshop %s", workshopID)
+		if workshopName != "" {
+			fmt.Printf(" (%s)", workshopName)
+		}
 		if config.IsGoblinRole(role) && commissionID != "" {
 			fmt.Printf(" - Active: %s", commissionID)
 		}
@@ -322,7 +331,7 @@ func renderWorkshopBenches(workshopID, currentWorkbenchID, gatehouseID string) {
 		if isLast {
 			prefix = "└── "
 		}
-		fmt.Printf("%s%s (Gatehouse)\n", prefix, gatehouseID)
+		fmt.Printf("%s🏰 %s\n", prefix, gatehouseID)
 		itemIdx++
 	}
 
@@ -335,7 +344,7 @@ func renderWorkshopBenches(workshopID, currentWorkbenchID, gatehouseID string) {
 		}
 
 		// Build workbench line with optional focus indicator
-		line := fmt.Sprintf("%s (%s)", wb.ID, wb.Name)
+		line := fmt.Sprintf("👹 %s (%s)", wb.ID, wb.Name)
 		if wb.ID == currentWorkbenchID {
 			line = color.New(color.FgHiMagenta).Sprint(line)
 		}
