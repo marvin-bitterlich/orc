@@ -134,10 +134,10 @@ func (s *InfraServiceImpl) PlanInfra(ctx context.Context, req primary.InfraPlanR
 			goblinExpectedAgent := fmt.Sprintf("GOBLIN@%s", gatehouseID)
 			goblinActualAgent := ""
 			if tmuxSessionExists {
-				goblinActualAgent = s.tmuxAdapter.GetWindowOption(ctx, tmuxSessionName+":orc", "@orc_agent")
+				goblinActualAgent = s.tmuxAdapter.GetWindowOption(ctx, tmuxSessionName+":goblin", "@orc_agent")
 			}
 			tmuxExpectedWindows = append(tmuxExpectedWindows, coreinfra.TMuxWindowInput{
-				Name:          "orc",
+				Name:          "goblin",
 				Path:          gatehousePath,
 				ExpectedAgent: goblinExpectedAgent,
 				ActualAgent:   goblinActualAgent,

@@ -163,7 +163,7 @@ func GenerateOpenPlan(input OpenPlanInput) OpenWorkshopPlan {
 	} else {
 		// No session - create new with all windows
 		windows := []TMuxWindowOp{
-			{Index: 0, Name: "orc", Path: input.GatehouseDir},
+			{Index: 0, Name: "goblin", Path: input.GatehouseDir},
 		}
 		for i, wb := range input.Workbenches {
 			windows = append(windows, TMuxWindowOp{

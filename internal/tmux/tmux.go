@@ -33,7 +33,7 @@ func NewSession(name, workingDir string) (*Session, error) {
 	exec.Command("tmux", "set-option", "-t", name, "pane-base-index", "1").Run()
 
 	// Rename the auto-created first window to a placeholder
-	// The apply logic will rename it to the proper name (e.g., "orc")
+	// The apply logic will rename it to the proper name (e.g., "goblin")
 	exec.Command("tmux", "rename-window", "-t", name+":^", "__init__").Run()
 
 	return &Session{Name: name}, nil
@@ -147,8 +147,8 @@ func (s *Session) CreateOrcWindow(workingDir string) error {
 	// First window is already created (window 1), rename it
 	target := fmt.Sprintf("%s:1", s.Name)
 
-	if err := exec.Command("tmux", "rename-window", "-t", target, "orc").Run(); err != nil {
-		return fmt.Errorf("failed to rename ORC window: %w", err)
+	if err := exec.Command("tmux", "rename-window", "-t", target, "goblin").Run(); err != nil {
+		return fmt.Errorf("failed to rename goblin window: %w", err)
 	}
 
 	// Split vertically (creates pane on the right)
