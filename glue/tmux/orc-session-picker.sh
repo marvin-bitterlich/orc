@@ -74,7 +74,7 @@ while IFS= read -r session; do
             win_label="  └─ #[dim]${win_name}#[default]"
         fi
 
-        menu_args+=("$win_label" "" "select-window -t '${session}:${win_idx}'")
+        menu_args+=("$win_label" "" "switch-client -t '${session}:${win_idx}'")
     done < <(tmux list-windows -t "$session" -F '#{window_index}:#{window_name}')
 
     # Separator between sessions
