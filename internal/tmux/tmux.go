@@ -88,7 +88,8 @@ func GetPaneCommand(sessionName, windowName string, paneNum int) string {
 	return strings.TrimSpace(string(output))
 }
 
-// GetPaneStartPath returns the initial directory a pane was created with.
+// GetPaneStartPath returns the initial directory for a pane (pane_start_path).
+// This is set when the pane is created and does not change.
 // Returns empty string if pane doesn't exist or error occurs.
 func GetPaneStartPath(sessionName, windowName string, paneNum int) string {
 	target := fmt.Sprintf("%s:%s.%d", sessionName, windowName, paneNum)
@@ -100,8 +101,9 @@ func GetPaneStartPath(sessionName, windowName string, paneNum int) string {
 	return strings.TrimSpace(string(output))
 }
 
-// GetPaneStartCommand returns the initial command a pane was created with (via respawn-pane).
-// Returns empty string if pane wasn't created with respawn-pane or error occurs.
+// GetPaneStartCommand returns the initial command for a pane (pane_start_command).
+// This is only set when the pane is created with respawn-pane or similar.
+// Returns empty string if not set, pane doesn't exist, or error occurs.
 func GetPaneStartCommand(sessionName, windowName string, paneNum int) string {
 	target := fmt.Sprintf("%s:%s.%d", sessionName, windowName, paneNum)
 	cmd := exec.Command("tmux", "display-message", "-t", target, "-p", "#{pane_start_command}")
@@ -262,9 +264,10 @@ func (s *Session) CreateWorkbenchWindow(index int, name, workingDir string) (*Wi
 	// Pane 2 (top right): claude (IMP via orc connect)
 	// Pane 3 (bottom right): shell
 
-	// Launch vim in pane 1 (left)
+	// Launch vim in pane 1 (left) - use respawn-pane so pane_start_command is set
 	pane1 := fmt.Sprintf("%s.1", target)
-	if err := s.SendKeys(pane1, "vim"); err != nil {
+	vimCmd := exec.Command("tmux", "respawn-pane", "-t", pane1, "-k", "vim")
+	if err := vimCmd.Run(); err != nil {
 		return nil, fmt.Errorf("failed to launch vim: %w", err)
 	}
 

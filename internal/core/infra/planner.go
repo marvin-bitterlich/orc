@@ -117,11 +117,13 @@ type TMuxWindowOp struct {
 
 // TMuxPaneOp describes tmux pane verification state.
 type TMuxPaneOp struct {
-	Index         int    // Pane index (1-based)
-	PathOK        bool   // StartPath matches expected
-	CommandOK     bool   // StartCommand matches expected (true if no expected command)
-	ActualPath    string // Actual pane_start_path
-	ActualCommand string // Actual pane_start_command
+	Index           int    // Pane index (1-based)
+	PathOK          bool   // StartPath matches expected
+	CommandOK       bool   // StartCommand matches expected (true if no expected command)
+	ActualPath      string // Actual pane_start_path
+	ActualCommand   string // Actual pane_start_command
+	ExpectedPath    string // Expected path
+	ExpectedCommand string // Expected command (empty if shell)
 }
 
 // GeneratePlan creates an infrastructure plan.
@@ -209,15 +211,23 @@ func buildTMuxSessionOp(input PlanInput) *TMuxSessionOp {
 			Exists: existingSet[expected.Name],
 		}
 
-		// If window exists and has pane data, verify panes
+		// Add pane verification if window exists and has pane data
 		if windowOp.Exists && len(expected.Panes) > 0 {
 			for _, pane := range expected.Panes {
 				paneOp := TMuxPaneOp{
-					Index:         pane.Index,
-					ActualPath:    pane.StartPath,
-					ActualCommand: pane.StartCommand,
-					PathOK:        pane.ExpectedPath == "" || pane.StartPath == pane.ExpectedPath,
-					CommandOK:     pane.ExpectedCommand == "" || pane.StartCommand == pane.ExpectedCommand,
+					Index:           pane.Index,
+					ActualPath:      pane.StartPath,
+					ActualCommand:   pane.StartCommand,
+					ExpectedPath:    pane.ExpectedPath,
+					ExpectedCommand: pane.ExpectedCommand,
+				}
+				// Check path match
+				paneOp.PathOK = pane.StartPath == pane.ExpectedPath
+				// Check command match (OK if no expected command)
+				if pane.ExpectedCommand == "" {
+					paneOp.CommandOK = true
+				} else {
+					paneOp.CommandOK = pane.StartCommand == pane.ExpectedCommand
 				}
 				windowOp.Panes = append(windowOp.Panes, paneOp)
 			}

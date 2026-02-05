@@ -97,11 +97,13 @@ type InfraTMuxWindowOp struct {
 
 // InfraTMuxPaneOp describes tmux pane verification state.
 type InfraTMuxPaneOp struct {
-	Index         int    // Pane index (1-based)
-	PathOK        bool   // StartPath matches expected
-	CommandOK     bool   // StartCommand matches expected
-	ActualPath    string // Actual pane_start_path
-	ActualCommand string // Actual pane_start_command
+	Index           int    // Pane index (1-based)
+	PathOK          bool   // StartPath matches expected
+	CommandOK       bool   // StartCommand matches expected (true if no expected command)
+	ActualPath      string // Actual pane_start_path
+	ActualCommand   string // Actual pane_start_command
+	ExpectedPath    string // Expected path
+	ExpectedCommand string // Expected command (empty if shell)
 }
 
 // InfraApplyResponse contains the result of applying infrastructure.

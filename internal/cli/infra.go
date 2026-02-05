@@ -162,14 +162,9 @@ func displayInfraPlan(plan *primary.InfraPlan) {
 			fmt.Println("  Windows:")
 			for _, w := range plan.TMuxSession.Windows {
 				fmt.Printf("    %s %s\n", infraStatusColor(w.Status), w.Name)
-				// Show pane verification if panes exist
-				if len(w.Panes) > 0 {
-					for _, p := range w.Panes {
-						paneStatus := infraPaneStatus(p)
-						if paneStatus != "" {
-							fmt.Printf("      pane %d: %s\n", p.Index, paneStatus)
-						}
-					}
+				// Show pane tree if window exists and has panes
+				if w.Status == primary.OpExists && len(w.Panes) > 0 {
+					displayPaneTree(w.Panes)
 				}
 			}
 		}
@@ -181,6 +176,50 @@ func displayInfraPlan(plan *primary.InfraPlan) {
 			}
 		}
 		fmt.Println()
+	}
+}
+
+// displayPaneTree shows the pane verification tree for a window.
+func displayPaneTree(panes []primary.InfraTMuxPaneOp) {
+	paneNames := []string{"vim", "IMP", "shell"}
+	for i, p := range panes {
+		paneName := "pane"
+		if i < len(paneNames) {
+			paneName = paneNames[i]
+		}
+
+		// Determine overall status
+		allOK := p.PathOK && p.CommandOK
+
+		// Build status indicator
+		var statusIcon string
+		if allOK {
+			statusIcon = color.New(color.FgGreen).Sprint("✓")
+		} else {
+			statusIcon = color.New(color.FgYellow).Sprint("!")
+		}
+
+		fmt.Printf("      %s pane %d (%s)\n", statusIcon, p.Index, paneName)
+
+		// Show path verification
+		if p.PathOK {
+			fmt.Printf("        path: %s\n", color.New(color.FgGreen).Sprint("OK"))
+		} else {
+			fmt.Printf("        path: %s\n", color.New(color.FgYellow).Sprint("MISMATCH"))
+			fmt.Printf("          expected: %s\n", p.ExpectedPath)
+			fmt.Printf("          actual:   %s\n", p.ActualPath)
+		}
+
+		// Show command verification (if expected)
+		if p.ExpectedCommand != "" {
+			if p.CommandOK {
+				fmt.Printf("        cmd:  %s (%s)\n", color.New(color.FgGreen).Sprint("OK"), p.ExpectedCommand)
+			} else {
+				fmt.Printf("        cmd:  %s\n", color.New(color.FgYellow).Sprint("MISMATCH"))
+				fmt.Printf("          expected: %s\n", p.ExpectedCommand)
+				fmt.Printf("          actual:   %s\n", p.ActualCommand)
+			}
+		}
 	}
 }
 
@@ -198,24 +237,6 @@ func infraStatusColor(status primary.OpStatus) string {
 	default:
 		return string(status)
 	}
-}
-
-// infraPaneStatus returns a status string for pane verification.
-// Returns empty string if pane is OK (suppress output for healthy panes).
-func infraPaneStatus(pane primary.InfraTMuxPaneOp) string {
-	if pane.PathOK && pane.CommandOK {
-		return "" // All good, nothing to report
-	}
-
-	var issues []string
-	if !pane.PathOK {
-		issues = append(issues, fmt.Sprintf("path mismatch (got: %s)", pane.ActualPath))
-	}
-	if !pane.CommandOK {
-		issues = append(issues, fmt.Sprintf("command mismatch (got: %q)", pane.ActualCommand))
-	}
-
-	return color.New(color.FgYellow).Sprint("⚠ ") + strings.Join(issues, ", ")
 }
 
 func infraApplyCmd() *cobra.Command {
