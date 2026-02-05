@@ -72,7 +72,7 @@ Verify completed work, create a receipt, complete the task, and chain to the nex
    ```bash
    orc shipment show SHIP-xxx
    ```
-   Output: "Shipment complete!" or "Waiting on blocked tasks."
+   Output: "All tasks complete! Shipment ready for deploy. Next: Run /ship-deploy to merge to master." or "Waiting on blocked tasks."
 
 ## Verification Failure
 
