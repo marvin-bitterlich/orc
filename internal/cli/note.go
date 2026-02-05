@@ -72,7 +72,7 @@ is created at the commission level.`,
 			"exorcism": true,
 		}
 		if noteType != "" && !validTypes[noteType] {
-			return fmt.Errorf("invalid note type: %s\nValid types: learning, concern, finding, frq, bug, spec, roadmap, decision, question, vision, idea, exorcism", noteType)
+			return fmt.Errorf("invalid note type: %s\nValid types: learning, concern, finding, frq, bug, spec, roadmap, decision, question, vision, idea, exorcism, journal", noteType)
 		}
 
 		// Determine container
@@ -286,7 +286,7 @@ var noteUpdateCmd = &cobra.Command{
 				"exorcism": true,
 			}
 			if !validTypes[noteType] {
-				return fmt.Errorf("invalid note type: %s\nValid types: learning, concern, finding, frq, bug, spec, roadmap, decision, question, vision, idea, exorcism", noteType)
+				return fmt.Errorf("invalid note type: %s\nValid types: learning, concern, finding, frq, bug, spec, roadmap, decision, question, vision, idea, exorcism, journal", noteType)
 			}
 		}
 
@@ -491,7 +491,7 @@ func init() {
 	// note create flags
 	noteCreateCmd.Flags().StringP("commission", "c", "", "Commission ID (defaults to context)")
 	noteCreateCmd.Flags().String("content", "", "Note content")
-	noteCreateCmd.Flags().StringP("type", "t", "", "Note type (learning, concern, finding, frq, bug, spec, roadmap, decision, question, vision, idea, exorcism)")
+	noteCreateCmd.Flags().StringP("type", "t", "", "Note type (learning, concern, finding, frq, bug, spec, roadmap, decision, question, vision, idea, exorcism, journal)")
 	noteCreateCmd.Flags().String("shipment", "", "Shipment ID to attach note to")
 	noteCreateCmd.Flags().String("conclave", "", "Conclave ID to attach note to")
 	noteCreateCmd.Flags().String("tome", "", "Tome ID to attach note to")
@@ -506,7 +506,7 @@ func init() {
 	// note update flags
 	noteUpdateCmd.Flags().String("title", "", "New title")
 	noteUpdateCmd.Flags().String("content", "", "New content")
-	noteUpdateCmd.Flags().String("type", "", "Note type (learning, concern, finding, frq, bug, spec, roadmap, decision, question, vision, idea, exorcism)")
+	noteUpdateCmd.Flags().String("type", "", "Note type (learning, concern, finding, frq, bug, spec, roadmap, decision, question, vision, idea, exorcism, journal)")
 
 	// note move flags
 	noteMoveCmd.Flags().String("to-tome", "", "Move to tome")
