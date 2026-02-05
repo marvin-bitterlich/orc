@@ -228,6 +228,18 @@ deploy-glue:
 			echo "✓ Hooks configured in settings.json"; \
 		fi; \
 	fi
+	@if [ -d "glue/tmux" ] && [ "$$(ls -A glue/tmux 2>/dev/null)" ]; then \
+		echo "Deploying tmux scripts..."; \
+		mkdir -p ~/.orc/tmux; \
+		for script in glue/tmux/*.sh; do \
+			[ -f "$$script" ] || continue; \
+			name=$$(basename "$$script"); \
+			echo "  → $$name"; \
+			cp "$$script" ~/.orc/tmux/$$name; \
+			chmod +x ~/.orc/tmux/$$name; \
+		done; \
+		echo "✓ TMux scripts deployed to ~/.orc/tmux/"; \
+	fi
 
 #---------------------------------------------------------------------------
 # Help
