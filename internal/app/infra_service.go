@@ -83,13 +83,10 @@ func (s *InfraServiceImpl) PlanInfra(ctx context.Context, req primary.InfraPlanR
 
 	// 5. Get workbenches and check each one's state
 	allWorkbenches, _ := s.workbenchRepo.List(ctx, req.WorkshopID)
-	// Separate active vs archived workbenches
+	// Filter to active workbenches only (archived workbenches are excluded from planning)
 	var workbenches []*secondary.WorkbenchRecord
-	var archivedWorkbenches []*secondary.WorkbenchRecord
 	for _, wb := range allWorkbenches {
-		if wb.Status == "archived" {
-			archivedWorkbenches = append(archivedWorkbenches, wb)
-		} else {
+		if wb.Status != "archived" {
 			workbenches = append(workbenches, wb)
 		}
 	}
@@ -113,28 +110,10 @@ func (s *InfraServiceImpl) PlanInfra(ctx context.Context, req primary.InfraPlanR
 		})
 	}
 
-	// 6. Scan for orphaned configs on disk + add archived workbenches as orphans
+	// 6. Scan for orphaned configs on disk (true orphans only - no DB record)
+	// Note: Archived workbenches are NOT added to orphan list - they have DB records
+	// and should not have their directories deleted by infra apply.
 	orphanWbs, orphanGhs := s.scanForOrphans(ctx, workbenches, gatehouse)
-	// Archived workbenches are also orphans (should be deleted) - but only if dir still exists
-	for _, wb := range archivedWorkbenches {
-		wbPath := coreworkbench.ComputePath(wb.Name)
-		if s.dirExists(wbPath) {
-			orphanWbs = append(orphanWbs, coreinfra.WorkbenchPlanInput{
-				ID:             wb.ID,
-				Name:           wb.Name,
-				WorktreePath:   wbPath,
-				WorktreeExists: true,
-				ConfigExists:   s.fileExists(filepath.Join(wbPath, ".orc", "config.json")),
-			})
-		}
-	}
-	// Archived workshop's gatehouse is also an orphan
-	if workshopArchived && gatehousePathExists {
-		orphanGhs = append(orphanGhs, coreinfra.GatehousePlanInput{
-			PlaceID: gatehouseID,
-			Path:    gatehousePath,
-		})
-	}
 
 	// 7. Fetch TMux session state
 	tmuxSessionName := ""
@@ -564,36 +543,9 @@ func (s *InfraServiceImpl) ApplyInfra(ctx context.Context, plan *primary.InfraPl
 		}
 	}
 
-	// 3. Delete orphan workbenches (unless --no-delete)
-	if !plan.NoDelete {
-		for _, wb := range plan.OrphanWorkbenches {
-			if wb.Status == primary.OpDelete {
-				// Check for dirty worktree if not forced
-				if !plan.Force {
-					dirty, modified, untracked, err := s.isWorktreeDirty(wb.Path)
-					if err == nil && dirty {
-						return nil, fmt.Errorf("cannot delete %s: worktree has uncommitted changes (%d modified, %d untracked). Use --force to override", wb.ID, modified, untracked)
-					}
-				}
-				if err := os.RemoveAll(wb.Path); err != nil {
-					return nil, fmt.Errorf("failed to delete orphan workbench %s: %w", wb.ID, err)
-				}
-				response.OrphansDeleted++
-			}
-		}
-
-		// 4. Delete orphan gatehouses
-		for _, gh := range plan.OrphanGatehouses {
-			if gh.Status == primary.OpDelete {
-				if err := os.RemoveAll(gh.Path); err != nil {
-					return nil, fmt.Errorf("failed to delete orphan gatehouse %s: %w", gh.ID, err)
-				}
-				response.OrphansDeleted++
-			}
-		}
-	}
-
-	// 5. Handle TMux session and windows
+	// 3. Handle TMux session and windows
+	// Note: Filesystem deletion of orphan workbenches/gatehouses is intentionally
+	// removed from infra apply. Use `orc infra cleanup` for orphan deletion.
 	if s.tmuxAdapter != nil && plan.TMuxSession != nil {
 		sessionName := plan.TMuxSession.SessionName
 		if sessionName == "" {
