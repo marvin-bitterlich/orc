@@ -544,7 +544,7 @@ func renderSummary(summary *primary.CommissionSummary, _ string, workshopFocus w
 		if note.Type != "" {
 			typeMarker = color.New(color.FgYellow).Sprintf(" [%s]", note.Type)
 		}
-		fmt.Printf("%s%s%s%s - %s\n", prefix, colorizeID(note.ID), typeMarker, pinnedMark, note.Title)
+		fmt.Printf("%s%s%s%s - %s\n", prefix, colorizeID(note.ID), typeMarker, pinnedMark, truncate(note.Title, 60))
 		itemIdx++
 	}
 
@@ -602,7 +602,7 @@ func renderSummary(summary *primary.CommissionSummary, _ string, workshopFocus w
 				if note.Type != "" {
 					typeMarker = color.New(color.FgYellow).Sprintf("[%s] ", note.Type)
 				}
-				fmt.Printf("%s%s %s- %s\n", notePrefix, colorizeID(note.ID), typeMarker, note.Title)
+				fmt.Printf("%s%s %s- %s\n", notePrefix, colorizeID(note.ID), typeMarker, truncate(note.Title, 60))
 			}
 		}
 
@@ -657,8 +657,11 @@ func renderShipment(ship primary.ShipmentSummary, workshopFocus workshopFocusInf
 			if isLastChild {
 				nPrefix = taskPrefix + "└── "
 			}
-			typeMarker := color.New(color.FgYellow).Sprintf("[%s] ", note.Type)
-			fmt.Printf("%s%s %s- %s\n", nPrefix, colorizeID(note.ID), typeMarker, note.Title)
+			typeMarker := ""
+			if note.Type != "" {
+				typeMarker = color.New(color.FgYellow).Sprintf("[%s] ", note.Type)
+			}
+			fmt.Printf("%s%s %s- %s\n", nPrefix, colorizeID(note.ID), typeMarker, truncate(note.Title, 60))
 			childIdx++
 		}
 
