@@ -1,18 +1,24 @@
 #!/bin/bash
-# ORC Session Picker TUI - optimized version
+# ORC Session Picker TUI - vertical layout
 
+old_stty=$(stty -g)
+cleanup() {
+    stty "$old_stty"
+    tput cnorm
+    tput rmcup
+}
+trap cleanup EXIT INT TERM
+
+stty -icanon -echo min 0 time 1
 tput civis
 tput smcup
-trap 'tput cnorm; tput rmcup; exit' EXIT INT TERM
 
 LINES=$(tput lines)
 COLS=$(tput cols)
-LIST_WIDTH=$((COLS / 3))
-PREVIEW_START=$((LIST_WIDTH + 3))
-PREVIEW_WIDTH=$((COLS - LIST_WIDTH - 4))
-MAX_VISIBLE=$((LINES - 4))
+LIST_HEIGHT=$(( (LINES - 3) / 2 ))
+PREVIEW_START=$((LIST_HEIGHT + 2))
+PREVIEW_HEIGHT=$((LINES - LIST_HEIGHT - 3))
 
-# Colors
 C_RESET=$'\033[0m'
 C_BOLD=$'\033[1m'
 C_DIM=$'\033[2m'
@@ -49,33 +55,35 @@ build_list() {
 }
 
 draw_frame() {
-    clear
-    # Simple header/footer
-    printf "\033[1;1H${C_BOLD}Sessions${C_RESET}%*s${C_BOLD}Preview${C_RESET}" $((LIST_WIDTH - 4)) ""
-    printf "\033[$((LINES));1H${C_DIM}j/k Navigate  Enter Select  q/Esc Cancel${C_RESET}"
+    printf '\033[2J\033[H'
+    printf "\033[1;1H${C_BOLD}Sessions${C_RESET}"
+    printf "\033[$((LIST_HEIGHT + 1));1H${C_DIM}"
+    printf '─%.0s' $(seq 1 $((COLS - 1)))
+    printf "${C_RESET}"
+    printf "\033[$((PREVIEW_START));1H${C_BOLD}Preview${C_RESET}"
+    printf "\033[${LINES};1H${C_DIM}jk Navigate  Enter Select  q Quit${C_RESET}"
 }
 
 draw_list() {
     local sel=$1 scr=$2
-    for ((i=0; i<MAX_VISIBLE; i++)); do
+    for ((i=0; i<LIST_HEIGHT-1; i++)); do
         local idx=$((scr + i))
-        printf "\033[$((i + 2));1H\033[K"  # Move and clear line
+        printf "\033[$((i + 2));1H\033[K"
         ((idx < ${#LABELS[@]})) || continue
         [[ $idx -eq $sel ]] && printf "${C_REV}"
-        printf "%.${LIST_WIDTH}b" "${LABELS[idx]}"
+        printf "%b" "${LABELS[idx]}"
         [[ $idx -eq $sel ]] && printf "${C_RESET}"
     done
 }
 
 draw_preview() {
     local target=$1 line_num=0
-    while ((line_num < MAX_VISIBLE)); do
-        printf "\033[$((line_num + 2));${PREVIEW_START}H\033[K"
-        ((line_num++))
+    for ((i=0; i<PREVIEW_HEIGHT-1; i++)); do
+        printf "\033[$((PREVIEW_START + 1 + i));1H\033[K"
     done
     line_num=0
-    while IFS= read -r line && ((line_num < MAX_VISIBLE)); do
-        printf "\033[$((line_num + 2));${PREVIEW_START}H%.${PREVIEW_WIDTH}s" "$line"
+    while IFS= read -r line && ((line_num < PREVIEW_HEIGHT-1)); do
+        printf "\033[$((PREVIEW_START + 1 + line_num));1H%.${COLS}s" "$line"
         ((line_num++))
     done < <(tmux capture-pane -t "$target" -p 2>/dev/null)
 }
@@ -84,25 +92,39 @@ draw_preview() {
 build_list
 total=${#TARGETS[@]}
 sel=0 scr=0
+max_visible=$((LIST_HEIGHT - 1))
 
 draw_frame
 draw_list $sel $scr
 draw_preview "${TARGETS[$sel]}"
 
-while IFS= read -rsn1 key; do
+# Simple byte-by-byte read
+getkey() {
+    local c1 c2 c3
+    IFS= read -r -n1 c1 || return 1
+    if [[ "$c1" == $'\x1b' ]]; then
+        IFS= read -r -t0.1 -n1 c2
+        IFS= read -r -t0.1 -n1 c3
+        case "$c2$c3" in
+            '[A') echo UP; return ;;
+            '[B') echo DOWN; return ;;
+        esac
+        echo ESC; return
+    fi
+    echo "$c1"
+}
+
+while true; do
+    key=$(getkey) || continue
+    
     case "$key" in
-        $'\x1b') read -rsn2 -t 0.1 rest
-            [[ "$rest" == "[A" ]] && key=k
-            [[ "$rest" == "[B" ]] && key=j
-            [[ -z "$rest" ]] && exit 0 ;;
-    esac
-    case "$key" in
-        k) ((sel > 0)) && ((sel--)); ((sel < scr)) && scr=$sel ;;
-        j) ((sel < total-1)) && ((sel++)); ((sel >= scr+MAX_VISIBLE)) && ((scr++)) ;;
-        ''|l) tmux switch-client -t "${TARGETS[$sel]}"; exit 0 ;;
-        q) exit 0 ;;
+        UP|k) ((sel > 0)) && ((sel--)); ((sel < scr)) && scr=$sel ;;
+        DOWN|j) ((sel < total-1)) && ((sel++)); ((sel >= scr+max_visible)) && ((scr++)) ;;
+        ''|l) cleanup; tmux switch-client -t "${TARGETS[$sel]}"; exit 0 ;;
+        q|ESC) exit 0 ;;
         *) continue ;;
     esac
+    
     draw_list $sel $scr
     draw_preview "${TARGETS[$sel]}"
 done
