@@ -21,11 +21,12 @@ func TestGitService_GenerateShipmentBranchName(t *testing.T) {
 
 func TestGitService_GenerateHomeBranchName(t *testing.T) {
 	// Test the pure function that generates home branch names
-	name := GenerateHomeBranchName("ml", "workbench-name")
+	name := GenerateHomeBranchName("ml", "orc-014")
 
-	// Should have format: ml/workbench-name
-	if name == "" {
-		t.Error("expected non-empty branch name")
+	// Should have format: ml/{name} (e.g., ml/orc-014)
+	expected := "ml/orc-014"
+	if name != expected {
+		t.Errorf("expected branch name '%s', got '%s'", expected, name)
 	}
 }
 

@@ -207,9 +207,9 @@ func GenerateShipmentBranchName(initials, shipmentID, title string) string {
 }
 
 // GenerateHomeBranchName generates a home branch name for a workbench.
-// Format: {initials}/BENCH-{name}
+// Format: {initials}/{name}
 func GenerateHomeBranchName(initials, workbenchName string) string {
-	return fmt.Sprintf("%s/BENCH-%s", initials, workbenchName)
+	return fmt.Sprintf("%s/%s", initials, workbenchName)
 }
 
 // generateSlug creates a URL-friendly slug from a title.
