@@ -324,23 +324,24 @@ type NoteRepository interface {
 
 // NoteRecord represents a note as stored in persistence.
 type NoteRecord struct {
-	ID               string
-	CommissionID     string
-	Title            string
-	Content          string // Empty string means null
-	Type             string // Empty string means null
-	Status           string // "open" or "closed"
-	ShipmentID       string // Empty string means null
-	ConclaveID       string // Empty string means null
-	TomeID           string // Empty string means null
-	Pinned           bool
-	CreatedAt        string
-	UpdatedAt        string
-	ClosedAt         string // Empty string means null
-	PromotedFromID   string // Empty string means null
-	PromotedFromType string // Empty string means null
-	CloseReason      string // Empty string means null
-	ClosedByNoteID   string // Empty string means null
+	ID                  string
+	CommissionID        string
+	Title               string
+	Content             string // Empty string means null
+	Type                string // Empty string means null
+	Status              string // "open" or "closed"
+	ShipmentID          string // Empty string means null
+	ConclaveID          string // Empty string means null
+	TomeID              string // Empty string means null
+	Pinned              bool
+	CreatedAt           string
+	UpdatedAt           string
+	ClosedAt            string // Empty string means null
+	PromotedFromID      string // Empty string means null
+	PromotedFromType    string // Empty string means null
+	CloseReason         string // Empty string means null
+	ClosedByNoteID      string // Empty string means null
+	PromoteToCommission bool   // When true, clear all container associations to make commission-level
 }
 
 // NoteFilters contains filter options for querying notes.

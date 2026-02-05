@@ -418,6 +418,7 @@ var noteMoveCmd = &cobra.Command{
 		noteID := args[0]
 		toTome, _ := cmd.Flags().GetString("to-tome")
 		toShipment, _ := cmd.Flags().GetString("to-shipment")
+		toCommission, _ := cmd.Flags().GetString("to-commission")
 
 		// Validate exactly one target specified
 		targetCount := 0
@@ -427,18 +428,22 @@ var noteMoveCmd = &cobra.Command{
 		if toShipment != "" {
 			targetCount++
 		}
+		if toCommission != "" {
+			targetCount++
+		}
 
 		if targetCount == 0 {
-			return fmt.Errorf("must specify exactly one target: --to-tome or --to-shipment")
+			return fmt.Errorf("must specify exactly one target: --to-tome, --to-shipment, or --to-commission")
 		}
 		if targetCount > 1 {
 			return fmt.Errorf("cannot specify multiple targets")
 		}
 
 		err := wire.NoteService().MoveNote(ctx, primary.MoveNoteRequest{
-			NoteID:       noteID,
-			ToTomeID:     toTome,
-			ToShipmentID: toShipment,
+			NoteID:         noteID,
+			ToTomeID:       toTome,
+			ToShipmentID:   toShipment,
+			ToCommissionID: toCommission,
 		})
 		if err != nil {
 			return fmt.Errorf("failed to move note: %w", err)
@@ -447,8 +452,10 @@ var noteMoveCmd = &cobra.Command{
 		target := ""
 		if toTome != "" {
 			target = toTome
-		} else {
+		} else if toShipment != "" {
 			target = toShipment
+		} else {
+			target = toCommission + " (commission level)"
 		}
 
 		fmt.Printf("✓ Note %s moved to %s\n", noteID, target)
@@ -505,6 +512,7 @@ func init() {
 	noteMoveCmd.Flags().String("to-tome", "", "Move to tome")
 	noteMoveCmd.Flags().String("to-shipment", "", "Move to shipment")
 	noteMoveCmd.Flags().String("to-conclave", "", "Move to conclave")
+	noteMoveCmd.Flags().String("to-commission", "", "Promote to commission level (clears container associations)")
 
 	// note close flags
 	noteCloseCmd.Flags().StringP("reason", "r", "", "Close reason (required): superseded, synthesized, resolved, deferred, duplicate, stale")

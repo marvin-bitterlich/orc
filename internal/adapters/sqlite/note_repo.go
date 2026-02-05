@@ -209,7 +209,10 @@ func (r *NoteRepository) Update(ctx context.Context, note *secondary.NoteRecord)
 
 	// Container move: when moving to a new container, clear all other container IDs
 	// to maintain mutual exclusivity (a note can only belong to one container)
-	if note.ShipmentID != "" {
+	if note.PromoteToCommission {
+		// Promote to commission level: clear all container associations
+		query += ", shipment_id = NULL, tome_id = NULL, conclave_id = NULL"
+	} else if note.ShipmentID != "" {
 		query += ", shipment_id = ?, tome_id = NULL, conclave_id = NULL"
 		args = append(args, note.ShipmentID)
 	} else if note.TomeID != "" {

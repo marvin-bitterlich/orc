@@ -72,9 +72,10 @@ type UpdateNoteRequest struct {
 // MoveNoteRequest contains parameters for moving a note to a different container.
 // Exactly one of the To* fields should be set.
 type MoveNoteRequest struct {
-	NoteID       string
-	ToTomeID     string
-	ToShipmentID string
+	NoteID         string
+	ToTomeID       string
+	ToShipmentID   string
+	ToCommissionID string // Promotes note to commission level (clears container associations)
 }
 
 // MergeNoteRequest contains parameters for merging one note into another.

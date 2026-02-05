@@ -192,7 +192,7 @@ func (s *NoteServiceImpl) ReopenNote(ctx context.Context, noteID string) error {
 // MoveNote moves a note to a different container.
 func (s *NoteServiceImpl) MoveNote(ctx context.Context, req primary.MoveNoteRequest) error {
 	// Verify note exists
-	_, err := s.noteRepo.GetByID(ctx, req.NoteID)
+	note, err := s.noteRepo.GetByID(ctx, req.NoteID)
 	if err != nil {
 		return err
 	}
@@ -205,9 +205,12 @@ func (s *NoteServiceImpl) MoveNote(ctx context.Context, req primary.MoveNoteRequ
 	if req.ToShipmentID != "" {
 		targetCount++
 	}
+	if req.ToCommissionID != "" {
+		targetCount++
+	}
 
 	if targetCount == 0 {
-		return fmt.Errorf("must specify exactly one target container (--to-tome or --to-shipment)")
+		return fmt.Errorf("must specify exactly one target container (--to-tome, --to-shipment, or --to-commission)")
 	}
 	if targetCount > 1 {
 		return fmt.Errorf("cannot specify multiple target containers")
@@ -236,6 +239,15 @@ func (s *NoteServiceImpl) MoveNote(ctx context.Context, req primary.MoveNoteRequ
 			return fmt.Errorf("shipment %s not found", req.ToShipmentID)
 		}
 		record.ShipmentID = req.ToShipmentID
+	}
+
+	if req.ToCommissionID != "" {
+		// Validate the note belongs to this commission (can't move between commissions)
+		if note.CommissionID != req.ToCommissionID {
+			return fmt.Errorf("note belongs to commission %s, cannot move to %s", note.CommissionID, req.ToCommissionID)
+		}
+		// Mark for promotion to commission level (clear all container associations)
+		record.PromoteToCommission = true
 	}
 
 	return s.noteRepo.Update(ctx, record)
