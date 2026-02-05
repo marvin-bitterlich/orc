@@ -216,16 +216,6 @@ func (a *Adapter) ListWindows(ctx context.Context, sessionName string) ([]string
 	return tmuxpkg.ListWindows(sessionName)
 }
 
-// GetPaneStartPath returns the start path for a pane (pane_start_path).
-func (a *Adapter) GetPaneStartPath(ctx context.Context, sessionName, windowName string, paneIndex int) string {
-	return tmuxpkg.GetPaneStartPath(sessionName, windowName, paneIndex)
-}
-
-// GetPaneStartCommand returns the start command for a pane (pane_start_command).
-func (a *Adapter) GetPaneStartCommand(ctx context.Context, sessionName, windowName string, paneIndex int) string {
-	return tmuxpkg.GetPaneStartCommand(sessionName, windowName, paneIndex)
-}
-
 // ApplyGlobalBindings sets up ORC's global tmux key bindings.
 // Safe to call repeatedly (idempotent). Silently ignores errors (tmux may not be running).
 func ApplyGlobalBindings() {
