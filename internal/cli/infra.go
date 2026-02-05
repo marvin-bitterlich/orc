@@ -241,28 +241,28 @@ func infraStatusColor(status primary.OpStatus) string {
 
 func infraApplyCmd() *cobra.Command {
 	var skipConfirm bool
-	var forceDelete bool
-	var noDelete bool
 
 	cmd := &cobra.Command{
 		Use:   "apply [workshop-id]",
 		Short: "Apply infrastructure for a workshop",
-		Long: `Create infrastructure for a workshop.
+		Long: `Create infrastructure for a workshop and clean up orphan tmux windows.
 
 Shows the plan first and asks for confirmation (unless --yes).
 Creates:
   - Gatehouse directory and config
   - Workbench worktrees (via git worktree add)
   - ORC config files in each workbench
+  - TMux session and windows
 
-Use --force to delete orphan worktrees even if they have uncommitted changes.
-Use --no-delete to only perform CREATE operations, leaving orphans in place.
+Cleans up:
+  - Orphan tmux windows (for archived workbenches)
+
+Note: This command does NOT delete directories. Use 'orc infra cleanup' for
+orphan directory removal.
 
 Examples:
   orc infra apply WORK-001
-  orc infra apply WORK-001 --yes
-  orc infra apply WORK-001 --force
-  orc infra apply WORK-001 --no-delete`,
+  orc infra apply WORK-001 --yes`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			workshopID := args[0]
@@ -271,8 +271,6 @@ Examples:
 			// 1. Generate plan
 			plan, err := wire.InfraService().PlanInfra(ctx, primary.InfraPlanRequest{
 				WorkshopID: workshopID,
-				Force:      forceDelete,
-				NoDelete:   noDelete,
 			})
 			if err != nil {
 				return err
@@ -281,19 +279,16 @@ Examples:
 			// 2. Display plan
 			displayInfraPlan(plan)
 
-			// 3. Check if anything to do (orphans don't count if --no-delete)
-			nothingToDo := checkNothingToDoWithFlags(plan, noDelete)
-			if nothingToDo {
+			// 3. Check if anything to do
+			if checkNothingToDo(plan) {
 				fmt.Println("Nothing to do. All infrastructure exists.")
 				return nil
 			}
 
-			// 4. Confirm deletions only (CREATE operations proceed without confirmation)
-			// Skip confirmation if --no-delete is set
-			hasDeletes := len(plan.OrphanWorkbenches) > 0 || len(plan.OrphanGatehouses) > 0
-			if hasDeletes && !noDelete && !skipConfirm {
-				deleteCount := len(plan.OrphanWorkbenches) + len(plan.OrphanGatehouses)
-				if !infraConfirmPrompt(fmt.Sprintf("Delete %d orphan(s)?", deleteCount)) {
+			// 4. Confirm tmux window cleanup (CREATE operations proceed without confirmation)
+			if plan.TMuxSession != nil && len(plan.TMuxSession.OrphanWindows) > 0 && !skipConfirm {
+				windowCount := len(plan.TMuxSession.OrphanWindows)
+				if !infraConfirmPrompt(fmt.Sprintf("Kill %d orphan tmux window(s)?", windowCount)) {
 					fmt.Println("Aborted.")
 					return nil
 				}
@@ -316,22 +311,17 @@ Examples:
 			if resp.ConfigsCreated > 0 {
 				fmt.Printf("  - %d config file(s) created\n", resp.ConfigsCreated)
 			}
-			if resp.OrphansDeleted > 0 {
-				fmt.Printf("  - %d orphan(s) deleted\n", resp.OrphansDeleted)
-			}
 
 			return nil
 		},
 	}
 
-	cmd.Flags().BoolVarP(&skipConfirm, "yes", "y", false, "Skip confirmation prompt for DELETE operations")
-	cmd.Flags().BoolVarP(&forceDelete, "force", "f", false, "Force deletion of dirty worktrees with uncommitted changes")
-	cmd.Flags().BoolVar(&noDelete, "no-delete", false, "Only perform CREATE operations, leaving orphans in place")
+	cmd.Flags().BoolVarP(&skipConfirm, "yes", "y", false, "Skip confirmation prompt")
 
 	return cmd
 }
 
-func checkNothingToDoWithFlags(plan *primary.InfraPlan, noDelete bool) bool {
+func checkNothingToDo(plan *primary.InfraPlan) bool {
 	if plan.Gatehouse != nil && (plan.Gatehouse.Status == primary.OpCreate || plan.Gatehouse.ConfigStatus == primary.OpCreate) {
 		return false
 	}
@@ -339,10 +329,6 @@ func checkNothingToDoWithFlags(plan *primary.InfraPlan, noDelete bool) bool {
 		if wb.Status == primary.OpCreate || wb.Status == primary.OpMissing || wb.ConfigStatus == primary.OpCreate {
 			return false
 		}
-	}
-	// Check for orphan deletions (unless --no-delete, then orphans are ignored)
-	if !noDelete && (len(plan.OrphanWorkbenches) > 0 || len(plan.OrphanGatehouses) > 0) {
-		return false
 	}
 	// Check TMux state
 	if plan.TMuxSession != nil {
@@ -354,7 +340,7 @@ func checkNothingToDoWithFlags(plan *primary.InfraPlan, noDelete bool) bool {
 				return false
 			}
 		}
-		if !noDelete && len(plan.TMuxSession.OrphanWindows) > 0 {
+		if len(plan.TMuxSession.OrphanWindows) > 0 {
 			return false
 		}
 	}
@@ -375,13 +361,16 @@ func infraConfirmPrompt(msg string) bool {
 func infraArchiveWorkbenchCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "archive-workbench",
-		Short: "Archive current workbench and apply infra",
-		Long: `Archive the workbench at the current directory and apply infrastructure changes.
+		Short: "Archive current workbench and clean up tmux window",
+		Long: `Archive the workbench at the current directory and clean up its tmux window.
 
 This is a convenience command for the statusline menu that:
 1. Detects the workbench from the current directory
-2. Archives the workbench (soft-delete)
-3. Applies infrastructure to remove the worktree
+2. Archives the workbench (soft-delete in DB)
+3. Applies infrastructure to remove the tmux window
+
+Note: The workbench directory is NOT deleted. Use 'rm -rf' manually or
+'orc infra cleanup' if you want to remove it later.
 
 Examples:
   cd ~/wb/my-workbench && orc infra archive-workbench`,
@@ -419,15 +408,12 @@ Examples:
 				return fmt.Errorf("failed to plan infrastructure: %w", err)
 			}
 
-			resp, err := wire.InfraService().ApplyInfra(ctx, plan)
+			_, err = wire.InfraService().ApplyInfra(ctx, plan)
 			if err != nil {
 				return fmt.Errorf("failed to apply infrastructure: %w", err)
 			}
 
-			fmt.Println("✓ Infrastructure applied")
-			if resp.OrphansDeleted > 0 {
-				fmt.Printf("  - %d orphan(s) deleted\n", resp.OrphansDeleted)
-			}
+			fmt.Println("✓ Infrastructure applied (tmux window removed)")
 
 			fmt.Println("\nPress Enter to close...")
 			reader := bufio.NewReader(os.Stdin)
