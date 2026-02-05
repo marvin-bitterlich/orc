@@ -10,18 +10,14 @@ Guide users through creating a workbench for implementation work.
 ## Usage
 
 ```
-/orc-workbench <name>
-/orc-workbench              (will prompt for name)
+/orc-workbench
 ```
+
+Workbench name is auto-generated as `{repo}-{number}` based on the linked repo.
 
 ## Flow
 
-### Step 1: Gather Required Info
-
-If name not provided, ask:
-- "What should this workbench be called?" (slug format: lowercase, hyphens)
-
-### Step 2: Detect Context
+### Step 1: Detect Context
 
 ```bash
 orc status
@@ -33,24 +29,23 @@ Identify:
 - Available workshops
 - If no workshop detected, ask which workshop
 
-### Step 3: Optional Repo Link
+### Step 2: Select Repo (Required)
 
-Ask if workbench should be linked to a repo:
 ```bash
 orc repo list
 ```
 
-If yes, get repo ID.
+Ask user which repo to link. The workbench name will be auto-generated from this.
 
-### Step 4: Create Workbench Record
+### Step 3: Create Workbench Record
 
 ```bash
-orc workbench create <name> --workshop WORK-xxx [--repo-id REPO-xxx]
+orc workbench create --workshop WORK-xxx --repo-id REPO-xxx
 ```
 
-Capture the created BENCH-xxx ID.
+The name is auto-generated as `{repo}-{number}` (e.g., `intercom-015`).
 
-### Step 5: Apply Infrastructure
+### Step 4: Apply Infrastructure
 
 ```bash
 orc infra apply WORK-xxx
@@ -60,34 +55,35 @@ This creates:
 - Git worktree at ~/wb/<name>
 - .orc/config.json with place_id
 
-### Step 6: Confirm Ready
+### Step 5: Confirm Ready
 
 Output:
 ```
 Workbench created:
-  BENCH-xxx: <name>
-  Path: ~/wb/<name>
+  BENCH-015: intercom-015
+  Path: ~/wb/intercom-015
   Workshop: WORK-xxx
 
 To start working:
-  cd ~/wb/<name>
+  cd ~/wb/intercom-015
   # Or attach to TMux: orc tmux connect WORK-xxx
 ```
 
 ## Example Session
 
 ```
-User: /orc-workbench auth-refactor
+User: /orc-workbench
 
 Agent: [runs orc status, detects WORK-003]
-       [runs orc workbench create auth-refactor --workshop WORK-003]
+       [runs orc repo list, user selects REPO-001 (intercom)]
+       [runs orc workbench create --workshop WORK-003 --repo-id REPO-001]
        [runs orc infra apply WORK-003]
 
 Agent: Workbench created:
-         BENCH-xxx: auth-refactor
-         Path: ~/wb/auth-refactor
+         BENCH-015: intercom-015
+         Path: ~/wb/intercom-015
          Workshop: WORK-003
 
        To start working:
-         cd ~/wb/auth-refactor
+         cd ~/wb/intercom-015
 ```
