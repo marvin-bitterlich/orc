@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"hash/fnv"
 	"os"
+	"os/exec"
 	"sort"
 	"strings"
 
@@ -259,10 +260,19 @@ Examples:
 }
 
 // renderHeader prints the header line based on role
-func renderHeader(role, workbenchID, workshopID, gatehouseID, focusID, commissionID string) {
+func renderHeader(role, workbenchID, workshopID, gatehouseID, _, commissionID string) {
 	// Show workshop context (for both Goblin and IMP)
 	if workshopID != "" {
-		fmt.Printf("Workshop %s", workshopID)
+		// Fetch workshop name
+		workshopName := ""
+		if ws, err := wire.WorkshopService().GetWorkshop(NewContext(), workshopID); err == nil {
+			workshopName = ws.Name
+		}
+
+		fmt.Printf("🏭 Workshop %s", workshopID)
+		if workshopName != "" {
+			fmt.Printf(" (%s)", workshopName)
+		}
 		if config.IsGoblinRole(role) && commissionID != "" {
 			fmt.Printf(" - Active: %s", commissionID)
 		}
@@ -270,13 +280,6 @@ func renderHeader(role, workbenchID, workshopID, gatehouseID, focusID, commissio
 
 		// Show gatehouse and workbenches in workshop with tree format
 		renderWorkshopBenches(workshopID, workbenchID, gatehouseID)
-	}
-
-	// IMP-specific: show current workbench and focus
-	if !config.IsGoblinRole(role) && workbenchID != "" {
-		if focusID != "" {
-			fmt.Printf("\nFocus: %s\n", focusID)
-		}
 	}
 
 	fmt.Println()
@@ -322,7 +325,7 @@ func renderWorkshopBenches(workshopID, currentWorkbenchID, gatehouseID string) {
 		if isLast {
 			prefix = "└── "
 		}
-		fmt.Printf("%s%s (Gatehouse)\n", prefix, gatehouseID)
+		fmt.Printf("%s🏰 %s\n", prefix, gatehouseID)
 		itemIdx++
 	}
 
@@ -335,9 +338,24 @@ func renderWorkshopBenches(workshopID, currentWorkbenchID, gatehouseID string) {
 		}
 
 		// Build workbench line with optional focus indicator
-		line := fmt.Sprintf("%s (%s)", wb.ID, wb.Name)
+		line := fmt.Sprintf("👹 %s (%s)", wb.ID, wb.Name)
 		if wb.ID == currentWorkbenchID {
 			line = color.New(color.FgHiMagenta).Sprint(line)
+		}
+
+		// Add git branch and dirty status
+		if wb.Path != "" {
+			branch, dirty, err := getGitBranchStatus(wb.Path)
+			if err != nil {
+				line += " ⚪" // Unknown/error
+			} else {
+				line += fmt.Sprintf(" [%s]", branch)
+				if dirty {
+					line += " 🟡" // Dirty
+				} else {
+					line += " 🟢" // Clean
+				}
+			}
 		}
 
 		// Add focused shipment inline if workbench has one (skip stale focus)
@@ -362,6 +380,30 @@ func isStaleFocus(ctx context.Context, focusedID string) bool {
 	}
 	// Terminal states: complete, deployed, archived
 	return ship.Status == "complete" || ship.Status == "deployed" || ship.Status == "archived"
+}
+
+// getGitBranchStatus returns the current git branch and dirty status for a path.
+// Returns branch name, whether it's dirty, and any error.
+func getGitBranchStatus(path string) (branch string, dirty bool, err error) {
+	// Get current branch
+	cmd := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD")
+	cmd.Dir = path
+	out, err := cmd.Output()
+	if err != nil {
+		return "", false, err
+	}
+	branch = strings.TrimSpace(string(out))
+
+	// Check dirty status
+	cmd = exec.Command("git", "status", "--porcelain")
+	cmd.Dir = path
+	out, err = cmd.Output()
+	if err != nil {
+		return branch, false, err
+	}
+	dirty = len(strings.TrimSpace(string(out))) > 0
+
+	return branch, dirty, nil
 }
 
 // workshopFocusInfo tracks what each workbench in the workshop has focused
@@ -471,7 +513,12 @@ func formatFocusActors(actors []string, isMeFocused bool) string {
 	if len(parts) == 0 {
 		return ""
 	}
-	return fmt.Sprintf(" [focused by %s]", strings.Join(parts, ", "))
+	result := fmt.Sprintf(" [focused by %s]", strings.Join(parts, ", "))
+	// Add sparkles when you are focusing
+	if isMeFocused {
+		result = " ✨" + result + " ✨"
+	}
+	return result
 }
 
 // renderCollapsedCommission renders a commission as a single collapsed line with counts
@@ -506,7 +553,7 @@ func renderSummary(summary *primary.CommissionSummary, _ string, workshopFocus w
 	// Commission header with focused marker
 	focusedMarker := ""
 	if summary.IsFocusedCommission {
-		focusedMarker = color.New(color.FgHiMagenta).Sprint(" [focused]")
+		focusedMarker = color.New(color.FgHiMagenta).Sprint(" ✨ [focused by you] ✨")
 	}
 	fmt.Printf("%s%s - %s\n", colorizeID(summary.ID), focusedMarker, summary.Title)
 
@@ -519,6 +566,15 @@ func renderSummary(summary *primary.CommissionSummary, _ string, workshopFocus w
 			otherShips = append(otherShips, ship)
 		}
 	}
+
+	// Sort focused shipments: YOUR focus first, then others
+	sort.SliceStable(focusedShips, func(i, j int) bool {
+		// IsFocused means "focused by you" - put these first
+		if focusedShips[i].IsFocused != focusedShips[j].IsFocused {
+			return focusedShips[i].IsFocused
+		}
+		return false // Keep original order otherwise
+	})
 
 	// Calculate total items for tree rendering
 	totalItems := len(summary.Notes) + len(focusedShips) + len(otherShips) + len(summary.Tomes)
