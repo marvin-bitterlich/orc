@@ -10,8 +10,10 @@ Interactive skill that walks users through creating a complete workshop with wor
 ## Usage
 
 ```
-/orc-workshop
-/orc-workshop "Workshop purpose"
+/orc-workshop                           # Interactive - prompts for name and template
+/orc-workshop "Workshop purpose"        # Prompts for template
+/orc-workshop standard "Workshop name"  # Uses template directly
+/orc-workshop muster "Feature work"     # Uses muster template
 ```
 
 ## Philosophy
@@ -25,17 +27,71 @@ orc infra plan --help
 orc infra apply --help
 ```
 
+## Templates
+
+Templates are stored in `~/.orc/workshop-templates.json`. Each template defines a list of repos to create workbenches for.
+
+**Default templates:**
+- `standard` - intercom, infrastructure
+- `muster` - intercom, muster, muster-deployer
+- `ami` - intercom, ami, infrastructure
+- `provisioner` - intercom, intercom-provisioner, infrastructure
+- `events` - intercom, infrastructure, event-management-system
+
+Use `/orc-workshop-templates` to manage templates.
+
 ## Flow
 
-### Step 1: Workshop Purpose
+### Step 1: Parse Arguments and Load Templates
 
-If purpose not provided as argument, ask:
+**Load templates:**
+```bash
+cat ~/.orc/workshop-templates.json
+```
+
+If file doesn't exist, create it with defaults:
+```json
+{
+  "templates": {
+    "standard": ["intercom", "infrastructure"],
+    "muster": ["intercom", "muster", "muster-deployer"],
+    "ami": ["intercom", "ami", "infrastructure"],
+    "provisioner": ["intercom", "intercom-provisioner", "infrastructure"],
+    "events": ["intercom", "infrastructure", "event-management-system"]
+  }
+}
+```
+
+**Parse arguments:**
+- If first word matches a template name → use that template, rest is workshop name
+- If first word doesn't match a template → entire string is workshop name, will prompt for template
+- If no arguments → prompt for both
+
+### Step 2: Workshop Purpose
+
+If workshop name not determined from arguments, ask:
 
 > "What's this workshop for? (e.g., 'orc development', 'DLQ admin tool', 'auth refactor')"
 
 The answer becomes the workshop name.
 
-### Step 2: Create Workshop
+### Step 3: Template Selection
+
+If template not determined from arguments, show template menu:
+
+> "Use a template? (default: standard)"
+>
+> 1. **standard** - intercom, infrastructure
+> 2. **muster** - intercom, muster, muster-deployer
+> 3. **ami** - intercom, ami, infrastructure
+> 4. **provisioner** - intercom, intercom-provisioner, infrastructure
+> 5. **events** - intercom, infrastructure, event-management-system
+> 6. **[manual]** - select repos individually
+
+If user presses enter or selects 1, use "standard" template.
+If user selects "[manual]", skip to Step 5 (manual repo selection).
+
+### Step 4: Create Workshop
 
 ```bash
 orc workshop create --name "<purpose>"
@@ -43,41 +99,34 @@ orc workshop create --name "<purpose>"
 
 Capture the created `WORK-xxx` ID from output.
 
-**Note:** Always uses the default factory (no need to specify).
+### Step 5: Resolve Template Repos
 
-### Step 3: Show Available Repos
+If using a template:
+
+1. Get repo list: `orc repo list`
+2. For each repo name in template, find matching REPO-xxx ID
+3. If repo not found, help user register it:
+
+> "Repo 'muster' not found. Let me help you register it."
+> "What's the local path to muster? (e.g., ~/src/muster)"
+
+```bash
+orc repo create "muster" --local-path "<path>"
+```
+
+Then retry lookup.
+
+**If manual selection (no template):**
 
 ```bash
 orc repo list
 ```
 
-Display the list to the user.
+Display the list and ask which repos they need.
 
-**If no repos exist:**
-> "No repos configured yet. Let's create one first."
+### Step 6: Create Workbenches
 
-Guide through repo creation:
-```bash
-orc repo create --help   # Check current syntax
-orc repo create "<name>" --local-path "<path>"
-```
-
-### Step 4: Select Repos for Workbenches
-
-Ask user which repos they need workbenches for.
-
-**If user needs a repo not in the list:**
-> "That repo isn't registered yet. Let me add it."
-
-```bash
-orc repo create "<name>" --local-path "<path>"
-```
-
-Then continue with workbench creation.
-
-### Step 5: Create Workbenches
-
-For each selected repo:
+For each repo in template (or manual selection):
 
 ```bash
 orc workbench create --workshop WORK-xxx --repo-id REPO-yyy
@@ -85,7 +134,7 @@ orc workbench create --workshop WORK-xxx --repo-id REPO-yyy
 
 The name is auto-generated as `{repo}-{number}` (e.g., `intercom-015`).
 
-### Step 6: Preview Infrastructure
+### Step 7: Preview Infrastructure
 
 ```bash
 orc infra plan WORK-xxx
@@ -99,11 +148,11 @@ Show the plan output to user. This displays:
 Ask: "Does this look right? Want to add/remove any workbenches?"
 
 **Iterate as needed:**
-- Add more workbenches → repeat Step 5
+- Add more workbenches → repeat Step 6
 - Remove a workbench → `orc workbench archive BENCH-xxx`, re-run plan
 - Satisfied → proceed to commission linking
 
-### Step 7: Commission Linking
+### Step 8: Commission Linking
 
 ```bash
 orc commission list
@@ -117,7 +166,7 @@ Show active commissions and ask:
 ```bash
 orc workshop set-commission WORK-xxx COMM-yyy
 ```
-(Note: Must run from gatehouse directory, but gatehouse doesn't exist yet. Use `cd ~/.orc/ws/WORK-xxx-*` won't work. Need to link after apply - see Step 8.)
+(Note: Must run from gatehouse directory, but gatehouse doesn't exist yet. Need to link after apply - see Step 9.)
 
 **If creating new:**
 ```bash
@@ -125,9 +174,9 @@ orc commission create "<title>" --description "<description>"
 ```
 
 **If skipping:**
-Warn: "⚠️ Workshop will be created without a commission. IMPs/goblins won't have focus context. You can link later with `orc workshop set-commission`."
+Warn: "Workshop will be created without a commission. IMPs/goblins won't have focus context. You can link later with `orc workshop set-commission`."
 
-### Step 8: Apply Infrastructure
+### Step 9: Apply Infrastructure
 
 ```bash
 orc infra apply WORK-xxx
@@ -146,13 +195,14 @@ cd ~/.orc/ws/WORK-xxx-*/
 orc workshop set-commission COMM-yyy
 ```
 
-### Step 9: Confirm Ready
+### Step 10: Confirm Ready
 
 Output summary:
 
 ```
 Workshop created:
   WORK-xxx: <purpose>
+  Template: <template-name> (or "manual")
   Gatehouse: GATE-xxx
   Workbenches:
     - BENCH-xxx: <repo>-xxx (~/wb/<name>)
@@ -163,75 +213,80 @@ To start working:
   orc tmux connect WORK-xxx
 ```
 
-## Example Session
+## Example Session (with template)
 
 ```
-User: /orc-workshop "DLQ admin tool"
+User: /orc-workshop standard "DLQ admin tool"
 
-Agent: Creating workshop "DLQ admin tool"...
+Agent: Creating workshop "DLQ admin tool" with template "standard"...
        [runs orc workshop create --name "DLQ admin tool"]
        ✓ Created WORK-005
 
-       Which repos do you need workbenches for?
-       [runs orc repo list]
-
-       Available repos:
-         REPO-001: intercom (/Users/me/src/intercom)
-         REPO-002: orc (/Users/me/src/orc)
-
-User: intercom
-
-Agent: [runs orc workbench create --workshop WORK-005 --repo-id REPO-001]
+       Template "standard" includes: intercom, infrastructure
+       [looks up repo IDs]
+       [runs orc workbench create for each]
        ✓ Created BENCH-016: intercom-016
+       ✓ Created BENCH-017: infrastructure-017
 
-       Any other repos?
-
-User: no
-
-Agent: Here's the infrastructure plan:
+       Here's the infrastructure plan:
        [runs orc infra plan WORK-005]
+       ...
 
-       CREATE Gatehouse: ~/.orc/ws/WORK-005-dlq-admin-tool/
-       CREATE Workbench: ~/wb/intercom-016 (git worktree)
-       CREATE TMux window: intercom-016
+       Link to a commission?
+       [continues with commission linking...]
+```
 
-       Look good?
+## Example Session (interactive)
 
-User: yes
+```
+User: /orc-workshop
 
-Agent: [runs orc commission list]
+Agent: What's this workshop for?
 
-       Active commissions:
-         COMM-001: ORC 3.1 Implementation
-         COMM-002: DLQ Cleanup Project
+User: DLQ admin tool
 
-       Link to a commission? (IMPs/goblins will start with this focus)
+Agent: Use a template? (default: standard)
+       1. standard - intercom, infrastructure
+       2. muster - intercom, muster, muster-deployer
+       3. ami - intercom, ami, infrastructure
+       4. provisioner - intercom, intercom-provisioner, infrastructure
+       5. events - intercom, infrastructure, event-management-system
+       6. [manual] - select repos individually
 
-User: COMM-002
+User: 1
 
-Agent: [runs orc infra apply WORK-005]
-       ✓ Infrastructure created
+Agent: Creating workshop "DLQ admin tool" with template "standard"...
+       [continues as above]
+```
 
-       [runs cd ~/.orc/ws/WORK-005-*/ && orc workshop set-commission COMM-002]
-       ✓ Workshop linked to commission
+## Example Session (missing repo)
 
-       Workshop created:
-         WORK-005: DLQ admin tool
-         Gatehouse: GATE-005
-         Workbenches:
-           - BENCH-016: intercom-016 (~/wb/intercom-016)
-         Commission: COMM-002
+```
+User: /orc-workshop muster "Muster feature"
 
-       To start working:
-         orc tmux connect WORK-005
+Agent: Creating workshop "Muster feature" with template "muster"...
+       ✓ Created WORK-006
+
+       Template "muster" includes: intercom, muster, muster-deployer
+       [looks up repo IDs]
+
+       Repo 'muster-deployer' not found. Let me help you register it.
+       What's the local path to muster-deployer?
+
+User: ~/src/muster-deployer
+
+Agent: [runs orc repo create "muster-deployer" --local-path "~/src/muster-deployer"]
+       ✓ Registered REPO-008: muster-deployer
+
+       [continues with workbench creation...]
 ```
 
 ## Error Handling
 
 | Error | Remediation |
 |-------|-------------|
-| No repos exist | Guide through `orc repo create` |
-| Repo not found | Offer to register it inline |
+| Templates file missing | Create with defaults |
+| Repo not found in template | Help user register it |
 | Path already exists | Suggest removing directory or different name |
 | Infra apply fails | Show error, offer specific fix based on message |
 | Commission not found | Offer to create new commission |
