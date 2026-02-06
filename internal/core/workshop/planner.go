@@ -1,7 +1,10 @@
 // Package workshop contains pure business logic for workshop operations.
 package workshop
 
-import "path/filepath"
+import (
+	"path/filepath"
+	"strings"
+)
 
 // OpenPlanInput contains pre-fetched data for plan generation.
 // All values must be gathered by the caller - no I/O in the planner.
@@ -13,6 +16,7 @@ type OpenPlanInput struct {
 	SessionExists         bool
 	ActualSessionName     string   // Existing session name (may differ from WorkshopID after renames)
 	ExistingWindows       []string // Window names in existing session (empty if no session)
+	GatehouseID           string   // GATE-xxx ID for goblin window naming
 	GatehouseDir          string
 	GatehouseDirExists    bool
 	GatehouseConfigExists bool
@@ -162,8 +166,10 @@ func GenerateOpenPlan(input OpenPlanInput) OpenWorkshopPlan {
 		}
 	} else {
 		// No session - create new with all windows
+		// Goblin window name: goblin-NNN (derived from GATE-NNN)
+		goblinWindowName := "goblin-" + strings.TrimPrefix(input.GatehouseID, "GATE-")
 		windows := []TMuxWindowOp{
-			{Index: 0, Name: "goblin", Path: input.GatehouseDir},
+			{Index: 0, Name: goblinWindowName, Path: input.GatehouseDir},
 		}
 		for i, wb := range input.Workbenches {
 			windows = append(windows, TMuxWindowOp{

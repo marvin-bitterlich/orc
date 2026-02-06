@@ -127,17 +127,18 @@ func (s *InfraServiceImpl) PlanInfra(ctx context.Context, req primary.InfraPlanR
 		if tmuxSessionExists {
 			tmuxExistingWindows, _ = s.tmuxAdapter.ListWindows(ctx, tmuxSessionName)
 		}
-		// Build expected windows - first "orc" (goblin), then workbenches
+		// Build expected windows - first goblin window, then workbenches
 		// (skip if workshop is archived - entire session should be deleted)
 		if !workshopArchived {
-			// Goblin window (orc)
+			// Goblin window name: goblin-NNN (derived from GATE-NNN)
+			goblinWindowName := "goblin-" + strings.TrimPrefix(gatehouseID, "GATE-")
 			goblinExpectedAgent := fmt.Sprintf("GOBLIN@%s", gatehouseID)
 			goblinActualAgent := ""
 			if tmuxSessionExists {
-				goblinActualAgent = s.tmuxAdapter.GetWindowOption(ctx, tmuxSessionName+":goblin", "@orc_agent")
+				goblinActualAgent = s.tmuxAdapter.GetWindowOption(ctx, tmuxSessionName+":"+goblinWindowName, "@orc_agent")
 			}
 			tmuxExpectedWindows = append(tmuxExpectedWindows, coreinfra.TMuxWindowInput{
-				Name:          "goblin",
+				Name:          goblinWindowName,
 				Path:          gatehousePath,
 				ExpectedAgent: goblinExpectedAgent,
 				ActualAgent:   goblinActualAgent,
@@ -601,7 +602,7 @@ func (s *InfraServiceImpl) ApplyInfra(ctx context.Context, plan *primary.InfraPl
 						return nil, fmt.Errorf("failed to rename init window to %s: %w", w.Name, err)
 					}
 					// Launch orc connect --role goblin in goblin window
-					if w.Name == "goblin" {
+					if strings.HasPrefix(w.Name, "goblin-") {
 						if err := s.tmuxAdapter.SetupGoblinPane(ctx, sessionName, w.Name); err != nil {
 							return nil, fmt.Errorf("failed to setup goblin pane: %w", err)
 						}
