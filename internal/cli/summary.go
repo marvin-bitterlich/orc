@@ -485,9 +485,9 @@ func buildWorkshopFocusMap(ctx context.Context, workshopID, currentWorkbenchID, 
 func formatFocusActors(actors []string, isMeFocused bool) string {
 	var parts []string
 
-	// "you" first if current actor is focusing
+	// "you" first if current actor is focusing (with sparkles around "you")
 	if isMeFocused {
-		parts = append(parts, color.New(color.FgHiMagenta).Sprint("you"))
+		parts = append(parts, "✨ "+color.New(color.FgHiMagenta).Sprint("you")+" ✨")
 	}
 
 	// Separate Goblin from others for ordering
@@ -515,12 +515,7 @@ func formatFocusActors(actors []string, isMeFocused bool) string {
 	if len(parts) == 0 {
 		return ""
 	}
-	result := fmt.Sprintf(" [focused by %s]", strings.Join(parts, ", "))
-	// Add sparkles when you are focusing
-	if isMeFocused {
-		result = " ✨" + result + " ✨"
-	}
-	return result
+	return fmt.Sprintf(" [focused by %s]", strings.Join(parts, ", "))
 }
 
 // renderCollapsedCommission renders a commission as a single collapsed line with counts
@@ -555,7 +550,7 @@ func renderSummary(summary *primary.CommissionSummary, _ string, workshopFocus w
 	// Commission header with focused marker
 	focusedMarker := ""
 	if summary.IsFocusedCommission {
-		focusedMarker = fmt.Sprintf(" ✨ [focused by %s] ✨", color.New(color.FgHiMagenta).Sprint("you"))
+		focusedMarker = fmt.Sprintf(" [focused by ✨ %s ✨]", color.New(color.FgHiMagenta).Sprint("you"))
 	}
 	fmt.Printf("%s%s - %s\n", colorizeID(summary.ID), focusedMarker, summary.Title)
 
