@@ -600,6 +600,12 @@ func (s *InfraServiceImpl) ApplyInfra(ctx context.Context, plan *primary.InfraPl
 					if err := s.tmuxAdapter.RenameWindow(ctx, initTarget, w.Name); err != nil {
 						return nil, fmt.Errorf("failed to rename init window to %s: %w", w.Name, err)
 					}
+					// Launch orc connect --role goblin in goblin window
+					if w.Name == "goblin" {
+						if err := s.tmuxAdapter.SetupGoblinPane(ctx, sessionName, w.Name); err != nil {
+							return nil, fmt.Errorf("failed to setup goblin pane: %w", err)
+						}
+					}
 				} else {
 					if err := s.tmuxAdapter.CreateWorkbenchWindowShell(ctx, sessionName, windowIndex, w.Name, w.Path); err != nil {
 						return nil, fmt.Errorf("failed to create tmux window %s: %w", w.Name, err)
