@@ -592,6 +592,9 @@ func (m *mockTMuxAdapter) GetWindowOption(ctx context.Context, target, option st
 func (m *mockTMuxAdapter) SetWindowOption(ctx context.Context, target, option, value string) error {
 	return nil
 }
+func (m *mockTMuxAdapter) SetupGoblinPane(ctx context.Context, sessionName, windowName string) error {
+	return nil
+}
 
 // mockWorkspaceAdapter implements secondary.WorkspaceAdapter for testing.
 type mockWorkspaceAdapter struct {

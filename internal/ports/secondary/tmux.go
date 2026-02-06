@@ -89,4 +89,7 @@ type TMuxAdapter interface {
 	// Window options (for @orc_agent, @orc_focus, etc.)
 	GetWindowOption(ctx context.Context, target, option string) string
 	SetWindowOption(ctx context.Context, target, option, value string) error
+
+	// Goblin window setup
+	SetupGoblinPane(ctx context.Context, sessionName, windowName string) error
 }

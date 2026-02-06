@@ -526,6 +526,9 @@ func (m *mockTMuxAdapterForPlan) GetWindowOption(ctx context.Context, target, op
 func (m *mockTMuxAdapterForPlan) SetWindowOption(ctx context.Context, target, option, value string) error {
 	return nil
 }
+func (m *mockTMuxAdapterForPlan) SetupGoblinPane(ctx context.Context, sessionName, windowName string) error {
+	return nil
+}
 
 // ============================================================================
 // Test Helper

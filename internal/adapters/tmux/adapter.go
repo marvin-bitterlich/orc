@@ -226,6 +226,12 @@ func (a *Adapter) SetWindowOption(ctx context.Context, target, option, value str
 	return tmuxpkg.SetWindowOption(target, option, value)
 }
 
+// SetupGoblinPane launches orc connect --role goblin in pane 1 of an existing window.
+func (a *Adapter) SetupGoblinPane(ctx context.Context, sessionName, windowName string) error {
+	target := sessionName + ":" + windowName
+	return tmuxpkg.SetupGoblinPane(target)
+}
+
 // ApplyGlobalBindings sets up ORC's global tmux key bindings.
 // Safe to call repeatedly (idempotent). Silently ignores errors (tmux may not be running).
 func ApplyGlobalBindings() {
