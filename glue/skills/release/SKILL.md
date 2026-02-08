@@ -31,7 +31,24 @@ Must be clean. If dirty:
 ❌ Working tree is dirty. Commit or stash changes first.
 ```
 
-### Step 2: Read Current Version
+### Step 2: Validate Documentation
+
+Run docs-doctor to ensure documentation is current before release:
+
+```
+/docs-doctor
+```
+
+If docs-doctor fails:
+```
+❌ Documentation validation failed. Fix issues before releasing.
+
+Run /docs-doctor --fix to auto-fix simple issues, then retry.
+```
+
+This is a hard blocker - releases cannot proceed with invalid documentation.
+
+### Step 3: Read Current Version
 
 ```bash
 cat VERSION
@@ -44,7 +61,7 @@ If VERSION file missing:
 ❌ No VERSION file found. Create one first.
 ```
 
-### Step 3: Check CHANGELOG
+### Step 4: Check CHANGELOG
 
 ```bash
 cat CHANGELOG.md
@@ -61,7 +78,7 @@ Proceed anyway? [y/n]
 
 Allow proceeding if user confirms.
 
-### Step 4: Determine Version Bump
+### Step 5: Determine Version Bump
 
 **If flag provided:**
 - `--patch`: increment patch (0.1.0 → 0.1.1)
@@ -82,14 +99,14 @@ Accept? [y/n/minor/major]
 - `minor`: bump minor instead
 - `major`: bump major instead
 
-### Step 5: Update VERSION File
+### Step 6: Update VERSION File
 
 Write new version to VERSION file:
 ```bash
 echo "0.1.1" > VERSION
 ```
 
-### Step 6: Update CHANGELOG
+### Step 7: Update CHANGELOG
 
 Replace `## [Unreleased]` section with versioned section:
 
@@ -113,20 +130,20 @@ Replace `## [Unreleased]` section with versioned section:
 
 Use today's date in ISO format (YYYY-MM-DD).
 
-### Step 7: Create Release Commit
+### Step 8: Create Release Commit
 
 ```bash
 git add VERSION CHANGELOG.md
 git commit -m "release: v0.1.1"
 ```
 
-### Step 8: Create Tag
+### Step 9: Create Tag
 
 ```bash
 git tag v0.1.1
 ```
 
-### Step 9: Push (Optional)
+### Step 10: Push (Optional)
 
 ```
 Release created locally:
@@ -143,7 +160,7 @@ git push origin HEAD
 git push origin v0.1.1
 ```
 
-### Step 10: Success Output
+### Step 11: Success Output
 
 ```
 ✓ Released v0.1.1
@@ -163,6 +180,7 @@ Next:
 | Error | Action |
 |-------|--------|
 | Dirty working tree | "Commit or stash changes first" |
+| Docs-doctor fails | "Fix documentation issues before releasing" |
 | No VERSION file | "Create VERSION file first" |
 | Invalid version format | "VERSION must be semver (X.Y.Z)" |
 | Tag already exists | "Tag vX.Y.Z already exists" |
@@ -174,3 +192,4 @@ Next:
 - Tags use `v` prefix (v0.1.0)
 - CHANGELOG follows keepachangelog.com format
 - Empty Unreleased is a warning, not a blocker
+- Docs-doctor validation is a hard blocker (no exceptions)
