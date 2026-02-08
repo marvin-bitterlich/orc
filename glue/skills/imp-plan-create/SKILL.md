@@ -7,6 +7,24 @@ description: Research codebase and create implementation plan for current task. 
 
 Research the codebase and create an implementation plan for the current in_progress task.
 
+## Documentation Discovery
+
+Look for development checklists and guidelines in order:
+1. `CLAUDE.md` - Development rules and checklists
+2. `docs/` - Additional documentation (architecture, guides)
+
+If checklists found, reference them in the plan.
+
+## Build System Detection
+
+Infer verification commands from build system:
+
+| Build System | Test Command | Lint Command |
+|--------------|--------------|--------------|
+| Makefile | `make test` | `make lint` |
+| package.json | `npm test` | `npm run lint` |
+| Gemfile | `bundle exec rspec` | `bundle exec rubocop` |
+
 ## Flow
 
 1. **Get in_progress task**
@@ -30,23 +48,25 @@ Research the codebase and create an implementation plan for the current in_progr
    Example prompt for Explore agent:
    "Research the codebase to understand how to implement: [task description]. Find relevant files, patterns, and architecture."
 
-4. **Read CLAUDE.md for change type**
-   Identify what type of change this is and read the relevant checklist:
+4. **Check for development checklists**
+   Look for CLAUDE.md or docs/ with relevant checklists.
 
-   | Change Type | CLAUDE.md Section |
-   |-------------|-------------------|
-   | New entity | "Add Entity with Persistence" |
-   | Add column | "Add Column to Existing Entity" |
-   | CLI command | "Add CLI Command" |
-   | State/transition | "Add State/Transition" |
+   If found, identify the relevant change type:
+   | Change Type | Look For |
+   |-------------|----------|
+   | New entity | "Add Entity" checklist |
+   | Add column | "Add Column" or "Add Field" checklist |
+   | CLI command | "Add CLI Command" checklist |
+   | State/transition | "Add State" checklist |
 
-   Your plan MUST follow the documented checklist.
+   If checklists found, your plan SHOULD follow them.
+   If no checklists found, proceed with standard approach.
 
 5. **Design implementation approach**
    Based on research, design a concrete approach:
    - What files to modify/create
    - What changes to make
-   - How to verify (tests, lint)
+   - How to verify
 
 6. **Create plan record**
    ```bash
@@ -54,21 +74,28 @@ Research the codebase and create an implementation plan for the current in_progr
    ```
 
 7. **Write plan content**
+   Use detected verification commands:
    ```bash
    orc plan update PLAN-xxx --content "$(cat <<'EOF'
    ## Summary
    [1-2 sentence overview]
 
    ## Changes
-   - file1.go: [description]
-   - file2.go: [description]
+   - file1: [description]
+   - file2: [description]
 
    ## Verification
-   - [ ] Run tests: `make test`
-   - [ ] Run lint: `make lint`
+   - [ ] Run tests: `<detected-test-command>`
+   - [ ] Run lint: `<detected-lint-command>`
    - [ ] Manual verification: [if any]
    EOF
    )"
+   ```
+
+   If no build system detected:
+   ```
+   ## Verification
+   - [ ] Manual verification: [describe checks]
    ```
 
 8. **Output**
@@ -80,4 +107,4 @@ Research the codebase and create an implementation plan for the current in_progr
 - Be concrete about file paths and changes
 - Include specific verification steps
 - Don't over-engineer or add scope creep
-- **Follow CLAUDE.md checklists** for the change type
+- **Follow discovered checklists** when available

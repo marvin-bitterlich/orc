@@ -20,6 +20,15 @@ Transform synthesized knowledge into actionable tasks through a structured engin
 - When exploration is complete and ready to convert to tasks
 - To pressure-test ideas against reality before implementation
 
+## Documentation Discovery
+
+Look for architecture and development docs in order:
+1. `docs/architecture.md` - System structure (C2/C3 mapping)
+2. `CLAUDE.md` - Development rules and patterns
+
+If found, reference during engineering review.
+If not found, proceed with codebase exploration.
+
 ## Zoom Level (C4 Model)
 
 | Level | Scope | Owned By |
@@ -64,11 +73,16 @@ Consider running /ship-synthesize first if notes are messy.
 Proceeding anyway...
 ```
 
-**Read CLAUDE.md:**
+**Check for development docs:**
+Look for CLAUDE.md or docs/ for existing patterns.
+
+If found:
 ```bash
-# Review CLAUDE.md for existing patterns and checklists
+# Review for existing patterns and checklists
 ```
 Reference relevant sections during interview.
+
+If not found, proceed with codebase exploration.
 
 ### Step 3: Gather Context
 
@@ -168,7 +182,7 @@ I'd recommend: skip theme identification with <3 notes, just summarize directly.
 
 Map what containers and components are affected.
 
-**Reference:** docs/architecture.md (if exists) or explore codebase.
+**Reference:** If docs/architecture.md exists, use it for C2/C3 structure. Otherwise, explore the codebase to identify containers and components.
 
 **Example output:**
 ```
@@ -180,7 +194,7 @@ Systems affected (C2 - Containers):
 | CLI (cmd/, internal/) | ✗ | No CLI changes |
 | Database | ✗ | No schema changes |
 | Config | ✗ | No config changes |
-| Documentation | ✓ | CLAUDE.md, CLAUDE.md |
+| Documentation | ✓ | CLAUDE.md |
 
 Components within Skills (C3):
 - ship-synthesize/ [NEW]
@@ -205,7 +219,7 @@ Tooling compatibility:
 | Database migrations? | ✓ | None required |
 | Git hooks deploy? | ✓ | Skills auto-deploy |
 | Config schema changes? | ✓ | None |
-| Doc updates needed? | ⚠️ | CLAUDE.md, CLAUDE.md |
+| Doc updates needed? | ⚠️ | CLAUDE.md |
 
 Issues found: [list or none]
 ```
@@ -259,7 +273,7 @@ Proposed tasks for SHIP-xxx:
 
 3. Update documentation
    Containers: Documentation
-   Components: CLAUDE.md, CLAUDE.md
+   Components: CLAUDE.md
    Description: Document new workflow...
 
 Create these tasks? [y/n/edit]
@@ -296,7 +310,7 @@ Ready for implementation:
 
 ## Guidelines
 
-- **Read CLAUDE.md** for existing patterns before proposing changes
+- **Check for development docs** (CLAUDE.md, docs/) for existing patterns
 - **Tasks should be self-contained** - IMP can complete without questions
 - **Include C2/C3 scope** in every task description
 - **Don't over-decompose** - 3-10 tasks typical

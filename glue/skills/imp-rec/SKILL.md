@@ -7,12 +7,28 @@ description: Verify work, create receipt, complete task, chain to next task.
 
 Verify completed work, create a receipt, complete the task, and chain to the next task.
 
+## Build System Detection
+
+Infer test/lint commands from build system:
+
+| Build System | Test Command | Lint Command |
+|--------------|--------------|--------------|
+| Makefile | `make test` | `make lint` |
+| package.json | `npm test` | `npm run lint` |
+| Gemfile | `bundle exec rspec` | `bundle exec rubocop` |
+
+If no build system found:
+```
+Warning: No build system detected. Skipping automated verification.
+Proceed with manual verification or skip if not applicable.
+```
+
 ## Flow
 
 1. **Verify work against plan**
    - Review git diff against plan (`git diff`)
-   - Run tests (`make test`)
-   - Run lint (`make lint`)
+   - Run tests (detected command or skip with warning)
+   - Run lint (detected command or skip with warning)
    - Check any manual verification steps from plan
 
 2. **Commit changes**
@@ -23,40 +39,21 @@ Verify completed work, create a receipt, complete the task, and chain to the nex
 
 3. **Create receipt**
    ```bash
-   orc rec create --task TASK-xxx
+   orc rec create "<outcome>" --task TASK-xxx
    ```
 
-4. **Add receipt content**
-   ```bash
-   orc rec update REC-xxx --content "$(cat <<'EOF'
-   ## Changes Made
-   - file1.go: [what was done]
-   - file2.go: [what was done]
-
-   ## Verification
-   - [x] Tests pass
-   - [x] Lint clean
-   - [x] [other checks]
-
-   ## Notes
-   [any relevant notes]
-   EOF
-   )"
-   ```
-
-5. **Submit receipt**
+4. **Submit and verify receipt**
    ```bash
    orc rec submit REC-xxx
+   orc rec verify REC-xxx
    ```
 
-6. **Verify and complete**
-   If all verification passed:
+5. **Complete task**
    ```bash
-   orc rec verify REC-xxx
    orc task complete TASK-xxx
    ```
 
-7. **Check for next task**
+6. **Check for next task**
    ```bash
    orc task list --shipment SHIP-xxx --status ready
    ```
@@ -72,7 +69,7 @@ Verify completed work, create a receipt, complete the task, and chain to the nex
    ```bash
    orc shipment show SHIP-xxx
    ```
-   Output: "All tasks complete! Shipment ready for deploy. Next: Run /ship-deploy to merge to master." or "Waiting on blocked tasks."
+   Output: "All tasks complete! Shipment ready for deploy. Run /ship-deploy." or "Waiting on blocked tasks."
 
 ## Verification Failure
 
@@ -84,6 +81,6 @@ If tests or lint fail:
 
 ## Notes
 
-- Never skip verification steps
+- Never skip verification steps (unless no build system detected)
 - Receipt documents what was actually done
 - Chaining to next task maintains propulsion

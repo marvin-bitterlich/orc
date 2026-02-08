@@ -1,149 +1,167 @@
 ---
 name: ship-deploy
 description: |
-  Merge current worktree branch to master at ~/src/orc with full validation.
-  Use when user says "/ship-deploy", "ship deploy", "deploy shipment", "merge to master", or wants to integrate their worktree changes into the main ORC repository.
-  Handles pre-flight checks, merge, hook installation, and post-merge cleanup.
+  Deploy shipment by merging worktree branch to main repository.
+  Use when user says "/ship-deploy", "ship deploy", "deploy shipment", "merge to master".
+  Dynamically discovers deployment workflow from repo documentation.
 ---
 
 # Ship Deploy
 
-Merge the current worktree branch into master at `~/src/orc` with full validation, then transition the shipment to deployed status.
+Deploy the current worktree branch by merging to the main repository, following the repo's deployment workflow.
 
-## ORC Repository Only
+## Workflow Discovery
 
-This skill is specific to the ORC repository (direct-to-master workflow). PR-based repositories are not yet supported.
+This skill dynamically discovers how to deploy based on repo documentation:
 
-## Workflow
+### 1. Find Deployment Docs
 
-### 0. Verify ORC Repository
+Check for deployment documentation in order:
+1. `docs/deployment.md`
+2. `DEPLOYMENT.md`
+3. `CLAUDE.md` (look for deployment section)
 
-Before proceeding, verify we're in the ORC repo:
+If found, parse for:
+- **Workflow type**: `direct` (merge to master) or `pr` (pull request)
+- **Host repo path**: Where the main repo lives (for direct workflow)
+- **Pre-merge checks**: Commands to run before merging
+- **Post-merge steps**: Commands to run after merging
 
-```bash
-# Check if we're in the ORC repository
-git remote get-url origin 2>/dev/null | grep -q "orc"
-```
+### 2. Detect Build System
 
-If not in ORC repo, stop immediately:
-```
-This skill is specific to the ORC repository.
-Current repo: [detected repo from git remote]
+Infer test/lint commands from build system:
 
-For other repositories, use standard git merge workflow or PR-based deployment.
-```
+| Build System | Test Command | Lint Command |
+|--------------|--------------|--------------|
+| Makefile | `make test` | `make lint` |
+| package.json | `npm test` | `npm run lint` |
+| Gemfile | `bundle exec rspec` | `bundle exec rubocop` |
+
+If no build system found, warn and skip automated checks.
+
+### 3. Determine Workflow
+
+**If deployment docs found with `type: direct`:**
+- Follow direct-to-master workflow (merge, post-merge steps, push)
+
+**If deployment docs found with `type: pr` or no docs found:**
+- Fall back to PR workflow
+
+## Direct Workflow
+
+When deployment docs specify direct workflow:
 
 ### 1. Pre-flight Checks
-
-Before merging, verify:
 
 ```bash
 # Must be clean
 git status --porcelain  # Should be empty
 
-# Must pass lint
-make lint
-
-# Detect current branch (the one to merge)
-BRANCH=$(git rev-parse --abbrev-ref HEAD)
+# Run pre-merge checks from deployment docs
+# Or infer from build system
 ```
 
-If any check fails, stop and report the issue.
-
-### 2. Merge to Master
+### 2. Merge to Main Repo
 
 ```bash
-cd ~/src/orc
-git checkout master
-git pull origin master
-git merge <BRANCH> --no-edit
+cd <host-repo-path>  # From deployment docs
+git checkout <main-branch>
+git pull origin <main-branch>
+git merge <worktree-branch> --no-edit
 ```
 
-Report merge result (fast-forward or merge commit).
+### 3. Post-Merge Steps
 
-### 3. Post-merge Build Steps
+Run commands from deployment docs (e.g., `make init`, `make install`, etc.)
 
-The post-merge hook shows reminders but doesn't auto-execute. Run the checklist manually:
+### 4. Push and Rebase
 
 ```bash
-# Initialize and rebuild
-make init          # Install dependencies and hooks
-make install       # Build and install orc binary
-make deploy-glue   # Deploy Claude Code skills/hooks
-make test          # Verify everything works
+git push origin <main-branch>
+cd <worktree-path>
+git rebase <main-branch>
 ```
 
-### 4. Schema Sync (if needed)
-
-If the hook warned about schema drift:
+### 5. Update Shipment Status
 
 ```bash
-make schema-diff   # Preview changes
-make schema-apply  # Apply to local DB
-```
-
-### 5. Push to Origin
-
-```bash
-git push origin master
-```
-
-### 6. Rebase Worktree Branch
-
-Return to the worktree and rebase:
-
-```bash
-cd <original-worktree-path>
-git rebase master
-```
-
-### 7. Update Shipment Status
-
-Transition the shipment to deployed status:
-
-```bash
-orc status  # Get focused shipment
 orc shipment deploy SHIP-XXX
 ```
 
-This marks the shipment as deployed (merged to master / deployed to prod).
+## PR Workflow (Fallback)
 
-### 8. Notify Goblin
+When no deployment docs found or workflow type is `pr`:
 
-Mail and nudge the goblin with a summary of completed work:
+### 1. Pre-flight Checks
 
 ```bash
-# Find the gatehouse for the current workshop
-orc workshop show  # Note the gatehouse ID (GATE-XXX)
-
-orc mail send "<summary of completed tasks and commit hash>" \
-  --to GOBLIN-GATE-XXX \
-  --subject "SHIP-XXX Deployed" \
-  --nudge
+git status --porcelain  # Must be clean
 ```
 
-Include in the message:
-- Shipment ID and title
-- List of completed tasks with brief descriptions
-- Commit hash on master
+Run any discovered test/lint commands (warn if none found).
+
+### 2. Create Pull Request
+
+Check for PR creation skill first, then fall back to gh CLI:
+
+```bash
+# If gh CLI available
+gh pr create --fill
+```
+
+### 3. Output
+
+```
+No deployment docs found. Using PR workflow.
+
+Created PR: <url>
+
+Follow your repository's review and merge process.
+```
+
+## Build System Detection
+
+```bash
+# Check for build systems in order
+if [ -f "Makefile" ]; then
+    TEST_CMD="make test"
+    LINT_CMD="make lint"
+elif [ -f "package.json" ]; then
+    TEST_CMD="npm test"
+    LINT_CMD="npm run lint"
+elif [ -f "Gemfile" ]; then
+    TEST_CMD="bundle exec rspec"
+    LINT_CMD="bundle exec rubocop"
+else
+    echo "Warning: No build system detected. Skipping automated checks."
+fi
+```
 
 ## Success Output
 
-Report completion with:
-- Branch merged
-- Build completed (init, install, deploy-glue, test)
-- Schema synced (if needed)
-- Master pushed
-- Worktree rebased
-- Shipment status → deployed
-- Goblin notified and nudged
+**Direct workflow:**
+```
+Deployed via direct workflow:
+  - Branch merged to <main-branch>
+  - Post-merge steps completed
+  - Pushed to origin
+  - Worktree rebased
+  - Shipment status: deployed
+```
+
+**PR workflow:**
+```
+Created pull request:
+  - PR: <url>
+  - Follow your repo's review process
+```
 
 ## Error Handling
 
 | Error | Action |
 |-------|--------|
-| Not ORC repo | Report and suggest standard git workflow |
 | Dirty working tree | List uncommitted files, ask to commit or stash |
-| Lint fails | Show failures, do not proceed |
+| Pre-merge checks fail | Show failures, do not proceed |
 | Merge conflicts | Report conflicts, do not auto-resolve |
-| Push rejected | Check if remote has new commits, suggest pull --rebase |
+| No gh CLI for PR | Provide manual instructions |
+| Push rejected | Check if remote has new commits |

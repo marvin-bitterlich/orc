@@ -10,28 +10,7 @@ description: |
 
 Post-deploy verification that runs smoke tests and transitions shipment to verified status.
 
-## ORC Repository Only
-
-This skill is specific to the ORC repository. For other repositories, implement your own verification steps.
-
 ## Workflow
-
-### 0. Verify ORC Repository
-
-Before proceeding, verify we're in the ORC repo:
-
-```bash
-# Check if we're in the ORC repository
-git remote get-url origin 2>/dev/null | grep -q "orc"
-```
-
-If not in ORC repo, stop immediately:
-```
-This skill is specific to the ORC repository.
-Current repo: [detected repo from git remote]
-
-For other repositories, implement your own verification steps.
-```
 
 ### 1. Get Deployed Shipment
 
@@ -46,34 +25,54 @@ Verify shipment status is `deployed`. If not deployed:
 - If `complete`: "Shipment already complete."
 - Other: "Shipment must be in deployed status to verify."
 
-### 2. Run Verification Checks
+### 2. Detect Build System
 
-Run the following verification commands:
+Infer test commands from build system:
+
+| Build System | Test Command |
+|--------------|--------------|
+| Makefile | `make test` |
+| package.json | `npm test` |
+| Gemfile | `bundle exec rspec` |
+
+If no build system found:
+```
+Warning: No build system detected. Skipping automated tests.
+```
+
+### 3. Run Verification Checks
+
+Run available verification commands:
 
 ```bash
-# Health check
-orc doctor
-
-# Basic smoke tests - commands should not error
+# ORC status checks (always run if orc available)
 orc status
 orc commission list
 orc shipment list
 
-# Build verification (if in worktree with Makefile)
-make test
+# Build system tests (if detected)
+<test-command>  # e.g., make test, npm test, bundle exec rspec
 ```
 
 Report each check as PASS/FAIL:
 ```
 Verification Results:
-  [PASS] orc doctor
   [PASS] orc status
   [PASS] orc commission list
   [PASS] orc shipment list
-  [PASS] make test
+  [PASS] <test-command>
 ```
 
-### 3. Handle Results
+Or if no build system:
+```
+Verification Results:
+  [PASS] orc status
+  [PASS] orc commission list
+  [PASS] orc shipment list
+  [SKIP] tests - no build system detected
+```
+
+### 4. Handle Results
 
 **If all checks pass:**
 ```bash
@@ -92,14 +91,14 @@ Next steps:
 Do NOT transition status. Report:
 ```
 Verification failed:
-  [FAIL] make test - exit code 1
+  [FAIL] <test-command> - exit code 1
 
 Fix the failing checks and re-run /ship-verify
 ```
 
-### 4. Notify Goblin (Optional)
+### 5. Notify Goblin (Optional)
 
-If verification passes, optionally notify goblin:
+If verification passes and in a workshop context, optionally notify goblin:
 
 ```bash
 orc workshop show  # Get gatehouse ID
@@ -113,8 +112,10 @@ orc mail send "SHIP-XXX verified - all checks pass" \
 ```
 Verifying SHIP-XXX: Feature Name
 
+Detecting build system...
+  Found: Makefile
+
 Running verification checks...
-  [PASS] orc doctor
   [PASS] orc status
   [PASS] orc commission list
   [PASS] orc shipment list
@@ -123,7 +124,7 @@ Running verification checks...
 All checks passed!
 
 Transitioning shipment to verified...
- Shipment SHIP-XXX verified
+✓ Shipment SHIP-XXX verified
 
 Next steps:
   /ship-complete SHIP-XXX  # Complete shipment (terminal state)
@@ -133,10 +134,10 @@ Next steps:
 
 | Error | Action |
 |-------|--------|
-| Not ORC repo | Report and suggest implementing custom verification |
 | Shipment not deployed | Report required status, suggest /ship-deploy |
 | Check fails | Report which check failed, do not transition |
 | No focused shipment | Ask for shipment ID or suggest `orc focus SHIP-XXX` |
+| No build system | Warn and skip test step, continue with other checks |
 
 ## Usage
 
