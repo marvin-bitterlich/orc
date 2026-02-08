@@ -9,6 +9,7 @@ This file contains essential workflow rules and context for agents working on th
 - **`orc summary`** - Hierarchical view of work orders with pinned items
 - **`orc doctor`** - Validate ORC environment and glue deployment
 - **`/release`** - Cut a new version (bump VERSION, promote CHANGELOG, tag)
+- **`/ship-deploy`** - Deploy shipment to master (see [docs/deployment.md](docs/deployment.md))
 - **`/handoff`** - Create handoff for session continuity
 - **`/bootstrap`** - Load project context from git history and recent handoffs
 
