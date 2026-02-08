@@ -1,9 +1,10 @@
 package cli
 
 import (
+	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -14,100 +15,89 @@ import (
 	"github.com/example/orc/internal/version"
 )
 
+// CheckResult represents the outcome of a single check
+type CheckResult struct {
+	Name    string
+	Status  string // "✓", "⚠", "✗"
+	Details string // Only shown if Status != "✓"
+}
+
 // DoctorCmd returns the doctor command for environment validation
 func DoctorCmd() *cobra.Command {
 	var quiet bool
 
 	cmd := &cobra.Command{
 		Use:   "doctor",
-		Short: "Validate ORC environment and Claude Code configuration",
+		Short: "Validate ORC environment and glue deployment",
 		Long: `Comprehensive environment health check for ORC.
 
 Validates:
-- Claude Code workspace trust configuration (CRITICAL)
-- Directory structure (worktrees, factories)
-- Database existence and integrity
+- Directory structure (~/.orc/, ~/wb/)
+- ORC repo freshness (commits behind origin/master)
+- Glue deployment (skills, hooks, tmux scripts)
+- Hook configuration in Claude Code settings
 - Binary installation and PATH
-
-Provides actionable error messages with fix instructions for any issues found.
 
 Examples:
   orc doctor              # Run full health check
   orc doctor --quiet      # Exit code only (0=healthy, 1=issues)`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if !quiet {
-				fmt.Print("\n=== ORC Environment Health Check ===\n\n")
-			}
+			results := []CheckResult{}
+			hasErrors := false
 
-			issuesFound := false
+			// Run all checks
+			results = append(results, checkDirectories())
+			results = append(results, checkRepoFreshness())
 
-			// Check 1: Claude Code Settings (CRITICAL)
-			if !quiet {
-				fmt.Println("1. Claude Code Settings (CRITICAL)")
-			}
-			if err := checkClaudeSettings(quiet); err != nil {
-				issuesFound = true
-				if !quiet {
-					fmt.Printf("   %s\n\n", err)
+			// Glue checks
+			skillResult, hookResult, tmuxResult := checkGlueDeployment()
+			results = append(results, skillResult)
+			results = append(results, hookResult)
+			results = append(results, tmuxResult)
+
+			results = append(results, checkHookConfig())
+			results = append(results, checkBinary())
+
+			// Check for errors
+			for _, r := range results {
+				if r.Status == "✗" {
+					hasErrors = true
+					break
 				}
-			} else if !quiet {
-				fmt.Println("   ✓ ~/.claude/settings.json exists")
-				fmt.Println("   ✓ Valid JSON structure")
-				fmt.Println("   ✓ permissions.additionalDirectories configured")
-				fmt.Println("   ✓ ~/wb in trusted directories")
-				fmt.Println("   ✓ ~/src/factories in trusted directories")
+			}
+
+			if !quiet {
+				// Print compact table
 				fmt.Println()
-			}
-
-			// Check 2: Directory Structure
-			if !quiet {
-				fmt.Println("2. Directory Structure")
-			}
-			if err := checkDirectories(quiet); err != nil {
-				issuesFound = true
-				if !quiet {
-					fmt.Printf("   %s\n\n", err)
+				fmt.Println("Check              Status")
+				fmt.Println("─────────────────────────")
+				for _, r := range results {
+					fmt.Printf("%-18s %s\n", r.Name, r.Status)
 				}
-			}
+				fmt.Println()
 
-			// Check 3: Database
-			if !quiet {
-				fmt.Println("3. Database")
-			}
-			if err := checkDatabase(quiet); err != nil {
-				issuesFound = true
-				if !quiet {
-					fmt.Printf("   %s\n\n", err)
+				// Print details for non-passing checks
+				hasDetails := false
+				for _, r := range results {
+					if r.Status != "✓" && r.Details != "" {
+						if !hasDetails {
+							fmt.Println("Details:")
+							hasDetails = true
+						}
+						fmt.Printf("\n%s:\n%s\n", r.Name, r.Details)
+					}
 				}
-			}
 
-			// Check 4: Binary Installation
-			if !quiet {
-				fmt.Println("4. Binary Installation")
-			}
-			if err := checkBinary(quiet); err != nil {
-				issuesFound = true
-				if !quiet {
-					fmt.Printf("   %s\n\n", err)
-				}
-			}
-
-			// Overall status
-			if !quiet {
-				if issuesFound {
-					fmt.Println("=== Overall Status: CRITICAL ISSUES FOUND ===")
-					fmt.Println("Fix the above errors before using ORC.")
+				if hasErrors {
+					fmt.Println("\n⚠ Issues found. Run 'make deploy-glue' to sync glue.")
 				} else {
-					fmt.Println("=== Overall Status: HEALTHY ===")
-					fmt.Println("All critical checks passed. ORC is ready to use.")
+					fmt.Println("All checks passed.")
 				}
-				fmt.Println()
 			}
 
-			if issuesFound {
+			if hasErrors {
 				return fmt.Errorf("environment validation failed")
 			}
-
 			return nil
 		},
 	}
@@ -117,281 +107,411 @@ Examples:
 	return cmd
 }
 
-func checkClaudeSettings(quiet bool) error {
+// checkDirectories validates required directory structure
+func checkDirectories() CheckResult {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		return fmt.Errorf("✗ Failed to get home directory: %w", err)
+		return CheckResult{Name: "Directories", Status: "✗", Details: "  Cannot get home directory"}
 	}
 
+	missing := []string{}
+
+	// Check ~/.orc/
+	orcDir := filepath.Join(homeDir, ".orc")
+	if _, err := os.Stat(orcDir); os.IsNotExist(err) {
+		missing = append(missing, "~/.orc/")
+	}
+
+	// Check ~/.orc/ws/
+	wsDir := filepath.Join(homeDir, ".orc", "ws")
+	if _, err := os.Stat(wsDir); os.IsNotExist(err) {
+		missing = append(missing, "~/.orc/ws/")
+	}
+
+	// Check ~/.orc/orc.db
+	dbPath := filepath.Join(homeDir, ".orc", "orc.db")
+	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
+		missing = append(missing, "~/.orc/orc.db")
+	}
+
+	// Check ~/wb/
+	wbDir := filepath.Join(homeDir, "wb")
+	if _, err := os.Stat(wbDir); os.IsNotExist(err) {
+		missing = append(missing, "~/wb/")
+	}
+
+	if len(missing) > 0 {
+		return CheckResult{
+			Name:    "Directories",
+			Status:  "✗",
+			Details: "  Missing: " + strings.Join(missing, ", "),
+		}
+	}
+
+	return CheckResult{Name: "Directories", Status: "✓"}
+}
+
+// checkRepoFreshness checks if ~/src/orc is behind origin/master
+func checkRepoFreshness() CheckResult {
+	homeDir, _ := os.UserHomeDir()
+	repoPath := filepath.Join(homeDir, "src", "orc")
+
+	// Check if repo exists
+	if _, err := os.Stat(repoPath); os.IsNotExist(err) {
+		return CheckResult{
+			Name:    "ORC Repo",
+			Status:  "⚠",
+			Details: "  ~/src/orc not found",
+		}
+	}
+
+	// Fetch from remote (graceful on failure)
+	fetchCmd := exec.Command("git", "-C", repoPath, "fetch", "--quiet")
+	fetchCmd.Run() // Ignore errors - network may be unavailable
+
+	// Check commits behind
+	revListCmd := exec.Command("git", "-C", repoPath, "rev-list", "--count", "HEAD..origin/master")
+	output, err := revListCmd.Output()
+	if err != nil {
+		return CheckResult{
+			Name:    "ORC Repo",
+			Status:  "⚠",
+			Details: "  Could not check commits (fetch failed?)",
+		}
+	}
+
+	behind := strings.TrimSpace(string(output))
+	if behind != "0" {
+		return CheckResult{
+			Name:    "ORC Repo",
+			Status:  "⚠",
+			Details: fmt.Sprintf("  %s commits behind origin/master\n  Run: cd ~/src/orc && git pull", behind),
+		}
+	}
+
+	return CheckResult{Name: "ORC Repo", Status: "✓"}
+}
+
+// checkGlueDeployment compares glue source against deployed locations
+func checkGlueDeployment() (skills, hooks, tmux CheckResult) {
+	homeDir, _ := os.UserHomeDir()
+	glueDir := filepath.Join(homeDir, "src", "orc", "glue")
+
+	// Skills: glue/skills/ -> ~/.claude/skills/
+	srcSkills := filepath.Join(glueDir, "skills")
+	dstSkills := filepath.Join(homeDir, ".claude", "skills")
+	skillsMissing, skillsStale := compareDirs(srcSkills, dstSkills)
+
+	if len(skillsMissing) > 0 || len(skillsStale) > 0 {
+		details := ""
+		if len(skillsMissing) > 0 {
+			details += "  Missing: " + strings.Join(skillsMissing, ", ") + "\n"
+		}
+		if len(skillsStale) > 0 {
+			details += "  Stale: " + strings.Join(skillsStale, ", ")
+		}
+		skills = CheckResult{Name: "Glue Skills", Status: "✗", Details: strings.TrimSpace(details)}
+	} else {
+		skills = CheckResult{Name: "Glue Skills", Status: "✓"}
+	}
+
+	// Hooks: glue/hooks/ -> ~/.claude/hooks/
+	srcHooks := filepath.Join(glueDir, "hooks")
+	dstHooks := filepath.Join(homeDir, ".claude", "hooks")
+	hooksMissing, hooksStale := compareFiles(srcHooks, dstHooks)
+
+	if len(hooksMissing) > 0 || len(hooksStale) > 0 {
+		details := ""
+		if len(hooksMissing) > 0 {
+			details += "  Missing: " + strings.Join(hooksMissing, ", ") + "\n"
+		}
+		if len(hooksStale) > 0 {
+			details += "  Stale: " + strings.Join(hooksStale, ", ")
+		}
+		hooks = CheckResult{Name: "Glue Hooks", Status: "✗", Details: strings.TrimSpace(details)}
+	} else {
+		hooks = CheckResult{Name: "Glue Hooks", Status: "✓"}
+	}
+
+	// TMux: glue/tmux/ -> ~/.orc/tmux/
+	srcTmux := filepath.Join(glueDir, "tmux")
+	dstTmux := filepath.Join(homeDir, ".orc", "tmux")
+	tmuxMissing, tmuxStale := compareFiles(srcTmux, dstTmux)
+
+	if len(tmuxMissing) > 0 || len(tmuxStale) > 0 {
+		details := ""
+		if len(tmuxMissing) > 0 {
+			details += "  Missing: " + strings.Join(tmuxMissing, ", ") + "\n"
+		}
+		if len(tmuxStale) > 0 {
+			details += "  Stale: " + strings.Join(tmuxStale, ", ")
+		}
+		tmux = CheckResult{Name: "Glue TMux", Status: "✗", Details: strings.TrimSpace(details)}
+	} else {
+		tmux = CheckResult{Name: "Glue TMux", Status: "✓"}
+	}
+
+	return skills, hooks, tmux
+}
+
+// compareDirs compares directories recursively (for skills)
+// Returns lists of missing and stale items
+func compareDirs(srcDir, dstDir string) (missing, stale []string) {
+	// Check if source exists
+	if _, err := os.Stat(srcDir); os.IsNotExist(err) {
+		return nil, nil // No source, nothing to compare
+	}
+
+	// List source directories
+	srcEntries, err := os.ReadDir(srcDir)
+	if err != nil {
+		return nil, nil
+	}
+
+	for _, entry := range srcEntries {
+		if !entry.IsDir() {
+			continue
+		}
+
+		name := entry.Name()
+		srcPath := filepath.Join(srcDir, name)
+		dstPath := filepath.Join(dstDir, name)
+
+		// Check if destination exists
+		if _, err := os.Stat(dstPath); os.IsNotExist(err) {
+			missing = append(missing, name)
+			continue
+		}
+
+		// Compare contents recursively
+		if !dirsEqual(srcPath, dstPath) {
+			stale = append(stale, name)
+		}
+	}
+
+	return missing, stale
+}
+
+// dirsEqual compares two directories recursively
+func dirsEqual(dir1, dir2 string) bool {
+	var files1, files2 []string
+
+	// Collect files from dir1
+	_ = filepath.WalkDir(dir1, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			return nil
+		}
+		rel, _ := filepath.Rel(dir1, path)
+		files1 = append(files1, rel)
+		return nil
+	})
+
+	// Collect files from dir2
+	_ = filepath.WalkDir(dir2, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			return nil
+		}
+		rel, _ := filepath.Rel(dir2, path)
+		files2 = append(files2, rel)
+		return nil
+	})
+
+	// Quick check: same number of files?
+	if len(files1) != len(files2) {
+		return false
+	}
+
+	// Compare each file
+	for _, rel := range files1 {
+		content1, err1 := os.ReadFile(filepath.Join(dir1, rel))
+		content2, err2 := os.ReadFile(filepath.Join(dir2, rel))
+		if err1 != nil || err2 != nil || !bytes.Equal(content1, content2) {
+			return false
+		}
+	}
+
+	return true
+}
+
+// compareFiles compares files in two directories (for hooks/tmux)
+// Returns lists of missing and stale files
+func compareFiles(srcDir, dstDir string) (missing, stale []string) {
+	// Check if source exists
+	if _, err := os.Stat(srcDir); os.IsNotExist(err) {
+		return nil, nil // No source, nothing to compare
+	}
+
+	srcEntries, err := os.ReadDir(srcDir)
+	if err != nil {
+		return nil, nil
+	}
+
+	for _, entry := range srcEntries {
+		if entry.IsDir() {
+			continue
+		}
+
+		name := entry.Name()
+		srcPath := filepath.Join(srcDir, name)
+		dstPath := filepath.Join(dstDir, name)
+
+		// Check if destination exists
+		dstInfo, err := os.Stat(dstPath)
+		if os.IsNotExist(err) {
+			missing = append(missing, name)
+			continue
+		}
+		if err != nil {
+			continue
+		}
+
+		// Compare contents
+		srcContent, err1 := os.ReadFile(srcPath)
+		dstContent, err2 := os.ReadFile(dstPath)
+		if err1 != nil || err2 != nil {
+			continue
+		}
+
+		if !bytes.Equal(srcContent, dstContent) {
+			stale = append(stale, name)
+		}
+
+		_ = dstInfo // Suppress unused warning
+	}
+
+	return missing, stale
+}
+
+// checkHookConfig verifies glue hooks are configured in settings.json
+func checkHookConfig() CheckResult {
+	homeDir, _ := os.UserHomeDir()
+	glueHooksPath := filepath.Join(homeDir, "src", "orc", "glue", "hooks.json")
 	settingsPath := filepath.Join(homeDir, ".claude", "settings.json")
 
-	// Check existence
-	if _, err := os.Stat(settingsPath); os.IsNotExist(err) {
-		return fmt.Errorf(`✗ ~/.claude/settings.json NOT FOUND
-
-   ERROR: Claude Code workspace trust not configured
-
-   This is REQUIRED for ORC to function. Without it, Claude instances
-   in workbenches and commissions will fail with permission errors.
-
-   FIX: Create ~/.claude/settings.json with:
-
-   cat > ~/.claude/settings.json <<'EOF'
-   {
-     "permissions": {
-       "additionalDirectories": [
-         "~/wb",
-         "~/src/factories"
-       ]
-     }
-   }
-   EOF`)
+	// Read glue hooks.json
+	glueData, err := os.ReadFile(glueHooksPath)
+	if err != nil {
+		return CheckResult{
+			Name:    "Hook Config",
+			Status:  "⚠",
+			Details: "  Cannot read ~/src/orc/glue/hooks.json",
+		}
 	}
 
-	// Read and validate JSON
-	data, err := os.ReadFile(settingsPath)
+	var glueHooks map[string]interface{}
+	if err := json.Unmarshal(glueData, &glueHooks); err != nil {
+		return CheckResult{
+			Name:    "Hook Config",
+			Status:  "✗",
+			Details: "  Invalid JSON in glue/hooks.json",
+		}
+	}
+
+	// Read settings.json
+	settingsData, err := os.ReadFile(settingsPath)
 	if err != nil {
-		return fmt.Errorf("✗ Failed to read ~/.claude/settings.json: %w", err)
+		return CheckResult{
+			Name:    "Hook Config",
+			Status:  "✗",
+			Details: "  Cannot read ~/.claude/settings.json",
+		}
 	}
 
 	var settings map[string]interface{}
-	if err := json.Unmarshal(data, &settings); err != nil {
-		return fmt.Errorf("✗ ~/.claude/settings.json is not valid JSON: %w", err)
+	if err := json.Unmarshal(settingsData, &settings); err != nil {
+		return CheckResult{
+			Name:    "Hook Config",
+			Status:  "✗",
+			Details: "  Invalid JSON in settings.json",
+		}
 	}
 
-	// Check permissions.additionalDirectories
-	permissions, ok := settings["permissions"].(map[string]interface{})
+	// Get hooks from settings
+	settingsHooks, ok := settings["hooks"].(map[string]interface{})
 	if !ok {
-		return fmt.Errorf(`✗ permissions.additionalDirectories NOT configured
-
-   FIX: Add to ~/.claude/settings.json:
-
-   {
-     "permissions": {
-       "additionalDirectories": [
-         "~/wb",
-         "~/src/factories"
-       ]
-     }
-   }`)
+		// No hooks configured at all
+		if len(glueHooks) > 0 {
+			return CheckResult{
+				Name:    "Hook Config",
+				Status:  "✗",
+				Details: "  No hooks configured in settings.json\n  Run: make deploy-glue",
+			}
+		}
+		return CheckResult{Name: "Hook Config", Status: "✓"}
 	}
 
-	additionalDirs, ok := permissions["additionalDirectories"].([]interface{})
-	if !ok {
-		return fmt.Errorf(`✗ permissions.additionalDirectories NOT configured
-
-   FIX: Add to permissions object in ~/.claude/settings.json:
-
-   "additionalDirectories": [
-     "~/wb",
-     "~/src/factories"
-   ]`)
-	}
-
-	// Verify required directories
-	foundDirs := make(map[string]bool)
-	for _, dir := range additionalDirs {
-		if dirStr, ok := dir.(string); ok {
-			foundDirs[dirStr] = true
+	// Check each glue hook type exists in settings
+	missing := []string{}
+	for hookType := range glueHooks {
+		if _, exists := settingsHooks[hookType]; !exists {
+			missing = append(missing, hookType)
 		}
 	}
 
-	missingWorktrees := !foundDirs["~/wb"]
-	missingFactories := !foundDirs["~/src/factories"]
-
-	if missingWorktrees || missingFactories {
-		msg := "✗ Missing required directories:\n"
-		if missingWorktrees {
-			msg += "     - ~/wb\n"
+	if len(missing) > 0 {
+		return CheckResult{
+			Name:    "Hook Config",
+			Status:  "✗",
+			Details: "  Missing hook types: " + strings.Join(missing, ", ") + "\n  Run: make deploy-glue",
 		}
-		if missingFactories {
-			msg += "     - ~/src/factories\n"
-		}
-		msg += "\n   FIX: Add missing directories to additionalDirectories array"
-		return errors.New(msg)
 	}
 
-	return nil
+	return CheckResult{Name: "Hook Config", Status: "✓"}
 }
 
-func checkDirectories(quiet bool) error {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return fmt.Errorf("✗ Failed to get home directory: %w", err)
-	}
-
-	worktreesPath := filepath.Join(homeDir, "src", "worktrees")
-	factoriesPath := filepath.Join(homeDir, "src", "factories")
-
-	worktreesExists := true
-	if _, err := os.Stat(worktreesPath); os.IsNotExist(err) {
-		worktreesExists = false
-	}
-
-	factoriesExists := true
-	if _, err := os.Stat(factoriesPath); os.IsNotExist(err) {
-		factoriesExists = false
-	}
-
-	if !quiet {
-		if worktreesExists {
-			// Count workbenches
-			entries, _ := os.ReadDir(worktreesPath)
-			workbenchCount := len(entries)
-			fmt.Printf("   ✓ ~/wb exists (%d workbenches)\n", workbenchCount)
-		} else {
-			fmt.Println("   ⚠️  ~/wb does not exist (will be created on first workbench)")
-		}
-
-		if factoriesExists {
-			// Count factories
-			entries, _ := os.ReadDir(factoriesPath)
-			factoryCount := len(entries)
-			fmt.Printf("   ✓ ~/src/factories exists (%d factories)\n", factoryCount)
-		} else {
-			fmt.Println("   ⚠️  ~/src/factories does not exist (will be created on first commission)")
-		}
-		fmt.Println()
-	}
-
-	// These are warnings, not errors - directories will be created on demand
-	return nil
-}
-
-func checkDatabase(quiet bool) error {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return fmt.Errorf("✗ Failed to get home directory: %w", err)
-	}
-
-	dbPath := filepath.Join(homeDir, ".orc", "orc.db")
-
-	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
-		return fmt.Errorf(`✗ ~/.orc/orc.db NOT FOUND
-
-   ERROR: ORC database not initialized
-
-   FIX: Run 'orc init' to initialize the database`)
-	}
-
-	if !quiet {
-		fmt.Println("   ✓ ~/.orc/orc.db exists")
-
-		// Get file size
-		info, _ := os.Stat(dbPath)
-		sizeKB := info.Size() / 1024
-		fmt.Printf("   ✓ Database size: %d KB\n", sizeKB)
-		fmt.Println()
-	}
-
-	return nil
-}
-
-func checkBinary(quiet bool) error {
+// checkBinary validates orc binary installation
+func checkBinary() CheckResult {
 	// Check if orc is in PATH
 	orcPath, err := exec.LookPath("orc")
 	if err != nil {
-		return fmt.Errorf(`✗ 'orc' binary not found in PATH
-
-   ERROR: ORC is not installed or not in your PATH
-
-   FIX: Ensure 'go install' completed and ~/go/bin is in PATH`)
+		return CheckResult{
+			Name:    "Binary",
+			Status:  "✗",
+			Details: "  'orc' not found in PATH\n  Run: make install",
+		}
 	}
 
-	if !quiet {
-		fmt.Printf("   ✓ orc binary: %s\n", orcPath)
-		fmt.Println("   ✓ In PATH: yes")
-		fmt.Printf("   ✓ Version: %s\n", version.String())
-	}
-
-	// Check for stale local binary if we're in the ORC repo
+	// If in ORC repo, check local binary freshness
 	if isInOrcRepo() {
-		if !quiet {
-			fmt.Println()
-			fmt.Println("   Checking local development binary...")
-		}
-		if err := checkLocalBinaryFreshness(quiet); err != nil {
-			if !quiet {
-				fmt.Printf("   %s\n", err)
+		localBinary := "./orc"
+		if _, err := os.Stat(localBinary); err == nil {
+			// Local binary exists, check freshness
+			cmd := exec.Command(localBinary, "--version")
+			output, err := cmd.Output()
+			if err == nil {
+				localVersion := strings.TrimSpace(string(output))
+
+				// Get current git commit
+				gitCmd := exec.Command("git", "rev-parse", "--short", "HEAD")
+				gitOutput, err := gitCmd.Output()
+				if err == nil {
+					currentCommit := strings.TrimSpace(string(gitOutput))
+					if !strings.Contains(localVersion, currentCommit) {
+						return CheckResult{
+							Name:    "Binary",
+							Status:  "⚠",
+							Details: fmt.Sprintf("  Global: %s\n  Local ./orc is stale (built from different commit)\n  Run: make dev", orcPath),
+						}
+					}
+				}
 			}
-			// This is a warning, not an error
 		}
 	}
 
-	if !quiet {
-		fmt.Println()
-	}
-
-	return nil
+	return CheckResult{Name: "Binary", Status: "✓", Details: fmt.Sprintf("  %s (%s)", orcPath, version.String())}
 }
 
 // isInOrcRepo checks if we're in the ORC repository
 func isInOrcRepo() bool {
-	// Check for go.mod with the ORC module
 	data, err := os.ReadFile("go.mod")
 	if err != nil {
 		return false
 	}
 	return strings.Contains(string(data), "module github.com/example/orc")
-}
-
-// checkLocalBinaryFreshness warns if ./orc is stale compared to source
-func checkLocalBinaryFreshness(quiet bool) error {
-	// Check if ./orc exists
-	localBinary := "./orc"
-	info, err := os.Stat(localBinary)
-	if os.IsNotExist(err) {
-		if !quiet {
-			fmt.Println("   ⚠️  No local ./orc binary found")
-			fmt.Println("      Run 'make dev' to build for development")
-		}
-		return nil
-	}
-	if err != nil {
-		return fmt.Errorf("⚠️  Error checking ./orc: %w", err)
-	}
-
-	// Get the version from the local binary
-	cmd := exec.Command(localBinary, "--version")
-	output, err := cmd.Output()
-	if err != nil {
-		if !quiet {
-			fmt.Println("   ⚠️  Local ./orc exists but failed to get version")
-			fmt.Println("      May be corrupted - run 'make dev' to rebuild")
-		}
-		return nil
-	}
-
-	localVersion := strings.TrimSpace(string(output))
-
-	// Get the current git commit
-	gitCmd := exec.Command("git", "rev-parse", "--short", "HEAD")
-	gitOutput, err := gitCmd.Output()
-	if err != nil {
-		// Can't check git, skip freshness check
-		if !quiet {
-			fmt.Printf("   ✓ Local ./orc: %s\n", localVersion)
-		}
-		return nil
-	}
-	currentCommit := strings.TrimSpace(string(gitOutput))
-
-	// Check if the local binary was built from the current commit
-	if strings.Contains(localVersion, currentCommit) {
-		if !quiet {
-			fmt.Printf("   ✓ Local ./orc is fresh (commit: %s)\n", currentCommit)
-			fmt.Printf("      Built: %s\n", info.ModTime().Format("2006-01-02 15:04:05"))
-		}
-	} else {
-		// Extract commit from version string if possible
-		if !quiet {
-			fmt.Printf("   ⚠️  Local ./orc may be STALE\n")
-			fmt.Printf("      Binary:  %s\n", localVersion)
-			fmt.Printf("      Current: commit %s\n", currentCommit)
-			fmt.Println()
-			fmt.Println("      FIX: Run 'make dev' to rebuild from current source")
-		}
-	}
-
-	return nil
 }
