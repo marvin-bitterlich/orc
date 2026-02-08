@@ -27,6 +27,7 @@ Master index for ORC documentation. Use this as your navigation hub.
 | [glue.md](docs/glue.md) | Skills anatomy, hooks system, deployment |
 | [troubleshooting.md](docs/troubleshooting.md) | FAQ, common issues, getting help |
 | [tmux.md](docs/tmux.md) | TMux integration, layouts, session browser |
+| [release.md](docs/release.md) | Versioning, CHANGELOG, /release skill, release process |
 
 ## Navigation Guide
 

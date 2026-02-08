@@ -8,6 +8,7 @@ This file contains essential workflow rules and context for agents working on th
 - **`orc status`** - View current commission and work order status
 - **`orc summary`** - Hierarchical view of work orders with pinned items
 - **`orc doctor`** - Validate ORC environment and glue deployment
+- **`/release`** - Cut a new version (bump VERSION, promote CHANGELOG, tag)
 - **`/handoff`** - Create handoff for session continuity
 - **`/bootstrap`** - Load project context from git history and recent handoffs
 
