@@ -28,6 +28,13 @@ All commits must pass `make lint`, which runs:
 
 To bypass in emergencies: `git commit --no-verify` (will be audited)
 
+## Pre-Merge Checks
+
+Before merging to master, run `/docs-doctor` to validate documentation:
+- Verifies DOCS.md index matches actual files
+- Checks internal links are valid
+- Validates CLI commands and skills referenced in docs
+
 ---
 
 ## Config Files
@@ -640,24 +647,7 @@ make lint
 
 ## Shipment Workflow
 
-The standard flow for turning exploration into implementation:
-
-```
-exploring (messy notes)
-  → /ship-synthesize → Summary note (knowledge compaction)
-  → /ship-plan → Tasks (C2/C3 engineering review)
-  → /imp-plan-create → Plans (C4 file-level detail)
-  → Implementation → Code
-```
-
-### Key Skills
-
-| Skill | Purpose | When to Use |
-|-------|---------|-------------|
-| `/ship-synthesize` | Compact notes into summary | Shipment has accumulated exploration notes |
-| `/ship-plan` | Create tasks from synthesis | Ready to convert knowledge to work |
-| `/orc-interview` | Structured decision-making | Need to resolve questions with human |
-| `/orc-architecture` | Update docs/architecture.md | Codebase structure has changed |
+→ See [docs/common-workflows.md](docs/common-workflows.md) for full workflow documentation.
 
 ### C4 Zoom Levels
 
@@ -668,62 +658,6 @@ exploring (messy notes)
 | C4: Code | Files, functions, edits | IMP plans |
 
 Tasks say *what systems* to touch. IMP plans say *what files* to edit.
-
-### Shipment Lifecycle
-
-Shipments represent units of work and follow a unified status lifecycle:
-
-```
-draft → exploring → specced → tasked → in_progress → complete
-```
-
-### Status Definitions
-
-| Status | Description | Auto-Transition |
-|--------|-------------|-----------------|
-| `draft` | Just created, not yet started | → `exploring` on focus |
-| `exploring` | Active ideation/research phase | → `tasked` when first task created |
-| `specced` | Has spec, ready for tasks | → `tasked` when first task created |
-| `tasked` | Has tasks defined | → `in_progress` when task claimed |
-| `in_progress` | Active implementation | → `complete` when all tasks done |
-| `complete` | All work finished | Terminal state |
-
-### Auto-Transitions
-
-Status changes automatically based on ledger events:
-
-| Event | Trigger | Status Change |
-|-------|---------|---------------|
-| Focus shipment | `orc focus SHIP-xxx` | draft → exploring |
-| Create task | `orc task create` | draft/exploring/specced → tasked |
-| Claim task | `orc task claim` | tasked → in_progress |
-| Complete all tasks | `orc task complete` | in_progress → complete |
-
-### /ship-* Skills
-
-Skills for shipment workflow:
-
-| Skill | Description |
-|-------|-------------|
-| `/ship-new "Title"` | Create new shipment and focus it |
-| `/ship-synthesize` | Compact exploration notes into summary note |
-| `/ship-plan` | C2/C3 engineering review, create tasks |
-| `/ship-queue` | View and manage shipyard queue |
-| `/ship-complete` | Mark shipment as complete |
-| `/ship-deploy` | Deploy shipment to production |
-| `/ship-verify` | Post-deploy verification |
-
-### CLI Commands
-
-```bash
-orc shipment create "Title" --commission COMM-xxx  # Create shipment
-orc shipment show SHIP-xxx                          # View details
-orc shipment list                                   # List all
-orc focus SHIP-xxx                                  # Focus shipment
-orc task create "Task" --shipment SHIP-xxx          # Add task
-orc note create "Title" --shipment SHIP-xxx         # Add note
-orc note close NOTE-xxx --reason synthesized --by NOTE-yyy  # Close note
-```
 
 ---
 
