@@ -305,6 +305,79 @@ This pattern replaces SessionStart hooks (which are broken in Claude Code v2.1.7
 - `work_orders.assigned_workbench_id`: Workbench assignment
 - `work_orders.pinned`: Boolean for visibility
 
+### Entity Relationships (Core)
+
+```mermaid
+erDiagram
+    FACTORY ||--o{ WORKSHOP : contains
+    FACTORY ||--o{ COMMISSION : owns
+    WORKSHOP ||--o{ WORKBENCH : contains
+    COMMISSION ||--o{ SHIPMENT : contains
+    SHIPMENT ||--o{ TASK : contains
+    SHIPMENT ||--o{ NOTE : contains
+    TASK ||--o{ PLAN : "planned by"
+    TASK ||--o| RECEIPT : "completed with"
+
+    FACTORY {
+        string id PK
+        string name
+        string status
+    }
+    WORKSHOP {
+        string id PK
+        string factory_id FK
+        string name
+    }
+    WORKBENCH {
+        string id PK
+        string workshop_id FK
+        string name
+        string focused_id
+    }
+    COMMISSION {
+        string id PK
+        string factory_id FK
+        string title
+        string status
+    }
+    SHIPMENT {
+        string id PK
+        string commission_id FK
+        string title
+        string status
+    }
+    TASK {
+        string id PK
+        string shipment_id FK
+        string title
+        string status
+    }
+    PLAN {
+        string id PK
+        string task_id FK
+        string title
+        string status
+    }
+    RECEIPT {
+        string id PK
+        string task_id FK
+        string outcome
+    }
+    NOTE {
+        string id PK
+        string shipment_id FK
+        string title
+        string type
+    }
+```
+
+**Core Hierarchy:**
+- **Factory** → Workshop → Workbench (infrastructure)
+- **Commission** → Shipment → Task (work tracking)
+- **Task** → Plan → Receipt (execution flow)
+
+See `internal/db/schema.sql` for the complete 27-table schema including monitoring (Kennels, Patrols), approvals, escalations, and more
+
 ---
 
 ## Database System: SQLite
