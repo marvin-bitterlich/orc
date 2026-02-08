@@ -1,3 +1,8 @@
+---
+name: orc-journal
+description: Capture observations, friction, and learnings as journal notes at commission level. Use when user says /journal or wants to record observations during work.
+---
+
 # ORC Journal
 
 Capture observations, friction, and learnings as journal notes at commission level.
