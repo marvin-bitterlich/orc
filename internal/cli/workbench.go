@@ -3,8 +3,6 @@ package cli
 import (
 	"fmt"
 	"os"
-	"strconv"
-	"strings"
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
@@ -22,7 +20,6 @@ func WorkbenchCmd() *cobra.Command {
 	}
 
 	cmd.AddCommand(workbenchCreateCmd())
-	cmd.AddCommand(workbenchLikeCmd())
 	cmd.AddCommand(workbenchListCmd())
 	cmd.AddCommand(workbenchShowCmd())
 	cmd.AddCommand(workbenchRenameCmd())
@@ -92,83 +89,6 @@ Examples:
 	_ = cmd.MarkFlagRequired("repo-id")
 
 	return cmd
-}
-
-func workbenchLikeCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "like [name]",
-		Short: "Create a new workbench based on the current one",
-		Long: `Create a new workbench with the same workshop as the current workbench (DB record only).
-
-Detects the current workbench from the working directory and creates a sibling
-workbench in the same workshop. This creates the database record only.
-
-To create the git worktree and config files, run:
-  orc infra apply <workshop-id>
-
-Examples:
-  orc workbench like                    # Auto-generate name
-  orc workbench like auth-refactor-v2   # Specify name`,
-		Args: cobra.MaximumNArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := NewContext()
-
-			// Get current directory
-			cwd, err := os.Getwd()
-			if err != nil {
-				return fmt.Errorf("failed to get working directory: %w", err)
-			}
-
-			// Detect source workbench from path
-			source, err := wire.WorkbenchService().GetWorkbenchByPath(ctx, cwd)
-			if err != nil {
-				return fmt.Errorf("not in a workbench directory: %w", err)
-			}
-
-			// Determine new name
-			newName := ""
-			if len(args) > 0 {
-				newName = args[0]
-			} else {
-				newName = generateSiblingName(source.Name)
-			}
-
-			// Create new workbench with same workshop (DB only, worktree via orc infra apply)
-			resp, err := wire.WorkbenchService().CreateWorkbench(ctx, primary.CreateWorkbenchRequest{
-				Name:            newName,
-				WorkshopID:      source.WorkshopID,
-				RepoID:          source.RepoID,
-				SkipConfigWrite: true,
-			})
-			if err != nil {
-				return fmt.Errorf("failed to create workbench: %w", err)
-			}
-
-			fmt.Printf("✓ Created workbench %s: %s\n", resp.WorkbenchID, resp.Workbench.Name)
-			fmt.Printf("  Based on: %s (%s)\n", source.ID, source.Name)
-			fmt.Printf("  Workshop: %s\n", resp.Workbench.WorkshopID)
-			fmt.Printf("\nTo create the git worktree, run:\n")
-			fmt.Printf("  orc infra apply %s\n", resp.Workbench.WorkshopID)
-
-			return nil
-		},
-	}
-
-	return cmd
-}
-
-// generateSiblingName creates a sibling name like "auth-2", "auth-3"
-func generateSiblingName(baseName string) string {
-	// Strip trailing -N suffix if present
-	base := baseName
-	suffix := 2
-	if idx := strings.LastIndex(baseName, "-"); idx > 0 {
-		if n, err := strconv.Atoi(baseName[idx+1:]); err == nil {
-			base = baseName[:idx]
-			suffix = n + 1
-		}
-	}
-	return fmt.Sprintf("%s-%d", base, suffix)
 }
 
 func workbenchListCmd() *cobra.Command {
