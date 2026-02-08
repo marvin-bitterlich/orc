@@ -80,7 +80,7 @@ Respawn now? [y/n]
 
 If user responds **y** or **yes**:
 ```bash
-tmux respawn-pane -k
+tmux respawn-pane -k -t "$TMUX_PANE"
 ```
 
 This immediately terminates the current session. No success message is possible.
