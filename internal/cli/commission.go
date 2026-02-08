@@ -85,12 +85,6 @@ Examples:
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := NewContext()
-
-		// Check agent identity - only ORC can start commissions
-		if err := wire.CommissionOrchestrationService().CheckLaunchPermission(ctx); err != nil {
-			return err
-		}
-
 		commissionID := args[0]
 
 		// Validate Claude workspace trust

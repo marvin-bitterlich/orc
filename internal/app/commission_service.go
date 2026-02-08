@@ -32,23 +32,7 @@ func NewCommissionService(
 
 // CreateCommission creates a new commission.
 func (s *CommissionServiceImpl) CreateCommission(ctx context.Context, req primary.CreateCommissionRequest) (*primary.CreateCommissionResponse, error) {
-	// 1. Get agent identity for guard
-	identity, err := s.agentProvider.GetCurrentIdentity(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get agent identity: %w", err)
-	}
-
-	// 2. Check guard
-	guardCtx := corecommission.GuardContext{
-		AgentType: corecommission.AgentType(identity.Type),
-		AgentID:   identity.FullID,
-		// CommissionID resolved via DB when needed, not from identity
-	}
-	if result := corecommission.CanCreateCommission(guardCtx); !result.Allowed {
-		return nil, result.Error()
-	}
-
-	// 3. Generate ID using core business rule
+	// 1. Generate ID using core business rule
 	nextID, err := s.commissionRepo.GetNextID(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate commission ID: %w", err)
@@ -75,22 +59,7 @@ func (s *CommissionServiceImpl) CreateCommission(ctx context.Context, req primar
 
 // StartCommission starts a commission.
 func (s *CommissionServiceImpl) StartCommission(ctx context.Context, req primary.StartCommissionRequest) (*primary.StartCommissionResponse, error) {
-	// 1. Guard check
-	identity, err := s.agentProvider.GetCurrentIdentity(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get agent identity: %w", err)
-	}
-
-	guardCtx := corecommission.GuardContext{
-		AgentType: corecommission.AgentType(identity.Type),
-		AgentID:   identity.FullID,
-		// CommissionID resolved via DB when needed, not from identity
-	}
-	if result := corecommission.CanStartCommission(guardCtx); !result.Allowed {
-		return nil, result.Error()
-	}
-
-	// 2. Fetch commission
+	// 1. Fetch commission
 	commission, err := s.commissionRepo.GetByID(ctx, req.CommissionID)
 	if err != nil {
 		return nil, fmt.Errorf("commission not found: %w", err)
@@ -103,22 +72,7 @@ func (s *CommissionServiceImpl) StartCommission(ctx context.Context, req primary
 
 // LaunchCommission creates and starts commission infrastructure.
 func (s *CommissionServiceImpl) LaunchCommission(ctx context.Context, req primary.LaunchCommissionRequest) (*primary.LaunchCommissionResponse, error) {
-	// 1. Guard check
-	identity, err := s.agentProvider.GetCurrentIdentity(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get agent identity: %w", err)
-	}
-
-	guardCtx := corecommission.GuardContext{
-		AgentType: corecommission.AgentType(identity.Type),
-		AgentID:   identity.FullID,
-		// CommissionID resolved via DB when needed, not from identity
-	}
-	if result := corecommission.CanLaunchCommission(guardCtx); !result.Allowed {
-		return nil, result.Error()
-	}
-
-	// 2. Create commission first
+	// 1. Create commission first
 	createResp, err := s.CreateCommission(ctx, primary.CreateCommissionRequest(req))
 	if err != nil {
 		return nil, err

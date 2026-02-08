@@ -182,23 +182,6 @@ func TestCreateCommission_ORCCanCreate(t *testing.T) {
 	}
 }
 
-func TestCreateCommission_IMPCannotCreate(t *testing.T) {
-	service, _, _ := newTestService(secondary.AgentTypeIMP)
-	ctx := context.Background()
-
-	_, err := service.CreateCommission(ctx, primary.CreateCommissionRequest{
-		Title:       "Test Commission",
-		Description: "A test commission",
-	})
-
-	if err == nil {
-		t.Fatal("expected error for IMP creating commission, got nil")
-	}
-}
-
-// Note: Only ORC and IMP agent types are defined. ORC can create, IMP cannot.
-// Additional agent types could be added in the future.
-
 // ============================================================================
 // CompleteCommission Tests
 // ============================================================================
@@ -406,26 +389,6 @@ func TestStartCommission_ORCCanStart(t *testing.T) {
 	}
 }
 
-func TestStartCommission_IMPCannotStart(t *testing.T) {
-	service, commissionRepo, _ := newTestService(secondary.AgentTypeIMP)
-	ctx := context.Background()
-
-	// Setup: create a commission
-	commissionRepo.commissions["COMM-001"] = &secondary.CommissionRecord{
-		ID:     "COMM-001",
-		Title:  "Test Commission",
-		Status: "active",
-	}
-
-	_, err := service.StartCommission(ctx, primary.StartCommissionRequest{
-		CommissionID: "COMM-001",
-	})
-
-	if err == nil {
-		t.Fatal("expected error for IMP starting commission, got nil")
-	}
-}
-
 // ============================================================================
 // LaunchCommission Tests
 // ============================================================================
@@ -444,20 +407,6 @@ func TestLaunchCommission_ORCCanLaunch(t *testing.T) {
 	}
 	if resp.CommissionID == "" {
 		t.Error("expected commission ID to be set")
-	}
-}
-
-func TestLaunchCommission_IMPCannotLaunch(t *testing.T) {
-	service, _, _ := newTestService(secondary.AgentTypeIMP)
-	ctx := context.Background()
-
-	_, err := service.LaunchCommission(ctx, primary.LaunchCommissionRequest{
-		Title:       "New Commission",
-		Description: "A launched commission",
-	})
-
-	if err == nil {
-		t.Fatal("expected error for IMP launching commission, got nil")
 	}
 }
 

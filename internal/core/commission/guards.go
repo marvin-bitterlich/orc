@@ -4,25 +4,6 @@ package commission
 
 import "fmt"
 
-// AgentType represents the type of agent in the commission domain.
-// Defined here to avoid import cycles with internal/agent.
-type AgentType string
-
-const (
-	// AgentTypeORC represents the orchestrator agent.
-	AgentTypeORC AgentType = "ORC"
-	// AgentTypeIMP represents an implementation agent in a workbench.
-	AgentTypeIMP AgentType = "IMP"
-)
-
-// GuardContext provides the context needed for agent-based guard evaluation.
-// This is the input to agent permission guards.
-type GuardContext struct {
-	AgentType    AgentType
-	AgentID      string // Full agent ID (e.g., "ORC" or "IMP-BENCH-001")
-	CommissionID string // Current commission context (may be empty)
-}
-
 // CommissionStateContext provides context for state-based commission guards.
 // Used when checking if commission state allows a transition.
 type CommissionStateContext struct {
@@ -51,42 +32,6 @@ func (r GuardResult) Error() error {
 		return nil
 	}
 	return fmt.Errorf("%s", r.Reason)
-}
-
-// CanCreateCommission evaluates whether the current agent can create a commission.
-// Rule: Only ORC can create commissions. IMPs work within existing commissions.
-func CanCreateCommission(ctx GuardContext) GuardResult {
-	if ctx.AgentType == AgentTypeIMP {
-		return GuardResult{
-			Allowed: false,
-			Reason:  fmt.Sprintf("IMPs cannot create commissions - only ORC can create commissions (agent: %s)", ctx.AgentID),
-		}
-	}
-	return GuardResult{Allowed: true}
-}
-
-// CanStartCommission evaluates whether the current agent can start a commission.
-// Rule: Only ORC can start commissions. IMPs cannot control commission lifecycle.
-func CanStartCommission(ctx GuardContext) GuardResult {
-	if ctx.AgentType == AgentTypeIMP {
-		return GuardResult{
-			Allowed: false,
-			Reason:  fmt.Sprintf("IMPs cannot start commissions - only ORC can start commissions (agent: %s)", ctx.AgentID),
-		}
-	}
-	return GuardResult{Allowed: true}
-}
-
-// CanLaunchCommission evaluates whether the current agent can launch a commission.
-// Rule: Only ORC can launch commissions. Launch = create + start.
-func CanLaunchCommission(ctx GuardContext) GuardResult {
-	if ctx.AgentType == AgentTypeIMP {
-		return GuardResult{
-			Allowed: false,
-			Reason:  fmt.Sprintf("IMPs cannot launch commissions - only ORC can launch commissions (agent: %s)", ctx.AgentID),
-		}
-	}
-	return GuardResult{Allowed: true}
 }
 
 // CanCompleteCommission evaluates whether a commission can be marked complete.

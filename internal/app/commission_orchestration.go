@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 
-	corecommission "github.com/example/orc/internal/core/commission"
 	"github.com/example/orc/internal/ports/primary"
 	"github.com/example/orc/internal/ports/secondary"
 )
@@ -23,25 +22,6 @@ func NewCommissionOrchestrationService(commissionSvc primary.CommissionService, 
 		commissionSvc: commissionSvc,
 		agentProvider: agentProvider,
 	}
-}
-
-// CheckLaunchPermission verifies the current agent can launch/start commissions.
-// Returns nil if allowed, error with user-friendly message if not.
-func (s *CommissionOrchestrationService) CheckLaunchPermission(ctx context.Context) error {
-	identity, err := s.agentProvider.GetCurrentIdentity(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to get agent identity: %w", err)
-	}
-
-	guardCtx := corecommission.GuardContext{
-		AgentType: corecommission.AgentType(identity.Type),
-		AgentID:   identity.FullID,
-		// CommissionID resolved via DB when needed, not from identity
-	}
-	if result := corecommission.CanLaunchCommission(guardCtx); !result.Allowed {
-		return result.Error()
-	}
-	return nil
 }
 
 // LoadCommissionState loads the commission from the database.
