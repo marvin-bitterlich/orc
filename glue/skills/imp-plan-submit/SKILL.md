@@ -1,6 +1,7 @@
 ---
 name: imp-plan-submit
 description: Submit and approve the current plan.
+next: imp-implement
 ---
 
 # IMP Plan Submit
@@ -21,7 +22,7 @@ Submit and approve the current plan, then proceed to implementation.
    ```
 
 3. **Output**
-   "Plan PLAN-xxx approved. Implement it, then run /imp-rec when complete."
+   "Plan PLAN-xxx approved. Run /imp-implement to see the plan and begin coding."
 
 ## Notes
 

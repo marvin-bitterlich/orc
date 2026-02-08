@@ -1,6 +1,7 @@
 ---
 name: imp-plan-create
 description: Research codebase and create implementation plan for current task. Uses Explore agent.
+next: imp-plan-submit
 ---
 
 # IMP Plan Create

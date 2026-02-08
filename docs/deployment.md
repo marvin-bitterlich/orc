@@ -87,3 +87,39 @@ After successful deployment, update shipment status:
 ```bash
 orc shipment deploy SHIP-XXX
 ```
+
+## Post-Deploy Verification
+
+After deployment, verify the installation works correctly.
+
+### Verification Checks
+
+Run these checks to confirm deployment success:
+
+| Check | Command | Purpose |
+|-------|---------|---------|
+| 1 | `orc status` | Verify ORC is responsive |
+| 2 | `orc commission list` | Confirm DB connectivity |
+| 3 | `orc shipment list` | Validate data access |
+| 4 | `make test` | Full test suite passes |
+
+### Verification Results
+
+All checks should pass:
+
+```
+Verification Results:
+  [PASS] orc status
+  [PASS] orc commission list
+  [PASS] orc shipment list
+  [PASS] make test
+```
+
+### Next Steps
+
+After verification passes:
+
+```bash
+orc shipment verify SHIP-XXX    # Transition to verified
+/ship-complete SHIP-XXX         # Complete shipment (terminal state)
+```

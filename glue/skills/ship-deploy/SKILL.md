@@ -4,6 +4,7 @@ description: |
   Deploy shipment by merging worktree branch to main repository.
   Use when user says "/ship-deploy", "ship deploy", "deploy shipment", "merge to master".
   Dynamically discovers deployment workflow from repo documentation.
+next: ship-complete
 ---
 
 # Ship Deploy
@@ -147,6 +148,8 @@ Deployed via direct workflow:
   - Pushed to origin
   - Worktree rebased
   - Shipment status: deployed
+
+Run /ship-complete to finish.
 ```
 
 **PR workflow:**
@@ -154,6 +157,7 @@ Deployed via direct workflow:
 Created pull request:
   - PR: <url>
   - Follow your repo's review process
+  - After PR merges, run /ship-complete to finish
 ```
 
 ## Error Handling

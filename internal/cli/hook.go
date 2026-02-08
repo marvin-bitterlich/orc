@@ -158,9 +158,10 @@ func runHookStop() error {
 
 WORKFLOW:
 1. No plan? Run /imp-plan-create
-2. Plan exists? Implement it, then run /imp-rec
-3. Stuck? Run /imp-escalate
-4. Task complete? Run /imp-rec to chain to next
+2. Plan created? Run /imp-plan-submit to approve
+3. Plan approved? Run /imp-implement to see plan and code
+4. Implementation done? Run /imp-rec to verify and chain to next
+5. Stuck? Run /imp-escalate
 
 DO NOT STOP. Execute the appropriate /imp- command now.`,
 	}

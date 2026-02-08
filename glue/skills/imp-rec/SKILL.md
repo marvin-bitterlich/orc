@@ -1,6 +1,7 @@
 ---
 name: imp-rec
 description: Verify work, create receipt, complete task, chain to next task.
+next: imp-plan-create
 ---
 
 # IMP Receipt
