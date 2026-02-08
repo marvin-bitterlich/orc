@@ -31,6 +31,17 @@ if [[ "$BRANCH" == "master" || "$BRANCH" == "main" ]]; then
     echo "   [ ] make deploy-glue   # Deploy Claude Code glue"
     echo "   [ ] make test          # Verify tests pass"
 
+    # Environment health check
+    if command -v orc &>/dev/null; then
+        echo ""
+        echo "🏥 Running environment health check..."
+        if orc doctor --quiet; then
+            echo "✓ Environment healthy"
+        else
+            echo "⚠️  Environment issues detected - run: orc doctor"
+        fi
+    fi
+
     # Release hints
     if [[ -f "VERSION" ]]; then
         VERSION=$(cat VERSION)
