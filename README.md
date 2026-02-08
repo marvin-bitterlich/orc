@@ -1,14 +1,26 @@
-# 🏭 ORC - The Forest Factory
+# ORC - The Forest Factory
 
 ![Forest Factory](assets/orc.png)
 
-Deep in the forest stands a factory. The ORC oversees operations from the command center while IMPs work in scattered workbenches, hammering out code. Shipments move through the system - bundles of tasks ready for delivery. Tomes accumulate knowledge. Handoffs pass the torch between shifts.
+Deep in the forest stands a factory. The ORC oversees operations from the command center while IMPs work in scattered workbenches, hammering out code. Shipments move through the system - bundles of tasks ready for delivery.
 
 ORC is a CLI for structured AI-assisted development. It tracks commissions, organizes work into containers, preserves context across sessions, and provisions isolated workspaces. The forest runs on SQLite and git worktrees.
 
-Today, ORC orchestrates a single agent working thoughtfully through well-planned tasks. Tomorrow, a Shipment will spawn a swarm of IMPs working in parallel. But swarms need solid foundations - planning, context preservation, merge strategies, quality controls. The factory is being built to scale.
+## Why ORC
 
-## 🚀 Getting Started
+- **No repo pollution** - Workbenches are git worktrees; state lives in external SQLite database
+- **Ephemeral infrastructure** - tmux sessions spin up and tear down cleanly
+- **Persistent ledger** - All work tracked in SQLite: commissions, shipments, tasks, plans, receipts
+- **Semantic health tools** - docs-doctor validates documentation against code reality
+- **Auto + interactive modes** - Run autonomously through shipments or pause for human oversight
+
+## Codebase Philosophy
+
+- **Hex architecture with linting** - Strict layer boundaries enforced by go-arch-lint
+- **Comprehensive testing** - Table-driven tests, repository tests, service tests
+- **Git hooks as gates** - Pre-commit enforces lint and tests; no bypassing quality
+
+## Getting Started
 
 ```bash
 git clone <repo-url>
@@ -18,36 +30,37 @@ make bootstrap
 
 Then run `/orc-first-run` in Claude Code for an interactive walkthrough.
 
-## 🎭 The Cast
+→ See [docs/getting-started.md](docs/getting-started.md) for detailed setup and first-run guide.
 
-**🧌 The ORC** is your Orchestrator - the agent who oversees the forest, coordinates commissions, and maintains the big picture. The ORC doesn't write code directly; it manages the work, tracks progress, and ensures context flows between sessions.
+## Workflows
 
-**👹 IMPs** are Implementation agents. These mischievous workers inhabit workbenches and do the actual coding. Each IMP works in isolation, focused on its assigned tasks, reporting discoveries back to the Orchestrator.
+ORC follows a structured workflow: exploration → synthesis → planning → implementation → verification.
 
-**🌳 Workbenches** are where the work happens. Technically they're git worktrees - isolated copies of repositories where an IMP can make changes without affecting the main codebase. One commission might have several workbenches, each focused on different aspects of the work.
+→ See [docs/common-workflows.md](docs/common-workflows.md) for detailed workflow patterns.
 
-**🎯 Commissions** are the grand undertakings. Every piece of work belongs to a commission, giving it context and purpose.
+## Glossary
 
-### 📦 Containers
+| Term | Description |
+|------|-------------|
+| **Commission** | Grand undertaking that gives work context and purpose |
+| **Shipment** | Bundle of tasks moving through the system |
+| **Workbench** | Git worktree where an IMP does isolated work |
+| **IMP** | Implementation agent that writes code |
+| **Task** | Deed to be done within a shipment |
+| **Handoff** | Context passed between sessions |
 
-Work in ORC is organized into containers that hold related items:
+→ See [docs/glossary/](docs/glossary/) for complete terminology.
 
-**🚢 Shipments** (SHIP-*) are bundles of tasks ready for delivery - the primary unit of work that moves through the system.
+## The Cast
 
-**🏛️ Conclaves** (CON-*) are gatherings where discussions happen and decisions are made.
+**The ORC** is your Orchestrator - oversees the forest, coordinates commissions, maintains the big picture.
 
-**📜 Tomes** (TOME-*) are books of accumulated knowledge - documentation that persists and grows.
+**IMPs** are Implementation agents - inhabit workbenches and do the actual coding.
 
-### 🍃 Leaves
+**Workbenches** are git worktrees - isolated workspaces where changes happen safely.
 
-Inside containers live individual items: **Tasks** are deeds to be done. **Questions** are riddles awaiting answers. **Plans** are maps of intent. **Notes** are scattered thoughts worth preserving.
-
-### 🔮 Rituals
-
-**Handoffs** pass the torch between sessions. When one Claude session ends and another begins, the handoff narrative carries context forward - what was accomplished, what remains, what pitfalls to avoid.
-
-**Priming** awakens context at session start. Run `orc prime` and the current commission, focus, and recent history flow into the conversation.
+→ See [docs/glossary/forest-factory-roles.md](docs/glossary/forest-factory-roles.md) for role details.
 
 ---
 
-*🌲 The forest hums with industry. Shipments move through workbenches. IMPs hammer at their tasks. And the ORC watches over all. 🌲*
+*The forest hums with industry. Shipments move through workbenches. IMPs hammer at their tasks. And the ORC watches over all.*
