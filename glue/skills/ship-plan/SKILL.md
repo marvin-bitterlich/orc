@@ -64,9 +64,9 @@ Consider running /ship-synthesize first if notes are messy.
 Proceeding anyway...
 ```
 
-**Read AGENTS.md:**
+**Read CLAUDE.md:**
 ```bash
-# Review AGENTS.md for existing patterns and checklists
+# Review CLAUDE.md for existing patterns and checklists
 ```
 Reference relevant sections during interview.
 
@@ -180,7 +180,7 @@ Systems affected (C2 - Containers):
 | CLI (cmd/, internal/) | ✗ | No CLI changes |
 | Database | ✗ | No schema changes |
 | Config | ✗ | No config changes |
-| Documentation | ✓ | CLAUDE.md, AGENTS.md |
+| Documentation | ✓ | CLAUDE.md, CLAUDE.md |
 
 Components within Skills (C3):
 - ship-synthesize/ [NEW]
@@ -205,7 +205,7 @@ Tooling compatibility:
 | Database migrations? | ✓ | None required |
 | Git hooks deploy? | ✓ | Skills auto-deploy |
 | Config schema changes? | ✓ | None |
-| Doc updates needed? | ⚠️ | CLAUDE.md, AGENTS.md |
+| Doc updates needed? | ⚠️ | CLAUDE.md, CLAUDE.md |
 
 Issues found: [list or none]
 ```
@@ -259,7 +259,7 @@ Proposed tasks for SHIP-xxx:
 
 3. Update documentation
    Containers: Documentation
-   Components: CLAUDE.md, AGENTS.md
+   Components: CLAUDE.md, CLAUDE.md
    Description: Document new workflow...
 
 Create these tasks? [y/n/edit]
@@ -296,7 +296,7 @@ Ready for implementation:
 
 ## Guidelines
 
-- **Read AGENTS.md** for existing patterns before proposing changes
+- **Read CLAUDE.md** for existing patterns before proposing changes
 - **Tasks should be self-contained** - IMP can complete without questions
 - **Include C2/C3 scope** in every task description
 - **Don't over-decompose** - 3-10 tasks typical
@@ -318,13 +318,13 @@ Tasks are work packages with scope. Plans are implementation details.
 
 [gets focused shipment SHIP-276]
 [checks for summary note - found NOTE-514]
-[reads AGENTS.md]
+[reads CLAUDE.md]
 
 Planning SHIP-276: Skill Cognitive Redesign
 
 Prerequisites:
   ✓ Summary note found: NOTE-514
-  ✓ AGENTS.md reviewed
+  ✓ CLAUDE.md reviewed
 
 Starting engineering review...
 

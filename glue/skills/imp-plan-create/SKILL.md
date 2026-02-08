@@ -30,10 +30,10 @@ Research the codebase and create an implementation plan for the current in_progr
    Example prompt for Explore agent:
    "Research the codebase to understand how to implement: [task description]. Find relevant files, patterns, and architecture."
 
-4. **Read AGENTS.md for change type**
+4. **Read CLAUDE.md for change type**
    Identify what type of change this is and read the relevant checklist:
 
-   | Change Type | AGENTS.md Section |
+   | Change Type | CLAUDE.md Section |
    |-------------|-------------------|
    | New entity | "Add Entity with Persistence" |
    | Add column | "Add Column to Existing Entity" |
@@ -80,4 +80,4 @@ Research the codebase and create an implementation plan for the current in_progr
 - Be concrete about file paths and changes
 - Include specific verification steps
 - Don't over-engineer or add scope creep
-- **Follow AGENTS.md checklists** for the change type
+- **Follow CLAUDE.md checklists** for the change type
