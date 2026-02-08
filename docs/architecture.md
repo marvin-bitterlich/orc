@@ -635,5 +635,5 @@ orc handoff create --note "Session summary..."
 ## Contact & Contributions
 
 **Repository**: ~/src/orc
-**Documentation**: CLAUDE.md (project context), glossary/ (definitions)
+**Documentation**: CLAUDE.md (project context), docs/glossary/ (definitions)
 **Status**: Active development, production-validated (COMM-002)
