@@ -22,6 +22,7 @@ Master index for ORC documentation. Use this as your navigation hub.
 | [glossary/README.md](docs/glossary/README.md) | Terminology navigation and quick definitions |
 | [glossary/forest-factory-roles.md](docs/glossary/forest-factory-roles.md) | Role definitions (IMP, Goblin, Watchdog) and place-based actor model |
 | [glossary/ledger-entities.md](docs/glossary/ledger-entities.md) | Entity schema documentation (Commission, Workshop, Shipment, Task) |
+| [getting-started.md](docs/getting-started.md) | Installation, first-run guide, environment setup |
 
 ## Planned Documentation
 
@@ -29,7 +30,6 @@ The following files will be added as part of the documentation overhaul:
 
 | File | Purpose |
 |------|---------|
-| docs/getting-started.md | First-run guide, environment setup |
 | docs/common-workflows.md | Standard development patterns, shipment lifecycle |
 | docs/glue.md | Skills anatomy, hooks system, deployment |
 | docs/troubleshooting.md | FAQ, /orc-help discovery, common issues |
