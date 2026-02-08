@@ -24,8 +24,14 @@ Before merging to master, run these checks in the worktree:
 | Check | Command | Required |
 |-------|---------|----------|
 | Clean working tree | `git status --porcelain` | Yes |
+| CHANGELOG updated | `git diff master -- CHANGELOG.md` | Yes |
 | Lint | `make lint` | Yes |
 | Tests | `make test` | Yes |
+
+**CHANGELOG Requirement:**
+- Any change to CHANGELOG.md is required before merging feature branches
+- No skip flag - discipline over convenience
+- Emergency escape hatch: `git commit --no-verify` (use of this flag is audited)
 
 ## Merge Process
 
