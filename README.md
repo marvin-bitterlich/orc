@@ -8,6 +8,16 @@ ORC is a CLI for structured AI-assisted development. It tracks commissions, orga
 
 Today, ORC orchestrates a single agent working thoughtfully through well-planned tasks. Tomorrow, a Shipment will spawn a swarm of IMPs working in parallel. But swarms need solid foundations - planning, context preservation, merge strategies, quality controls. The factory is being built to scale.
 
+## 🚀 Getting Started
+
+```bash
+git clone <repo-url>
+cd orc
+make bootstrap
+```
+
+Then run `/orc-first-run` in Claude Code for an interactive walkthrough.
+
 ## 🎭 The Cast
 
 **🧌 The ORC** is your Orchestrator - the agent who oversees the forest, coordinates commissions, and maintains the big picture. The ORC doesn't write code directly; it manages the work, tracks progress, and ensures context flows between sessions.
