@@ -80,13 +80,39 @@ ORC (Orchestrator) is a commission coordination system for managing complex, mul
 | imp-auto | Toggle auto mode |
 | imp-rec | Create receipts |
 | imp-escalate | Escalate to gatehouse |
+| imp-nudge | Manual re-propulsion check |
+| imp-poll | Check shipyard queue for work |
+
+**Goblin Workflow:**
+| Skill | Description |
+|-------|-------------|
+| goblin-escalation-receive | Handle incoming escalations |
+
+**Setup & Admin:**
+| Skill | Description |
+|-------|-------------|
+| orc-commission | Create new commissions |
+| orc-workshop | Create new workshops |
+| orc-workshop-archive | Archive workshops |
+| orc-workshop-templates | Manage workshop templates |
+| orc-workbench | Create new workbenches |
+| orc-repo | Add repositories to config |
 
 **Utilities:**
 | Skill | Description |
 |-------|-------------|
 | orc-interview | Reusable interview primitive |
 | orc-architecture | Maintain ARCHITECTURE.md |
-| orc-debug | Debug utilities |
+| orc-debug | View debug logs |
+| orc-help | Orientation to ORC skills |
+| orc-ping | Verify ORC is working |
+| orc-self-test | Integration self-testing |
+
+**Exploration:**
+| Skill | Description |
+|-------|-------------|
+| orc-ideate | Rapid idea capture |
+| orc-journal | Capture observations and learnings |
 
 ### Database (internal/db/, schema/)
 

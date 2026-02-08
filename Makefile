@@ -1,4 +1,4 @@
-.PHONY: install install-orc install-dev-shim dev build test lint lint-fix schema-check check-test-presence check-coverage init install-hooks clean help deploy-glue schema-diff schema-apply schema-inspect setup-workbench schema-diff-workbench schema-apply-workbench
+.PHONY: install install-orc install-dev-shim dev build test lint lint-fix schema-check check-test-presence check-coverage check-skills init install-hooks clean help deploy-glue schema-diff schema-apply schema-inspect setup-workbench schema-diff-workbench schema-apply-workbench
 
 # Go binary location (handles empty GOBIN)
 GOBIN := $(shell go env GOPATH)/bin
@@ -70,8 +70,8 @@ test:
 # Linting
 #---------------------------------------------------------------------------
 
-# Run all linters (golangci-lint + architecture + schema-check + test checks)
-lint: schema-check check-test-presence check-coverage
+# Run all linters (golangci-lint + architecture + schema-check + test checks + skills)
+lint: schema-check check-test-presence check-coverage check-skills
 	@echo "Running golangci-lint..."
 	@command -v golangci-lint >/dev/null 2>&1 || { echo "golangci-lint not installed. Run: go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest"; exit 1; }
 	@golangci-lint run ./...
@@ -108,6 +108,10 @@ check-test-presence:
 # Check coverage thresholds per package
 check-coverage:
 	@./scripts/check-coverage.sh
+
+# Check skills have valid frontmatter and are documented
+check-skills:
+	@./scripts/check-skills.sh
 
 # Run golangci-lint with auto-fix
 lint-fix:
