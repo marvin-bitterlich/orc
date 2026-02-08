@@ -125,7 +125,6 @@ ORC separates **DB record creation** from **filesystem operations** using a plan
 
 ```bash
 orc workbench create my-bench --workshop WORK-001   # Creates DB record only
-orc workbench like feature-v2                        # Creates DB record only
 ```
 
 ### Infrastructure Workflow
@@ -158,7 +157,6 @@ orc tmux connect WORK-001   # Attach to workshop's tmux session
 | Command | Creates DB Record | Creates Filesystem | Deletes Filesystem | Notes |
 |---------|------------------|-------------------|-------------------|-------|
 | `orc workbench create` | ✓ | ✗ | ✗ | DB only |
-| `orc workbench like` | ✓ | ✗ | ✗ | DB only |
 | `orc commission start` | ✗ | ✗ | ✗ | Starts tmux session only |
 | `orc infra plan` | ✗ | ✗ | ✗ | Shows what would change |
 | `orc infra apply` | ✗ | ✓ | ✗ | Creates infra, cleans tmux windows |
