@@ -33,11 +33,10 @@ To bypass in emergencies: `git commit --no-verify` (will be audited)
 ## Pre-Merge Checks
 
 Before merging to master, run `/docs-doctor` to validate documentation:
-- Validates docs structure against docs-doctor index
 - Checks internal links are valid
 - Validates CLI commands and skills referenced in docs
-- Verifies ER diagram (docs/schema.md) matches schema.sql
-- Verifies lifecycle diagram (docs/shipment-lifecycle.md) matches guards.go
+- Verifies ER diagram (docs/architecture.md) represents schema.sql tables
+- Verifies lifecycle diagram (docs/shipment-lifecycle.md) represents valid guard states
 
 ## Guardrail Enforcement
 

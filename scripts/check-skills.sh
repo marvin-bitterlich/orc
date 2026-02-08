@@ -4,44 +4,52 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 SKILLS_DIR="$PROJECT_ROOT/glue/skills"
+LOCAL_SKILLS_DIR="$PROJECT_ROOT/.claude/skills"
 ARCH_FILE="$PROJECT_ROOT/docs/architecture.md"
 
 errors=()
 
 # Check 1: Every skill has valid frontmatter (name + description)
+# Check both glue/skills/ and .claude/skills/ (repo-local)
 echo "Checking skill frontmatter..."
-for skill_dir in "$SKILLS_DIR"/*/; do
-    [[ -d "$skill_dir" ]] || continue
-    skill_name=$(basename "$skill_dir")
-    skill_file="$skill_dir/SKILL.md"
+for skills_location in "$SKILLS_DIR" "$LOCAL_SKILLS_DIR"; do
+    [[ -d "$skills_location" ]] || continue
+    for skill_dir in "$skills_location"/*/; do
+        [[ -d "$skill_dir" ]] || continue
+        skill_name=$(basename "$skill_dir")
+        skill_file="$skill_dir/SKILL.md"
 
-    if [[ ! -f "$skill_file" ]]; then
-        errors+=("MISSING: $skill_name/SKILL.md does not exist")
-        continue
-    fi
+        if [[ ! -f "$skill_file" ]]; then
+            errors+=("MISSING: $skill_name/SKILL.md does not exist")
+            continue
+        fi
 
-    # Extract frontmatter (between first two ---)
-    frontmatter=$(awk '/^---$/{if(++n==2)exit}n==1' "$skill_file")
+        # Extract frontmatter (between first two ---)
+        frontmatter=$(awk '/^---$/{if(++n==2)exit}n==1' "$skill_file")
 
-    if [[ -z "$frontmatter" ]]; then
-        errors+=("FRONTMATTER: $skill_name has no YAML frontmatter")
-        continue
-    fi
+        if [[ -z "$frontmatter" ]]; then
+            errors+=("FRONTMATTER: $skill_name has no YAML frontmatter")
+            continue
+        fi
 
-    if ! echo "$frontmatter" | grep -q "^name:"; then
-        errors+=("FRONTMATTER: $skill_name missing 'name:' field")
-    fi
+        if ! echo "$frontmatter" | grep -q "^name:"; then
+            errors+=("FRONTMATTER: $skill_name missing 'name:' field")
+        fi
 
-    if ! echo "$frontmatter" | grep -q "^description:"; then
-        errors+=("FRONTMATTER: $skill_name missing 'description:' field")
-    fi
+        if ! echo "$frontmatter" | grep -q "^description:"; then
+            errors+=("FRONTMATTER: $skill_name missing 'description:' field")
+        fi
+    done
 done
 
-# Get list of skills in glue/skills/
+# Get list of skills in glue/skills/ and .claude/skills/
 skills_on_disk=()
-for skill_dir in "$SKILLS_DIR"/*/; do
-    [[ -d "$skill_dir" ]] || continue
-    skills_on_disk+=("$(basename "$skill_dir")")
+for skills_location in "$SKILLS_DIR" "$LOCAL_SKILLS_DIR"; do
+    [[ -d "$skills_location" ]] || continue
+    for skill_dir in "$skills_location"/*/; do
+        [[ -d "$skill_dir" ]] || continue
+        skills_on_disk+=("$(basename "$skill_dir")")
+    done
 done
 
 # Get list of skills in ARCHITECTURE.md (from markdown tables)
@@ -66,7 +74,7 @@ for skill in "${skills_on_disk[@]}"; do
         fi
     done
     if [[ "$found" == "false" ]]; then
-        errors+=("UNDOCUMENTED: $skill exists in glue/skills/ but not in ARCHITECTURE.md")
+        errors+=("UNDOCUMENTED: $skill exists but not in ARCHITECTURE.md")
     fi
 done
 
@@ -81,7 +89,7 @@ for arch_skill in "${skills_in_arch[@]}"; do
         fi
     done
     if [[ "$found" == "false" ]]; then
-        errors+=("MISSING: $arch_skill listed in ARCHITECTURE.md but not in glue/skills/")
+        errors+=("MISSING: $arch_skill listed in ARCHITECTURE.md but not found in skills directories")
     fi
 done
 

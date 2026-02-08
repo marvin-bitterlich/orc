@@ -149,14 +149,6 @@ In auto mode, the IMP is propelled through the workflow:
 
 Merges the workbench branch to main. Only available when all tasks are complete.
 
-### Verify Deployment
-
-```
-/ship-verify
-```
-
-Post-deploy verification. Confirms the deploy was successful.
-
 ### Complete Shipment
 
 ```

@@ -1,11 +1,13 @@
 ---
 name: docs-doctor
-description: Validate documentation against code reality. Use before merging to master, when docs may have drifted, or after significant code changes. Checks DOCS.md index, internal links, CLI commands, skills, and diagram accuracy.
+description: Validate ORC documentation against code reality. Use before merging to master, when docs may have drifted, or after significant code changes. Checks internal links, CLI commands, skills, and diagram accuracy.
 ---
 
 # Docs Doctor
 
-Validate documentation against code reality using parallel subagent checks.
+Validate ORC documentation against code reality using parallel subagent checks.
+
+**Note:** This is an ORC-specific skill. It validates ORC's documentation structure and should only be used in the ORC repository.
 
 ## Usage
 
@@ -25,10 +27,8 @@ Validate documentation against code reality using parallel subagent checks.
 ## Check Categories
 
 ### 1. Structural Checks
-- DOCS.md index matches actual files in docs/
-- No orphan files (files not in index)
-- No missing files (index references non-existent files)
-- Internal markdown links are valid
+- Internal markdown links in docs/*.md are valid
+- No broken cross-references between documentation files
 
 ### 2. Lane Checks
 - README.md contains no agent instructions (CLAUDE.md's job)
@@ -38,16 +38,13 @@ Validate documentation against code reality using parallel subagent checks.
 ### 3. Behavioral Checks (Shallow)
 - Documented CLI commands exist (`orc <cmd> --help` succeeds)
 - Documented flags are valid (parse --help output)
-- Referenced skills exist in glue/skills/
+- Referenced skills exist in .claude/skills/ or glue/skills/
 
 ### 4. Diagram Checks
-- ER diagram in architecture.md matches internal/db/schema.sql
-- Lifecycle diagram in common-workflows.md matches guards in internal/core/shipment/guards.go
+- ER diagram in docs/architecture.md represents core tables from internal/db/schema.sql
+- Lifecycle diagram in docs/shipment-lifecycle.md represents valid subset of states from internal/core/shipment/guards.go
 
-### 5. Skill Repo-Agnosticism Checks
-- No hardcoded absolute paths (e.g., /Users/, /home/, ~/src/)
-- No repo-specific file existence checks (e.g., `if [ -f "CHANGELOG.md" ]`)
-- Skills reference deployment docs, not implement policy directly
+**Note:** Diagrams are intentionally simplified. Validation checks that diagram states/tables are a subset of code reality, not an exact match.
 
 ## Architecture
 
@@ -59,8 +56,7 @@ Main Agent (opus)
     ├── Spawn: Lane Check Agent (haiku)
     ├── Spawn: CLI Validation Agent (haiku)
     ├── Spawn: ER Diagram Agent (haiku)
-    ├── Spawn: Lifecycle Diagram Agent (haiku)
-    └── Spawn: Repo-Agnosticism Agent (haiku)
+    └── Spawn: Lifecycle Diagram Agent (haiku)
          ↓
     Collect findings
          ↓
@@ -76,17 +72,14 @@ Main Agent (opus)
 Use the Task tool with `subagent_type: "Explore"` and `model: "haiku"`:
 
 ```
-Prompt: "Check if DOCS.md index matches reality.
+Prompt: "Check internal documentation links.
 
-1. Read DOCS.md and extract all file paths from the index tables
-2. Use Glob to find all .md files in docs/
-3. Compare: find missing files (in index but don't exist) and orphan files (exist but not in index)
-4. Check each internal link in docs/*.md files resolves
+1. Use Glob to find all .md files in docs/
+2. For each file, extract internal markdown links (links to other docs/*.md files)
+3. Verify each linked file exists
 
 Return findings as:
-- missing_files: [list]
-- orphan_files: [list]
-- broken_links: [list]
+- broken_links: [{file, line, target}]
 - status: 'pass' or 'fail'"
 ```
 
@@ -129,16 +122,17 @@ Return findings as:
 ### Step 4: Spawn ER Diagram Agent
 
 ```
-Prompt: "Validate ER diagram matches database schema.
+Prompt: "Validate ER diagram represents database schema.
 
 1. Read internal/db/schema.sql
 2. Read docs/architecture.md, find the erDiagram mermaid block
-3. Compare: are all core tables represented? Are relationships accurate?
+3. Check that tables shown in diagram exist in schema (subset validation)
+4. Check that relationships shown are accurate
 
-Note: Simplified diagram is OK - just verify core entities match.
+Note: Diagram is intentionally simplified - not all tables need to be shown.
 
 Return findings as:
-- missing_tables: [list]
+- invalid_tables: [tables in diagram but not in schema]
 - incorrect_relationships: [list]
 - status: 'pass' or 'fail'"
 ```
@@ -146,77 +140,52 @@ Return findings as:
 ### Step 5: Spawn Lifecycle Diagram Agent
 
 ```
-Prompt: "Validate shipment lifecycle diagram matches guards.
+Prompt: "Validate shipment lifecycle diagram represents valid states.
 
 1. Read internal/core/shipment/guards.go
-2. Read docs/common-workflows.md, find the stateDiagram mermaid block
-3. Compare: do transitions in diagram match guard logic?
+2. Read docs/shipment-lifecycle.md, find the stateDiagram mermaid block
+3. Check that states in diagram are valid states from guards.go (subset validation)
+4. Check that transitions shown are valid according to guards
+
+Note: Diagram is intentionally simplified - not all states need to be shown.
 
 Return findings as:
-- missing_transitions: [list]
-- invalid_transitions: [list]
+- invalid_states: [states in diagram but not in guards]
+- invalid_transitions: [transitions that guards don't allow]
 - status: 'pass' or 'fail'"
 ```
 
-### Step 6: Spawn Repo-Agnosticism Agent
-
-```
-Prompt: "Check skills for repo-agnostic portability.
-
-1. Use Glob to find all glue/skills/*/SKILL.md files
-2. For each skill, check for violations:
-   - Hardcoded absolute paths: /Users/, /home/, ~/src/, /var/
-   - Repo-specific file checks: patterns like 'if [ -f "CHANGELOG.md" ]' or '[ -f VERSION ]'
-   - Policy implementation: skills should reference deployment docs, not embed repo-specific rules
-
-3. Allowed patterns (not violations):
-   - Conditional checks for BUILD SYSTEM detection (Makefile, package.json)
-   - Optional feature detection (command -v)
-   - Documentation references to repo structure
-
-Return findings as:
-- hardcoded_paths: [{skill, line, path}]
-- repo_specific_checks: [{skill, line, check}]
-- policy_violations: [{skill, description}]
-- status: 'pass' or 'fail'"
-```
-
-### Step 7: Synthesize Findings
+### Step 6: Synthesize Findings
 
 Collect all agent results and categorize:
 
 **Auto-fixable:**
-- Missing file in DOCS.md index (add it)
-- Orphan file not in index (add it)
 - Simple broken links (update path)
 
 **Requires Judgment:**
 - Lane violations (content in wrong file)
 - Diagram mismatches (which is correct?)
 - Invalid commands (docs wrong or code wrong?)
-- Repo-agnosticism violations (refactor skill or accept exception?)
 
-### Step 8: Report and Act
+### Step 7: Report and Act
 
 **If all pass:**
 ```
-✅ Docs Doctor: All checks passed
+Docs Doctor: All checks passed
 
-Structural: ✓
-Lanes: ✓
-CLI: ✓
-ER Diagram: ✓
-Lifecycle: ✓
-Repo-Agnosticism: ✓
+Structural: pass
+Lanes: pass
+CLI: pass
+ER Diagram: pass
+Lifecycle: pass
 ```
 
 **If issues found:**
 ```
-⚠️ Docs Doctor: Issues found
+Docs Doctor: Issues found
 
 Structural:
-  - Missing from index: docs/new-file.md
-  - Broken link: common-workflows.md:45 → nonexistent.md
+  - Broken link: common-workflows.md:45 -> nonexistent.md
 
 Lanes:
   - README.md:23 contains agent instruction
@@ -229,7 +198,7 @@ Escalating: [list what needs human decision]
 ```
 
 **With --fix flag:**
-- Auto-fix simple issues (update DOCS.md index, fix paths)
+- Auto-fix simple issues (fix paths)
 - For judgment calls, run `/orc-interview` to get human decision
 
 ## Enforcement
@@ -238,7 +207,6 @@ This is a **soft gate**:
 - Runs on request (not automatic)
 - Issues warnings but doesn't block commits
 - Documented in CLAUDE.md as pre-merge check
-- Git post-merge hook can remind to run
 
 ## Notes
 
@@ -246,3 +214,4 @@ This is a **soft gate**:
 - Each agent has narrow focus, returns structured output
 - Main agent orchestrates and synthesizes
 - Simple fixes auto-applied, complex decisions escalated
+- Diagrams use subset validation, not exact matching

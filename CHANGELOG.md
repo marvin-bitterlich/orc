@@ -20,7 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- `docs-doctor` skill now serves as single source of truth for documentation index (replaces DOCS.md)
+- `docs-doctor` skill moved from `glue/skills/` to `.claude/skills/` (repo-local, not globally deployed)
+- `docs-doctor` now uses subset validation for diagrams (simplified diagrams are intentional)
 - ER diagram and lifecycle diagram moved from inline to dedicated docs
 - `docs/architecture.md` now links to `docs/schema.md` instead of inline diagram
 - `docs/common-workflows.md` now links to `docs/shipment-lifecycle.md` instead of inline diagram
@@ -28,6 +29,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 
 - `DOCS.md` - documentation index consolidated into docs-doctor skill
+- `/ship-verify` skill - removed from glue/skills/ and docs
+- 8 orphaned skills from `~/.claude/skills/`: aws-bug-report, conclave, exorcism, merge-to-master, ship-tidy, ship-verify, watchdog, white-smoke
 
 ### Changed
 

@@ -108,7 +108,6 @@ ORC (Orchestrator) is a commission coordination system for managing complex, mul
 | orc-interview | Reusable interview primitive |
 | orc-architecture | Maintain ARCHITECTURE.md |
 | orc-help | Orientation to ORC skills |
-| docs-doctor | Validate documentation against code |
 | orc-ping | Verify ORC is working |
 | orc-self-test | Integration self-testing |
 
@@ -117,6 +116,14 @@ ORC (Orchestrator) is a commission coordination system for managing complex, mul
 |-------|-------------|
 | orc-ideate | Rapid idea capture |
 | orc-journal | Capture observations and learnings |
+
+### Repo-Local Skills (.claude/skills/)
+
+Skills specific to this repository (not deployed globally):
+
+| Skill | Description |
+|-------|-------------|
+| docs-doctor | Validate ORC documentation against code reality |
 
 ### Database (internal/db/, schema/)
 
