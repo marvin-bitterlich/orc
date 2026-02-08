@@ -10,9 +10,8 @@ Research the codebase and create an implementation plan for the current in_progr
 ## Documentation Discovery
 
 Look for development checklists and guidelines in order:
-1. `AGENTS.md` - Development rules and checklists
-2. `CLAUDE.md` - Project-specific instructions
-3. `docs/` - Additional documentation
+1. `CLAUDE.md` - Development rules and checklists
+2. `docs/` - Additional documentation (architecture, guides)
 
 If checklists found, reference them in the plan.
 
@@ -50,7 +49,7 @@ Infer verification commands from build system:
    "Research the codebase to understand how to implement: [task description]. Find relevant files, patterns, and architecture."
 
 4. **Check for development checklists**
-   Look for AGENTS.md, CLAUDE.md, or docs/ with relevant checklists.
+   Look for CLAUDE.md or docs/ with relevant checklists.
 
    If found, identify the relevant change type:
    | Change Type | Look For |

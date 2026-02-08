@@ -23,10 +23,8 @@ Transform synthesized knowledge into actionable tasks through a structured engin
 ## Documentation Discovery
 
 Look for architecture and development docs in order:
-1. `ARCHITECTURE.md` - System structure (C2/C3 mapping)
-2. `docs/architecture.md` - Alternative location
-3. `AGENTS.md` - Development rules and patterns
-4. `CLAUDE.md` - Project-specific instructions
+1. `docs/architecture.md` - System structure (C2/C3 mapping)
+2. `CLAUDE.md` - Development rules and patterns
 
 If found, reference during engineering review.
 If not found, proceed with codebase exploration.
@@ -76,7 +74,7 @@ Proceeding anyway...
 ```
 
 **Check for development docs:**
-Look for AGENTS.md, CLAUDE.md, or similar for existing patterns.
+Look for CLAUDE.md or docs/ for existing patterns.
 
 If found:
 ```bash
@@ -184,7 +182,7 @@ I'd recommend: skip theme identification with <3 notes, just summarize directly.
 
 Map what containers and components are affected.
 
-**Reference:** If ARCHITECTURE.md or docs/architecture.md exists, use it for C2/C3 structure. Otherwise, explore the codebase to identify containers and components.
+**Reference:** If docs/architecture.md exists, use it for C2/C3 structure. Otherwise, explore the codebase to identify containers and components.
 
 **Example output:**
 ```
@@ -196,7 +194,7 @@ Systems affected (C2 - Containers):
 | CLI (cmd/, internal/) | ✗ | No CLI changes |
 | Database | ✗ | No schema changes |
 | Config | ✗ | No config changes |
-| Documentation | ✓ | CLAUDE.md, AGENTS.md |
+| Documentation | ✓ | CLAUDE.md |
 
 Components within Skills (C3):
 - ship-synthesize/ [NEW]
@@ -221,7 +219,7 @@ Tooling compatibility:
 | Database migrations? | ✓ | None required |
 | Git hooks deploy? | ✓ | Skills auto-deploy |
 | Config schema changes? | ✓ | None |
-| Doc updates needed? | ⚠️ | CLAUDE.md, AGENTS.md |
+| Doc updates needed? | ⚠️ | CLAUDE.md |
 
 Issues found: [list or none]
 ```
@@ -275,7 +273,7 @@ Proposed tasks for SHIP-xxx:
 
 3. Update documentation
    Containers: Documentation
-   Components: CLAUDE.md, AGENTS.md
+   Components: CLAUDE.md
    Description: Document new workflow...
 
 Create these tasks? [y/n/edit]
@@ -312,7 +310,7 @@ Ready for implementation:
 
 ## Guidelines
 
-- **Check for development docs** (AGENTS.md, CLAUDE.md) for existing patterns
+- **Check for development docs** (CLAUDE.md, docs/) for existing patterns
 - **Tasks should be self-contained** - IMP can complete without questions
 - **Include C2/C3 scope** in every task description
 - **Don't over-decompose** - 3-10 tasks typical
@@ -334,13 +332,13 @@ Tasks are work packages with scope. Plans are implementation details.
 
 [gets focused shipment SHIP-276]
 [checks for summary note - found NOTE-514]
-[reads AGENTS.md]
+[reads CLAUDE.md]
 
 Planning SHIP-276: Skill Cognitive Redesign
 
 Prerequisites:
   ✓ Summary note found: NOTE-514
-  ✓ AGENTS.md reviewed
+  ✓ CLAUDE.md reviewed
 
 Starting engineering review...
 
