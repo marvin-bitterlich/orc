@@ -168,7 +168,7 @@ I'd recommend: skip theme identification with <3 notes, just summarize directly.
 
 Map what containers and components are affected.
 
-**Reference:** ARCHITECTURE.md (if exists) or explore codebase.
+**Reference:** docs/architecture.md (if exists) or explore codebase.
 
 **Example output:**
 ```
