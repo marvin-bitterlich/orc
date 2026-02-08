@@ -83,6 +83,7 @@ ORC (Orchestrator) is a commission coordination system for managing complex, mul
 | imp-escalate | Escalate to gatehouse |
 | imp-nudge | Manual re-propulsion check |
 | imp-poll | Check shipyard queue for work |
+| imp-respawn | Respawn tmux pane for clean context |
 
 **Goblin Workflow:**
 | Skill | Description |

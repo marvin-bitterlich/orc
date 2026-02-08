@@ -67,12 +67,19 @@ Output:
 Shipment created and focused:
   SHIP-xxx: <Title>
   Status: exploring
-
-Next steps:
-  - Add tasks: orc task create "Task title" --shipment SHIP-xxx
-  - Plan tasks: /ship-plan
-  - Or discuss requirements - I'll help capture tasks
 ```
+
+### Step 6: Enter Ideation Mode
+
+After confirming the shipment is ready, automatically chain to orc-ideate:
+
+```
+Now entering ideation mode...
+```
+
+Then invoke the orc-ideate skill (output its guidance banner and begin ideation session).
+
+This makes ideation the default entry point for new shipments.
 
 ## Example Session
 
@@ -87,7 +94,15 @@ Agent: Shipment created and focused:
          SHIP-xxx: User Authentication
          Status: exploring
 
-       Next steps:
-         - Add tasks: orc task create "Task title" --shipment SHIP-xxx
-         - Plan tasks: /ship-plan
+       Now entering ideation mode...
+
+       ## IDEATION MODE
+
+       Human: share ideas freely.
+       Agent: ask questions, explore implications, capture notes as we go.
+
+       Note types: idea, question, finding, decision, concern, spec
+       When ready: /ship-synthesize to tidy messy notes, or /ship-plan to go straight to tasks.
+
+User: [begins sharing ideas about authentication...]
 ```
