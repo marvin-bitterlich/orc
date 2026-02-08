@@ -26,6 +26,7 @@ Master index for ORC documentation. Use this as your navigation hub.
 | [common-workflows.md](docs/common-workflows.md) | Shipment lifecycle, IMP workflow, operating modes |
 | [glue.md](docs/glue.md) | Skills anatomy, hooks system, deployment |
 | [troubleshooting.md](docs/troubleshooting.md) | FAQ, common issues, getting help |
+| [tmux.md](docs/tmux.md) | TMux integration, layouts, session browser |
 
 ## Navigation Guide
 
