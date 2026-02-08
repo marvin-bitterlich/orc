@@ -164,43 +164,42 @@ Commission (coordination scope)
 
 ### 1. Commission Management
 - **Commission**: Top-level coordination scope (e.g., "Sidekiq Deprecation", "Auth Refactor")
-- Owns multiple Workbenches (workspaces) and Work Orders (tasks)
+- Owns multiple Workshops with Workbenches and Shipments
 - Each commission can have a dedicated TMux session with IMP agents in workbenches
 - Support for both ORC-development commissions and application-code commissions
 
-### 2. Work Order System
-**Flat hierarchy with Epic/Parent grouping:**
-- Work orders belong directly to commissions (no forced intermediate layers)
-- Optional parent/child relationships for logical grouping
-- Status field with 7 states: ready, design, implement, deploy, blocked, paused, complete
+### 2. Shipment & Task System
+**Shipment-based workflow:**
+- Shipments represent units of work with exploration → implementation lifecycle
+- Tasks belong to shipments and represent specific implementation work
+- Status lifecycle: draft → exploring → specced → tasked → in_progress → complete
 - Type categorization: research, implementation, fix, documentation, maintenance
-- Pinnable work orders for visibility
+- Pinnable items for visibility
 - Emoji-rich CLI output for quick status scanning
 
 **Key Commands:**
 ```bash
-orc work-order create "Task description" [--parent WO-XXX]
-orc work-order claim WO-XXX
-orc work-order complete WO-XXX
-orc work-order pin WO-XXX
-orc work-order update WO-XXX --title "New title"
+orc shipment create "Title" --commission COMM-XXX
+orc task create "Task description" --shipment SHIP-XXX
+orc task claim TASK-XXX
+orc task complete TASK-XXX
 orc summary                    # Hierarchical view with pinned items
 ```
 
 ### 3. Workbench Management (Git Worktree Integration)
-**Workbench**: An isolated git worktree for a commission, registered in the database
+**Workbench**: An isolated git worktree for a workshop, registered in the database
 
-- Workbenches belong to commissions, not individual work orders
-- Multiple workbenches per commission (e.g., backend, frontend, api repos)
-- Work orders are assigned to workbenches (via assigned_workbench_id)
+- Workbenches belong to workshops, assigned shipments for implementation
+- Multiple workbenches per workshop (e.g., backend, frontend, api repos)
+- Tasks are assigned to workbenches (via assigned_workbench_id)
 - IMP (Implementation) = Workbench (conceptual equivalence, no separate entity)
 
 **Key Commands:**
 ```bash
-orc workbench create [name] --repos main-app --commission COMM-001
-orc workbench list [--commission COMM-XXX]
-orc workbench show WORKBENCH-XXX
-orc workbench rename WORKBENCH-XXX new-name
+orc workbench create [name] --repos main-app --workshop WORK-001
+orc workbench list [--workshop WORK-XXX]
+orc workbench show BENCH-XXX
+orc workbench rename BENCH-XXX new-name
 ```
 
 **Workbench Features:**
@@ -209,22 +208,23 @@ orc workbench rename WORKBENCH-XXX new-name
 - Writes .orc-commission marker for context detection
 - Opens in TMux with 3-pane IMP layout: vim | claude | shell
 
-### 4. Two-Tier Agent Architecture (ORC + IMPs)
-**Concept**: Simple two-tier coordination with one orchestrator and multiple implementation agents
+### 4. Agent Types (IMP, Goblin, Watchdog)
+**Concept**: Place-based actor model with three agent types
 
 **Agent Types:**
-- **ORC (Orchestrator)**: Master coordinator that manages commissions, creates workbenches, assigns epics
-- **IMP (Implementation Agent)**: Works within a workbench on assigned epics/tasks
+- **IMP (Implementation Agent)**: Works within a workbench (BENCH-XXX) on assigned shipments/tasks
+- **Goblin**: Workshop gatekeeper (GATE-XXX) that reviews plans and handles escalations
+- **Watchdog**: IMP monitor (WATCH-XXX) that tracks progress
 
 **Architecture Principles:**
-- Single ORC orchestrator
+- Identity tied to place (place_id in config)
 - IMPs operate within workbench boundaries
-- ORC coordinates via mail system and epic assignments
-- IMPs can create workbenches/epics but not commissions
+- Goblins coordinate via escalation handling
+- Coordination via shared summary bus
 
-**Mail System:**
-- Direct IMP ↔ ORC communication
-- Work orders/tasks used for coordination
+**Communication:**
+- Escalations for judgment calls
+- Tasks for implementation work
 
 ### 5. Context Preservation & Handoffs
 **orc prime & handoff Integration:**
@@ -243,11 +243,10 @@ Session boundaries are preserved through:
 ### 6. TMux Integration
 **One TMux session per commission:**
 ```
-TMux Session: "Commission Name" (orc-COMM-XXX)
-├── Pane 0: ORC (coordination)
-├── Pane 1: IMP in workbench-1 (vim)
-├── Pane 2: IMP in workbench-1 (claude)
-└── Pane 3: IMP in workbench-1 (shell)
+TMux Session: "Workshop Name" (orc-WORK-XXX)
+├── Window 0: Goblin (coordination)
+├── Window 1: IMP in BENCH-001 (vim | claude | shell)
+└── Window 2: IMP in BENCH-002 (vim | claude | shell)
 ```
 
 **Features:**
@@ -366,128 +365,17 @@ Next session can bootstrap from this
 
 ---
 
-## Roadmap & Future Features
+## Current Status
 
-### Active Development (In Progress)
+ORC is in active production use with the following capabilities:
 
-**Semantic Epic System** ⚡ PRIORITY
-- 9-epic type system with type-specific rules
-- Tag-based task auto-routing
-- Working modes for different contexts
-- **Status**: Active development (EPIC-178)
+- **Commission & Workshop Management**: Full lifecycle support
+- **Shipment Workflow**: exploration → synthesis → planning → implementation
+- **Agent Coordination**: IMP, Goblin, Watchdog roles operational
+- **TMux Integration**: Multi-workbench sessions working
+- **Skills System**: Claude Code skills for workflow automation
 
-**WO-021: Core Architecture Design**
-- Cross-workbench coordination mechanisms (WO-016)
-- Workbench lifecycle management (WO-015)
-- Work order state transition model (WO-014)
-- Inter-agent mail system refinement
-
-**WO-057: Factory Production Line Issues** (Master ORC Tooling)
-- Continuous improvements to CLI tools
-- Bug fixes and UX refinements
-- IMP escalations from COMM-002
-
-### Completed Major Features (2.0)
-
-✅ **Forest Factory Architecture Simplification**
-- Removed Operations and Expeditions layers
-- Flat Commission → Work Order structure
-- Type-based categorization
-
-✅ **Epic/Parent Work Order Hierarchy**
-- Single-parent grouping
-- Visual hierarchy in summary output
-- Nested display with indentation
-
-✅ **Status Field Consolidation**
-- Merged status + phase into single field
-- 7 semantic states (ready → complete)
-- Emoji indicators for quick scanning
-
-✅ **IMP Agent Deployment (COMM-002)**
-- First real-world commission validated
-- TMux automation working
-- ORC ↔ IMP communication working
-- **Validation**: Everything worked first try
-
-✅ **Workbench Management**
-- Create, list, rename commands
-- Git worktree integration
-- Commission context detection
-
-✅ **Pinned Work Orders**
-- Pin/unpin commands
-- Inline emoji display (no separate section)
-- Priority visibility
-
-✅ **Work Order Update**
-- Update title and/or description
-- Set/change parent relationships
-
-### Near-Term Roadmap
-
-**Phase 1: Semantic Epic System**
-- Formalize 9-epic type system
-- Tag-based task organization
-- Working modes for different contexts
-- Epic focus and context injection
-
-**Phase 2: Cross-Commission Coordination**
-- Refine mail system
-- IMP → ORC escalation workflow
-- ORC → IMP directive system
-- Async communication patterns
-
-**Phase 3: Tooling & Integration**
-- vim-orc plugin (fugitive-style)
-- El Presidente's desk (document staging)
-- ORC Claude skills plugin
-- Room concept for contextual spaces
-
-**Phase 4: Workflow Automation**
-- Task state transitions (auto/manual rules)
-- Workbench lifecycle automation
-- TMux session management
-- Handoff automation improvements
-
-### Long-Term Vision
-
-**Factory-Themed Terminology**
-- Replace generic terms (Commission, Epic, Operation)
-- Restore forest/factory metaphor consistently
-- Personality + functionality
-
-**Advanced Context Management**
-- Proactive context suggestions
-- Cross-session pattern detection
-- Handoff quality scoring
-- Context inheritance patterns
-
-**Multi-Agent Orchestration**
-- ORC coordinates multiple IMPs across workbenches
-- IMP-to-IMP communication via ORC
-- Commission-based coordination structure
-- Resource allocation and prioritization
-
----
-
-## Success Metrics
-
-**First-Try Execution:**
-- COMM-002 deployment: ✅ Worked on first attempt
-- ORC + IMP coordination: ✅ Validated in real operation
-- TMux automation: ✅ Clean integration
-- Proto-mail system: ✅ Bidirectional communication working
-
-**Handoff System:**
-- Context preservation: ✅ Zero cold-start issues
-- Cross-session continuity: ✅ Narratives span multiple days
-- Handoff CLI: ✅ create, list, show commands working
-
-**Operational Metrics:**
-- Sessions with zero cold-start issues: 100%
-- Architecture decisions preserved: 100%
-- IMP tooling escalations resolved: 5/5
+For current development work, see `orc summary` output.
 
 ---
 
@@ -556,17 +444,19 @@ orc init    # Creates ~/.orc/ directory and initializes database
 ### Create Your First Commission
 ```bash
 orc commission create "My Project" --description "Project description"
-orc work-order create "Setup repository" --commission COMM-001
-orc workbench create project-main --repos my-repo --commission COMM-001
+orc workshop create my-workshop --commission COMM-001
+orc workbench create project-main --repos my-repo --workshop WORK-001
+orc shipment create "Initial setup" --commission COMM-001
+orc task create "Setup repository" --shipment SHIP-001
 ```
 
 ### Work in a Workbench
 ```bash
 cd ~/src/worktrees/project-main
 orc status                    # Shows commission context
-orc work-order claim WO-001
+orc task claim TASK-001
 # ... do work ...
-orc work-order complete WO-001
+orc task complete TASK-001
 ```
 
 ### Session Boundaries
@@ -586,29 +476,30 @@ orc handoff create --note "Session summary..."
 
 1. **SQLite Source of Truth** - Single authoritative database for all state
 2. **Zero Cold-Start** - Full context preservation via handoff narratives
-3. **Multi-Agent Coordination** - ORC/IMP architecture with mail system
+3. **Multi-Agent Coordination** - IMP/Goblin/Watchdog actor model
 4. **Git Worktree Native** - First-class support for isolated workspaces
-5. **Semantic Epic System** - 9-epic types with working modes
-6. **TMux Integration** - One session per commission, programmatic layout
-7. **Flat But Structured** - Simple hierarchy with optional grouping
-8. **Validation-Driven** - Proven by first-try production deployment
+5. **Shipment Workflow** - Exploration → synthesis → planning → implementation
+6. **TMux Integration** - One session per workshop, programmatic layout
+7. **Skills System** - Claude Code skills for workflow automation
+8. **Plan/Apply Infrastructure** - DB as source of truth, filesystem materializes on apply
 
 ---
 
 ## Technical References
 
 **Codebase Structure:**
-- `internal/cli/` - Command implementations (commission, work-order, workbench, etc.)
-- `internal/models/` - Database models and queries
-- `internal/context/` - Commission context detection
-- `internal/tmux/` - TMux session management
-- `internal/db/` - SQLite database setup and migrations
+- `internal/cli/` - Command implementations (commission, task, shipment, workbench, etc.)
+- `internal/core/` - Domain logic (guards, planners)
+- `internal/app/` - Application services
+- `internal/adapters/` - Infrastructure adapters (sqlite, tmux, filesystem)
+- `internal/ports/` - Interface definitions
+- `internal/db/` - SQLite database setup and schema
 
 **Key Files:**
-- `internal/cli/summary.go` - Hierarchical work order display
+- `internal/cli/summary.go` - Hierarchical display
 - `internal/cli/workbench.go` - Workbench management and TMux integration
-- `internal/cli/work_order.go` - Work order CRUD operations
-- `internal/models/workorder.go` - Work order model and queries
+- `internal/cli/task.go` - Task CRUD operations
+- `internal/cli/shipment.go` - Shipment lifecycle
 
 **External Dependencies:**
 - Claude Code CLI (for AI integration)
@@ -619,16 +510,16 @@ orc handoff create --note "Session summary..."
 
 ## Glossary
 
-**Commission**: Top-level coordination scope, owns workbenches and work orders
-**Work Order**: Task within a commission, flat hierarchy with optional parent
-**Workbench**: Git worktree registered to a commission, physical workspace
-**IMP**: Implementation (conceptual layer over workbench, not separate entity)
-**ORC**: Main orchestrator that coordinates IMPs across commissions
-**Proto-Mail**: Work-order-based bidirectional messaging
+**Commission**: Top-level coordination scope, owns workshops and shipments
+**Workshop**: Collection of workbenches with a gatehouse for coordination
+**Workbench (BENCH-XXX)**: Git worktree registered to a workshop, physical workspace
+**Shipment (SHIP-XXX)**: Unit of work with exploration → implementation lifecycle
+**Task (TASK-XXX)**: Specific implementation work within a shipment
+**IMP**: Implementation agent that works within a workbench
+**Goblin (GATE-XXX)**: Workshop gatekeeper, reviews plans, handles escalations
+**Watchdog (WATCH-XXX)**: IMP monitor for tracking progress
 **Handoff**: Session boundary artifact (narrative + work state)
 **orc prime**: Context injection at session start
-**orc handoff**: Context capture at session end
-**Epic**: Work order with children (parent in hierarchy)
 
 ---
 
@@ -636,4 +527,4 @@ orc handoff create --note "Session summary..."
 
 **Repository**: ~/src/orc
 **Documentation**: CLAUDE.md (project context), docs/glossary/ (definitions)
-**Status**: Active development, production-validated (COMM-002)
+**Status**: Active development, production use
