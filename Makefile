@@ -1,4 +1,4 @@
-.PHONY: install install-orc install-dev-shim dev build test lint lint-fix schema-check check-test-presence check-coverage check-skills init install-hooks clean help deploy-glue schema-diff schema-apply schema-inspect setup-workbench schema-diff-workbench schema-apply-workbench
+.PHONY: install install-orc install-dev-shim dev build test lint lint-fix schema-check check-test-presence check-coverage check-skills init install-hooks clean help deploy-glue schema-diff schema-apply schema-inspect setup-workbench schema-diff-workbench schema-apply-workbench bootstrap
 
 # Go binary location (handles empty GOBIN)
 GOBIN := $(shell go env GOPATH)/bin
@@ -181,6 +181,28 @@ install-hooks:
 init: install-hooks
 	@echo "✓ ORC development environment initialized"
 
+# First-time setup for new users
+bootstrap:
+	@if [ -d "$$HOME/.orc" ] && [ -f "$$HOME/.orc/orc.db" ]; then \
+		echo "Already bootstrapped. Run 'make init' to refresh hooks."; \
+	else \
+		echo "Bootstrapping ORC..."; \
+		echo ""; \
+		$(MAKE) init; \
+		$(MAKE) install; \
+		$(MAKE) deploy-glue; \
+		echo ""; \
+		echo "Creating default factory..."; \
+		orc factory create Default; \
+		echo ""; \
+		echo "Running health check..."; \
+		orc doctor || true; \
+		echo ""; \
+		echo "✓ ORC bootstrapped successfully!"; \
+		echo ""; \
+		echo "Next step: Run /orc-first-run to get started"; \
+	fi
+
 # Setup workbench-local development database
 setup-workbench:
 	@echo "Creating workbench-local database..."
@@ -252,6 +274,9 @@ deploy-glue:
 help:
 	@echo "ORC Makefile Commands:"
 	@echo ""
+	@echo "Getting Started:"
+	@echo "  make bootstrap     First-time setup (new users start here)"
+	@echo ""
 	@echo "Development:"
 	@echo "  make dev           Build local ./orc for development"
 	@echo "  make test          Run all tests"
@@ -271,6 +296,7 @@ help:
 	@echo "Installation:"
 	@echo "  make install       Install orc binary and orc-dev shim"
 	@echo "  make install-orc   Install only the orc binary"
+	@echo "  make init          Refresh git hooks (after pull)"
 	@echo ""
 	@echo "Claude Code Integration:"
 	@echo "  make deploy-glue   Deploy skills to ~/.claude/skills/"
