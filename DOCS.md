@@ -25,14 +25,7 @@ Master index for ORC documentation. Use this as your navigation hub.
 | [getting-started.md](docs/getting-started.md) | Installation, first-run guide, environment setup |
 | [common-workflows.md](docs/common-workflows.md) | Shipment lifecycle, IMP workflow, operating modes |
 | [glue.md](docs/glue.md) | Skills anatomy, hooks system, deployment |
-
-## Planned Documentation
-
-The following files will be added as part of the documentation overhaul:
-
-| File | Purpose |
-|------|---------|
-| docs/troubleshooting.md | FAQ, /orc-help discovery, common issues |
+| [troubleshooting.md](docs/troubleshooting.md) | FAQ, common issues, getting help |
 
 ## Navigation Guide
 
