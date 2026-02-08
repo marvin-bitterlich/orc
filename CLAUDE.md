@@ -7,7 +7,7 @@ This file contains essential workflow rules and context for agents working on th
 - **`orc prime`** - Context injection at session start
 - **`orc status`** - View current commission and work order status
 - **`orc summary`** - Hierarchical view of work orders with pinned items
-- **`orc doctor`** - Validate ORC environment and Claude Code configuration
+- **`orc doctor`** - Validate ORC environment and glue deployment
 - **`/handoff`** - Create handoff for session continuity
 - **`/bootstrap`** - Load project context from git history and recent handoffs
 
