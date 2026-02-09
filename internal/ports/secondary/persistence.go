@@ -1472,3 +1472,45 @@ type WorkshopLogFilters struct {
 	Action     string
 	Limit      int
 }
+
+// HookEventRepository defines the secondary port for hook event persistence.
+// Hook events are immutable audit records of Claude Code hook invocations.
+type HookEventRepository interface {
+	// Create persists a new hook event.
+	Create(ctx context.Context, event *HookEventRecord) error
+
+	// GetByID retrieves a hook event by its ID.
+	GetByID(ctx context.Context, id string) (*HookEventRecord, error)
+
+	// List retrieves hook events matching the given filters.
+	List(ctx context.Context, filters HookEventFilters) ([]*HookEventRecord, error)
+
+	// GetNextID returns the next available hook event ID.
+	GetNextID(ctx context.Context) (string, error)
+}
+
+// HookEventRecord represents a hook event as stored in persistence.
+type HookEventRecord struct {
+	ID                  string
+	WorkbenchID         string
+	HookType            string // 'Stop', 'UserPromptSubmit'
+	Timestamp           string
+	PayloadJSON         string // Empty string means null
+	Cwd                 string // Empty string means null
+	SessionID           string // Empty string means null
+	ShipmentID          string // Empty string means null
+	ShipmentStatus      string // Empty string means null
+	TaskCountIncomplete int    // -1 means null
+	Decision            string // 'allow', 'block'
+	Reason              string // Empty string means null
+	DurationMs          int    // -1 means null
+	Error               string // Empty string means null
+	CreatedAt           string
+}
+
+// HookEventFilters contains filter options for querying hook events.
+type HookEventFilters struct {
+	WorkbenchID string
+	HookType    string
+	Limit       int
+}
