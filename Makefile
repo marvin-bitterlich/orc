@@ -239,8 +239,8 @@ deploy-glue:
 		cp -r "$$dir" ~/.claude/skills/$$name; \
 	done
 	@echo "✓ Skills deployed to ~/.claude/skills/"
-	@if [ -d "glue/hooks" ] && [ "$$(ls -A glue/hooks 2>/dev/null)" ]; then \
-		echo "Deploying Claude Code hooks..."; \
+	@if [ -d "glue/hooks" ] && [ "$$(ls -A glue/hooks/*.sh 2>/dev/null)" ]; then \
+		echo "Deploying Claude Code hook scripts..."; \
 		for hook in glue/hooks/*.sh; do \
 			[ -f "$$hook" ] || continue; \
 			name=$$(basename "$$hook"); \
@@ -248,14 +248,14 @@ deploy-glue:
 			cp "$$hook" ~/.claude/hooks/$$name; \
 			chmod +x ~/.claude/hooks/$$name; \
 		done; \
-		echo "✓ Hooks deployed to ~/.claude/hooks/"; \
-		if [ -f "glue/hooks.json" ]; then \
-			echo "Configuring hooks in settings.json..."; \
-			jq -s '.[0].hooks = (.[0].hooks // {}) * .[1] | .[0]' \
-				~/.claude/settings.json glue/hooks.json > /tmp/settings.json && \
-				mv /tmp/settings.json ~/.claude/settings.json; \
-			echo "✓ Hooks configured in settings.json"; \
-		fi; \
+		echo "✓ Hook scripts deployed to ~/.claude/hooks/"; \
+	fi
+	@if [ -f "glue/hooks.json" ]; then \
+		echo "Configuring hooks in settings.json..."; \
+		jq -s '.[0].hooks = (.[0].hooks // {}) * .[1] | .[0]' \
+			~/.claude/settings.json glue/hooks.json > /tmp/settings.json && \
+			mv /tmp/settings.json ~/.claude/settings.json; \
+		echo "✓ Hooks configured in settings.json"; \
 	fi
 	@if [ -d "glue/tmux" ] && [ "$$(ls -A glue/tmux 2>/dev/null)" ]; then \
 		echo "Deploying tmux scripts..."; \
