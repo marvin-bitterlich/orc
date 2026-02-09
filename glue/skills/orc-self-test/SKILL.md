@@ -39,7 +39,22 @@ orc workbench create test-bench --workshop WORK-xxx
 
 Capture the workbench ID (e.g., `BENCH-xxx`).
 
-### 4. Check Infrastructure Plan
+### 4. Create Kennel for Watchdog
+
+```bash
+orc kennel ensure-all
+```
+
+This creates kennels for all workbenches that don't have one.
+
+Verify:
+```bash
+orc kennel list --workshop WORK-xxx
+```
+
+Capture the kennel ID (e.g., `KENN-xxx`).
+
+### 5. Check Infrastructure Plan (Without Patrol)
 
 ```bash
 orc infra plan WORK-xxx
@@ -50,8 +65,26 @@ Verify the plan shows:
 - Workbench: `CREATE` (or `MISSING` if no repo linked)
 - TMux Session: `CREATE` (session doesn't exist yet)
 - TMux Windows: `CREATE` for each workbench
+- **No watchdog pane** (patrol not active)
 
-### 5. Apply Infrastructure
+### 6. Start Patrol and Check Plan Again
+
+```bash
+# Start patrol for the workbench
+orc patrol start BENCH-xxx
+```
+
+Capture the patrol ID (e.g., `PATROL-xxx`).
+
+```bash
+# Check plan now shows watchdog pane
+orc infra plan WORK-xxx
+```
+
+Verify the plan shows:
+- TMux Window: Shows **pane 4** for watchdog (watchdog pane `CREATE`)
+
+### 7. Apply Infrastructure (With Watchdog)
 
 ```bash
 orc infra apply WORK-xxx --yes
@@ -61,8 +94,9 @@ Verify output shows:
 - Gatehouse created
 - Workbenches created
 - TMux session created (if shown)
+- **Watchdog pane created (pane 4)**
 
-### 6. Verify Filesystem State
+### 8. Verify Filesystem State
 
 ```bash
 ls -la ~/.orc/ws/WORK-xxx-*/
@@ -73,7 +107,7 @@ Verify:
 - Gatehouse directory exists
 - Config file exists with proper content
 
-### 7. Verify TMux State
+### 9. Verify TMux State (Including Watchdog)
 
 ```bash
 tmux list-sessions | grep -q "Self-Test"
@@ -84,7 +118,30 @@ Verify:
 - Session exists
 - Window for workbench exists
 
-### 8. Archive and Cleanup (New Pattern)
+Check watchdog pane exists:
+```bash
+tmux list-panes -t "[TEST] Self-Test Workshop:test-bench" | grep -q "4:"
+```
+
+Verify:
+- Pane 4 (watchdog pane) exists
+
+### 10. End Patrol and Verify Watchdog Cleanup
+
+```bash
+# End the patrol
+orc patrol end PATROL-xxx
+
+# Apply infrastructure to remove watchdog pane
+orc infra apply WORK-xxx --yes
+```
+
+Verify watchdog pane removed:
+```bash
+tmux list-panes -t "[TEST] Self-Test Workshop:test-bench" | grep -q "4:" && echo "ERROR: Watchdog pane still exists" || echo "OK: Watchdog pane removed"
+```
+
+### 11. Archive and Cleanup (New Pattern)
 
 Archive workbenches first, then workshop:
 
@@ -103,7 +160,7 @@ Verify:
 - Worktree directory removed
 - TMux window removed
 
-### 9. Delete DB Entities
+### 12. Delete DB Entities
 
 Delete test entities in reverse order:
 
@@ -113,7 +170,7 @@ orc workshop delete WORK-xxx --force
 orc factory delete FACT-xxx --force
 ```
 
-### 10. Verify Cleanup
+### 13. Verify Cleanup
 
 ```bash
 # Verify no orphan directories remain
@@ -133,13 +190,18 @@ ORC Self-Test Results
 [PASS] Factory created
 [PASS] Workshop created
 [PASS] Workbench created (DB only)
-[PASS] Infra plan shows correct state
-[PASS] Infra plan shows TMux CREATE status
+[PASS] Kennel created for workbench
+[PASS] Infra plan shows correct state (no watchdog)
+[PASS] Patrol started
+[PASS] Infra plan shows watchdog pane
 [PASS] Infra apply creates filesystem
 [PASS] Gatehouse directory exists
 [PASS] Config file exists
 [PASS] TMux session exists
 [PASS] TMux window exists
+[PASS] Watchdog pane (pane 4) exists
+[PASS] Patrol ended
+[PASS] Watchdog pane removed
 [PASS] Workbench archived
 [PASS] Workshop archived
 [PASS] Infra apply removes orphans
