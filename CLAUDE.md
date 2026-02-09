@@ -8,6 +8,7 @@ This file contains essential workflow rules and context for agents working on th
 - **`orc status`** - View current commission and work order status
 - **`orc summary`** - Hierarchical view of work orders with pinned items
 - **`orc doctor`** - Validate ORC environment and glue deployment
+- **`orc bootstrap`** - Start interactive first-run experience (launches Claude with /orc-first-run)
 - **`/release`** - Cut a new version (bump VERSION, promote CHANGELOG, tag)
 - **`/ship-deploy`** - Deploy shipment to master (see [docs/deployment.md](docs/deployment.md))
 - **`/handoff`** - Create handoff for session continuity

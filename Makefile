@@ -203,7 +203,7 @@ bootstrap:
 		echo ""; \
 		echo "✓ ORC bootstrapped successfully!"; \
 		echo ""; \
-		echo "Next step: Run /orc-first-run to get started"; \
+		echo "Next step: Run 'orc bootstrap' to start the first-run experience"; \
 	fi
 
 # Setup workbench-local development database

@@ -5,7 +5,7 @@ description: Interactive first-run walkthrough for new users. Guides through cre
 
 # ORC First Run
 
-Interactive walkthrough for new ORC users. Uses guided execution - the skill runs commands for you while explaining what's happening.
+Adaptive onboarding for new ORC users. Checks what already exists, creates what's missing, explains concepts as it goes, and guides through environment configuration.
 
 ## Usage
 
@@ -13,7 +13,14 @@ Interactive walkthrough for new ORC users. Uses guided execution - the skill run
 /orc-first-run
 ```
 
-Run this after `make bootstrap` to get oriented and create your first project.
+Run this via `orc bootstrap` for the complete first-run experience.
+
+## Philosophy
+
+This skill is **adaptive** - it checks existing state before creating anything:
+- If entities exist, tour and explain them
+- If entities are missing, create them with explanations
+- Never fail or create duplicates
 
 ## Flow
 
@@ -26,54 +33,108 @@ Welcome to ORC - The Forest Factory!
 
 ORC helps you orchestrate software development work through a hierarchy:
 
-  Factory     → Your development environment
-    Workshop  → A project (tmux session with workbenches)
-      Workbench → A git worktree where IMPs work
-        Shipment  → A unit of work (exploration → tasks → code)
+  Commission  → A body of work (project, initiative)
+    Shipment  → A unit of work (feature, fix, exploration)
+      Task    → An atomic piece of work
 
-Let's set up your first project together.
+  Workshop    → A tmux session where agents work
+    Workbench → A git worktree where an IMP implements tasks
+
+Let me check what's already set up...
 ```
 
-### Step 2: Create First Commission
+### Step 2: Check Existing State
 
-A commission is a body of work - think of it as a project or initiative.
+Run discovery commands:
 
-Ask the user for a commission name using AskUserQuestion:
-- Question: "What would you like to call your first commission?"
-- Header: "Commission"
-- Options:
-  1. "Getting Started" (Recommended) - Good for learning ORC
-  2. "My Project" - Generic project name
-  3. Other - Enter custom name
-
-Then run:
 ```bash
-orc commission create "<name>"
+orc commission list
+orc workshop list
+orc repo list
 ```
 
-Capture the COMM-xxx ID and explain:
-```
-Created commission: COMM-xxx
+Determine what exists:
+- **Commission**: Look for one named "Getting Started" or any active commission
+- **Workshop**: Look for any active workshop
+- **Repo**: Look for "orc" repo or check if current directory is registered
+- **Workbench**: If workshop exists, check for workbenches
 
-A commission groups related work together. You might have one for
-"Q1 Features" or "Backend Refactor" - whatever makes sense for your work.
-```
+### Step 3: Handle ORC Repo
 
-### Step 3: Create First Workshop
+The ORC repo should be registered so workbenches can be created.
 
-A workshop is where the actual work happens - it's a tmux session with workbenches.
-
-Ask the user for a workshop name using AskUserQuestion:
-- Question: "What would you like to call your first workshop?"
-- Header: "Workshop"
-- Options:
-  1. "my-workshop" (Recommended) - Simple default
-  2. "dev" - Short and common
-  3. Other - Enter custom name
-
-Then run:
 ```bash
-orc workshop create "<name>" --commission COMM-xxx
+orc repo list | grep -i orc
+```
+
+**If ORC repo not found:**
+```bash
+# Get current directory (should be ORC repo after make bootstrap)
+pwd
+orc repo create orc --local-path "$(pwd)" --default-branch main
+```
+
+Explain:
+```
+Registered the ORC repository from your current directory.
+This lets ORC create workbenches (git worktrees) for development.
+```
+
+**If ORC repo exists:**
+```
+Found ORC repository already registered.
+```
+
+### Step 4: Handle Commission
+
+```bash
+orc commission list | grep -i "getting started"
+```
+
+**If "Getting Started" commission not found:**
+```bash
+orc commission create "Getting Started" --description "Orientation commission for learning ORC"
+```
+
+Capture COMM-xxx ID.
+
+Create Goblin orientation note:
+```bash
+orc note create "Goblin Orientation" --commission COMM-xxx --type spec --content "This is an orientation commission for new ORC users. Be extra explanatory about concepts and workflows as they explore."
+```
+
+Explain:
+```
+Created commission: COMM-xxx "Getting Started"
+
+A commission groups related work together. This one is for learning ORC.
+I've added a note to help the Goblin (workshop coordinator) know this is
+an orientation context.
+```
+
+**If commission exists:**
+```
+Found existing commission: COMM-xxx
+
+I'll use this for your first workshop and shipment.
+```
+
+### Step 5: Handle Workshop
+
+```bash
+orc workshop list
+```
+
+**If no workshop linked to the commission:**
+```bash
+orc workshop create
+```
+
+Capture WORK-xxx ID.
+
+Link to commission:
+```bash
+orc workshop set-commission COMM-xxx
 ```
 
 Explain:
@@ -81,68 +142,92 @@ Explain:
 Created workshop: WORK-xxx
 
 A workshop is a tmux session where you and your IMP agents work.
-Each workshop can have multiple workbenches (git worktrees).
+It's now linked to the "Getting Started" commission.
 ```
 
-### Step 4: Explain TMux Layout
-
-Display explanation of tmux navigation (no commands needed yet):
-
+**If workshop exists:**
 ```
-TMux Navigation
+Found existing workshop: WORK-xxx
 
-When you connect to a workshop, you'll see tmux windows:
-- Window 0: Gatehouse (Goblin/coordinator view)
-- Window 1+: Workbenches (where IMPs work)
-
-Key bindings:
-- Ctrl+b n     → Next window
-- Ctrl+b p     → Previous window
-- Ctrl+b w     → Window list
-- Right-click  → ORC context menu
-
-You can connect to your workshop later with:
-  orc tmux connect WORK-xxx
+I'll use this for your first workbench.
 ```
 
-### Step 5: Create First Shipment
-
-A shipment is a unit of work that moves from exploration to implementation.
+### Step 6: Handle Workbench
 
 ```bash
-orc shipment create "My First Shipment" --commission COMM-xxx --description "Learning ORC"
+orc workbench list --workshop WORK-xxx
 ```
 
-Then focus it:
+**If no workbench exists:**
+```bash
+# Get ORC repo ID
+orc repo list | grep orc
+orc workbench create --workshop WORK-xxx --repo-id REPO-xxx
+```
+
+Capture BENCH-xxx ID.
+
+Apply infrastructure:
+```bash
+orc infra apply WORK-xxx
+```
+
+Explain:
+```
+Created workbench: BENCH-xxx
+
+A workbench is a git worktree where an IMP (implementation agent) works.
+The infrastructure has been applied - directories and tmux windows are ready.
+```
+
+**If workbench exists:**
+```
+Found existing workbench: BENCH-xxx
+
+Your workshop already has a workbench set up.
+```
+
+### Step 7: Handle Shipment
+
+```bash
+orc shipment list --commission COMM-xxx
+```
+
+**If no shipment exists:**
+```bash
+orc shipment create "First Steps" --commission COMM-xxx --description "Your first shipment - experiment and learn!"
+```
+
+Capture SHIP-xxx ID.
+
+Focus the workbench on this shipment:
 ```bash
 orc focus SHIP-xxx
 ```
 
+Create user orientation note:
+```bash
+orc note create "Welcome" --shipment SHIP-xxx --type idea --content "Welcome to ORC! Use 'orc summary' to see your workspace, or start exploring with '/ship-new' to create your first real shipment."
+```
+
 Explain:
 ```
-Created and focused: SHIP-xxx
+Created shipment: SHIP-xxx "First Steps"
 
 A shipment tracks work through stages:
   exploring → tasked → implementing → deployed → complete
 
-You're now focused on this shipment. Let's add a note.
+This shipment is now focused - any notes or tasks you create will attach here.
 ```
 
-### Step 6: Add First Note
+**If shipment exists:**
+```
+Found existing shipment: SHIP-xxx
 
-```bash
-orc note create "Welcome note" --shipment SHIP-xxx --type idea --content "This is my first note in ORC. I'm learning the system!"
+You already have a shipment to work with.
 ```
 
-Explain:
-```
-Added note: NOTE-xxx
-
-Notes capture ideas, decisions, and learnings as you work.
-They help you (and your IMP) remember context later.
-```
-
-### Step 7: Show Summary
+### Step 8: Show Current State
 
 ```bash
 orc summary
@@ -150,18 +235,97 @@ orc summary
 
 Explain:
 ```
-The summary shows your work hierarchy. You'll use this constantly to
-see what's happening across your commissions and shipments.
+Here's your current ORC setup. The summary command shows your work hierarchy -
+you'll use this constantly to see what's happening.
 ```
 
-### Step 8: Quick Reference Card
+### Step 9: TMux Navigation
 
-Display completion message and reference:
+Display tmux explanation:
+
+```
+TMux Navigation
+
+Your workshop runs in a tmux session with multiple windows:
+- Window 0: Gatehouse (Goblin/coordinator view)
+- Window 1+: Workbenches (where IMPs work)
+
+Key bindings:
+- Ctrl+b n     → Next window
+- Ctrl+b p     → Previous window
+- Ctrl+b w     → Window list
+- Right-click  → ORC context menu (if configured)
+
+Connect to your workshop with:
+  orc tmux connect WORK-xxx
+```
+
+### Step 10: Guide Repo Configuration
+
+Ask if user wants to add more repos:
+
+```
+Would you like to add more repositories for creating workbenches?
+
+Common locations are ~/src/ or ~/code/. I can help you register repos
+so you can create workbenches for them later.
+```
+
+Use AskUserQuestion:
+- Question: "Would you like to add repositories from ~/src?"
+- Header: "Repos"
+- Options:
+  1. "Yes, show me how" - Guide through /orc-repo
+  2. "Skip for now" - Continue to templates
+  3. "I'll do it later" - Continue to templates
+
+**If user wants to add repos:**
+```
+Let's add some repositories. Run:
+  /orc-repo
+
+This will guide you through registering a repository.
+After adding repos, you can create workbenches for them in any workshop.
+```
+
+Wait for user to complete /orc-repo or indicate they're done.
+
+### Step 11: Guide Template Configuration
+
+Ask about workshop templates:
+
+```
+Workshop templates let you quickly create workshops with pre-configured
+workbenches. For example, a "standard" template might create workbenches
+for your main repo plus infrastructure.
+```
+
+Use AskUserQuestion:
+- Question: "Would you like to set up workshop templates?"
+- Header: "Templates"
+- Options:
+  1. "Yes, show me" - Guide through /orc-workshop-templates
+  2. "Skip for now" - Continue to finish
+  3. "I'll configure later" - Continue to finish
+
+**If user wants to configure templates:**
+```
+Let's set up some templates. Run:
+  /orc-workshop-templates
+
+This will let you create, edit, or view workshop templates.
+```
+
+Wait for user to complete or indicate they're done.
+
+### Step 12: Finish with Quick Reference
+
+Display completion message and reference card:
 
 ```
 You're all set! Here's a quick reference:
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 Essential Commands:
   orc summary              See all your work
@@ -174,18 +338,34 @@ Shipment Workflow:
   /ship-plan               Plan tasks from notes
   /imp-start               Begin autonomous work
 
+Workshop Management:
+  /orc-workshop            Create a new workshop
+  /orc-repo                Register a repository
+  orc tmux connect WORK-xxx Connect to workshop
+
 Getting Help:
   /orc-help                Show all ORC skills
   orc doctor               Check environment health
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+To start working:
+  orc tmux connect WORK-xxx
 
 Happy building!
 ```
 
+Replace WORK-xxx with the actual workshop ID discovered/created earlier.
+
+## Error Handling
+
+- If commands fail, explain what went wrong and suggest manual steps
+- If user declines all optional steps, that's fine - finish gracefully
+- If entities already exist in unexpected states, explain and continue
+
 ## Notes
 
-- Uses AskUserQuestion for interactive prompts with suggestions
-- Runs all orc commands directly (guided execution)
-- Does not reference Watchtower (deferred feature)
-- Designed to run after `make bootstrap`
+- Uses AskUserQuestion for interactive prompts
+- Chains to /orc-repo and /orc-workshop-templates as needed
+- Idempotent - safe to run multiple times
+- Designed to be launched by `orc bootstrap`

@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `orc bootstrap` CLI command - starts Claude with `/orc-first-run` skill for first-time setup
 - `/release` skill now runs `/docs-doctor` validation before release (hard blocker)
 - Pre-commit hook enforces CHANGELOG.md changes on feature branches
 - Post-merge hook runs `orc doctor` on master/main branch
@@ -20,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `/orc-first-run` skill rewritten for adaptive onboarding - checks existing state, creates missing entities, guides repo/template setup
+- Makefile bootstrap target now points to `orc bootstrap` instead of `/orc-first-run`
 - Simplified `docs/shipment-lifecycle.md` to two phases: Planning and Implementation
 - Consolidated `docs/glossary/` into single `docs/glossary.md` (A-Z term list)
 - Stripped `docs/troubleshooting.md` to only `/orc-help` and `orc doctor`
