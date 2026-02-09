@@ -34,7 +34,7 @@ This provides a focused view of "where am I right now?"`,
 			cfg, cfgErr := MigrateGoblinConfigIfNeeded(cmd.Context(), cwd)
 			if cfgErr != nil {
 				// No config - show minimal status
-				fmt.Println("ORC Status - No Context")
+				fmt.Println("❓ ORC Status - No Context")
 				fmt.Println()
 				fmt.Println("No .orc/config.json found in current directory.")
 				fmt.Println("This is a Goblin context (no workbench configured).")
@@ -51,14 +51,14 @@ This provides a focused view of "where am I right now?"`,
 
 			// Show status based on role
 			if role == config.RoleGoblin {
-				fmt.Println("ORC Status - Goblin Context")
+				fmt.Println("👺 ORC Status - Goblin Context")
 				if config.IsGatehouse(cfg.PlaceID) {
-					fmt.Printf("  Gatehouse: %s\n", cfg.PlaceID)
+					fmt.Printf("  🏰 Gatehouse: %s\n", cfg.PlaceID)
 				}
 			} else if role == config.RoleIMP {
-				fmt.Println("ORC Status - IMP Context")
+				fmt.Println("👹 ORC Status - IMP Context")
 				if config.IsWorkbench(cfg.PlaceID) {
-					fmt.Printf("  Workbench: %s\n", cfg.PlaceID)
+					fmt.Printf("  🔧 Workbench: %s\n", cfg.PlaceID)
 				}
 			}
 			fmt.Println()
@@ -68,10 +68,10 @@ This provides a focused view of "where am I right now?"`,
 			if focusID != "" {
 				containerType, title, status := GetFocusInfo(focusID)
 				if containerType != "" {
-					fmt.Printf("Focus: %s - %s [%s]\n", focusID, title, status)
+					fmt.Printf("🎯 Focus: %s - %s [%s]\n", focusID, title, status)
 					fmt.Printf("   (%s)\n", containerType)
 				} else {
-					fmt.Printf("Focus: %s (container not found)\n", focusID)
+					fmt.Printf("🎯 Focus: %s (container not found)\n", focusID)
 				}
 				fmt.Println()
 			}
@@ -81,7 +81,7 @@ This provides a focused view of "where am I right now?"`,
 				// Show shipments assigned to this workbench
 				shipments, err := wire.ShipmentService().GetShipmentsByWorkbench(context.Background(), cfg.PlaceID)
 				if err == nil && len(shipments) > 0 {
-					fmt.Println("Assigned Shipments:")
+					fmt.Println("📦 Assigned Shipments:")
 					for _, s := range shipments {
 						fmt.Printf("  - %s: %s [%s]\n", s.ID, s.Title, s.Status)
 					}
@@ -94,7 +94,7 @@ This provides a focused view of "where am I right now?"`,
 				handoffs, err := wire.HandoffService().ListHandoffs(context.Background(), 1)
 				if err == nil && len(handoffs) > 0 {
 					h := handoffs[0]
-					fmt.Printf("Latest Handoff: %s\n", h.ID)
+					fmt.Printf("🤝 Latest Handoff: %s\n", h.ID)
 					fmt.Printf("   Created: %s\n", h.CreatedAt)
 					fmt.Println()
 					fmt.Println("--- HANDOFF NOTE ---")
