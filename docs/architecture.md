@@ -91,6 +91,11 @@ ORC (Orchestrator) is a commission coordination system for managing complex, mul
 |-------|-------------|
 | goblin-escalation-receive | Handle incoming escalations |
 
+**Watchdog Workflow:**
+| Skill | Description |
+|-------|-------------|
+| watchdog-monitor | Monitoring loop for watching IMP |
+
 **Setup & Admin:**
 | Skill | Description |
 |-------|-------------|
