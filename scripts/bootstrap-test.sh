@@ -255,6 +255,33 @@ else
     exit 1
 fi
 
+# Verify CLI functionality with real commands
+log "Verifying CLI functionality..."
+
+log "Creating test commission..."
+if run_ssh "orc commission create 'Bootstrap Test'"; then
+    log "✓ Commission created"
+else
+    error "Failed to create commission"
+    exit 1
+fi
+
+log "Creating test workshop..."
+if run_ssh "orc workshop create 'Test Workshop' --factory FACT-001"; then
+    log "✓ Workshop created"
+else
+    error "Failed to create workshop"
+    exit 1
+fi
+
+log "Running orc summary..."
+if run_ssh "orc summary"; then
+    log "✓ Summary works"
+else
+    error "Failed to run summary"
+    exit 1
+fi
+
 # Final timing
 ELAPSED=$(($(date +%s) - START_TIME))
 log ""
