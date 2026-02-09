@@ -1,12 +1,15 @@
 package cli
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
 
+	"github.com/example/orc/internal/config"
 	orccontext "github.com/example/orc/internal/context"
 	"github.com/example/orc/internal/ports/primary"
 	"github.com/example/orc/internal/wire"
@@ -441,6 +444,25 @@ Use this when you want human oversight or interactive development.`,
 	},
 }
 
+var shipmentShouldContinueCmd = &cobra.Command{
+	Use:   "should-continue [shipment-id]",
+	Short: "Check if IMP should continue working on shipment",
+	Long: `Check if a shipment has work remaining and is in auto mode.
+
+Used by:
+- Stop hook to decide whether to block
+- Watchdog to know when to nudge or exit
+
+Returns JSON: {"continue": true/false, "reason": "...", "incomplete_tasks": N}
+Exit 0 = continue, Exit 1 = stop
+
+If no shipment-id provided, uses the focused shipment from current workbench.`,
+	Args: cobra.MaximumNArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return runShipmentShouldContinue(cmd, args)
+	},
+}
+
 var shipmentStatusCmd = &cobra.Command{
 	Use:   "status [shipment-id]",
 	Short: "Override shipment status (escape hatch)",
@@ -475,6 +497,140 @@ Backwards transitions (e.g., tasked → exploring) require --force flag.`,
 		fmt.Printf("⚡ Shipment %s status set to '%s'\n", shipmentID, status)
 		return nil
 	},
+}
+
+// ShouldContinueResponse is the JSON output for should-continue command
+type ShouldContinueResponse struct {
+	Continue        bool   `json:"continue"`
+	Reason          string `json:"reason"`
+	ShipmentID      string `json:"shipment_id,omitempty"`
+	ShipmentStatus  string `json:"shipment_status,omitempty"`
+	IncompleteTasks int    `json:"incomplete_tasks"`
+}
+
+func runShipmentShouldContinue(_ *cobra.Command, args []string) error {
+	ctx := NewContext()
+	resp := ShouldContinueResponse{IncompleteTasks: -1}
+
+	var shipmentID string
+	var shipmentStatus string
+	var incompleteCount int
+
+	if len(args) > 0 {
+		// Explicit shipment ID provided
+		shipmentID = args[0]
+
+		// Get shipment to check status
+		shipment, err := wire.ShipmentService().GetShipment(ctx, shipmentID)
+		if err != nil {
+			resp.Reason = fmt.Sprintf("shipment not found: %v", err)
+			return outputShouldContinue(resp, false)
+		}
+		shipmentStatus = shipment.Status
+
+		// Get tasks for the shipment
+		tasks, err := wire.ShipmentService().GetShipmentTasks(ctx, shipmentID)
+		if err != nil {
+			resp.Reason = fmt.Sprintf("failed to get tasks: %v", err)
+			return outputShouldContinue(resp, false)
+		}
+
+		// Count incomplete tasks
+		incompleteCount = 0
+		for _, task := range tasks {
+			if task.Status != "complete" {
+				incompleteCount++
+			}
+		}
+	} else {
+		// Auto-detect from workbench context (like the hook does)
+		cwd, err := os.Getwd()
+		if err != nil {
+			resp.Reason = "failed to get working directory"
+			return outputShouldContinue(resp, false)
+		}
+
+		// Load config
+		cfg, err := config.LoadConfig(cwd)
+		if err != nil {
+			resp.Reason = "no workbench config found"
+			return outputShouldContinue(resp, false)
+		}
+
+		// Check if this is a workbench
+		if !config.IsWorkbench(cfg.PlaceID) {
+			resp.Reason = "not a workbench context"
+			return outputShouldContinue(resp, false)
+		}
+
+		// Get focused shipment
+		focusID, err := wire.WorkbenchService().GetFocusedID(ctx, cfg.PlaceID)
+		if err != nil || focusID == "" {
+			resp.Reason = "no shipment focused"
+			return outputShouldContinue(resp, false)
+		}
+
+		// Check if focus is a shipment
+		if !strings.HasPrefix(focusID, "SHIP-") {
+			resp.Reason = "focus is not a shipment"
+			return outputShouldContinue(resp, false)
+		}
+		shipmentID = focusID
+
+		// Get shipment to check status
+		shipment, err := wire.ShipmentService().GetShipment(ctx, shipmentID)
+		if err != nil {
+			resp.Reason = fmt.Sprintf("shipment not found: %v", err)
+			return outputShouldContinue(resp, false)
+		}
+		shipmentStatus = shipment.Status
+
+		// Get tasks
+		tasks, err := wire.ShipmentService().GetShipmentTasks(ctx, shipmentID)
+		if err != nil {
+			resp.Reason = fmt.Sprintf("failed to get tasks: %v", err)
+			return outputShouldContinue(resp, false)
+		}
+
+		// Count incomplete tasks
+		incompleteCount = 0
+		for _, task := range tasks {
+			if task.Status != "complete" {
+				incompleteCount++
+			}
+		}
+	}
+
+	resp.ShipmentID = shipmentID
+	resp.ShipmentStatus = shipmentStatus
+	resp.IncompleteTasks = incompleteCount
+
+	// Decision logic (same as Stop hook)
+	// Only continue if: auto_implementing AND incomplete tasks > 0
+	if shipmentStatus != "auto_implementing" {
+		resp.Reason = fmt.Sprintf("shipment status is %s (not auto_implementing)", shipmentStatus)
+		return outputShouldContinue(resp, false)
+	}
+
+	if incompleteCount == 0 {
+		resp.Reason = "all tasks complete"
+		return outputShouldContinue(resp, false)
+	}
+
+	// Should continue!
+	resp.Continue = true
+	resp.Reason = fmt.Sprintf("%d incomplete tasks", incompleteCount)
+	return outputShouldContinue(resp, true)
+}
+
+func outputShouldContinue(resp ShouldContinueResponse, shouldContinue bool) error {
+	output, _ := json.Marshal(resp)
+	fmt.Println(string(output))
+
+	if !shouldContinue {
+		os.Exit(1)
+	}
+	return nil
 }
 
 func init() {
@@ -518,6 +674,7 @@ func init() {
 	shipmentCmd.AddCommand(shipmentAutoCmd)
 	shipmentCmd.AddCommand(shipmentManualCmd)
 	shipmentCmd.AddCommand(shipmentStatusCmd)
+	shipmentCmd.AddCommand(shipmentShouldContinueCmd)
 }
 
 // ShipmentCmd returns the shipment command
