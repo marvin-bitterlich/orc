@@ -13,7 +13,8 @@ Run `make bootstrap` in a clean macOS VM to verify the bootstrap experience work
 
 ```
 /bootstrap-test                   (run test, cleanup on success)
-/bootstrap-test --keep-on-failure (keep VM if test fails for debugging)
+/bootstrap-test --keep            (keep VM for exploration after test)
+/bootstrap-test --keep-on-failure (keep VM only if test fails)
 /bootstrap-test --verbose         (show detailed progress)
 ```
 
@@ -31,7 +32,11 @@ The test validates the full first-run experience:
 3. Copies ORC repo into VM
 4. Runs `make bootstrap`
 5. Verifies `orc` is in PATH and works
-6. Cleans up VM on success
+6. Verifies CLI functionality:
+   - Creates a test commission
+   - Creates a test workshop
+   - Runs `orc summary`
+7. Cleans up VM on success (unless `--keep` specified)
 
 ## Flow
 
@@ -54,7 +59,8 @@ Or with flags:
 
 ```bash
 ./scripts/bootstrap-test.sh --verbose
-./scripts/bootstrap-test.sh --keep-on-failure
+./scripts/bootstrap-test.sh --keep              # Keep VM for exploration
+./scripts/bootstrap-test.sh --keep-on-failure   # Keep VM only on failure
 ```
 
 ### Step 3: Report Results
@@ -68,6 +74,7 @@ Verified:
 - Go installs via brew
 - make bootstrap completes
 - orc command works via PATH
+- CLI functionality works (commission, workshop, summary)
 ```
 
 **On failure:**
@@ -93,7 +100,25 @@ Then SSH to the VM:
 
 ## Timing
 
-Typical run: ~60-70 seconds
+Typical run: ~70-80 seconds
 - VM boot: ~10s
 - Go install: ~20s
 - make bootstrap: ~30s
+- CLI verification: ~5s
+
+## --keep Flag
+
+When using `--keep`, the VM is preserved after the test completes (success or failure). The script prints connection instructions:
+
+```
+VM kept for exploration:
+  VM Name:  orc-bootstrap-test-XXXX
+  SSH:      sshpass -p admin ssh admin@192.168.64.XX
+  Password: admin
+
+  Cleanup when done:
+    tart stop orc-bootstrap-test-XXXX
+    tart delete orc-bootstrap-test-XXXX
+```
+
+Use this to explore the VM state after bootstrap, debug issues, or verify the environment manually.
