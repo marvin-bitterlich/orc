@@ -48,7 +48,24 @@ Run /docs-doctor --fix to auto-fix simple issues, then retry.
 
 This is a hard blocker - releases cannot proceed with invalid documentation.
 
-### Step 3: Read Current Version
+### Step 3: Validate Bootstrap
+
+Run bootstrap-test to ensure `make bootstrap` works for new users:
+
+```
+/bootstrap-test
+```
+
+If bootstrap-test fails:
+```
+❌ Bootstrap test failed. Fix issues before releasing.
+
+Run /bootstrap-test --keep-on-failure --verbose to debug.
+```
+
+This is a hard blocker - releases cannot proceed if bootstrap is broken.
+
+### Step 4: Read Current Version
 
 ```bash
 cat VERSION
@@ -61,7 +78,7 @@ If VERSION file missing:
 ❌ No VERSION file found. Create one first.
 ```
 
-### Step 4: Check CHANGELOG
+### Step 5: Check CHANGELOG
 
 ```bash
 cat CHANGELOG.md
@@ -78,7 +95,7 @@ Proceed anyway? [y/n]
 
 Allow proceeding if user confirms.
 
-### Step 5: Determine Version Bump
+### Step 6: Determine Version Bump
 
 **If flag provided:**
 - `--patch`: increment patch (0.1.0 → 0.1.1)
@@ -99,14 +116,14 @@ Accept? [y/n/minor/major]
 - `minor`: bump minor instead
 - `major`: bump major instead
 
-### Step 6: Update VERSION File
+### Step 7: Update VERSION File
 
 Write new version to VERSION file:
 ```bash
 echo "0.1.1" > VERSION
 ```
 
-### Step 7: Update CHANGELOG
+### Step 8: Update CHANGELOG
 
 Replace `## [Unreleased]` section with versioned section:
 
@@ -130,20 +147,20 @@ Replace `## [Unreleased]` section with versioned section:
 
 Use today's date in ISO format (YYYY-MM-DD).
 
-### Step 8: Create Release Commit
+### Step 9: Create Release Commit
 
 ```bash
 git add VERSION CHANGELOG.md
 git commit -m "release: v0.1.1"
 ```
 
-### Step 9: Create Tag
+### Step 10: Create Tag
 
 ```bash
 git tag v0.1.1
 ```
 
-### Step 10: Push (Optional)
+### Step 11: Push (Optional)
 
 ```
 Release created locally:
@@ -160,7 +177,7 @@ git push origin HEAD
 git push origin v0.1.1
 ```
 
-### Step 11: Success Output
+### Step 12: Success Output
 
 ```
 ✓ Released v0.1.1
@@ -181,6 +198,7 @@ Next:
 |-------|--------|
 | Dirty working tree | "Commit or stash changes first" |
 | Docs-doctor fails | "Fix documentation issues before releasing" |
+| Bootstrap-test fails | "Fix bootstrap issues before releasing" |
 | No VERSION file | "Create VERSION file first" |
 | Invalid version format | "VERSION must be semver (X.Y.Z)" |
 | Tag already exists | "Tag vX.Y.Z already exists" |
@@ -193,4 +211,4 @@ Next:
 - CHANGELOG follows keepachangelog.com format
 - Empty Unreleased is a warning, not a blocker
 - Docs-doctor validation is a hard blocker (no exceptions)
-# test comment
+- Bootstrap-test validation is a hard blocker (no exceptions)
