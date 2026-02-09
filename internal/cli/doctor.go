@@ -74,7 +74,9 @@ Examples:
 			if !quiet {
 				// Print compact table
 				fmt.Println()
-				fmt.Println("Check              Status")
+				fmt.Println("🩺 ORC Doctor")
+				fmt.Println()
+				fmt.Println("🔍 Check            Status")
 				fmt.Println("─────────────────────────")
 				for _, r := range results {
 					fmt.Printf("%-18s %s\n", r.Name, r.Status)
@@ -86,7 +88,7 @@ Examples:
 				for _, r := range results {
 					if r.Status != "✓" && r.Details != "" {
 						if !hasDetails {
-							fmt.Println("Details:")
+							fmt.Println("📋 Details:")
 							hasDetails = true
 						}
 						fmt.Printf("\n%s:\n%s\n", r.Name, r.Details)
@@ -103,7 +105,7 @@ Examples:
 						fmt.Println("\n⚠ Checks passed with warnings.")
 					}
 				} else {
-					fmt.Println("All checks passed.")
+					fmt.Println("✅ All checks passed.")
 				}
 			}
 
@@ -125,7 +127,7 @@ Examples:
 func checkDirectories() CheckResult {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		return CheckResult{Name: "Directories", Status: "✗", Details: "  Cannot get home directory"}
+		return CheckResult{Name: "📁 Directories", Status: "✗", Details: "  Cannot get home directory"}
 	}
 
 	missing := []string{}
@@ -162,7 +164,7 @@ func checkDirectories() CheckResult {
 		}
 	}
 
-	return CheckResult{Name: "Directories", Status: "✓"}
+	return CheckResult{Name: "📁 Directories", Status: "✓"}
 }
 
 // checkRepoFreshness checks if ~/src/orc is behind origin/master
@@ -213,7 +215,7 @@ func checkRepoFreshness() CheckResult {
 		}
 	}
 
-	return CheckResult{Name: "ORC Repo", Status: "✓"}
+	return CheckResult{Name: "📂 ORC Repo", Status: "✓"}
 }
 
 // checkGlueDeployment compares glue source against deployed locations
@@ -234,9 +236,9 @@ func checkGlueDeployment() (skills, hooks, tmux CheckResult) {
 		if len(skillsStale) > 0 {
 			details += "  Stale: " + strings.Join(skillsStale, ", ")
 		}
-		skills = CheckResult{Name: "Glue Skills", Status: "✗", Details: strings.TrimSpace(details)}
+		skills = CheckResult{Name: "🎯 Glue Skills", Status: "✗", Details: strings.TrimSpace(details)}
 	} else {
-		skills = CheckResult{Name: "Glue Skills", Status: "✓"}
+		skills = CheckResult{Name: "🎯 Glue Skills", Status: "✓"}
 	}
 
 	// Hooks: glue/hooks/ -> ~/.claude/hooks/
@@ -252,9 +254,9 @@ func checkGlueDeployment() (skills, hooks, tmux CheckResult) {
 		if len(hooksStale) > 0 {
 			details += "  Stale: " + strings.Join(hooksStale, ", ")
 		}
-		hooks = CheckResult{Name: "Glue Hooks", Status: "✗", Details: strings.TrimSpace(details)}
+		hooks = CheckResult{Name: "🪝 Glue Hooks", Status: "✗", Details: strings.TrimSpace(details)}
 	} else {
-		hooks = CheckResult{Name: "Glue Hooks", Status: "✓"}
+		hooks = CheckResult{Name: "🪝 Glue Hooks", Status: "✓"}
 	}
 
 	// TMux: glue/tmux/ -> ~/.orc/tmux/
@@ -270,9 +272,9 @@ func checkGlueDeployment() (skills, hooks, tmux CheckResult) {
 		if len(tmuxStale) > 0 {
 			details += "  Stale: " + strings.Join(tmuxStale, ", ")
 		}
-		tmux = CheckResult{Name: "Glue TMux", Status: "✗", Details: strings.TrimSpace(details)}
+		tmux = CheckResult{Name: "🖥️ Glue TMux", Status: "✗", Details: strings.TrimSpace(details)}
 	} else {
-		tmux = CheckResult{Name: "Glue TMux", Status: "✓"}
+		tmux = CheckResult{Name: "🖥️ Glue TMux", Status: "✓"}
 	}
 
 	return skills, hooks, tmux
@@ -467,7 +469,7 @@ func checkHookConfig() CheckResult {
 				Details: "  No hooks configured in settings.json\n  Run: make deploy-glue",
 			}
 		}
-		return CheckResult{Name: "Hook Config", Status: "✓"}
+		return CheckResult{Name: "⚙️ Hook Config", Status: "✓"}
 	}
 
 	// Deep compare each hook type configuration
@@ -496,7 +498,7 @@ func checkHookConfig() CheckResult {
 		}
 	}
 
-	return CheckResult{Name: "Hook Config", Status: "✓"}
+	return CheckResult{Name: "⚙️ Hook Config", Status: "✓"}
 }
 
 // checkBinary validates orc binary installation
@@ -538,7 +540,7 @@ func checkBinary() CheckResult {
 		}
 	}
 
-	return CheckResult{Name: "Binary", Status: "✓", Details: fmt.Sprintf("  %s (%s)", orcPath, version.String())}
+	return CheckResult{Name: "🔧 Binary", Status: "✓", Details: fmt.Sprintf("  %s (%s)", orcPath, version.String())}
 }
 
 // isInOrcRepo checks if we're in the ORC repository

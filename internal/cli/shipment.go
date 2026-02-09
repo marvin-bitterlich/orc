@@ -49,7 +49,7 @@ var shipmentCreateCmd = &cobra.Command{
 			return fmt.Errorf("failed to create shipment: %w", err)
 		}
 
-		fmt.Printf("✓ Created shipment %s: %s\n", resp.Shipment.ID, resp.Shipment.Title)
+		fmt.Printf("📦 Created shipment %s: %s\n", resp.Shipment.ID, resp.Shipment.Title)
 		fmt.Printf("  Commission: %s\n", resp.Shipment.CommissionID)
 		if resp.Shipment.Branch != "" {
 			fmt.Printf("  Branch: %s\n", resp.Shipment.Branch)
@@ -192,7 +192,7 @@ var shipmentCompleteCmd = &cobra.Command{
 			return fmt.Errorf("failed to complete shipment: %w", err)
 		}
 
-		fmt.Printf("Shipment %s marked as complete\n", shipmentID)
+		fmt.Printf("🏁 Shipment %s marked as complete\n", shipmentID)
 		return nil
 	},
 }
@@ -210,7 +210,7 @@ var shipmentPauseCmd = &cobra.Command{
 			return fmt.Errorf("failed to pause shipment: %w", err)
 		}
 
-		fmt.Printf("Shipment %s paused\n", shipmentID)
+		fmt.Printf("⏸️ Shipment %s paused\n", shipmentID)
 		return nil
 	},
 }
@@ -228,7 +228,7 @@ var shipmentResumeCmd = &cobra.Command{
 			return fmt.Errorf("failed to resume shipment: %w", err)
 		}
 
-		fmt.Printf("Shipment %s resumed\n", shipmentID)
+		fmt.Printf("▶️ Shipment %s resumed\n", shipmentID)
 		return nil
 	},
 }
@@ -255,7 +255,7 @@ and all tasks must be complete.`,
 			return fmt.Errorf("failed to deploy shipment: %w", err)
 		}
 
-		fmt.Printf("✓ Shipment %s marked as deployed\n", shipmentID)
+		fmt.Printf("🚀 Shipment %s marked as deployed\n", shipmentID)
 		return nil
 	},
 }
@@ -281,7 +281,7 @@ The shipment must be in 'deployed' status.`,
 			return fmt.Errorf("failed to verify shipment: %w", err)
 		}
 
-		fmt.Printf("✓ Shipment %s marked as verified\n", shipmentID)
+		fmt.Printf("✅ Shipment %s marked as verified\n", shipmentID)
 		return nil
 	},
 }
@@ -311,7 +311,7 @@ var shipmentUpdateCmd = &cobra.Command{
 			return fmt.Errorf("failed to update shipment: %w", err)
 		}
 
-		fmt.Printf("Shipment %s updated\n", shipmentID)
+		fmt.Printf("📝 Shipment %s updated\n", shipmentID)
 		return nil
 	},
 }
@@ -329,7 +329,7 @@ var shipmentPinCmd = &cobra.Command{
 			return fmt.Errorf("failed to pin shipment: %w", err)
 		}
 
-		fmt.Printf("Shipment %s pinned\n", shipmentID)
+		fmt.Printf("📌 Shipment %s pinned\n", shipmentID)
 		return nil
 	},
 }
@@ -347,7 +347,7 @@ var shipmentUnpinCmd = &cobra.Command{
 			return fmt.Errorf("failed to unpin shipment: %w", err)
 		}
 
-		fmt.Printf("Shipment %s unpinned\n", shipmentID)
+		fmt.Printf("📌 Shipment %s unpinned\n", shipmentID)
 		return nil
 	},
 }
@@ -366,7 +366,7 @@ var shipmentAssignCmd = &cobra.Command{
 			return fmt.Errorf("failed to assign shipment: %w", err)
 		}
 
-		fmt.Printf("Shipment %s assigned to workbench %s\n", shipmentID, workbenchID)
+		fmt.Printf("🔗 Shipment %s assigned to workbench %s\n", shipmentID, workbenchID)
 		return nil
 	},
 }
@@ -388,7 +388,7 @@ The IMP will transition it to 'implementing' or 'auto_implementing' when work be
 			return fmt.Errorf("failed to update shipment status: %w", err)
 		}
 
-		fmt.Printf("✓ Shipment %s marked as ready_for_imp\n", shipmentID)
+		fmt.Printf("🎯 Shipment %s marked as ready_for_imp\n", shipmentID)
 		fmt.Println("  IMP can now claim tasks from this shipment")
 		return nil
 	},
@@ -412,7 +412,7 @@ are complete. The IMP will be propelled forward automatically through the
 			return fmt.Errorf("failed to update shipment status: %w", err)
 		}
 
-		fmt.Printf("✓ Shipment %s set to auto_implementing\n", shipmentID)
+		fmt.Printf("🤖 Shipment %s set to auto_implementing\n", shipmentID)
 		fmt.Println("  Stop hook will block until shipment is complete")
 		return nil
 	},
@@ -435,7 +435,7 @@ Use this when you want human oversight or interactive development.`,
 			return fmt.Errorf("failed to update shipment status: %w", err)
 		}
 
-		fmt.Printf("✓ Shipment %s set to implementing (manual mode)\n", shipmentID)
+		fmt.Printf("👷 Shipment %s set to implementing (manual mode)\n", shipmentID)
 		fmt.Println("  IMP can stop at any time")
 		return nil
 	},
@@ -472,7 +472,7 @@ Backwards transitions (e.g., tasked → exploring) require --force flag.`,
 			return fmt.Errorf("failed to set status: %w", err)
 		}
 
-		fmt.Printf("✓ Shipment %s status set to '%s'\n", shipmentID, status)
+		fmt.Printf("⚡ Shipment %s status set to '%s'\n", shipmentID, status)
 		return nil
 	},
 }

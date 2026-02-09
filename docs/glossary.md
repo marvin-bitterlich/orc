@@ -9,53 +9,53 @@ A-Z definitions of ORC terminology. For schema details see [schema.md](schema.md
 
 ## Terms
 
-**Approval**
+**✅ Approval**
 A Goblin's sign-off on an IMP's implementation plan. Required before code changes.
 
-**Commission**
+**📋 Commission**
 A body of work being tracked. Top-level organizational unit. Contains shipments.
 
-**El Presidente**
+**👔 El Presidente**
 The human. Strategic decision maker and boss. Commands the forest.
 
-**Factory**
+**🏭 Factory**
 A collection of workshops, typically representing a codebase or project area.
 
-**Gatehouse**
+**🏰 Gatehouse**
 The Goblin's workspace within a workshop. Coordination point for reviews and escalations.
 
-**Goblin**
+**👺 Goblin**
 Workshop gatekeeper. Reviews plans, handles escalations, coordinates across workbenches. Does not write code.
 
-**Handoff**
+**🤝 Handoff**
 Session context snapshot for continuity between Claude sessions.
 
-**IMP**
+**👹 IMP**
 Implementation agent. Works in a workbench to implement features, fix bugs, complete tasks.
 
-**Note**
+**📝 Note**
 Captured thought within a shipment. Types: idea, question, finding, decision, concern, spec.
 
-**Plan**
+**📐 Plan**
 C4-level implementation detail created by IMP. Specifies files and functions to edit.
 
-**Receipt**
+**🧾 Receipt**
 Proof of task completion. Created by `/imp-rec` after implementation.
 
-**Shipment**
+**📦 Shipment**
 Unit of work with exploration → implementation lifecycle. Contains tasks and notes.
 
-**Task**
+**✔️ Task**
 Specific implementation work within a shipment. C2/C3 scope (what systems to touch).
 
-**Tome**
+**📖 Tome**
 Knowledge container at commission level. Holds notes for long-running reference.
 
-**Watchdog**
+**🐕 Watchdog**
 IMP monitor. Tracks progress and reports anomalies. One per workbench.
 
-**Workbench**
+**🔧 Workbench**
 Git worktree where an IMP works. Isolated development environment with dedicated tmux window.
 
-**Workshop**
+**🛠️ Workshop**
 Collection of workbenches for coordinated work. Has one gatehouse and many workbenches.

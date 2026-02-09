@@ -3,11 +3,11 @@ name: orc-interview
 description: Reusable interview primitive for surfacing decisions. Use standalone (/orc-interview) for ad-hoc decision-making, or nested from other skills (ship-synthesize, ship-plan) for structured interviews.
 ---
 
-# ORC Interview
+# 🎤 ORC Interview
 
 A lightweight interview mechanism for surfacing and resolving decisions. Works standalone or as a primitive called by other skills.
 
-## Usage
+## 📖 Usage
 
 ```
 /orc-interview                    (start ad-hoc interview)
@@ -16,7 +16,7 @@ A lightweight interview mechanism for surfacing and resolving decisions. Works s
 
 When called from another skill (ship-synthesize, ship-plan, etc.), the interview runs inline without taking over the conversation.
 
-## Interview Format
+## 💬 Interview Format
 
 Each question follows this natural language structure:
 
@@ -35,7 +35,7 @@ Each question follows this natural language structure:
 4. Discuss - explore further before deciding
 ```
 
-### Format Guidelines
+### 📋 Format Guidelines
 
 - **Natural language**: Write conversationally, not as rigid forms
 - **Context first**: Explain the situation and what's at stake
@@ -44,7 +44,7 @@ Each question follows this natural language structure:
 - **Numbered options**: Always 1-4 (approve, alternative, skip, discuss)
 - **Progress indicator**: Always show [Question X/Y]
 
-### Example Question
+### 💡 Example Question
 
 ```
 [Question 2/5]
@@ -63,7 +63,7 @@ meaningful as a navigation concept rather than just a bookmark.
 4. Discuss
 ```
 
-## Standalone Mode
+## 🎯 Standalone Mode
 
 When invoked directly via `/orc-interview`:
 
@@ -103,18 +103,18 @@ Interview complete. Decisions made:
 These decisions can inform next steps or be recorded as notes.
 ```
 
-## Nested Mode
+## 🔗 Nested Mode
 
 When called from another skill (ship-synthesize, ship-plan, orc-architecture):
 
-### Behavior
+### ⚡ Behavior
 
 - **Lightweight**: No greeting, no "interview complete" ceremony
 - **Inline**: Questions appear in the parent skill's flow
 - **Returns decisions**: Parent skill receives answers and continues
 - **Respects parent's max**: Parent can specify max questions
 
-### Integration Pattern
+### 🔌 Integration Pattern
 
 Parent skill prepares:
 - List of themes/topics to interview about
@@ -131,7 +131,7 @@ Parent skill receives:
 - Any topics skipped
 - Any topics needing more discussion
 
-### Example Integration
+### 📝 Example Integration
 
 ```
 # In ship-synthesize, after identifying themes:
@@ -158,21 +158,21 @@ rather than a general bookmark.
 ...
 ```
 
-## Parameters
+## ⚙️ Parameters
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | max_questions | 5 | Maximum questions in one interview session |
 | topic | (none) | Optional topic to focus the interview |
 
-## Response Handling
+## 🎯 Response Handling
 
 | Response | Meaning | Action |
 |----------|---------|--------|
-| 1 | Approve | Accept recommendation, record decision |
-| 2 | Plan B | Accept alternative, record decision |
-| 3 | Skip | Defer this decision, move to next question |
-| 4 | Discuss | Pause for clarification, then re-present or revise |
+| 1 | ✅ Approve | Accept recommendation, record decision |
+| 2 | 🔄 Plan B | Accept alternative, record decision |
+| 3 | ⏭️ Skip | Defer this decision, move to next question |
+| 4 | 💭 Discuss | Pause for clarification, then re-present or revise |
 
 When user chooses "4. Discuss":
 - Invite them to share concerns or questions
@@ -180,9 +180,9 @@ When user chooses "4. Discuss":
 - Re-present the question with adjusted framing, or
 - Move on if they indicate readiness
 
-## Best Practices
+## 💡 Best Practices
 
-### Writing Good Questions
+### ✍️ Writing Good Questions
 
 1. **Lead with context**: Don't assume the reader remembers everything
 2. **Make stakes clear**: Why does this decision matter?
@@ -190,14 +190,14 @@ When user chooses "4. Discuss":
 4. **Be opinionated**: A recommendation is more helpful than pure neutrality
 5. **Keep it concise**: One screen, readable at a glance
 
-### Respecting User Time
+### ⏱️ Respecting User Time
 
 - Don't pad with unnecessary questions
 - If something is obvious, don't ask - just note it
 - 5 questions max keeps interviews focused
 - Skip ceremony when nested
 
-### Handling Uncertainty
+### 🤔 Handling Uncertainty
 
 If you're unsure what to recommend:
 - Say so: "I'm not confident here, but leaning toward X because..."
