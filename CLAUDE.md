@@ -258,6 +258,68 @@ make dev
 
 ---
 
+## Bootstrap VM Testing
+
+Test `make bootstrap` in a fresh macOS VM to verify the first-run experience works for new users.
+
+### Requirements
+
+- **Apple Silicon Mac** - Uses Virtualization.framework (no Intel support)
+- **tart** - macOS VM manager: `brew install cirruslabs/cli/tart`
+- **sshpass** - Non-interactive SSH: `brew install sshpass`
+
+### Running the Test
+
+```bash
+make bootstrap-test
+```
+
+Or directly with options:
+
+```bash
+./scripts/bootstrap-test.sh --verbose           # Show detailed progress
+./scripts/bootstrap-test.sh --keep-on-failure   # Keep VM for debugging if test fails
+```
+
+### What It Tests
+
+The test validates the complete first-run experience:
+
+1. Creates a fresh macOS Tahoe VM
+2. Installs Go via Homebrew
+3. Copies ORC repo into VM
+4. Runs `make bootstrap`
+5. Verifies `orc` is in PATH and works
+6. Cleans up VM on success
+
+### First Run Note
+
+The first run will auto-pull the macOS base image (~25GB). Subsequent runs reuse the cached image.
+
+### Debugging Failures
+
+If the test fails:
+
+```bash
+./scripts/bootstrap-test.sh --keep-on-failure --verbose
+```
+
+Then SSH into the VM:
+
+```bash
+ssh admin@$(tart ip orc-bootstrap-test-XXXX)
+# Password: admin
+```
+
+To clean up afterward:
+
+```bash
+tart stop orc-bootstrap-test-XXXX
+tart delete orc-bootstrap-test-XXXX
+```
+
+---
+
 ## Architecture Rules
 
 ORC follows a hexagonal (ports & adapters) architecture with strict layer boundaries.
