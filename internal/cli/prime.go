@@ -60,6 +60,14 @@ func runPrime(cmd *cobra.Command, args []string) error {
 		cwd = "(unknown)"
 	}
 
+	// Check for Watchdog role via environment variable (set by orc connect --role watchdog)
+	kennelID := os.Getenv("WATCHDOG_KENNEL_ID")
+	if kennelID != "" {
+		fullOutput := buildWatchdogPrimeOutput(kennelID, cwd)
+		fmt.Println(truncateOutput(fullOutput, format, maxLines))
+		return nil
+	}
+
 	// Detect workbench context (IMP territory)
 	workbenchCtx, _ := ctx.DetectWorkbenchContext()
 
@@ -176,6 +184,47 @@ func buildIMPPrimeOutput(workbenchCtx *ctx.WorkbenchContext, cwd string) string 
 
 	// Call to action - run summary for dynamic context
 	output.WriteString("\n---\n\n**Run `orc summary` now to see your current assignments and context.**\n")
+
+	return output.String()
+}
+
+// buildWatchdogPrimeOutput creates Watchdog monitoring context output
+func buildWatchdogPrimeOutput(kennelID, cwd string) string {
+	var output strings.Builder
+
+	output.WriteString("# Watchdog Boot Context\n\n")
+
+	// Identity
+	output.WriteString("## Identity\n\n")
+	output.WriteString("**Role**: Watchdog (Monitoring Agent)\n")
+	output.WriteString(fmt.Sprintf("**Kennel**: `%s`\n", kennelID))
+	output.WriteString(fmt.Sprintf("**Location**: `%s`\n\n", cwd))
+
+	// Watchdog CLI Primer
+	output.WriteString("## Watchdog CLI Primer\n\n")
+	output.WriteString("**Core Commands**:\n")
+	output.WriteString("- `orc patrol status` - Check current patrol status\n")
+	output.WriteString("- `orc patrol start BENCH-xxx` - Start monitoring a workbench\n")
+	output.WriteString("- `orc patrol end PATROL-xxx` - End a patrol\n")
+	output.WriteString("- `orc shipment should-continue [SHIP-xxx]` - Check if IMP should continue\n\n")
+
+	// Watchdog-specific rules
+	output.WriteString("## Monitoring Loop\n\n")
+	output.WriteString("1. Check `orc shipment should-continue` periodically\n")
+	output.WriteString("2. If continue=true and IMP appears idle, send nudge\n")
+	output.WriteString("3. If continue=false (all tasks done), end patrol\n")
+	output.WriteString("4. Report failures or blocks to Goblin\n\n")
+
+	// Footer (loaded from template)
+	welcome, err := templates.GetWelcomeWatchdog()
+	if err == nil {
+		output.WriteString(welcome)
+	} else {
+		output.WriteString("---\nYou are a Watchdog - Monitoring agent watching over an IMP workbench.\n")
+	}
+
+	// Call to action
+	output.WriteString("\n---\n\n**Run `orc patrol status` now to check your monitoring state.**\n")
 
 	return output.String()
 }
