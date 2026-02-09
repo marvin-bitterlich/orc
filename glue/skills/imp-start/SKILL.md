@@ -45,22 +45,34 @@ Begin autonomous work on the focused shipment.
    orc task claim --shipment SHIP-xxx
    ```
 
-6. **Enable auto mode (if --auto flag)**
+6. **Enable auto mode and spawn watchdog (if --auto flag)**
    ```bash
+   # Enable auto mode for shipment
    orc shipment auto SHIP-xxx
+
+   # Start patrol (creates monitoring session for watchdog)
+   orc patrol start BENCH-xxx
+
+   # Apply infrastructure to spawn watchdog pane
+   orc infra apply WORK-xxx --yes
    ```
+
+   Wait for watchdog pane to appear before continuing.
 
 7. **Output**
    - Without --auto: "Task TASK-xxx claimed. Run /imp-plan-create to create an implementation plan."
-   - With --auto: "Task TASK-xxx claimed. Auto mode enabled. Run /imp-plan-create to create an implementation plan."
+   - With --auto: "Task TASK-xxx claimed. Auto mode enabled, watchdog spawned. Run /imp-plan-create to create an implementation plan."
 
 ## Error Handling
 
 - No focused shipment → "No shipment focused. Run `orc focus SHIP-xxx` first."
 - No ready tasks → "No ready tasks in shipment. Check `orc task list --shipment SHIP-xxx`."
 - Already in_progress task → "Task TASK-xxx already in progress. Run /imp-plan-create."
+- Patrol start fails → Report error, continue without watchdog
+- Infra apply fails → Report error, end patrol, continue without watchdog
 
 ## Notes
 
-- Use --auto for autonomous execution (Stop hook blocks until shipment complete)
-- Use /imp-auto to toggle mode mid-flight
+- Use --auto for autonomous execution with watchdog monitoring
+- Watchdog monitors IMP progress and nudges when idle
+- Use /imp-auto to toggle mode mid-flight (spawns/removes watchdog)
