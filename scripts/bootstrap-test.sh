@@ -12,6 +12,7 @@ VM_PASS="admin"
 SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR"
 
 # Flags
+KEEP=false
 KEEP_ON_FAILURE=false
 VERBOSE=false
 
@@ -25,7 +26,8 @@ Usage: $(basename "$0") [OPTIONS]
 Test 'make bootstrap' in a clean macOS Tart VM.
 
 Options:
-    --keep-on-failure   Keep VM on failure for debugging
+    --keep              Keep VM after test (success or failure)
+    --keep-on-failure   Keep VM only on failure for debugging
     --verbose, -v       Show verbose output
     --help, -h          Show this help message
 
@@ -35,6 +37,7 @@ Requirements:
 
 Examples:
     $(basename "$0")                    # Run bootstrap test
+    $(basename "$0") --keep             # Keep VM for exploration
     $(basename "$0") --keep-on-failure  # Keep VM if test fails
 EOF
 }
@@ -54,9 +57,27 @@ error() {
     log "✗ ERROR: $1" >&2
 }
 
+print_vm_info() {
+    log ""
+    log "VM kept for exploration:"
+    log "  VM Name:  $VM_NAME"
+    log "  SSH:      sshpass -p $VM_PASS ssh $VM_USER@$VM_IP"
+    log "  Password: $VM_PASS"
+    log ""
+    log "  Cleanup when done:"
+    log "    tart stop $VM_NAME"
+    log "    tart delete $VM_NAME"
+}
+
 cleanup() {
     local exit_code=$?
 
+    # Always keep if --keep was specified
+    if [[ "$KEEP" == "true" ]]; then
+        return
+    fi
+
+    # Keep on failure if --keep-on-failure was specified
     if [[ "$exit_code" -ne 0 ]] && [[ "$KEEP_ON_FAILURE" == "true" ]]; then
         log "⚠ Keeping VM '$VM_NAME' for debugging (--keep-on-failure)"
         log "  To SSH: ssh $VM_USER@\$(tart ip $VM_NAME)"
@@ -76,6 +97,10 @@ trap cleanup EXIT
 # Parse arguments
 while [[ $# -gt 0 ]]; do
     case $1 in
+        --keep)
+            KEEP=true
+            shift
+            ;;
         --keep-on-failure)
             KEEP_ON_FAILURE=true
             shift
@@ -236,5 +261,10 @@ log ""
 log "=========================================="
 log "✓ Bootstrap test PASSED in ${ELAPSED}s"
 log "=========================================="
+
+# Print VM info if keeping
+if [[ "$KEEP" == "true" ]]; then
+    print_vm_info
+fi
 
 exit 0
