@@ -42,6 +42,7 @@ This command:
 - Builds the ORC binary
 - Installs git hooks (pre-commit quality gates)
 - Initializes the SQLite database at `~/.orc/orc.db`
+- Creates FACT-001 (default factory) and REPO-001 (ORC repository)
 - Deploys skills and hooks to Claude Code
 
 For development dependencies (VM testing, schema migrations):
@@ -49,7 +50,23 @@ For development dependencies (VM testing, schema migrations):
 make bootstrap-dev
 ```
 
-### 3. Verify Installation
+### 3. First-Run Setup (Recommended)
+
+Launch the interactive first-run experience:
+
+```bash
+orc bootstrap
+```
+
+This opens Claude Code with the `/orc-first-run` skill, which guides you through:
+- Creating your first commission
+- Setting up a workshop with workbenches
+- Focusing on your first shipment
+- Connecting to tmux
+
+Skip to "Verification" below after completing the walkthrough.
+
+### 4. Verify Installation
 
 ```bash
 orc doctor
@@ -66,15 +83,13 @@ Expected output shows all checks passing:
 
 ### Interactive Walkthrough
 
-The easiest way to get started is the interactive first-run skill:
+The easiest way to get started is with `orc bootstrap`:
 
-1. Open Claude Code in any directory
-2. Run the skill:
-   ```
-   /orc-first-run
-   ```
+```bash
+orc bootstrap
+```
 
-The walkthrough guides you through:
+This launches Claude Code with the `/orc-first-run` skill. The walkthrough guides you through:
 - Creating your first commission (a project to work on)
 - Setting up a workshop (collection of workbenches)
 - Creating a workbench (isolated git worktree)
@@ -82,7 +97,7 @@ The walkthrough guides you through:
 
 ### Manual Setup
 
-If you prefer manual setup:
+If you prefer manual setup (note: `make bootstrap` already created FACT-001 and REPO-001):
 
 ```bash
 # Create a commission
