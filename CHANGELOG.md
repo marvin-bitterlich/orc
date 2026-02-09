@@ -13,6 +13,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `make bootstrap` now creates REPO-001 (ORC repository at ~/src/orc) after FACT-001
+- `orc bootstrap --factory FACT-xxx` flag passes factory to /orc-first-run skill
+- `/bootstrap-exercise` skill for manual testing of first-run flow with isolated factory
+- Bootstrap test verifies FACT-001 and REPO-001 creation
+
+### Changed
+
+- `/orc-first-run` skill uses canonical path ~/src/orc instead of $(pwd), accepts factory from directive
+- `docs/getting-started.md` recommends `orc bootstrap` as step 3 after make bootstrap
+
 - `Brewfile` and `Brewfile.dev` for Homebrew dependency management
 - `make bootstrap-dev` target for installing development dependencies (tart, sshpass, atlas)
 - `--strict` flag for `orc doctor` - treats warnings as errors (useful for CI/scripts)
