@@ -125,8 +125,17 @@ func (s *InfraServiceImpl) PlanInfra(ctx context.Context, req primary.InfraPlanR
 	var tmuxExpectedWindows []coreinfra.TMuxWindowInput
 
 	if s.tmuxAdapter != nil {
+		// First, try to find session by ORC_WORKSHOP_ID environment variable
 		tmuxSessionName = s.tmuxAdapter.FindSessionByWorkshopID(ctx, req.WorkshopID)
 		tmuxSessionExists = tmuxSessionName != ""
+
+		// Fallback: check if session exists by workshop name (may have been created
+		// but env var not yet set, e.g., after a partial apply failure)
+		if !tmuxSessionExists && s.tmuxAdapter.SessionExists(ctx, workshop.Name) {
+			tmuxSessionName = workshop.Name
+			tmuxSessionExists = true
+		}
+
 		if tmuxSessionExists {
 			tmuxExistingWindows, _ = s.tmuxAdapter.ListWindows(ctx, tmuxSessionName)
 		}
@@ -601,15 +610,18 @@ func (s *InfraServiceImpl) ApplyInfra(ctx context.Context, plan *primary.InfraPl
 
 		// Create session if needed
 		if plan.TMuxSession.Status == primary.OpCreate {
-			// Use gatehouse path as working directory
-			workingDir := ""
-			if plan.Gatehouse != nil {
-				workingDir = plan.Gatehouse.Path
+			// Double-check session doesn't already exist (defensive check for stale plan data)
+			if !s.tmuxAdapter.SessionExists(ctx, sessionName) {
+				// Use gatehouse path as working directory
+				workingDir := ""
+				if plan.Gatehouse != nil {
+					workingDir = plan.Gatehouse.Path
+				}
+				if err := s.tmuxAdapter.CreateSession(ctx, sessionName, workingDir); err != nil {
+					return nil, fmt.Errorf("failed to create tmux session: %w", err)
+				}
 			}
-			if err := s.tmuxAdapter.CreateSession(ctx, sessionName, workingDir); err != nil {
-				return nil, fmt.Errorf("failed to create tmux session: %w", err)
-			}
-			// Set ORC_WORKSHOP_ID environment variable
+			// Ensure ORC_WORKSHOP_ID environment variable is set (may be missing from prior failed apply)
 			if err := s.tmuxAdapter.SetEnvironment(ctx, sessionName, "ORC_WORKSHOP_ID", plan.WorkshopID); err != nil {
 				return nil, fmt.Errorf("failed to set ORC_WORKSHOP_ID: %w", err)
 			}
