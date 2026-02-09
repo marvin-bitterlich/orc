@@ -268,6 +268,33 @@ else
     exit 1
 fi
 
+# Verify FACT-001 was created by make bootstrap
+log "Verifying FACT-001 exists..."
+if run_ssh "orc factory list | grep -q FACT-001"; then
+    log "✓ FACT-001 exists"
+else
+    error "FACT-001 not found after bootstrap"
+    exit 1
+fi
+
+# Verify REPO-001 was created by make bootstrap
+log "Verifying REPO-001 exists..."
+if run_ssh "orc repo list | grep -q REPO-001"; then
+    log "✓ REPO-001 exists"
+else
+    error "REPO-001 not found after bootstrap"
+    exit 1
+fi
+
+# Verify REPO-001 has correct path
+log "Verifying REPO-001 path..."
+if run_ssh "orc repo show REPO-001 | grep -q 'src/orc'"; then
+    log "✓ REPO-001 has correct path"
+else
+    error "REPO-001 path incorrect (expected ~/src/orc)"
+    exit 1
+fi
+
 # Verify CLI functionality with real commands
 log "Verifying CLI functionality..."
 
