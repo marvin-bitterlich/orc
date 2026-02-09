@@ -9,5 +9,16 @@
         }
       ]
     }
+  ],
+  "UserPromptSubmit": [
+    {
+      "hooks": [
+        {
+          "type": "command",
+          "command": "orc hook UserPromptSubmit",
+          "timeout": 5000
+        }
+      ]
+    }
   ]
 }

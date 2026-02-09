@@ -510,3 +510,26 @@ CREATE INDEX IF NOT EXISTS idx_workshop_logs_workshop ON workshop_logs(workshop_
 CREATE INDEX IF NOT EXISTS idx_workshop_logs_timestamp ON workshop_logs(timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_workshop_logs_actor ON workshop_logs(actor_id);
 CREATE INDEX IF NOT EXISTS idx_workshop_logs_entity ON workshop_logs(entity_type, entity_id);
+
+-- Hook Events (audit trail for Claude Code hook invocations)
+CREATE TABLE IF NOT EXISTS hook_events (
+	id TEXT PRIMARY KEY,
+	workbench_id TEXT NOT NULL,
+	hook_type TEXT NOT NULL CHECK(hook_type IN ('Stop', 'UserPromptSubmit')),
+	timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+	payload_json TEXT,
+	cwd TEXT,
+	session_id TEXT,
+	shipment_id TEXT,
+	shipment_status TEXT,
+	task_count_incomplete INTEGER,
+	decision TEXT NOT NULL CHECK(decision IN ('allow', 'block')),
+	reason TEXT,
+	duration_ms INTEGER,
+	error TEXT,
+	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+	FOREIGN KEY (workbench_id) REFERENCES workbenches(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_hook_events_workbench ON hook_events(workbench_id);
+CREATE INDEX IF NOT EXISTS idx_hook_events_timestamp ON hook_events(timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_hook_events_type ON hook_events(hook_type);

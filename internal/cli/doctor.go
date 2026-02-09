@@ -404,7 +404,7 @@ func checkHookConfig() CheckResult {
 		}
 	}
 
-	var glueHooks map[string]interface{}
+	var glueHooks map[string]any
 	if err := json.Unmarshal(glueData, &glueHooks); err != nil {
 		return CheckResult{
 			Name:    "Hook Config",
@@ -423,7 +423,7 @@ func checkHookConfig() CheckResult {
 		}
 	}
 
-	var settings map[string]interface{}
+	var settings map[string]any
 	if err := json.Unmarshal(settingsData, &settings); err != nil {
 		return CheckResult{
 			Name:    "Hook Config",
@@ -433,7 +433,7 @@ func checkHookConfig() CheckResult {
 	}
 
 	// Get hooks from settings
-	settingsHooks, ok := settings["hooks"].(map[string]interface{})
+	settingsHooks, ok := settings["hooks"].(map[string]any)
 	if !ok {
 		// No hooks configured at all
 		if len(glueHooks) > 0 {
@@ -446,19 +446,29 @@ func checkHookConfig() CheckResult {
 		return CheckResult{Name: "Hook Config", Status: "✓"}
 	}
 
-	// Check each glue hook type exists in settings
-	missing := []string{}
-	for hookType := range glueHooks {
-		if _, exists := settingsHooks[hookType]; !exists {
-			missing = append(missing, hookType)
+	// Deep compare each hook type configuration
+	var issues []string
+	for hookType, glueConfig := range glueHooks {
+		settingsConfig, exists := settingsHooks[hookType]
+		if !exists {
+			issues = append(issues, hookType+": missing")
+			continue
+		}
+
+		// Serialize both configs for comparison
+		glueJSON, _ := json.Marshal(glueConfig)
+		settingsJSON, _ := json.Marshal(settingsConfig)
+
+		if string(glueJSON) != string(settingsJSON) {
+			issues = append(issues, hookType+": configuration mismatch")
 		}
 	}
 
-	if len(missing) > 0 {
+	if len(issues) > 0 {
 		return CheckResult{
 			Name:    "Hook Config",
 			Status:  "✗",
-			Details: "  Missing hook types: " + strings.Join(missing, ", ") + "\n  Run: make deploy-glue",
+			Details: "  " + strings.Join(issues, "\n  ") + "\n  Run: make deploy-glue",
 		}
 	}
 

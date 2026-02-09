@@ -44,6 +44,7 @@ var (
 	escalationService              primary.EscalationService
 	infraService                   primary.InfraService
 	logService                     primary.LogService
+	hookEventService               primary.HookEventService
 	commissionOrchestrationService *app.CommissionOrchestrationService
 	tmuxService                    secondary.TMuxAdapter
 	shipmentRepo                   secondary.ShipmentRepository
@@ -194,6 +195,12 @@ func LogService() primary.LogService {
 	return logService
 }
 
+// HookEventService returns the singleton HookEventService instance.
+func HookEventService() primary.HookEventService {
+	once.Do(initServices)
+	return hookEventService
+}
+
 // CommissionOrchestrationService returns the singleton CommissionOrchestrationService instance.
 func CommissionOrchestrationService() *app.CommissionOrchestrationService {
 	once.Do(initServices)
@@ -330,6 +337,10 @@ func initServices() {
 
 	// Create log service for activity logs (workshopLogRepo created early for LogWriter)
 	logService = app.NewLogService(workshopLogRepo)
+
+	// Create hook event service for hook invocation tracking
+	hookEventRepo := sqlite.NewHookEventRepository(database)
+	hookEventService = app.NewHookEventService(hookEventRepo)
 
 	// Create orchestration services
 	commissionOrchestrationService = app.NewCommissionOrchestrationService(commissionService, agentProvider)
