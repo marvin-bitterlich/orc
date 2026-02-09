@@ -1,4 +1,4 @@
-.PHONY: install install-orc install-dev-shim dev build test lint lint-fix schema-check check-test-presence check-coverage check-skills init install-hooks clean help deploy-glue schema-diff schema-apply schema-inspect setup-workbench schema-diff-workbench schema-apply-workbench bootstrap bootstrap-test bootstrap-shell
+.PHONY: install install-orc install-dev-shim dev build test lint lint-fix schema-check check-test-presence check-coverage check-skills init install-hooks clean help deploy-glue schema-diff schema-apply schema-inspect setup-workbench schema-diff-workbench schema-apply-workbench bootstrap bootstrap-dev bootstrap-test bootstrap-shell
 
 # Go binary location (handles empty GOBIN)
 GOBIN := $(shell go env GOPATH)/bin
@@ -18,11 +18,31 @@ LDFLAGS := -X 'github.com/example/orc/internal/version.Version=$(FULL_VERSION)' 
 .DEFAULT_GOAL := help
 
 #---------------------------------------------------------------------------
+# Directory guard for dangerous targets
+#---------------------------------------------------------------------------
+
+# Validates we're running from ~/src/orc or ~/wb/*
+# Usage: $(call check-dir)
+define check-dir
+	@if [ "$$(pwd)" != "$$HOME/src/orc" ] && ! echo "$$(pwd)" | grep -qE "^$$HOME/wb/[^/]+$$"; then \
+		echo "Error: This command must be run from ~/src/orc or ~/wb/<workbench>"; \
+		echo ""; \
+		echo "Current directory: $$(pwd)"; \
+		echo ""; \
+		echo "Expected locations:"; \
+		echo "  ~/src/orc     - ORC development"; \
+		echo "  ~/wb/<name>   - Workbench implementation"; \
+		exit 1; \
+	fi
+endef
+
+#---------------------------------------------------------------------------
 # Installation (global binary + dev shim)
 #---------------------------------------------------------------------------
 
 # Full install: binary + dev shim
 install: install-orc install-dev-shim
+	$(call check-dir)
 	@echo ""
 	@echo "Installed:"
 	@echo "  orc      - global binary (production DB)"
@@ -135,6 +155,7 @@ schema-diff:
 
 # Apply schema changes from schema.sql to database
 schema-apply:
+	$(call check-dir)
 	@echo "Applying schema.sql to database..."
 	@command -v atlas >/dev/null 2>&1 || { echo "atlas not installed. Run: brew install ariga/tap/atlas"; exit 1; }
 	atlas schema apply --env local --auto-approve
@@ -186,10 +207,23 @@ init: install-hooks
 
 # First-time setup for new users
 bootstrap:
+	$(call check-dir)
+	@if ! command -v brew >/dev/null 2>&1; then \
+		echo "Error: Homebrew is required but not installed."; \
+		echo ""; \
+		echo "Install Homebrew with:"; \
+		echo '  /bin/bash -c "$$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"'; \
+		echo ""; \
+		echo "Then run 'make bootstrap' again."; \
+		exit 1; \
+	fi
 	@if [ -d "$$HOME/.orc" ] && [ -f "$$HOME/.orc/orc.db" ]; then \
 		echo "Already bootstrapped. Run 'make init' to refresh hooks."; \
 	else \
 		echo "Bootstrapping ORC..."; \
+		echo ""; \
+		echo "Installing dependencies via Homebrew..."; \
+		brew bundle; \
 		echo ""; \
 		$(MAKE) init; \
 		$(MAKE) install; \
@@ -216,7 +250,7 @@ bootstrap:
 		export PATH="$$PATH:$$GOBIN"; \
 		echo ""; \
 		echo "Creating default factory..."; \
-		orc factory create Default; \
+		orc factory create default; \
 		echo ""; \
 		echo "Running health check..."; \
 		orc doctor || true; \
@@ -233,6 +267,18 @@ bootstrap-test:
 # Bootstrap and drop into VM shell for exploration
 bootstrap-shell:
 	@./scripts/bootstrap-test.sh --shell
+
+# Install development dependencies (VM testing, schema migrations)
+bootstrap-dev: bootstrap
+	@echo "Installing development dependencies..."
+	@brew bundle --file=Brewfile.dev
+	@echo ""
+	@echo "✓ Development dependencies installed"
+	@echo ""
+	@echo "Available tools:"
+	@echo "  tart     - VM management for bootstrap testing"
+	@echo "  sshpass  - SSH password automation"
+	@echo "  atlas    - Database schema migrations"
 
 # Setup workbench-local development database
 setup-workbench:
@@ -259,6 +305,7 @@ clean:
 
 # Deploy skills and hooks to Claude Code
 deploy-glue:
+	$(call check-dir)
 	@echo "Deploying Claude Code skills..."
 	@mkdir -p ~/.claude/skills ~/.claude/hooks
 	@for dir in glue/skills/*/; do \

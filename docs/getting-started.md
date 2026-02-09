@@ -11,18 +11,23 @@ Before installing ORC, ensure you have:
 
 | Requirement | Version | Check Command |
 |-------------|---------|---------------|
-| Go | 1.21+ | `go version` |
+| Homebrew | any | `brew --version` |
 | git | 2.x+ | `git --version` |
 | make | any | `make --version` |
 | Claude Code | latest | `claude --version` |
 
+**Note:** Go is installed automatically via Homebrew during bootstrap.
+
 ## Installation
 
-### 1. Clone the Repository
+### 1. Clone to the Canonical Location
+
+ORC expects to live at `~/src/orc`. This location is validated by `orc doctor` and enforced by several Make targets.
 
 ```bash
-git clone <repo-url>
-cd orc
+mkdir -p ~/src
+git clone <repo-url> ~/src/orc
+cd ~/src/orc
 ```
 
 ### 2. Bootstrap the Environment
@@ -32,10 +37,17 @@ make bootstrap
 ```
 
 This command:
+- Verifies Homebrew is installed
+- Installs dependencies via `brew bundle` (including Go)
 - Builds the ORC binary
 - Installs git hooks (pre-commit quality gates)
 - Initializes the SQLite database at `~/.orc/orc.db`
 - Deploys skills and hooks to Claude Code
+
+For development dependencies (VM testing, schema migrations):
+```bash
+make bootstrap-dev
+```
 
 ### 3. Verify Installation
 
@@ -44,10 +56,11 @@ orc doctor
 ```
 
 Expected output shows all checks passing:
-- Database connection
-- Git configuration
-- Claude Code integration
-- Skills deployment
+- Directory structure (`~/.orc/`, `~/wb/`)
+- ORC repo at `~/src/orc`
+- Glue deployment (skills, hooks)
+- Hook configuration
+- Binary installation
 
 ## First Run
 

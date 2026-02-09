@@ -25,6 +25,7 @@ type CheckResult struct {
 // DoctorCmd returns the doctor command for environment validation
 func DoctorCmd() *cobra.Command {
 	var quiet bool
+	var strict bool
 
 	cmd := &cobra.Command{
 		Use:   "doctor",
@@ -40,10 +41,12 @@ Validates:
 
 Examples:
   orc doctor              # Run full health check
-  orc doctor --quiet      # Exit code only (0=healthy, 1=issues)`,
+  orc doctor --quiet      # Exit code only (0=healthy, 1=issues)
+  orc doctor --strict     # Treat warnings as errors (for CI/scripts)`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			results := []CheckResult{}
 			hasErrors := false
+			hasWarnings := false
 
 			// Run all checks
 			results = append(results, checkDirectories())
@@ -58,11 +61,13 @@ Examples:
 			results = append(results, checkHookConfig())
 			results = append(results, checkBinary())
 
-			// Check for errors
+			// Check for errors and warnings
 			for _, r := range results {
 				if r.Status == "✗" {
 					hasErrors = true
-					break
+				}
+				if r.Status == "⚠" {
+					hasWarnings = true
 				}
 			}
 
@@ -88,14 +93,22 @@ Examples:
 					}
 				}
 
+				// Summary message based on state
 				if hasErrors {
-					fmt.Println("\n⚠ Issues found. Run 'make deploy-glue' to sync glue.")
+					fmt.Println("\n✗ Errors found. Run 'make deploy-glue' to sync glue.")
+				} else if hasWarnings {
+					if strict {
+						fmt.Println("\n⚠ Warnings found (treated as errors in strict mode).")
+					} else {
+						fmt.Println("\n⚠ Checks passed with warnings.")
+					}
 				} else {
 					fmt.Println("All checks passed.")
 				}
 			}
 
-			if hasErrors {
+			// In strict mode, warnings are errors
+			if hasErrors || (strict && hasWarnings) {
 				return fmt.Errorf("environment validation failed")
 			}
 			return nil
@@ -103,6 +116,7 @@ Examples:
 	}
 
 	cmd.Flags().BoolVarP(&quiet, "quiet", "q", false, "Quiet mode - exit code only")
+	cmd.Flags().BoolVar(&strict, "strict", false, "Strict mode - treat warnings as errors")
 
 	return cmd
 }
@@ -156,12 +170,22 @@ func checkRepoFreshness() CheckResult {
 	homeDir, _ := os.UserHomeDir()
 	repoPath := filepath.Join(homeDir, "src", "orc")
 
-	// Check if repo exists
+	// Check if repo directory exists
 	if _, err := os.Stat(repoPath); os.IsNotExist(err) {
 		return CheckResult{
 			Name:    "ORC Repo",
 			Status:  "⚠",
-			Details: "  ~/src/orc not found",
+			Details: "  ~/src/orc not found\n  Clone with: git clone <repo-url> ~/src/orc",
+		}
+	}
+
+	// Check if it's a git repo
+	gitDir := filepath.Join(repoPath, ".git")
+	if _, err := os.Stat(gitDir); os.IsNotExist(err) {
+		return CheckResult{
+			Name:    "ORC Repo",
+			Status:  "⚠",
+			Details: "  ~/src/orc exists but is not a git repository\n  Clone with: git clone <repo-url> ~/src/orc",
 		}
 	}
 
@@ -176,7 +200,7 @@ func checkRepoFreshness() CheckResult {
 		return CheckResult{
 			Name:    "ORC Repo",
 			Status:  "⚠",
-			Details: "  Could not check commits (fetch failed?)",
+			Details: "  Could not check commits (git fetch failed or no remote configured)",
 		}
 	}
 

@@ -23,10 +23,13 @@ ORC is a CLI for structured AI-assisted development. It tracks commissions, orga
 ## Getting Started
 
 ```bash
-git clone <repo-url>
-cd orc
+# Clone to the canonical location (required for orc doctor)
+git clone <repo-url> ~/src/orc
+cd ~/src/orc
 make bootstrap
 ```
+
+**Note:** ORC expects to live at `~/src/orc`. The `orc doctor` command validates this location, and some Make targets enforce it.
 
 Then run `/orc-first-run` in Claude Code for an interactive walkthrough.
 

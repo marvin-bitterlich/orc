@@ -1,0 +1,9 @@
+# ORC Development Dependencies
+# Install with: brew bundle --file=Brewfile.dev
+
+# VM testing (bootstrap-test)
+brew "cirruslabs/cli/tart"
+brew "hudochenkov/sshpass/sshpass"
+
+# Schema migrations
+brew "ariga/tap/atlas"

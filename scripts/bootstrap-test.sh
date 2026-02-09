@@ -237,17 +237,18 @@ run_ssh "brew install go" || {
 }
 log "✓ Go installed"
 
-log "Copying ORC repo locally in VM..."
-# Copy repo excluding .git (worktrees have references that won't work in VM)
+log "Copying ORC repo to ~/src/orc (canonical location)..."
+# Copy repo to canonical location ~/src/orc
+# Exclude .git (worktrees have references that won't work in VM)
 # Then init fresh git repo for make bootstrap
-run_ssh "mkdir -p ~/orc-test && rsync -a --exclude .git /Volumes/My\ Shared\ Files/orc/ ~/orc-test/ && cd ~/orc-test && git init && git add -A && git commit -m test" || {
+run_ssh "mkdir -p ~/src/orc && rsync -a --exclude .git /Volumes/My\ Shared\ Files/orc/ ~/src/orc/ && cd ~/src/orc && git init && git add -A && git commit -m 'Initial commit for bootstrap test'" || {
     error "Failed to copy repo"
     exit 1
 }
-log "✓ Repo copied"
+log "✓ Repo copied to ~/src/orc"
 
 log "Running 'make bootstrap'..."
-if run_ssh "cd ~/orc-test && make bootstrap"; then
+if run_ssh "cd ~/src/orc && make bootstrap"; then
     log "✓ make bootstrap PASSED"
 else
     error "make bootstrap FAILED"
@@ -287,6 +288,14 @@ if run_ssh "orc summary"; then
     log "✓ Summary works"
 else
     error "Failed to run summary"
+    exit 1
+fi
+
+log "Running orc doctor..."
+if run_ssh "orc doctor"; then
+    log "✓ Doctor passes"
+else
+    error "orc doctor reported issues"
     exit 1
 fi
 

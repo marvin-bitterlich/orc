@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `Brewfile` and `Brewfile.dev` for Homebrew dependency management
+- `make bootstrap-dev` target for installing development dependencies (tart, sshpass, atlas)
+- `--strict` flag for `orc doctor` - treats warnings as errors (useful for CI/scripts)
+- Directory guards on dangerous Make targets (install, deploy-glue, schema-apply, bootstrap)
 - SubagentStop hook support: `orc hook SubagentStop` complements Stop hook by catching skill/subagent completion points
 - `--shell` flag for bootstrap-test: drops into interactive VM shell after bootstrap (`make bootstrap-shell`)
 - `--keep` flag for bootstrap-test: preserves VM for manual exploration
@@ -28,6 +32,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING**: ORC must be cloned to `~/src/orc` (canonical location enforced by orc doctor)
+- Bootstrap now requires Homebrew and runs `brew bundle` to install Go
+- Bootstrap test copies repo to `~/src/orc` in VM and runs `orc doctor` verification
+- Factory case mismatch fixed: Makefile now creates `default` (lowercase) to match service lookup
+- Improved `orc doctor` messaging: "All checks passed" only shown when truly clean, warnings now properly distinguished
+- Enhanced repo check validates both directory existence and `.git` presence
 - Bootstrap test now validates CLI functionality (creates commission, workshop, runs summary)
 - `/orc-first-run` skill rewritten for adaptive onboarding - checks existing state, creates missing entities, guides repo/template setup
 - Makefile bootstrap target now points to `orc bootstrap` instead of `/orc-first-run`
