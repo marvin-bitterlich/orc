@@ -221,6 +221,15 @@ else
     exit 1
 fi
 
+# Verify orc is in PATH (fresh login shell sources updated ~/.zshrc)
+log "Verifying orc is in PATH..."
+if run_ssh "orc --version"; then
+    log "✓ orc command works via PATH"
+else
+    error "orc not found in PATH after bootstrap"
+    exit 1
+fi
+
 # Final timing
 ELAPSED=$(($(date +%s) - START_TIME))
 log ""

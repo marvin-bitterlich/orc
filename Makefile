@@ -195,20 +195,34 @@ bootstrap:
 		$(MAKE) install; \
 		$(MAKE) deploy-glue; \
 		echo ""; \
-		ORC_BIN="$$(go env GOPATH)/bin/orc"; \
+		echo "Creating ORC directories..."; \
+		mkdir -p ~/.orc/ws ~/wb; \
+		echo ""; \
+		echo "Configuring PATH..."; \
+		GOBIN="$$(go env GOPATH)/bin"; \
+		PATH_EXPORT="export PATH=\"\$$PATH:\$$(go env GOPATH)/bin\""; \
+		if ! grep -q 'GOPATH.*bin' ~/.zprofile 2>/dev/null; then \
+			echo "$$PATH_EXPORT" >> ~/.zprofile; \
+			echo "  Added to ~/.zprofile (login shells)"; \
+		else \
+			echo "  Already in ~/.zprofile"; \
+		fi; \
+		if ! grep -q 'GOPATH.*bin' ~/.zshrc 2>/dev/null; then \
+			echo "$$PATH_EXPORT" >> ~/.zshrc; \
+			echo "  Added to ~/.zshrc (interactive shells)"; \
+		else \
+			echo "  Already in ~/.zshrc"; \
+		fi; \
+		export PATH="$$PATH:$$GOBIN"; \
+		echo ""; \
 		echo "Creating default factory..."; \
-		"$$ORC_BIN" factory create Default; \
+		orc factory create Default; \
 		echo ""; \
 		echo "Running health check..."; \
-		"$$ORC_BIN" doctor || true; \
+		orc doctor || true; \
 		echo ""; \
 		echo "✓ ORC bootstrapped successfully!"; \
 		echo ""; \
-		if ! echo "$$PATH" | grep -q "$$(go env GOPATH)/bin"; then \
-			echo "NOTE: Add Go bin to your PATH:"; \
-			echo "  export PATH=\"\$$PATH:$$(go env GOPATH)/bin\""; \
-			echo ""; \
-		fi; \
 		echo "Next step: Run 'orc bootstrap' to start the first-run experience"; \
 	fi
 
