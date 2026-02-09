@@ -36,6 +36,7 @@ Example:
 
 	// Add event handlers as subcommands
 	cmd.AddCommand(hookStopCmd())
+	cmd.AddCommand(hookSubagentStopCmd())
 	cmd.AddCommand(hookUserPromptSubmitCmd())
 
 	// Add event viewing commands
@@ -59,6 +60,17 @@ type UserPromptSubmitHookEvent struct {
 	SessionID      string `json:"session_id"`
 	Prompt         string `json:"prompt"`
 	TranscriptPath string `json:"transcript_path"`
+}
+
+// SubagentStopHookEvent represents the JSON payload from Claude Code SubagentStop hook
+type SubagentStopHookEvent struct {
+	StopHookActive      bool   `json:"stop_hook_active"`
+	Cwd                 string `json:"cwd"`
+	SessionID           string `json:"session_id"`
+	TranscriptPath      string `json:"transcript_path"`
+	AgentID             string `json:"agent_id"`
+	AgentType           string `json:"agent_type"`
+	AgentTranscriptPath string `json:"agent_transcript_path"`
 }
 
 // StopHookResponse represents the JSON response to block a stop
@@ -227,6 +239,115 @@ func runHookStop() error {
 	// 8. Block with workflow guidance
 	eventReq.Decision = primary.HookDecisionBlock
 	eventReq.Reason = fmt.Sprintf("%d incomplete tasks", hctx.incompleteCount)
+
+	response := StopHookResponse{
+		Decision: "block",
+		Reason: `STOP. You are an IMP operating autonomously in an orchestration system. Your focused shipment has incomplete tasks. You do not stop until the shipment is complete.
+
+WORKFLOW:
+1. No plan? Run /imp-plan-create
+2. Plan created? Run /imp-plan-submit to approve
+3. Plan approved? Run /imp-implement to see plan and code
+4. Implementation done? Run /imp-rec to verify and chain to next
+5. Stuck? Run /imp-escalate
+
+DO NOT STOP. Execute the appropriate /imp- command now.`,
+	}
+
+	// Output JSON response (exit 0 with output = block)
+	output, _ := json.Marshal(response)
+	fmt.Fprintln(os.Stdout, string(output))
+
+	return nil
+}
+
+// hookSubagentStopCmd handles the SubagentStop event for IMP context
+func hookSubagentStopCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "SubagentStop",
+		Short: "Handle SubagentStop event (IMP context)",
+		Long:  "Called when a subagent finishes. Blocks if IMP has incomplete work.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runHookSubagentStop()
+		},
+	}
+}
+
+func runHookSubagentStop() error {
+	ctx := NewContext()
+	startTime := time.Now()
+
+	// Initialize event request (will be persisted at the end)
+	eventReq := primary.LogHookEventRequest{
+		HookType:            primary.HookTypeSubagentStop,
+		Decision:            primary.HookDecisionAllow,
+		TaskCountIncomplete: -1,
+		DurationMs:          -1,
+	}
+
+	// Defer event logging to capture final state
+	defer func() {
+		eventReq.DurationMs = int(time.Since(startTime).Milliseconds())
+		logHookEvent(ctx, eventReq)
+	}()
+
+	// 1. Read stdin JSON
+	data, err := io.ReadAll(os.Stdin)
+	if err != nil {
+		eventReq.Error = fmt.Sprintf("failed to read stdin: %v", err)
+		return nil //nolint:nilerr // intentional fail-open design
+	}
+	eventReq.PayloadJSON = string(data)
+
+	// 2. Parse hook event
+	var event SubagentStopHookEvent
+	if err := json.Unmarshal(data, &event); err != nil {
+		eventReq.Error = fmt.Sprintf("failed to parse JSON: %v", err)
+		return nil //nolint:nilerr // intentional fail-open design
+	}
+
+	eventReq.Cwd = event.Cwd
+	eventReq.SessionID = event.SessionID
+
+	// 3. Check stop_hook_active first (prevent infinite loop)
+	if event.StopHookActive {
+		eventReq.Reason = "stop_hook_active=true (preventing loop)"
+		return nil
+	}
+
+	// 4. Look up ORC context
+	hctx := lookupORCContext(ctx, event.Cwd)
+	eventReq.WorkbenchID = hctx.workbenchID
+	eventReq.ShipmentID = hctx.shipmentID
+	eventReq.ShipmentStatus = hctx.shipmentStatus
+	eventReq.TaskCountIncomplete = hctx.incompleteCount
+
+	// 5. Check if we have ORC context
+	if hctx.workbenchID == "" {
+		eventReq.Reason = "no workbench context"
+		return nil
+	}
+
+	if hctx.shipmentID == "" {
+		eventReq.Reason = "no shipment focused"
+		return nil
+	}
+
+	// 6. Only block in auto_implementing mode
+	if hctx.shipmentStatus != "auto_implementing" {
+		eventReq.Reason = fmt.Sprintf("shipment status is %s (not auto_implementing)", hctx.shipmentStatus)
+		return nil
+	}
+
+	// 7. If no incomplete tasks, allow stop
+	if hctx.incompleteCount == 0 {
+		eventReq.Reason = "all tasks complete"
+		return nil
+	}
+
+	// 8. Block with workflow guidance
+	eventReq.Decision = primary.HookDecisionBlock
+	eventReq.Reason = fmt.Sprintf("%d incomplete tasks (subagent: %s)", hctx.incompleteCount, event.AgentType)
 
 	response := StopHookResponse{
 		Decision: "block",
