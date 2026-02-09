@@ -1,0 +1,219 @@
+#!/bin/bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# Configuration
+BASE_IMAGE="ghcr.io/cirruslabs/macos-tahoe-base:latest"
+VM_NAME="orc-bootstrap-test-$$"
+VM_USER="admin"
+VM_PASS="admin"
+SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR"
+
+# Flags
+KEEP_ON_FAILURE=false
+VERBOSE=false
+
+# Timing
+START_TIME=$(date +%s)
+
+usage() {
+    cat <<EOF
+Usage: $(basename "$0") [OPTIONS]
+
+Test 'make bootstrap' in a clean macOS Tart VM.
+
+Options:
+    --keep-on-failure   Keep VM on failure for debugging
+    --verbose, -v       Show verbose output
+    --help, -h          Show this help message
+
+Requirements:
+    - tart (https://github.com/cirruslabs/tart)
+    - ssh
+
+Examples:
+    $(basename "$0")                    # Run bootstrap test
+    $(basename "$0") --keep-on-failure  # Keep VM if test fails
+EOF
+}
+
+log() {
+    local elapsed=$(($(date +%s) - START_TIME))
+    printf "[%3ds] %s\n" "$elapsed" "$1"
+}
+
+log_verbose() {
+    if [[ "$VERBOSE" == "true" ]]; then
+        log "$1"
+    fi
+}
+
+error() {
+    log "✗ ERROR: $1" >&2
+}
+
+cleanup() {
+    local exit_code=$?
+
+    if [[ "$exit_code" -ne 0 ]] && [[ "$KEEP_ON_FAILURE" == "true" ]]; then
+        log "⚠ Keeping VM '$VM_NAME' for debugging (--keep-on-failure)"
+        log "  To SSH: ssh $VM_USER@\$(tart ip $VM_NAME)"
+        log "  To delete: tart stop $VM_NAME && tart delete $VM_NAME"
+        return
+    fi
+
+    if tart list 2>/dev/null | grep -q "^$VM_NAME"; then
+        log "Cleaning up VM '$VM_NAME'..."
+        tart stop "$VM_NAME" 2>/dev/null || true
+        tart delete "$VM_NAME" 2>/dev/null || true
+    fi
+}
+
+trap cleanup EXIT
+
+# Parse arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --keep-on-failure)
+            KEEP_ON_FAILURE=true
+            shift
+            ;;
+        --verbose|-v)
+            VERBOSE=true
+            shift
+            ;;
+        --help|-h)
+            usage
+            exit 0
+            ;;
+        *)
+            error "Unknown option: $1"
+            usage
+            exit 1
+            ;;
+    esac
+done
+
+# Check dependencies
+log "Checking dependencies..."
+
+if ! command -v tart &>/dev/null; then
+    error "tart not found"
+    echo ""
+    echo "Install tart with:"
+    echo "  brew install cirruslabs/cli/tart"
+    echo ""
+    echo "More info: https://github.com/cirruslabs/tart"
+    exit 1
+fi
+
+if ! command -v ssh &>/dev/null; then
+    error "ssh not found"
+    exit 1
+fi
+
+if ! command -v sshpass &>/dev/null; then
+    error "sshpass not found"
+    echo ""
+    echo "Install sshpass with:"
+    echo "  brew install sshpass"
+    exit 1
+fi
+
+log "✓ Dependencies OK"
+
+# Pull base image if needed
+if ! tart list 2>/dev/null | grep -q "tahoe-base"; then
+    log "Pulling base image (this may take a while)..."
+    tart pull "$BASE_IMAGE"
+    log "✓ Base image pulled"
+else
+    log "✓ Base image already present"
+fi
+
+# Clone VM
+log "Creating test VM '$VM_NAME'..."
+tart clone ghcr.io/cirruslabs/macos-tahoe-base:latest "$VM_NAME"
+log "✓ VM created"
+
+# Start VM headless with shared directory
+log "Starting VM headless with shared ORC repo..."
+tart run "$VM_NAME" --no-graphics --dir="orc:$PROJECT_ROOT" &
+VM_PID=$!
+
+# Wait for VM to boot and get IP
+log "Waiting for VM to boot..."
+VM_IP=""
+for i in {1..60}; do
+    VM_IP=$(tart ip "$VM_NAME" 2>/dev/null || true)
+    if [[ -n "$VM_IP" ]]; then
+        break
+    fi
+    sleep 2
+    log_verbose "  Waiting for IP... ($i/60)"
+done
+
+if [[ -z "$VM_IP" ]]; then
+    error "Failed to get VM IP after 120 seconds"
+    exit 1
+fi
+
+log "✓ VM booted (IP: $VM_IP)"
+
+# Wait for SSH to be ready
+log "Waiting for SSH..."
+for i in {1..30}; do
+    if sshpass -p "$VM_PASS" ssh $SSH_OPTS "$VM_USER@$VM_IP" "echo ready" &>/dev/null; then
+        break
+    fi
+    sleep 2
+    log_verbose "  Waiting for SSH... ($i/30)"
+done
+
+if ! sshpass -p "$VM_PASS" ssh $SSH_OPTS "$VM_USER@$VM_IP" "echo ready" &>/dev/null; then
+    error "SSH not available after 60 seconds"
+    exit 1
+fi
+
+log "✓ SSH ready"
+
+# Run bootstrap sequence via SSH
+# Use login shell to ensure PATH includes Homebrew
+run_ssh() {
+    sshpass -p "$VM_PASS" ssh $SSH_OPTS "$VM_USER@$VM_IP" "zsh -l -c '$*'"
+}
+
+log "Installing Go via Homebrew..."
+run_ssh "brew install go" || {
+    error "Failed to install Go"
+    exit 1
+}
+log "✓ Go installed"
+
+log "Copying ORC repo locally in VM..."
+# Copy repo excluding .git (worktrees have references that won't work in VM)
+# Then init fresh git repo for make bootstrap
+run_ssh "mkdir -p ~/orc-test && rsync -a --exclude .git /Volumes/My\ Shared\ Files/orc/ ~/orc-test/ && cd ~/orc-test && git init && git add -A && git commit -m test" || {
+    error "Failed to copy repo"
+    exit 1
+}
+log "✓ Repo copied"
+
+log "Running 'make bootstrap'..."
+if run_ssh "cd ~/orc-test && make bootstrap"; then
+    log "✓ make bootstrap PASSED"
+else
+    error "make bootstrap FAILED"
+    exit 1
+fi
+
+# Final timing
+ELAPSED=$(($(date +%s) - START_TIME))
+log ""
+log "=========================================="
+log "✓ Bootstrap test PASSED in ${ELAPSED}s"
+log "=========================================="
+
+exit 0

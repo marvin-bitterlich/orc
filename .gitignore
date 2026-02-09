@@ -35,3 +35,8 @@ go.work
 
 # El Presidente's desk
 desk.md
+
+# macOS system directories
+.Trashes
+.fseventsd
+.Spotlight-V100
