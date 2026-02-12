@@ -16,12 +16,6 @@ func NewAdapter() *Adapter {
 	return &Adapter{}
 }
 
-// CreateSession creates a new TMux session.
-func (a *Adapter) CreateSession(ctx context.Context, name, workingDir string) error {
-	_, err := tmuxpkg.NewSession(name, workingDir)
-	return err
-}
-
 // SessionExists checks if a TMux session exists.
 func (a *Adapter) SessionExists(ctx context.Context, name string) bool {
 	return tmuxpkg.SessionExists(name)
@@ -35,26 +29,6 @@ func (a *Adapter) KillSession(ctx context.Context, name string) error {
 // GetSessionInfo returns information about a TMux session.
 func (a *Adapter) GetSessionInfo(ctx context.Context, name string) (string, error) {
 	return tmuxpkg.GetSessionInfo(name)
-}
-
-// CreateOrcWindow creates the ORC orchestrator window layout.
-func (a *Adapter) CreateOrcWindow(ctx context.Context, sessionName, workingDir string) error {
-	session := &tmuxpkg.Session{Name: sessionName}
-	return session.CreateOrcWindow(workingDir)
-}
-
-// CreateWorkbenchWindow creates a workbench window with IMP workspace layout.
-func (a *Adapter) CreateWorkbenchWindow(ctx context.Context, sessionName string, windowIndex int, windowName, workingDir string) error {
-	session := &tmuxpkg.Session{Name: sessionName}
-	_, err := session.CreateWorkbenchWindow(windowIndex, windowName, workingDir)
-	return err
-}
-
-// CreateWorkbenchWindowShell creates a workbench window with shell layout (no apps launched).
-func (a *Adapter) CreateWorkbenchWindowShell(ctx context.Context, sessionName string, windowIndex int, windowName, workingDir string) error {
-	session := &tmuxpkg.Session{Name: sessionName}
-	_, err := session.CreateWorkbenchWindowShell(windowIndex, windowName, workingDir)
-	return err
 }
 
 // WindowExists checks if a window exists in a session.
@@ -231,6 +205,32 @@ func (a *Adapter) SetupGoblinPane(ctx context.Context, sessionName, windowName s
 // Safe to call repeatedly (idempotent). Silently ignores errors (tmux may not be running).
 func ApplyGlobalBindings() {
 	tmuxpkg.ApplyGlobalBindings()
+}
+
+// RefreshWorkbenchLayout relocates guest panes (no PANE_ROLE) to a sibling -imps window.
+// Non-destructive - guest processes keep running, just moved to a separate window.
+func RefreshWorkbenchLayout(sessionName, workbenchWindow string) error {
+	return tmuxpkg.RefreshWorkbenchLayout(sessionName, workbenchWindow)
+}
+
+// EnrichSession applies ORC enrichment to all windows in a session.
+// This includes setting PANE_ROLE env vars, pane titles, and window options.
+func EnrichSession(sessionName string) error {
+	return tmuxpkg.EnrichSession(sessionName)
+}
+
+// GotmuxAdapter re-exports gotmux adapter for wire injection.
+type GotmuxAdapter = tmuxpkg.GotmuxAdapter
+
+// DesiredWorkbench re-exports the type for plan building.
+type DesiredWorkbench = tmuxpkg.DesiredWorkbench
+
+// ApplyPlan re-exports the reconciliation plan type.
+type ApplyPlan = tmuxpkg.ApplyPlan
+
+// NewGotmuxAdapter creates a new gotmux adapter.
+func NewGotmuxAdapter() (*GotmuxAdapter, error) {
+	return tmuxpkg.NewGotmuxAdapter()
 }
 
 // Ensure Adapter implements the interface

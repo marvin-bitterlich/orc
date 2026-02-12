@@ -101,8 +101,8 @@ orc workbench archive BENCH-xxx
 # Archive workshop
 orc workshop archive WORK-xxx
 
-# Apply infrastructure to clean up filesystem/tmux (removes worktrees and tmux windows)
-orc infra apply WORK-xxx --yes
+# Apply tmux to clean up session (reconciles tmux state)
+orc tmux apply WORK-xxx --yes
 
 # Archive the test commission
 orc commission archive COMM-xxx
@@ -133,7 +133,7 @@ All tests passed! The first-run flow is working correctly.
 If any step fails:
 1. Report which step failed and the error
 2. Attempt cleanup by archiving any created resources (archive is always safe)
-3. Run `orc infra apply WORK-xxx --yes` to clean up filesystem/tmux
+3. Run `orc tmux apply WORK-xxx --yes` to clean up tmux session
 4. Suggest running `orc doctor` for diagnostics
 
 ## Notes

@@ -50,11 +50,10 @@ type WorkbenchService interface {
 
 // CreateWorkbenchRequest contains parameters for creating a workbench.
 type CreateWorkbenchRequest struct {
-	Name            string   // Optional - auto-generated as {repo}-{number} if empty and RepoID is set
-	WorkshopID      string   // Required
-	RepoID          string   // Optional - link to repo (required for auto-generated name)
-	Repos           []string // Optional repository names for worktree creation
-	SkipConfigWrite bool     // If true, caller writes config after worktree setup
+	Name       string   // Optional - auto-generated as {repo}-{number} if empty and RepoID is set
+	WorkshopID string   // Required
+	RepoID     string   // Optional - link to repo (required for auto-generated name)
+	Repos      []string // Optional repository names for worktree creation
 }
 
 // CreateWorkbenchResponse contains the result of workbench creation.

@@ -413,9 +413,9 @@ orc task complete TASK-001
 2. **Two-Actor Model** - Goblin (coordinator) + IMP (worker via Claude Teams)
 4. **Git Worktree Native** - First-class support for isolated workspaces
 5. **Simple Lifecycles** - 4-status shipments, 3-status tasks, all manual transitions
-6. **TMux Integration** - One session per workshop, programmatic layout
+6. **TMux Integration** - Smug-based session management with guest pane support
 7. **Skills System** - Claude Code skills for workflow automation
-8. **Plan/Apply Infrastructure** - DB as source of truth, filesystem materializes on apply
+8. **Immediate Infrastructure** - Workbench creation is atomic (DB + worktree + config in one shot)
 
 ---
 

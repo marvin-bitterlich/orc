@@ -37,14 +37,16 @@ func workbenchCreateCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "create",
-		Short: "Create a new workbench record in a workshop",
-		Long: `Create a new workbench record in the database.
+		Short: "Create a new workbench in a workshop",
+		Long: `Create a new workbench with database record, git worktree, and config file.
 
 The workbench name is auto-generated as {repo}-{number} based on the
 linked repo. The workbench will be located at ~/wb/<name>.
 
-To create the physical infrastructure (git worktrees, config files), run:
-  orc infra apply WORK-xxx
+This command creates:
+- Database record
+- Git worktree (or directory if no repo)
+- .orc/config.json file
 
 Examples:
   orc workbench create --workshop WORK-001 --repo-id REPO-001`,
@@ -59,13 +61,12 @@ Examples:
 				return fmt.Errorf("--repo-id flag is required")
 			}
 
-			// Create workbench via service (DB only, no filesystem operations)
+			// Create workbench via service (creates DB, worktree, and config immediately)
 			// Name is auto-generated from repo name + bench number
 			resp, err := wire.WorkbenchService().CreateWorkbench(ctx, primary.CreateWorkbenchRequest{
-				Name:            "", // Auto-generated
-				WorkshopID:      workshopID,
-				RepoID:          repoID,
-				SkipConfigWrite: true, // Infrastructure handled by orc infra apply
+				Name:       "", // Auto-generated
+				WorkshopID: workshopID,
+				RepoID:     repoID,
 			})
 			if err != nil {
 				return fmt.Errorf("failed to create workbench: %w", err)
@@ -75,9 +76,6 @@ Examples:
 			fmt.Printf("✓ Created workbench %s: %s\n", workbench.ID, workbench.Name)
 			fmt.Printf("  Workshop: %s\n", workbench.WorkshopID)
 			fmt.Printf("  Path: %s\n", workbench.Path)
-			fmt.Println()
-			fmt.Println("To create the physical infrastructure, run:")
-			fmt.Printf("  orc infra apply %s\n", workshopID)
 
 			return nil
 		},
@@ -206,14 +204,14 @@ func workbenchDeleteCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "delete [workbench-id]",
 		Short: "Delete a workbench (DEPRECATED)",
-		Long: `DEPRECATED: Use archive + infra apply instead.
+		Long: `DEPRECATED: Use archive + tmux apply instead.
 
 To remove a workbench:
   orc workbench archive BENCH-xxx
-  orc infra apply WORK-xxx`,
+  orc tmux apply WORK-xxx`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return fmt.Errorf("orc workbench delete is deprecated. Use:\n  orc workbench archive %s\n  orc infra apply <workshop-id>", args[0])
+			return fmt.Errorf("orc workbench delete is deprecated. Use:\n  orc workbench archive %s\n  orc tmux apply <workshop-id>", args[0])
 		},
 	}
 
@@ -229,8 +227,8 @@ func workbenchArchiveCmd() *cobra.Command {
 This is a soft-delete that keeps the record in the database so
 infrastructure planning can detect it as a deletion target.
 
-To physically remove the worktree after archiving:
-  orc infra apply WORK-xxx
+To reconcile tmux session after archiving:
+  orc tmux apply WORK-xxx
 
 Examples:
   orc workbench archive BENCH-001`,
@@ -253,7 +251,7 @@ Examples:
 			fmt.Printf("  Name: %s\n", workbench.Name)
 			fmt.Printf("  Path: %s\n", workbench.Path)
 			fmt.Printf("\nTo remove the worktree, run:\n")
-			fmt.Printf("  orc infra apply %s\n", workbench.WorkshopID)
+			fmt.Printf("  orc tmux apply %s\n", workbench.WorkshopID)
 
 			return nil
 		},

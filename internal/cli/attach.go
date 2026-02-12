@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"syscall"
 
 	"github.com/spf13/cobra"
@@ -37,13 +36,6 @@ Examples:
 		sessionName := "orc-master"
 		tmuxAdapter := wire.TMuxAdapter()
 
-		// Get ORC source directory path
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return fmt.Errorf("failed to get home directory: %w", err)
-		}
-		orcPath := filepath.Join(home, "src", "orc")
-
 		// Check if session already exists
 		if tmuxAdapter.SessionExists(ctx, sessionName) {
 			fmt.Printf("✓ Attaching to existing session: %s\n", sessionName)
@@ -67,51 +59,8 @@ Examples:
 			return nil
 		}
 
-		// Verify ORC directory exists
-		if _, err := os.Stat(orcPath); os.IsNotExist(err) {
-			return fmt.Errorf("ORC source directory not found at %s", orcPath)
-		}
-
-		fmt.Printf("Creating master ORC TMux session: %s\n", sessionName)
-		fmt.Printf("Working directory: %s\n", orcPath)
-		fmt.Println()
-
-		// Create session with base numbering from 1
-		if err := tmuxAdapter.CreateSession(ctx, sessionName, orcPath); err != nil {
-			return fmt.Errorf("failed to create TMux session: %w", err)
-		}
-
-		// Create ORC orchestrator window with sophisticated layout
-		if err := tmuxAdapter.CreateOrcWindow(ctx, sessionName, orcPath); err != nil {
-			return fmt.Errorf("failed to create ORC window: %w", err)
-		}
-
-		fmt.Println("✓ ORC session created")
-		fmt.Println()
-		fmt.Println("Layout:")
-		fmt.Println("  - Left pane:  Claude (orchestrator)")
-		fmt.Println("  - Top right:  Vim (code editing)")
-		fmt.Println("  - Bot right:  Shell (commands)")
-		fmt.Println()
-		fmt.Println("Attaching to session...")
-
-		// Find tmux binary
-		tmuxPath, err := exec.LookPath("tmux")
-		if err != nil {
-			// Fallback to instructions if tmux not found
-			fmt.Println(tmuxAdapter.AttachInstructions(sessionName))
-			return nil
-		}
-
-		// Replace current process with tmux attach
-		attachArgs := []string{"tmux", "attach", "-t", sessionName}
-		env := os.Environ()
-
-		if err := syscall.Exec(tmuxPath, attachArgs, env); err != nil {
-			return fmt.Errorf("failed to exec tmux attach: %w", err)
-		}
-
-		return nil
+		// TMux lifecycle removed - delegate to `orc tmux apply`
+		return fmt.Errorf("'orc attach' session creation is deprecated.\n\nFor ORC development, manually create a session or use 'orc tmux apply <workshop-id>' for workshops.\nTMux lifecycle is now managed by gotmux. See: docs/tmux.md")
 	},
 }
 

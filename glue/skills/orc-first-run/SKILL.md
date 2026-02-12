@@ -175,9 +175,9 @@ orc workbench create --workshop WORK-xxx --repo-id REPO-xxx
 
 Capture BENCH-xxx ID.
 
-Apply infrastructure:
+Start tmux session:
 ```bash
-orc infra apply WORK-xxx
+orc tmux apply WORK-xxx --yes
 ```
 
 Explain:
@@ -185,7 +185,7 @@ Explain:
 Created workbench: BENCH-xxx
 
 A workbench is a git worktree where an IMP (implementation agent) works.
-The infrastructure has been applied - directories and tmux windows are ready.
+The tmux session has been created - directories and tmux windows are ready.
 ```
 
 **If workbench exists:**

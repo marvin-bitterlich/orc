@@ -111,18 +111,8 @@ func (e *DefaultEffectExecutor) executeCommissionOp(ctx context.Context, eff eff
 }
 
 func (e *DefaultEffectExecutor) executeTMux(ctx context.Context, eff effects.TMuxEffect) error {
+	// TMux lifecycle operations (new_session, new_window) removed - now handled by gotmux
 	switch eff.Operation {
-	case "new_session":
-		workingDir := eff.Command
-		if workingDir == "" {
-			workingDir = "."
-		}
-		return e.tmuxAdapter.CreateSession(ctx, eff.SessionName, workingDir)
-	case "new_window":
-		// TMux window creation requires an existing session
-		// This is handled through the session object in the current tmux package
-		// For now, we'll skip standalone window creation
-		return nil
 	case "send_keys":
 		// Send keys would require session lookup
 		return nil

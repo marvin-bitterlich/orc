@@ -351,11 +351,6 @@ func newMockTMuxAdapter() *mockTMuxAdapter {
 	}
 }
 
-func (m *mockTMuxAdapter) CreateSession(ctx context.Context, name, workingDir string) error {
-	m.sessions[name] = true
-	return nil
-}
-
 func (m *mockTMuxAdapter) SessionExists(ctx context.Context, name string) bool {
 	return m.sessions[name]
 }
@@ -370,18 +365,6 @@ func (m *mockTMuxAdapter) KillSession(ctx context.Context, name string) error {
 
 func (m *mockTMuxAdapter) GetSessionInfo(ctx context.Context, name string) (string, error) {
 	return "", nil
-}
-
-func (m *mockTMuxAdapter) CreateOrcWindow(ctx context.Context, sessionName string, workingDir string) error {
-	return nil
-}
-
-func (m *mockTMuxAdapter) CreateWorkbenchWindow(ctx context.Context, sessionName string, windowIndex int, windowName string, workingDir string) error {
-	return nil
-}
-
-func (m *mockTMuxAdapter) CreateWorkbenchWindowShell(ctx context.Context, sessionName string, windowIndex int, windowName string, workingDir string) error {
-	return nil
 }
 
 func (m *mockTMuxAdapter) WindowExists(ctx context.Context, sessionName string, windowName string) bool {
@@ -495,55 +478,6 @@ func (m *mockTMuxAdapter) SetWindowOption(ctx context.Context, target, option, v
 }
 func (m *mockTMuxAdapter) SetupGoblinPane(ctx context.Context, sessionName, windowName string) error {
 	return nil
-}
-
-// mockWorkspaceAdapter implements secondary.WorkspaceAdapter for testing.
-type mockWorkspaceAdapter struct {
-	worktrees map[string]bool
-}
-
-func newMockWorkspaceAdapter() *mockWorkspaceAdapter {
-	return &mockWorkspaceAdapter{
-		worktrees: make(map[string]bool),
-	}
-}
-
-func (m *mockWorkspaceAdapter) CreateWorktree(ctx context.Context, repoPath, branchName, targetPath string) error {
-	m.worktrees[targetPath] = true
-	return nil
-}
-
-func (m *mockWorkspaceAdapter) RemoveWorktree(ctx context.Context, path string) error {
-	delete(m.worktrees, path)
-	return nil
-}
-
-func (m *mockWorkspaceAdapter) WorktreeExists(ctx context.Context, path string) (bool, error) {
-	return m.worktrees[path], nil
-}
-
-func (m *mockWorkspaceAdapter) CreateDirectory(ctx context.Context, path string) error {
-	return nil
-}
-
-func (m *mockWorkspaceAdapter) RemoveDirectory(ctx context.Context, path string) error {
-	return nil
-}
-
-func (m *mockWorkspaceAdapter) DirectoryExists(ctx context.Context, path string) (bool, error) {
-	return false, nil
-}
-
-func (m *mockWorkspaceAdapter) GetWorktreesBasePath() string {
-	return "/tmp/worktrees"
-}
-
-func (m *mockWorkspaceAdapter) GetRepoPath(repoName string) string {
-	return "/tmp/repos/" + repoName
-}
-
-func (m *mockWorkspaceAdapter) ResolveWorkbenchPath(workbenchName string) string {
-	return "/tmp/worktrees/" + workbenchName
 }
 
 // ============================================================================

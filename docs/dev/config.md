@@ -43,7 +43,7 @@ Use `orc infra` to materialize physical infrastructure:
 
 ```bash
 orc infra plan WORK-001     # Show what would be created/cleaned (dry run)
-orc infra apply WORK-001    # Create infra + clean orphan tmux windows
+orc infra apply WORK-001    # Reconcile missing worktrees/configs (filesystem only)
 orc infra cleanup           # Remove orphan directories (explicit action)
 ```
 
@@ -51,7 +51,7 @@ The infrastructure plan shows:
 - **Workbenches**: Git worktrees for each workbench record
 - **TMux**: Session and window state
 
-**Important**: `infra apply` does NOT delete directories. It only creates infrastructure and removes orphan tmux windows (for archived workbenches). Use `infra cleanup` to explicitly remove orphan directories.
+**Important**: `infra apply` does NOT delete directories or manage tmux. It only reconciles missing worktrees and configs. Use `orc tmux apply` for tmux session management and `infra cleanup` to remove orphan directories.
 
 ### TMux Connectivity
 
@@ -68,6 +68,6 @@ orc tmux connect WORK-001   # Attach to workshop's tmux session
 | `orc workbench create` | Yes | No | No | DB only |
 | `orc commission start` | No | No | No | Starts tmux session only |
 | `orc infra plan` | No | No | No | Shows what would change |
-| `orc infra apply` | No | Yes | No | Creates infra, cleans tmux windows |
+| `orc infra apply` | No | Yes | No | Reconciles missing worktrees/configs (filesystem only) |
 | `orc infra cleanup` | No | No | Yes | Removes orphan directories |
 | `orc tmux connect` | No | No | No | Attaches to existing session |

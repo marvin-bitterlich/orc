@@ -23,8 +23,7 @@ This skill is an expert **user** of the ORC CLI, not an expert builder. If comma
 ```bash
 orc workshop create --help
 orc workbench create --help
-orc infra plan --help
-orc infra apply --help
+orc tmux apply --help
 ```
 
 ## Templates
@@ -134,22 +133,19 @@ orc workbench create --workshop WORK-xxx --repo-id REPO-yyy
 
 The name is auto-generated as `{repo}-{number}` (e.g., `intercom-015`).
 
-### Step 7: Preview Infrastructure
+### Step 7: Start TMux Session
 
 ```bash
-orc infra plan WORK-xxx
+orc tmux apply WORK-xxx --yes
 ```
 
-Show the plan output to user. This displays:
-- Workshop coordination directory that will be created
-- Workbenches (git worktrees) that will be created
-- TMux windows that will be created
+This creates/reconciles the tmux session for the workshop, including windows for each workbench with the standard pane layout.
 
 Ask: "Does this look right? Want to add/remove any workbenches?"
 
 **Iterate as needed:**
-- Add more workbenches → repeat Step 6
-- Remove a workbench → `orc workbench archive BENCH-xxx`, re-run plan
+- Add more workbenches → repeat Step 6, then re-run `orc tmux apply WORK-xxx --yes`
+- Remove a workbench → `orc workbench archive BENCH-xxx`, re-run `orc tmux apply WORK-xxx --yes`
 - Satisfied → proceed to commission linking
 
 ### Step 8: Commission Linking
@@ -166,7 +162,7 @@ Show active commissions and ask:
 ```bash
 orc workshop set-commission WORK-xxx COMM-yyy
 ```
-(Note: Must run from coordinator directory, but it doesn't exist yet. Need to link after apply - see Step 9.)
+(Note: Must run from coordinator directory. Link after workbenches are created - see below.)
 
 **If creating new:**
 ```bash
@@ -176,26 +172,13 @@ orc commission create "<title>" --description "<description>"
 **If skipping:**
 Warn: "Workshop will be created without a commission. IMPs/goblins won't have focus context. You can link later with `orc workshop set-commission`."
 
-### Step 9: Apply Infrastructure
-
-```bash
-orc infra apply WORK-xxx
-```
-
-**If issues arise** (e.g., path already exists):
-- Show the error
-- Offer specific remediation:
-  - Path exists: "Remove the directory or choose a different name"
-  - Permission denied: "Check directory permissions"
-  - Git worktree error: "The repo may have uncommitted changes"
-
-**After successful apply, if commission was selected:**
+**After workbenches created, if commission was selected:**
 ```bash
 cd ~/.orc/ws/WORK-xxx-*/
 orc workshop set-commission COMM-yyy
 ```
 
-### Step 10: Confirm Ready
+### Step 9: Confirm Ready
 
 Output summary:
 
@@ -227,9 +210,8 @@ Agent: Creating workshop "DLQ admin tool" with template "standard"...
        ✓ Created BENCH-016: intercom-016
        ✓ Created BENCH-017: infrastructure-017
 
-       Here's the infrastructure plan:
-       [runs orc infra plan WORK-005]
-       ...
+       [runs orc tmux apply WORK-005 --yes]
+       ✓ TMux session created
 
        Link to a commission?
        [continues with commission linking...]
@@ -287,7 +269,7 @@ Agent: [runs orc repo create "muster-deployer" --path "~/src/muster-deployer"]
 | Templates file missing | Create with defaults |
 | Repo not found in template | Help user register it |
 | Path already exists | Suggest removing directory or different name |
-| Infra apply fails | Show error, offer specific fix based on message |
+| TMux apply fails | Show error, offer specific fix based on message |
 | Commission not found | Offer to create new commission |
 
 ## CLI Reference
@@ -300,8 +282,7 @@ Always consult `--help` for current syntax:
 | `orc workbench create --help` | Create workbench |
 | `orc repo list` | List available repos |
 | `orc repo create --help` | Register new repo |
-| `orc infra plan WORK-xxx` | Preview infrastructure |
-| `orc infra apply WORK-xxx` | Create infrastructure |
+| `orc tmux apply WORK-xxx --yes` | Create/reconcile tmux session |
 | `orc commission list` | List commissions |
 | `orc workshop set-commission --help` | Link workshop to commission |
 | `orc tmux connect WORK-xxx` | Attach to workshop tmux session |

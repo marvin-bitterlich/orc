@@ -16,12 +16,13 @@ import (
 
 // WorkbenchServiceImpl implements the WorkbenchService interface.
 type WorkbenchServiceImpl struct {
-	workbenchRepo secondary.WorkbenchRepository
-	workshopRepo  secondary.WorkshopRepository
-	repoRepo      secondary.RepoRepository
-	agentProvider secondary.AgentIdentityProvider
-	executor      EffectExecutor
-	gitService    *GitService
+	workbenchRepo    secondary.WorkbenchRepository
+	workshopRepo     secondary.WorkshopRepository
+	repoRepo         secondary.RepoRepository
+	agentProvider    secondary.AgentIdentityProvider
+	executor         EffectExecutor
+	gitService       *GitService
+	workspaceAdapter secondary.WorkspaceAdapter
 }
 
 // NewWorkbenchService creates a new WorkbenchService with injected dependencies.
@@ -31,14 +32,16 @@ func NewWorkbenchService(
 	repoRepo secondary.RepoRepository,
 	agentProvider secondary.AgentIdentityProvider,
 	executor EffectExecutor,
+	workspaceAdapter secondary.WorkspaceAdapter,
 ) *WorkbenchServiceImpl {
 	return &WorkbenchServiceImpl{
-		workbenchRepo: workbenchRepo,
-		workshopRepo:  workshopRepo,
-		repoRepo:      repoRepo,
-		agentProvider: agentProvider,
-		executor:      executor,
-		gitService:    NewGitService(),
+		workbenchRepo:    workbenchRepo,
+		workshopRepo:     workshopRepo,
+		repoRepo:         repoRepo,
+		agentProvider:    agentProvider,
+		executor:         executor,
+		gitService:       NewGitService(),
+		workspaceAdapter: workspaceAdapter,
 	}
 }
 
@@ -99,11 +102,12 @@ func (s *WorkbenchServiceImpl) CreateWorkbench(ctx context.Context, req primary.
 		return nil, fmt.Errorf("failed to create workbench: %w", err)
 	}
 
-	// 7. Write .orc/config.json via effects (non-fatal - workbench created even if config fails)
-	// Skip if caller wants to write config after worktree setup (avoids race condition)
-	if !req.SkipConfigWrite {
-		configEffects := s.buildConfigEffects(workbenchPath, record.ID)
-		_ = s.executor.Execute(ctx, configEffects)
+	// 9. Create worktree/directory and config immediately (not deferred to infra apply)
+	if err := s.ensureWorktreeExists(ctx, record); err != nil {
+		return nil, fmt.Errorf("failed to create worktree: %w", err)
+	}
+	if err := s.ensureConfigExists(ctx, record); err != nil {
+		return nil, fmt.Errorf("failed to create config: %w", err)
 	}
 
 	return &primary.CreateWorkbenchResponse{
@@ -192,7 +196,7 @@ func (s *WorkbenchServiceImpl) DeleteWorkbench(ctx context.Context, req primary.
 		return result.Error()
 	}
 
-	// 4. Delete from database (infrastructure cleanup handled by orc infra apply)
+	// 4. Delete from database (infrastructure cleanup handled by orc tmux apply)
 	return s.workbenchRepo.Delete(ctx, req.WorkbenchID)
 }
 
@@ -218,21 +222,73 @@ func (s *WorkbenchServiceImpl) pathExists(path string) bool {
 	return err == nil
 }
 
-// buildConfigEffects generates FileEffects for writing .orc/config.json
-func (s *WorkbenchServiceImpl) buildConfigEffects(workbenchPath, workbenchID string) []effects.Effect {
-	orcDir := filepath.Join(workbenchPath, ".orc")
+// ensureWorktreeExists creates a worktree (or directory if no repo) if it doesn't already exist.
+func (s *WorkbenchServiceImpl) ensureWorktreeExists(ctx context.Context, wb *secondary.WorkbenchRecord) error {
+	wbPath := coreworkbench.ComputePath(wb.Name)
+
+	// Check if worktree already exists (idempotent)
+	exists, err := s.workspaceAdapter.WorktreeExists(ctx, wbPath)
+	if err != nil {
+		return err
+	}
+	if exists {
+		return nil // Already exists, nothing to do
+	}
+
+	var effs []effects.Effect
+
+	// If no repo linked, just create a directory
+	if wb.RepoID == "" {
+		effs = append(effs, effects.FileEffect{
+			Operation: "mkdir",
+			Path:      wbPath,
+			Mode:      0755,
+		})
+	} else {
+		// Linked to repo - create git worktree
+		repo, err := s.repoRepo.GetByID(ctx, wb.RepoID)
+		if err != nil {
+			return fmt.Errorf("repo %s not found: %w", wb.RepoID, err)
+		}
+		effs = append(effs, effects.GitEffect{
+			Operation: "worktree_add",
+			RepoPath:  repo.LocalPath,
+			Args:      []string{wb.HomeBranch, wbPath},
+		})
+	}
+
+	if len(effs) > 0 {
+		return s.executor.Execute(ctx, effs)
+	}
+	return nil
+}
+
+// ensureConfigExists creates the .orc/config.json file if it doesn't already exist.
+func (s *WorkbenchServiceImpl) ensureConfigExists(ctx context.Context, wb *secondary.WorkbenchRecord) error {
+	wbPath := coreworkbench.ComputePath(wb.Name)
+	orcDir := filepath.Join(wbPath, ".orc")
 	configPath := filepath.Join(orcDir, "config.json")
+
+	// Check if config already exists (idempotent)
+	if _, err := os.Stat(configPath); err == nil {
+		return nil // Already exists, nothing to do
+	}
 
 	cfg := &config.Config{
 		Version: "1.0",
-		PlaceID: workbenchID, // BENCH-XXX
+		PlaceID: wb.ID,
 	}
-	configJSON, _ := json.MarshalIndent(cfg, "", "  ")
+	configJSON, err := json.MarshalIndent(cfg, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal config: %w", err)
+	}
 
-	return []effects.Effect{
+	effs := []effects.Effect{
 		effects.FileEffect{Operation: "mkdir", Path: orcDir, Mode: 0755},
 		effects.FileEffect{Operation: "write", Path: configPath, Content: configJSON, Mode: 0644},
 	}
+
+	return s.executor.Execute(ctx, effs)
 }
 
 // CheckoutBranch switches to a target branch using stash dance.

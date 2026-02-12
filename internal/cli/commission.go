@@ -1,9 +1,7 @@
 package cli
 
 import (
-	"context"
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
 
@@ -75,7 +73,7 @@ var commissionStartCmd = &cobra.Command{
 	Long: `Start a TMux session for a commission with existing workshop infrastructure.
 
 Prerequisites:
-- Workshop infrastructure must exist (run 'orc infra apply <workshop-id>' first)
+- Workshop TMux session must exist (run 'orc tmux apply <workshop-id>' first)
 - Commission must have associated workshops
 
 This command creates a TMux session with windows for the ORC orchestrator.
@@ -84,60 +82,8 @@ Examples:
   orc commission start COMM-001`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := NewContext()
-		commissionID := args[0]
-
-		// Validate Claude workspace trust
-		if err := validateClaudeWorkspaceTrust(); err != nil {
-			return fmt.Errorf("Claude workspace trust validation failed:\n\n%w\n\nRun 'orc doctor' for detailed diagnostics", err)
-		}
-
-		// Get commission from service
-		commission, err := wire.CommissionService().GetCommission(context.Background(), commissionID)
-		if err != nil {
-			return fmt.Errorf("failed to get commission: %w", err)
-		}
-
-		// Use home directory as session working directory
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return fmt.Errorf("failed to get home directory: %w", err)
-		}
-
-		fmt.Printf("Starting TMux session for commission: %s - %s\n", commission.ID, commission.Title)
-		fmt.Println()
-
-		// Create TMux session
-		sessionName := fmt.Sprintf("orc-%s", commissionID)
-		tmuxAdapter := wire.TMuxAdapter()
-
-		// Check if session already exists
-		if tmuxAdapter.SessionExists(ctx, sessionName) {
-			return fmt.Errorf("TMux session '%s' already exists. Attach with: tmux attach -t %s", sessionName, sessionName)
-		}
-
-		fmt.Printf("Creating TMux session: %s\n", sessionName)
-
-		// Create session with base numbering from 1
-		if err := tmuxAdapter.CreateSession(ctx, sessionName, home); err != nil {
-			return fmt.Errorf("failed to create TMux session: %w", err)
-		}
-
-		// Create ORC window (window 1) with claude
-		if err := tmuxAdapter.CreateOrcWindow(ctx, sessionName, home); err != nil {
-			return fmt.Errorf("failed to create ORC window: %w", err)
-		}
-		fmt.Printf("  ✓ Window 1: orc (claude | vim | shell)\n")
-
-		// Select the ORC window (window 1) as default
-		tmuxAdapter.SelectWindow(ctx, sessionName, 1)
-
-		fmt.Println()
-		fmt.Printf("Commission session ready!\n")
-		fmt.Println()
-		fmt.Println(tmuxAdapter.AttachInstructions(sessionName))
-
-		return nil
+		// TMux lifecycle removed - delegate to `orc tmux apply`
+		return fmt.Errorf("'orc commission start' is deprecated. Use 'orc tmux apply <workshop-id>' instead.\n\nTMux lifecycle is now managed by gotmux. See: docs/tmux.md")
 	},
 }
 

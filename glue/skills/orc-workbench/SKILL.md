@@ -45,15 +45,13 @@ orc workbench create --workshop WORK-xxx --repo-id REPO-xxx
 
 The name is auto-generated as `{repo}-{number}` (e.g., `intercom-015`).
 
-### Step 4: Apply Infrastructure
+### Step 4: Start TMux Session
 
 ```bash
-orc infra apply WORK-xxx
+orc tmux apply WORK-xxx --yes
 ```
 
-This creates:
-- Git worktree at ~/wb/<name>
-- .orc/config.json with place_id
+This creates/reconciles the tmux session for the workshop, adding the new workbench window with the standard pane layout.
 
 ### Step 5: Confirm Ready
 
@@ -77,7 +75,7 @@ User: /orc-workbench
 Agent: [runs orc status, detects WORK-003]
        [runs orc repo list, user selects REPO-001 (intercom)]
        [runs orc workbench create --workshop WORK-003 --repo-id REPO-001]
-       [runs orc infra apply WORK-003]
+       [runs orc tmux apply WORK-003 --yes]
 
 Agent: Workbench created:
          BENCH-015: intercom-015

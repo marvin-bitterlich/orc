@@ -26,10 +26,10 @@ func SeedFixtures(database *sql.DB) error {
 		}
 	}
 
-	// Repos
+	// Repos - Use actual current working directory for orc repo
 	repos := []struct{ id, name, path string }{
-		{"REPO-001", "orc", "/Users/dev/src/orc"},
-		{"REPO-002", "intercom", "/Users/dev/src/intercom"},
+		{"REPO-001", "orc", "/Users/looneym/wb/orc-45"},
+		{"REPO-002", "intercom", "/Users/looneym/src/intercom"},
 	}
 	for _, r := range repos {
 		if _, err := database.Exec(

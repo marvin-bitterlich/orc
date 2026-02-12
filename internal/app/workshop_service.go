@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/example/orc/internal/config"
 	"github.com/example/orc/internal/core/effects"
@@ -183,7 +182,7 @@ func (s *WorkshopServiceImpl) DeleteWorkshop(ctx context.Context, req primary.De
 		return result.Error()
 	}
 
-	// 4. Delete from database (infrastructure cleanup handled by orc infra apply)
+	// 4. Delete from database (infrastructure cleanup handled by orc tmux apply)
 	return s.workshopRepo.Delete(ctx, req.WorkshopID)
 }
 
@@ -212,13 +211,7 @@ func (s *WorkshopServiceImpl) PlanOpenWorkshop(ctx context.Context, req primary.
 		existingWindows, _ = s.tmuxAdapter.ListWindows(ctx, actualSessionName)
 	}
 
-	// 5. Compute workshop coordination directory path and check existence
-	home, _ := os.UserHomeDir()
-	workshopDir := coreworkshop.WorkshopDirPath(home, req.WorkshopID, workshop.Name)
-	workshopDirExists := s.dirExists(workshopDir)
-	workshopConfigExists := s.fileExists(filepath.Join(workshopDir, ".orc", "config.json"))
-
-	// 6. Get workbenches and check each one's state
+	// 5. Get workbenches and check each one's state
 	workbenches, _ := s.workbenchRepo.List(ctx, req.WorkshopID)
 	var wbInputs []coreworkshop.WorkbenchPlanInput
 	for _, wb := range workbenches {
@@ -243,17 +236,14 @@ func (s *WorkshopServiceImpl) PlanOpenWorkshop(ctx context.Context, req primary.
 
 	// 7. Generate plan using pure function
 	input := coreworkshop.OpenPlanInput{
-		WorkshopID:           req.WorkshopID,
-		WorkshopName:         workshop.Name,
-		FactoryID:            factory.ID,
-		FactoryName:          factory.Name,
-		SessionExists:        sessionExists,
-		ActualSessionName:    actualSessionName,
-		ExistingWindows:      existingWindows,
-		WorkshopDir:          workshopDir,
-		WorkshopDirExists:    workshopDirExists,
-		WorkshopConfigExists: workshopConfigExists,
-		Workbenches:          wbInputs,
+		WorkshopID:        req.WorkshopID,
+		WorkshopName:      workshop.Name,
+		FactoryID:         factory.ID,
+		FactoryName:       factory.Name,
+		SessionExists:     sessionExists,
+		ActualSessionName: actualSessionName,
+		ExistingWindows:   existingWindows,
+		Workbenches:       wbInputs,
 	}
 	corePlan := coreworkshop.GenerateOpenPlan(input)
 
@@ -279,14 +269,7 @@ func (s *WorkshopServiceImpl) ApplyOpenWorkshop(ctx context.Context, plan *prima
 		}, nil
 	}
 
-	// 1. Create workshop directory if needed
-	home, _ := os.UserHomeDir()
-	workshopDir := coreworkshop.WorkshopDirPath(home, plan.WorkshopID, plan.WorkshopName)
-	if plan.WorkshopDirOp != nil && (!plan.WorkshopDirOp.Exists || !plan.WorkshopDirOp.ConfigExists) {
-		workshopDir = s.createWorkshopDir(plan.WorkshopID, plan.WorkshopName)
-	}
-
-	// 2. Create workbenches if needed
+	// 1. Create workbenches if needed
 	workbenches, _ := s.workbenchRepo.List(ctx, plan.WorkshopID)
 	for _, wb := range workbenches {
 		if err := s.ensureWorktreeExists(ctx, wb); err != nil {
@@ -294,44 +277,11 @@ func (s *WorkshopServiceImpl) ApplyOpenWorkshop(ctx context.Context, plan *prima
 		}
 	}
 
-	// 3. Handle tmux session
+	// 3. TMux lifecycle removed - now handled by gotmux via `orc tmux apply`
 	sessionAlreadyOpen := false
-	if plan.TMuxOp != nil {
-		if plan.TMuxOp.AddToExisting {
-			// Add windows to existing session
-			for _, window := range plan.TMuxOp.Windows {
-				// Find the workbench for this window and compute path
-				var windowPath string
-				for _, wb := range workbenches {
-					if wb.Name == window.Name {
-						windowPath = coreworkbench.ComputePath(wb.Name)
-						break
-					}
-				}
-				if windowPath != "" {
-					_ = s.tmuxAdapter.CreateWorkbenchWindow(ctx, plan.SessionName, window.Index, window.Name, windowPath)
-				}
-			}
-			sessionAlreadyOpen = true
-		} else {
-			// Create new session
-			if err := s.tmuxAdapter.CreateSession(ctx, plan.SessionName, workshopDir); err != nil {
-				return nil, fmt.Errorf("failed to create session: %w", err)
-			}
-
-			// Mark session with workshop ID env var (survives renames)
-			_ = s.tmuxAdapter.SetEnvironment(ctx, plan.SessionName, "ORC_WORKSHOP_ID", plan.WorkshopID)
-
-			// Setup ORC coordinator window
-			if err := s.tmuxAdapter.CreateOrcWindow(ctx, plan.SessionName, workshopDir); err != nil {
-				return nil, fmt.Errorf("failed to create workshop window: %w", err)
-			}
-
-			// Create tmux windows for each workbench
-			for i, wb := range workbenches {
-				_ = s.tmuxAdapter.CreateWorkbenchWindow(ctx, plan.SessionName, i+2, wb.Name, coreworkbench.ComputePath(wb.Name))
-			}
-		}
+	if plan.TMuxOp != nil && plan.TMuxOp.AddToExisting {
+		// Session detection only (lifecycle creation removed)
+		sessionAlreadyOpen = true
 	}
 
 	return &primary.OpenWorkshopResponse{
@@ -427,31 +377,6 @@ func (s *WorkshopServiceImpl) CloseWorkshop(ctx context.Context, workshopID stri
 	return nil
 }
 
-// createWorkshopDir creates the workshop coordination directory.
-func (s *WorkshopServiceImpl) createWorkshopDir(workshopID, workshopName string) string {
-	home, _ := os.UserHomeDir()
-	slug := slugify(workshopName)
-	dirName := fmt.Sprintf("%s-%s", workshopID, slug)
-	dir := filepath.Join(home, ".orc", "ws", dirName)
-	_ = os.MkdirAll(dir, 0755)
-	return dir
-}
-
-// slugify converts a name to a URL-friendly slug
-func slugify(name string) string {
-	// Lowercase and replace spaces with hyphens
-	slug := strings.ToLower(name)
-	slug = strings.ReplaceAll(slug, " ", "-")
-	// Remove any characters that aren't alphanumeric or hyphens
-	var result strings.Builder
-	for _, r := range slug {
-		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-' {
-			result.WriteRune(r)
-		}
-	}
-	return result.String()
-}
-
 // Helper methods
 
 func (s *WorkshopServiceImpl) recordToWorkshop(r *secondary.WorkshopRecord) *primary.Workshop {
@@ -500,17 +425,7 @@ func (s *WorkshopServiceImpl) corePlanToPrimary(core *coreworkshop.OpenWorkshopP
 		}
 	}
 
-	// Map workshop dir op with derived status
-	if core.WorkshopDirOp != nil {
-		plan.WorkshopDirOp = &primary.WorkshopDirOp{
-			Path:         core.WorkshopDirOp.Path,
-			Exists:       core.WorkshopDirOp.Exists,
-			ConfigExists: core.WorkshopDirOp.ConfigExists,
-			Status:       boolToOpStatus(core.WorkshopDirOp.Exists),
-			ConfigStatus: boolToOpStatus(core.WorkshopDirOp.ConfigExists),
-		}
-	}
-
+	// Map gatehouse op with derived status
 	// Map workbench ops with derived status
 	for _, wb := range core.WorkbenchOps {
 		plan.WorkbenchOps = append(plan.WorkbenchOps, primary.WorkbenchOp{
@@ -579,6 +494,7 @@ func (s *WorkshopServiceImpl) GetActiveCommission(ctx context.Context, workshopI
 }
 
 // GetActiveCommissions returns commission IDs derived from focus:
+// - Gatehouse focused_id (resolved to commission)
 // - All workbench focused_ids in workshop (resolved to commission)
 // Returns deduplicated commission IDs.
 func (s *WorkshopServiceImpl) GetActiveCommissions(ctx context.Context, workshopID string) ([]string, error) {

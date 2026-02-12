@@ -21,7 +21,7 @@ This skill is an expert **user** of the ORC CLI, not an expert builder. If comma
 ```bash
 orc workshop archive --help
 orc workbench archive --help
-orc infra apply --help
+orc tmux apply --help
 orc infra cleanup --help
 ```
 
@@ -125,7 +125,7 @@ Offer infrastructure cleanup:
 
 > "Workshop archived. Would you like to clean up infrastructure?
 >
-> 1. Kill TMux session (`orc infra apply WORK-xxx` removes orphan windows)
+> 1. Kill TMux session (`orc tmux apply WORK-xxx` reconciles tmux state)
 > 2. Remove directories (`orc infra cleanup` removes orphan paths)
 > 3. Both
 > 4. Skip cleanup (leave infrastructure in place)"
@@ -134,7 +134,7 @@ Based on choice:
 
 **Kill TMux session:**
 ```bash
-orc infra apply WORK-xxx
+orc tmux apply WORK-xxx
 ```
 
 **Remove directories:**
@@ -217,7 +217,7 @@ Agent: Proceeding with uncommitted changes.
 
 User: 3
 
-Agent: [runs orc infra apply WORK-002]
+Agent: [runs orc tmux apply WORK-002]
        ✓ TMux windows removed
 
        [runs orc infra cleanup]
@@ -248,5 +248,5 @@ Agent: [runs orc infra apply WORK-002]
 | `orc workbench list --workshop WORK-xxx` | List workbenches in workshop |
 | `orc workbench show BENCH-xxx` | Get workbench details (including path) |
 | `orc workbench archive BENCH-xxx` | Archive workbench |
-| `orc infra apply WORK-xxx` | Apply infrastructure (removes orphan windows) |
+| `orc tmux apply WORK-xxx` | Reconcile tmux session (removes orphan windows) |
 | `orc infra cleanup` | Remove orphan directories |

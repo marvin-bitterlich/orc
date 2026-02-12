@@ -152,14 +152,14 @@ func workshopDeleteCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "delete [workshop-id]",
 		Short: "Delete a workshop (DEPRECATED)",
-		Long: `DEPRECATED: Use archive + infra apply instead.
+		Long: `DEPRECATED: Use archive + tmux apply instead.
 
 To remove a workshop:
   orc workshop archive WORK-xxx
-  orc infra apply WORK-xxx`,
+  orc tmux apply WORK-xxx`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return fmt.Errorf("orc workshop delete is deprecated. Use:\n  orc workshop archive %s\n  orc infra apply %s", args[0], args[0])
+			return fmt.Errorf("orc workshop delete is deprecated. Use:\n  orc workshop archive %s\n  orc tmux apply %s", args[0], args[0])
 		},
 	}
 
@@ -178,8 +178,8 @@ infrastructure planning can detect it as a deletion target.
 All workbenches must be archived first. To archive workbenches:
   orc workbench archive BENCH-xxx
 
-After archiving, to remove physical infrastructure:
-  orc infra apply WORK-xxx
+After archiving, to reconcile tmux session:
+  orc tmux apply WORK-xxx
 
 Examples:
   orc workshop archive WORK-001`,
@@ -201,7 +201,7 @@ Examples:
 			fmt.Printf("✓ Workshop %s archived\n", workshopID)
 			fmt.Printf("  Name: %s\n", workshop.Name)
 			fmt.Printf("\nTo remove physical infrastructure, run:\n")
-			fmt.Printf("  orc infra apply %s\n", workshopID)
+			fmt.Printf("  orc tmux apply %s\n", workshopID)
 
 			return nil
 		},

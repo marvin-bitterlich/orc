@@ -33,7 +33,6 @@ var (
 	workshopService                primary.WorkshopService
 	workbenchService               primary.WorkbenchService
 	summaryService                 primary.SummaryService
-	infraService                   primary.InfraService
 	logService                     primary.LogService
 	hookEventService               primary.HookEventService
 	commissionOrchestrationService *app.CommissionOrchestrationService
@@ -118,12 +117,6 @@ func WorkbenchService() primary.WorkbenchService {
 func SummaryService() primary.SummaryService {
 	once.Do(initServices)
 	return summaryService
-}
-
-// InfraService returns the singleton InfraService instance.
-func InfraService() primary.InfraService {
-	once.Do(initServices)
-	return infraService
 }
 
 // LogService returns the singleton LogService instance.
@@ -223,13 +216,10 @@ func initServices() {
 	// workbenchRepo already created early for LogWriter (with nil LogWriter due to circular dependency)
 	factoryService = app.NewFactoryService(factoryRepo)
 	workshopService = app.NewWorkshopService(factoryRepo, workshopRepo, workbenchRepo, repoRepo, tmuxService, workspaceAdapter, executor)
-	workbenchService = app.NewWorkbenchService(workbenchRepo, workshopRepo, repoRepo, agentProvider, executor)
+	workbenchService = app.NewWorkbenchService(workbenchRepo, workshopRepo, repoRepo, agentProvider, executor, workspaceAdapter)
 
 	// Create plan service
 	planService = app.NewPlanService(planRepo)
-
-	// Create infra service for infrastructure planning
-	infraService = app.NewInfraService(factoryRepo, workshopRepo, workbenchRepo, repoRepo, workspaceAdapter, tmuxAdapter, executor)
 
 	// Create log service for activity logs (workshopLogRepo created early for LogWriter)
 	logService = app.NewLogService(workshopLogRepo)
@@ -271,4 +261,30 @@ func CommissionAdapter() *cliadapter.CommissionAdapter {
 func CommissionAdapterWithOutput(out io.Writer) *cliadapter.CommissionAdapter {
 	once.Do(initServices)
 	return cliadapter.NewCommissionAdapter(commissionService, out)
+}
+
+// RefreshWorkbenchLayout relocates guest panes to a sibling -imps window.
+func RefreshWorkbenchLayout(sessionName, workbenchWindow string) error {
+	once.Do(initServices)
+	return tmuxadapter.RefreshWorkbenchLayout(sessionName, workbenchWindow)
+}
+
+// EnrichSession applies ORC enrichment to all windows in a session.
+func EnrichSession(sessionName string) error {
+	once.Do(initServices)
+	return tmuxadapter.EnrichSession(sessionName)
+}
+
+// GotmuxAdapter re-exports the gotmux adapter type for CLI use.
+type GotmuxAdapter = tmuxadapter.GotmuxAdapter
+
+// DesiredWorkbench re-exports the desired workbench type for plan building.
+type DesiredWorkbench = tmuxadapter.DesiredWorkbench
+
+// ApplyPlan re-exports the reconciliation plan type.
+type ApplyPlan = tmuxadapter.ApplyPlan
+
+// NewGotmuxAdapter creates a new gotmux adapter for programmatic tmux lifecycle management.
+func NewGotmuxAdapter() (*GotmuxAdapter, error) {
+	return tmuxadapter.NewGotmuxAdapter()
 }
