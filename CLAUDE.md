@@ -754,20 +754,25 @@ All transitions are manual (Goblin decides). No auto-transitions.
 |------------|-------------|
 | `/ship-tidy` | `/ship-plan` (handles task work) |
 | `/exorcism` | `/ship-synthesize` (knowledge compaction) |
-| `/conclave` | `/ship-new` |
-| `orc conclave` | `orc shipment` |
 | Gatehouse entity | Absorbed into workbench (Goblin lives in workbench pane) |
 | `GATE-` place IDs | Removed (all actors use `BENCH-` prefix) |
 | Mail/message system | Replaced by Claude Teams messaging |
-| Nudge (autorun propulsion) | Removed |
 | Receipt entity | Removed |
-| Auto-transition machinery | All transitions are now manual |
 | Old shipment statuses | Replaced by: draft, ready, in-progress, closed |
 | Old task statuses (`ready`, `paused`) | Replaced by: open, in-progress, closed (+blocked lateral) |
 
+**The following have been fully removed from the codebase (no traces remain):**
+
+| Removed | Notes |
+|---------|-------|
+| Conclave entity (`/conclave`, `orc conclave`) | Replaced by `orc shipment` / `/ship-new` |
+| Shipyard entity | Removed |
+| Nudge / autorun propulsion | All transitions are now manual |
+| Auto-transition machinery | All transitions are now manual |
+
 ### Tomes
 
-Tomes remain valid but are no longer tied to conclaves:
+Tomes are standalone entities on commissions:
 - Create tomes directly on commissions: `orc tome create "Title" --commission COMM-xxx`
 - Link tomes to shipments if needed for exploration notes
 

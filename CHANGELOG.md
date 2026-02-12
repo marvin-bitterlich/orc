@@ -31,6 +31,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Skills deleted: imp-poll, imp-start, imp-implement, imp-auto, imp-nudge, imp-respawn, imp-rec, imp-plan-create, imp-plan-submit, goblin-escalation-receive, watchdog-monitor
 - Watchdog state model removed: kennel, patrol, dogbed, stuck, check entities and all related CLI commands, skills, and documentation
 - Skills deleted: orc-ping, ship-queue, imp-escalate
+- Conclave entity and all references (replaced by shipment)
+- Shipyard entity and all references
 
 ### Added
 
