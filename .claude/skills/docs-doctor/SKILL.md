@@ -23,6 +23,7 @@ Validate ORC documentation against code reality using parallel subagent checks.
 - After changing CLI commands or flags
 - After modifying database schema (ER diagram)
 - After changing shipment guards (lifecycle diagram)
+- After changing the Makefile bootstrap target, `orc bootstrap` command, or orc-first-run skill
 
 ## Check Categories
 
@@ -38,8 +39,8 @@ Validate ORC documentation against code reality using parallel subagent checks.
 - Each doc stays in its designated purpose
 
 ### 3. Behavioral Checks (Shallow)
-- Documented CLI commands exist (`orc <cmd> --help` succeeds)
-- Documented flags are valid (parse --help output)
+- CLI commands referenced anywhere (docs, skills, Makefile) exist (`orc <cmd> --help` succeeds)
+- CLI flags used anywhere match actual `--help` output for that command
 - Referenced skills exist in .claude/skills/ or glue/skills/
 
 ### 4. Schema Checks
@@ -49,7 +50,14 @@ Validate ORC documentation against code reality using parallel subagent checks.
 - No unexpected subdirectories under `docs/`
 - No orphan files outside the defined schema
 
-### 5. Diagram Checks
+### 5. Getting Started Coherence Check
+- `docs/guide/getting-started.md` describes a phased setup flow backed by real code
+- Phase 2 claims (what `make bootstrap` does) match the Makefile `bootstrap` target
+- Phase 3 claims (what `orc bootstrap` does) match `internal/cli/bootstrap_cmd.go` and `glue/skills/orc-first-run/SKILL.md`
+- CLI flags used in examples and skills match actual `--help` output (e.g., `--path` not `--local-path`)
+- The guide's description of what each phase creates/leaves behind matches code reality
+
+### 6. Diagram Checks
 - ER diagram in docs/reference/architecture.md represents core tables from internal/db/schema.sql
 - Lifecycle diagram in docs/reference/shipment-lifecycle.md represents valid subset of states from internal/core/shipment/guards.go
 
@@ -65,6 +73,7 @@ Main Agent (opus)
     ├── Spawn: Lane Check Agent (haiku)
     ├── Spawn: CLI Validation Agent (haiku)
     ├── Spawn: Schema Validation Agent (haiku)
+    ├── Spawn: Getting Started Coherence Agent (haiku)
     ├── Spawn: ER Diagram Agent (haiku)
     └── Spawn: Lifecycle Diagram Agent (haiku)
          ↓
@@ -137,13 +146,18 @@ Return findings as:
 ```
 Prompt: "Validate CLI commands referenced in documentation.
 
-1. Read docs/**/*.md and extract all 'orc <command>' references
-2. For each unique command, run 'orc <command> --help' to verify it exists
-3. Check documented flags match --help output
+1. Scan all sources that reference orc CLI commands:
+   - docs/**/*.md
+   - glue/skills/**/*.md
+   - .claude/skills/**/*.md
+   - Makefile (the bootstrap target and any other targets that call orc)
+2. Extract all 'orc <command>' references and any --flags used with them
+3. For each unique command, run 'orc <command> --help' to verify it exists
+4. For each flag, verify it appears in the command's --help output
 
 Return findings as:
-- invalid_commands: [list]
-- invalid_flags: [{command, flag}]
+- invalid_commands: [{file, line, command}]
+- invalid_flags: [{file, line, command, flag_used, valid_flags}]
 - status: 'pass' or 'fail'"
 ```
 
@@ -170,7 +184,48 @@ Return findings as:
 - status: 'pass' or 'fail'"
 ```
 
-### Step 5: Spawn ER Diagram Agent
+### Step 5: Spawn Getting Started Coherence Agent
+
+```
+Prompt: "Validate that docs/guide/getting-started.md accurately describes the bootstrap flow.
+
+Cross-reference against three source-of-truth files:
+
+1. Read the Makefile 'bootstrap' target (search for '^bootstrap:')
+2. Read internal/cli/bootstrap_cmd.go
+3. Read glue/skills/orc-first-run/SKILL.md
+4. Read docs/guide/getting-started.md
+
+Then check:
+
+a. Phase 2 claims (what 'make bootstrap' does):
+   - Every action claimed in the guide has a corresponding line in the Makefile target
+   - No significant Makefile actions are missing from the guide
+   - Artifacts claimed (e.g. FACT-001, REPO-001, directories) match what the Makefile creates
+   - CLI flags in examples match actual flag names (check against 'orc repo create --help', etc.)
+
+b. Phase 3 claims (what 'orc bootstrap' does):
+   - Guide's description matches what bootstrap_cmd.go actually does (launches Claude with directive)
+   - Claims about what the first-run skill creates match glue/skills/orc-first-run/SKILL.md
+   - Entity types mentioned (commission, workshop, workbench, shipment) match the skill's flow
+
+c. Phase ordering:
+   - Guide presents phases in correct dependency order
+   - Each phase's 'what you have after' description is consistent with the next phase's starting assumptions
+
+d. Cross-file flag consistency:
+   - CLI flags used in getting-started.md match flags used in orc-first-run SKILL.md
+   - Both match actual --help output for those commands
+
+Return findings as:
+- phase2_mismatches: [{claim, reality}]
+- phase3_mismatches: [{claim, reality}]
+- ordering_issues: [list]
+- flag_mismatches: [{file, flag_used, correct_flag}]
+- status: 'pass' or 'fail'"
+```
+
+### Step 6: Spawn ER Diagram Agent
 
 ```
 Prompt: "Validate ER diagram represents database schema.
@@ -188,7 +243,7 @@ Return findings as:
 - status: 'pass' or 'fail'"
 ```
 
-### Step 6: Spawn Lifecycle Diagram Agent
+### Step 7: Spawn Lifecycle Diagram Agent
 
 ```
 Prompt: "Validate shipment lifecycle diagram represents valid states.
@@ -206,7 +261,7 @@ Return findings as:
 - status: 'pass' or 'fail'"
 ```
 
-### Step 7: Synthesize Findings
+### Step 8: Synthesize Findings
 
 Collect all agent results and categorize:
 
@@ -218,7 +273,7 @@ Collect all agent results and categorize:
 - Diagram mismatches (which is correct?)
 - Invalid commands (docs wrong or code wrong?)
 
-### Step 8: Report and Act
+### Step 9: Report and Act
 
 **If all pass:**
 ```
@@ -229,6 +284,7 @@ Glossary: pass
 Lanes: pass
 CLI: pass
 Schema: pass
+Getting Started: pass
 ER Diagram: pass
 Lifecycle: pass
 ```
