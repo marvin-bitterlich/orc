@@ -72,7 +72,7 @@ orc repo list | grep -i orc
 
 **If ORC repo not found:**
 ```bash
-orc repo create orc --local-path ~/src/orc --default-branch main
+orc repo create orc --path ~/src/orc --default-branch main
 ```
 
 Explain:

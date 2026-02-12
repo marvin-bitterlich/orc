@@ -111,7 +111,7 @@ If using a template:
 > "What's the local path to muster? (e.g., ~/src/muster)"
 
 ```bash
-orc repo create "muster" --local-path "<path>"
+orc repo create "muster" --path "<path>"
 ```
 
 Then retry lookup.
@@ -274,7 +274,7 @@ Agent: Creating workshop "Muster feature" with template "muster"...
 
 User: ~/src/muster-deployer
 
-Agent: [runs orc repo create "muster-deployer" --local-path "~/src/muster-deployer"]
+Agent: [runs orc repo create "muster-deployer" --path "~/src/muster-deployer"]
        ✓ Registered REPO-008: muster-deployer
 
        [continues with workbench creation...]
