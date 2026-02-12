@@ -76,6 +76,20 @@ Orc turns messy exploration into structured execution. A shipment moves through 
 
 Share scattered ideas, ask questions, raise concerns. Orc captures everything as notes in the shipment ledger. Nothing is lost.
 
+```
+SHIP-042 [draft] - OAuth2 integration (0/0 done, 9 notes)
+│
+├── NOTE-301 [idea] - Use JWT with short-lived access tokens
+├── NOTE-302 [idea] - Consider opaque tokens for revocation
+├── NOTE-303 [question] - Do we need refresh token rotation?
+├── NOTE-304 [finding] - Current session store won't scale past 10k concurrent
+├── NOTE-305 [concern] - Token revocation latency if we go stateless
+├── NOTE-306 [decision] - Redis for token store (not Postgres)
+├── NOTE-307 [idea] - Middleware should be pluggable per-route
+├── NOTE-308 [question] - What scopes do we need for v1?
+└── NOTE-309 [concern] - Third-party OAuth providers add surface area
+```
+
 ### 🔮 Synthesise
 
 <p align="center">
