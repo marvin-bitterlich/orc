@@ -121,7 +121,6 @@ type ShipmentRepository interface {
 }
 
 // ShipmentRecord represents a shipment as stored in persistence.
-// Shipments go directly under commissions (conclaves and shipyards are removed).
 type ShipmentRecord struct {
 	ID                  string
 	CommissionID        string
@@ -216,7 +215,6 @@ type TaskRecord struct {
 	ShipmentID          string // Empty string means null
 	CommissionID        string
 	TomeID              string // Empty string means null
-	ConclaveID          string // Empty string means null
 	Title               string
 	Description         string // Empty string means null
 	Type                string // Empty string means null
@@ -309,9 +307,6 @@ type NoteRepository interface {
 	// TomeExists checks if a tome exists (for validation).
 	TomeExists(ctx context.Context, tomeID string) (bool, error)
 
-	// ConclaveExists checks if a conclave exists (for validation).
-	ConclaveExists(ctx context.Context, conclaveID string) (bool, error)
-
 	// UpdateStatus updates the status of a note (open/closed).
 	UpdateStatus(ctx context.Context, id string, status string) error
 
@@ -331,7 +326,6 @@ type NoteRecord struct {
 	Type                string // Empty string means null
 	Status              string // "open" or "closed"
 	ShipmentID          string // Empty string means null
-	ConclaveID          string // Empty string means null
 	TomeID              string // Empty string means null
 	Pinned              bool
 	CreatedAt           string
@@ -414,15 +408,8 @@ type TomeRepository interface {
 	// GetByWorkbench retrieves tomes assigned to a workbench.
 	GetByWorkbench(ctx context.Context, workbenchID string) ([]*TomeRecord, error)
 
-	// GetByConclave retrieves tomes belonging to a conclave.
-	GetByConclave(ctx context.Context, conclaveID string) ([]*TomeRecord, error)
-
 	// AssignWorkbench assigns a tome to a workbench.
 	AssignWorkbench(ctx context.Context, tomeID, workbenchID string) error
-
-	// UpdateContainer updates the container assignment for a tome.
-	// Used for unpark (→ conclave) operations.
-	UpdateContainer(ctx context.Context, id, containerID, containerType string) error
 
 	// CommissionExists checks if a commission exists (for validation).
 	CommissionExists(ctx context.Context, commissionID string) (bool, error)
@@ -432,14 +419,11 @@ type TomeRepository interface {
 type TomeRecord struct {
 	ID                  string
 	CommissionID        string
-	ConclaveID          string // Empty string means null - optional parent conclave (legacy, use ContainerID)
 	Title               string
 	Description         string // Empty string means null
 	Status              string
 	AssignedWorkbenchID string // Empty string means null
 	Pinned              bool
-	ContainerID         string // Empty string means null - CON-xxx
-	ContainerType       string // Empty string means null - "conclave"
 	CreatedAt           string
 	UpdatedAt           string
 	ClosedAt            string // Empty string means null
@@ -448,134 +432,7 @@ type TomeRecord struct {
 // TomeFilters contains filter options for querying tomes.
 type TomeFilters struct {
 	CommissionID string
-	ConclaveID   string
 	Status       string
-}
-
-// ShipyardRecord represents a shipyard as stored in persistence.
-// One shipyard per factory, auto-created.
-type ShipyardRecord struct {
-	ID        string
-	FactoryID string
-	CreatedAt string
-	UpdatedAt string
-}
-
-// ShipyardRepository defines the secondary port for shipyard persistence.
-type ShipyardRepository interface {
-	// Create persists a new shipyard.
-	Create(ctx context.Context, shipyard *ShipyardRecord) error
-
-	// GetByID retrieves a shipyard by its ID.
-	GetByID(ctx context.Context, id string) (*ShipyardRecord, error)
-
-	// GetByFactoryID retrieves the shipyard for a factory.
-	GetByFactoryID(ctx context.Context, factoryID string) (*ShipyardRecord, error)
-
-	// GetNextID returns the next available shipyard ID.
-	GetNextID(ctx context.Context) (string, error)
-
-	// FactoryExists checks if a factory exists (for validation).
-	FactoryExists(ctx context.Context, factoryID string) (bool, error)
-}
-
-// ConclaveRepository defines the secondary port for conclave persistence.
-type ConclaveRepository interface {
-	// Create persists a new conclave.
-	Create(ctx context.Context, conclave *ConclaveRecord) error
-
-	// GetByID retrieves a conclave by its ID.
-	GetByID(ctx context.Context, id string) (*ConclaveRecord, error)
-
-	// List retrieves conclaves matching the given filters.
-	List(ctx context.Context, filters ConclaveFilters) ([]*ConclaveRecord, error)
-
-	// Update updates an existing conclave.
-	Update(ctx context.Context, conclave *ConclaveRecord) error
-
-	// Delete removes a conclave from persistence.
-	Delete(ctx context.Context, id string) error
-
-	// Pin pins a conclave.
-	Pin(ctx context.Context, id string) error
-
-	// Unpin unpins a conclave.
-	Unpin(ctx context.Context, id string) error
-
-	// GetNextID returns the next available conclave ID.
-	GetNextID(ctx context.Context) (string, error)
-
-	// UpdateStatus updates the status and optionally decided_at timestamp.
-	UpdateStatus(ctx context.Context, id, status string, setDecided bool) error
-
-	// CommissionExists checks if a commission exists (for validation).
-	CommissionExists(ctx context.Context, commissionID string) (bool, error)
-
-	// GetTasksByConclave retrieves tasks belonging to a conclave.
-	GetTasksByConclave(ctx context.Context, conclaveID string) ([]*ConclaveTaskRecord, error)
-
-	// GetPlansByConclave retrieves plans belonging to a conclave.
-	GetPlansByConclave(ctx context.Context, conclaveID string) ([]*ConclavePlanRecord, error)
-}
-
-// ConclaveRecord represents a conclave as stored in persistence.
-type ConclaveRecord struct {
-	ID           string
-	CommissionID string
-	ShipmentID   string // Empty string means null
-	Title        string
-	Description  string // Empty string means null
-	Status       string
-	Decision     string // Empty string means null
-	Pinned       bool
-	CreatedAt    string
-	UpdatedAt    string
-	DecidedAt    string // Empty string means null
-}
-
-// ConclaveFilters contains filter options for querying conclaves.
-type ConclaveFilters struct {
-	CommissionID string
-	Status       string
-}
-
-// ConclaveTaskRecord represents a task as returned from conclave cross-entity query.
-type ConclaveTaskRecord struct {
-	ID                  string
-	ShipmentID          string
-	CommissionID        string
-	Title               string
-	Description         string
-	Type                string
-	Status              string
-	Priority            string
-	AssignedWorkbenchID string
-	Pinned              bool
-	CreatedAt           string
-	UpdatedAt           string
-	ClaimedAt           string
-	CompletedAt         string
-	ConclaveID          string
-	PromotedFromID      string
-	PromotedFromType    string
-}
-
-// ConclavePlanRecord represents a plan as returned from conclave cross-entity query.
-type ConclavePlanRecord struct {
-	ID               string
-	TaskID           string
-	CommissionID     string
-	Title            string
-	Description      string
-	Status           string
-	Content          string
-	Pinned           bool
-	CreatedAt        string
-	UpdatedAt        string
-	ApprovedAt       string
-	ConclaveID       string
-	PromotedFromID   string
-	PromotedFromType string
 }
 
 // OperationRepository defines the secondary port for operation persistence.
@@ -676,7 +533,6 @@ type PlanRecord struct {
 	CreatedAt        string
 	UpdatedAt        string
 	ApprovedAt       string // Empty string means null
-	ConclaveID       string // Empty string means null
 	PromotedFromID   string // Empty string means null
 	PromotedFromType string // Empty string means null
 	SupersedesPlanID string // Empty string means null - FK to plans

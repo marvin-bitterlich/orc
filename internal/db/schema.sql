@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS tags (
 CREATE TABLE IF NOT EXISTS entity_tags (
 	id TEXT PRIMARY KEY,
 	entity_id TEXT NOT NULL,
-	entity_type TEXT NOT NULL CHECK(entity_type IN ('task', 'plan', 'note', 'shipment', 'conclave', 'tome')),
+	entity_type TEXT NOT NULL CHECK(entity_type IN ('task', 'plan', 'note', 'shipment', 'tome')),
 	tag_id TEXT NOT NULL,
 	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 	FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE,
@@ -72,15 +72,6 @@ CREATE TABLE IF NOT EXISTS workbenches (
 	FOREIGN KEY (repo_id) REFERENCES repos(id)
 );
 
--- Shipyards (one per factory, auto-created)
-CREATE TABLE IF NOT EXISTS shipyards (
-	id TEXT PRIMARY KEY,
-	factory_id TEXT NOT NULL UNIQUE,
-	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-	updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-	FOREIGN KEY (factory_id) REFERENCES factories(id)
-);
-
 -- Commissions (Tracks of work - what you're working on)
 -- Workshop → Commissions is 1:many (a workshop can have multiple commissions)
 CREATE TABLE IF NOT EXISTS commissions (
@@ -112,9 +103,6 @@ CREATE TABLE IF NOT EXISTS shipments (
 	repo_id TEXT,
 	branch TEXT,
 	pinned INTEGER DEFAULT 0,
-	conclave_id TEXT,
-	shipyard_id TEXT,
-	autorun INTEGER DEFAULT 0,
 	priority INTEGER,
 	spec_note_id TEXT,
 	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -123,8 +111,6 @@ CREATE TABLE IF NOT EXISTS shipments (
 	FOREIGN KEY (commission_id) REFERENCES commissions(id),
 	FOREIGN KEY (assigned_workbench_id) REFERENCES workbenches(id),
 	FOREIGN KEY (repo_id) REFERENCES repos(id),
-	FOREIGN KEY (conclave_id) REFERENCES conclaves(id),
-	FOREIGN KEY (shipyard_id) REFERENCES shipyards(id),
 	FOREIGN KEY (spec_note_id) REFERENCES notes(id) ON DELETE SET NULL
 );
 
@@ -132,19 +118,15 @@ CREATE TABLE IF NOT EXISTS shipments (
 CREATE TABLE IF NOT EXISTS tomes (
 	id TEXT PRIMARY KEY,
 	commission_id TEXT NOT NULL,
-	conclave_id TEXT,
 	title TEXT NOT NULL,
 	description TEXT,
 	status TEXT NOT NULL CHECK(status IN ('open', 'closed')) DEFAULT 'open',
 	assigned_workbench_id TEXT,
 	pinned INTEGER DEFAULT 0,
-	container_id TEXT,
-	container_type TEXT CHECK(container_type IN ('conclave')),
 	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 	updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 	closed_at DATETIME,
 	FOREIGN KEY (commission_id) REFERENCES commissions(id),
-	FOREIGN KEY (conclave_id) REFERENCES conclaves(id) ON DELETE SET NULL,
 	FOREIGN KEY (assigned_workbench_id) REFERENCES workbenches(id)
 );
 
@@ -154,7 +136,6 @@ CREATE TABLE IF NOT EXISTS tasks (
 	shipment_id TEXT,
 	commission_id TEXT NOT NULL,
 	tome_id TEXT,
-	conclave_id TEXT,
 	title TEXT NOT NULL,
 	description TEXT,
 	type TEXT CHECK(type IN ('research', 'implementation', 'fix', 'documentation', 'maintenance')),
@@ -171,7 +152,6 @@ CREATE TABLE IF NOT EXISTS tasks (
 	FOREIGN KEY (shipment_id) REFERENCES shipments(id) ON DELETE CASCADE,
 	FOREIGN KEY (commission_id) REFERENCES commissions(id),
 	FOREIGN KEY (tome_id) REFERENCES tomes(id) ON DELETE SET NULL,
-	FOREIGN KEY (conclave_id) REFERENCES conclaves(id) ON DELETE SET NULL,
 	FOREIGN KEY (assigned_workbench_id) REFERENCES workbenches(id)
 );
 
@@ -234,31 +214,12 @@ CREATE TABLE IF NOT EXISTS plans (
 	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 	updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 	approved_at DATETIME,
-	conclave_id TEXT,
 	promoted_from_id TEXT,
 	promoted_from_type TEXT,
 	supersedes_plan_id TEXT,
 	FOREIGN KEY (commission_id) REFERENCES commissions(id),
 	FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE,
-	FOREIGN KEY (conclave_id) REFERENCES conclaves(id) ON DELETE SET NULL,
 	FOREIGN KEY (supersedes_plan_id) REFERENCES plans(id) ON DELETE SET NULL
-);
-
--- Conclaves (Decision containers)
-CREATE TABLE IF NOT EXISTS conclaves (
-	id TEXT PRIMARY KEY,
-	commission_id TEXT NOT NULL,
-	shipment_id TEXT,
-	title TEXT NOT NULL,
-	description TEXT,
-	status TEXT NOT NULL CHECK(status IN ('open', 'paused', 'closed')) DEFAULT 'open',
-	decision TEXT,
-	pinned INTEGER DEFAULT 0,
-	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-	updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-	decided_at DATETIME,
-	FOREIGN KEY (commission_id) REFERENCES commissions(id),
-	FOREIGN KEY (shipment_id) REFERENCES shipments(id)
 );
 
 -- Notes (Observations and learnings)
@@ -266,7 +227,6 @@ CREATE TABLE IF NOT EXISTS notes (
 	id TEXT PRIMARY KEY,
 	commission_id TEXT NOT NULL,
 	shipment_id TEXT,
-	conclave_id TEXT,
 	tome_id TEXT,
 	title TEXT NOT NULL,
 	content TEXT,
@@ -282,7 +242,6 @@ CREATE TABLE IF NOT EXISTS notes (
 	closed_by_note_id TEXT,
 	FOREIGN KEY (commission_id) REFERENCES commissions(id),
 	FOREIGN KEY (shipment_id) REFERENCES shipments(id) ON DELETE SET NULL,
-	FOREIGN KEY (conclave_id) REFERENCES conclaves(id) ON DELETE SET NULL,
 	FOREIGN KEY (tome_id) REFERENCES tomes(id) ON DELETE SET NULL,
 	FOREIGN KEY (closed_by_note_id) REFERENCES notes(id) ON DELETE SET NULL
 );
@@ -309,13 +268,11 @@ CREATE INDEX IF NOT EXISTS idx_shipments_commission ON shipments(commission_id);
 CREATE INDEX IF NOT EXISTS idx_shipments_status ON shipments(status);
 CREATE INDEX IF NOT EXISTS idx_shipments_workbench ON shipments(assigned_workbench_id);
 CREATE INDEX IF NOT EXISTS idx_tomes_commission ON tomes(commission_id);
-CREATE INDEX IF NOT EXISTS idx_tomes_conclave ON tomes(conclave_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_shipment ON tasks(shipment_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_commission ON tasks(commission_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
 CREATE INDEX IF NOT EXISTS idx_tasks_workbench ON tasks(assigned_workbench_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_tome ON tasks(tome_id);
-CREATE INDEX IF NOT EXISTS idx_tasks_conclave ON tasks(conclave_id);
 CREATE INDEX IF NOT EXISTS idx_operations_commission ON operations(commission_id);
 CREATE INDEX IF NOT EXISTS idx_handoffs_created ON handoffs(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_prs_shipment ON prs(shipment_id);
@@ -326,15 +283,8 @@ CREATE INDEX IF NOT EXISTS idx_plans_commission ON plans(commission_id);
 CREATE INDEX IF NOT EXISTS idx_plans_task ON plans(task_id);
 CREATE INDEX IF NOT EXISTS idx_plans_status ON plans(status);
 CREATE INDEX IF NOT EXISTS idx_plans_supersedes ON plans(supersedes_plan_id);
-CREATE INDEX IF NOT EXISTS idx_conclaves_commission ON conclaves(commission_id);
-CREATE INDEX IF NOT EXISTS idx_conclaves_status ON conclaves(status);
 CREATE INDEX IF NOT EXISTS idx_notes_commission ON notes(commission_id);
 CREATE INDEX IF NOT EXISTS idx_notes_shipment ON notes(shipment_id);
-CREATE INDEX IF NOT EXISTS idx_shipyards_factory ON shipyards(factory_id);
-CREATE INDEX IF NOT EXISTS idx_tomes_container ON tomes(container_id);
-CREATE INDEX IF NOT EXISTS idx_shipments_conclave ON shipments(conclave_id);
-CREATE INDEX IF NOT EXISTS idx_shipments_shipyard ON shipments(shipyard_id);
-
 -- Approvals (1:1 with Plan)
 CREATE TABLE IF NOT EXISTS approvals (
 	id TEXT PRIMARY KEY,

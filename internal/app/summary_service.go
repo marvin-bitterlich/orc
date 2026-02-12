@@ -164,7 +164,7 @@ func (s *SummaryServiceImpl) GetCommissionSummary(ctx context.Context, req prima
 }
 
 // buildTomeSummary creates a TomeSummary with note count.
-// When expandNotes is true, includes the full Notes slice (for focused tomes/conclaves).
+// When expandNotes is true, includes the full Notes slice (for focused tomes).
 func (s *SummaryServiceImpl) buildTomeSummary(ctx context.Context, tome *primary.Tome, focusID string, expandNotes bool) (*primary.TomeSummary, error) {
 	// Get notes for this tome
 	notes, err := s.tomeService.GetTomeNotes(ctx, tome.ID)

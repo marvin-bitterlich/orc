@@ -518,7 +518,7 @@ func TestSummaryService_GetCommissionSummary_FlatStructure(t *testing.T) {
 		Status:       "open",
 	}
 
-	// Create service (no conclave service needed)
+	// Create service
 	svc := NewSummaryService(commissionSvc, tomeSvc, shipmentSvc, taskSvc, noteSvc, workbenchSvc, nil, nil, nil)
 
 	// Request summary

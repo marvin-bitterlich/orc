@@ -19,7 +19,6 @@ type Plan struct {
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
 	ApprovedAt       sql.NullTime
-	ConclaveID       sql.NullString
 	PromotedFromID   sql.NullString
 	PromotedFromType sql.NullString
 }

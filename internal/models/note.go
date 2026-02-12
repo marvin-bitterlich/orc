@@ -13,7 +13,6 @@ type Note struct {
 	Type             sql.NullString // learning, concern, finding, frq, bug
 	Status           string         // open, closed
 	ShipmentID       sql.NullString
-	ConclaveID       sql.NullString
 	TomeID           sql.NullString
 	Pinned           bool
 	CreatedAt        time.Time

@@ -61,9 +61,6 @@ func (m *mockTomeRepository) List(ctx context.Context, filters secondary.TomeFil
 		if filters.CommissionID != "" && t.CommissionID != filters.CommissionID {
 			continue
 		}
-		if filters.ConclaveID != "" && t.ConclaveID != filters.ConclaveID {
-			continue
-		}
 		if filters.Status != "" && t.Status != filters.Status {
 			continue
 		}
@@ -136,16 +133,6 @@ func (m *mockTomeRepository) GetByWorkbench(ctx context.Context, workbenchID str
 	return result, nil
 }
 
-func (m *mockTomeRepository) GetByConclave(ctx context.Context, conclaveID string) ([]*secondary.TomeRecord, error) {
-	var result []*secondary.TomeRecord
-	for _, t := range m.tomes {
-		if t.ConclaveID == conclaveID {
-			result = append(result, t)
-		}
-	}
-	return result, nil
-}
-
 func (m *mockTomeRepository) AssignWorkbench(ctx context.Context, tomeID, workbenchID string) error {
 	if m.assignWorkbenchErr != nil {
 		return m.assignWorkbenchErr
@@ -161,19 +148,6 @@ func (m *mockTomeRepository) CommissionExists(ctx context.Context, commissionID 
 		return false, m.commissionExistsErr
 	}
 	return m.commissionExistsResult, nil
-}
-
-func (m *mockTomeRepository) UpdateContainer(ctx context.Context, id, containerID, containerType string) error {
-	if tome, ok := m.tomes[id]; ok {
-		tome.ContainerID = containerID
-		tome.ContainerType = containerType
-		if containerType == "conclave" {
-			tome.ConclaveID = containerID
-		} else {
-			tome.ConclaveID = ""
-		}
-	}
-	return nil
 }
 
 // mockNoteServiceForTome implements minimal NoteService for tome tests.

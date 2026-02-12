@@ -25,7 +25,7 @@ func NewNoteRepository(db *sql.DB, logWriter secondary.LogWriter) *NoteRepositor
 // Create persists a new note.
 func (r *NoteRepository) Create(ctx context.Context, note *secondary.NoteRecord) error {
 	var content, noteType sql.NullString
-	var shipmentID, conclaveID, tomeID sql.NullString
+	var shipmentID, tomeID sql.NullString
 
 	if note.Content != "" {
 		content = sql.NullString{String: note.Content, Valid: true}
@@ -35,9 +35,6 @@ func (r *NoteRepository) Create(ctx context.Context, note *secondary.NoteRecord)
 	}
 	if note.ShipmentID != "" {
 		shipmentID = sql.NullString{String: note.ShipmentID, Valid: true}
-	}
-	if note.ConclaveID != "" {
-		conclaveID = sql.NullString{String: note.ConclaveID, Valid: true}
 	}
 	if note.TomeID != "" {
 		tomeID = sql.NullString{String: note.TomeID, Valid: true}
@@ -49,8 +46,8 @@ func (r *NoteRepository) Create(ctx context.Context, note *secondary.NoteRecord)
 	}
 
 	_, err := r.db.ExecContext(ctx,
-		"INSERT INTO notes (id, commission_id, title, content, type, status, shipment_id, conclave_id, tome_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-		note.ID, note.CommissionID, note.Title, content, noteType, status, shipmentID, conclaveID, tomeID,
+		"INSERT INTO notes (id, commission_id, title, content, type, status, shipment_id, tome_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+		note.ID, note.CommissionID, note.Title, content, noteType, status, shipmentID, tomeID,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create note: %w", err)
@@ -71,7 +68,6 @@ func (r *NoteRepository) GetByID(ctx context.Context, id string) (*secondary.Not
 		noteType         sql.NullString
 		status           string
 		shipmentID       sql.NullString
-		conclaveID       sql.NullString
 		tomeID           sql.NullString
 		pinned           bool
 		createdAt        time.Time
@@ -85,9 +81,9 @@ func (r *NoteRepository) GetByID(ctx context.Context, id string) (*secondary.Not
 
 	record := &secondary.NoteRecord{}
 	err := r.db.QueryRowContext(ctx,
-		"SELECT id, commission_id, title, content, type, status, shipment_id, conclave_id, tome_id, pinned, created_at, updated_at, closed_at, promoted_from_id, promoted_from_type, close_reason, closed_by_note_id FROM notes WHERE id = ?",
+		"SELECT id, commission_id, title, content, type, status, shipment_id, tome_id, pinned, created_at, updated_at, closed_at, promoted_from_id, promoted_from_type, close_reason, closed_by_note_id FROM notes WHERE id = ?",
 		id,
-	).Scan(&record.ID, &record.CommissionID, &record.Title, &content, &noteType, &status, &shipmentID, &conclaveID, &tomeID, &pinned, &createdAt, &updatedAt, &closedAt, &promotedFromID, &promotedFromType, &closeReason, &closedByNoteID)
+	).Scan(&record.ID, &record.CommissionID, &record.Title, &content, &noteType, &status, &shipmentID, &tomeID, &pinned, &createdAt, &updatedAt, &closedAt, &promotedFromID, &promotedFromType, &closeReason, &closedByNoteID)
 
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("note %s not found", id)
@@ -100,7 +96,6 @@ func (r *NoteRepository) GetByID(ctx context.Context, id string) (*secondary.Not
 	record.Type = noteType.String
 	record.Status = status
 	record.ShipmentID = shipmentID.String
-	record.ConclaveID = conclaveID.String
 	record.TomeID = tomeID.String
 	record.Pinned = pinned
 	record.CreatedAt = createdAt.Format(time.RFC3339)
@@ -118,7 +113,7 @@ func (r *NoteRepository) GetByID(ctx context.Context, id string) (*secondary.Not
 
 // List retrieves notes matching the given filters.
 func (r *NoteRepository) List(ctx context.Context, filters secondary.NoteFilters) ([]*secondary.NoteRecord, error) {
-	query := "SELECT id, commission_id, title, content, type, status, shipment_id, conclave_id, tome_id, pinned, created_at, updated_at, closed_at, promoted_from_id, promoted_from_type, close_reason, closed_by_note_id FROM notes WHERE 1=1"
+	query := "SELECT id, commission_id, title, content, type, status, shipment_id, tome_id, pinned, created_at, updated_at, closed_at, promoted_from_id, promoted_from_type, close_reason, closed_by_note_id FROM notes WHERE 1=1"
 	args := []any{}
 
 	if filters.Type != "" {
@@ -146,7 +141,6 @@ func (r *NoteRepository) List(ctx context.Context, filters secondary.NoteFilters
 			noteType         sql.NullString
 			status           string
 			shipmentID       sql.NullString
-			conclaveID       sql.NullString
 			tomeID           sql.NullString
 			pinned           bool
 			createdAt        time.Time
@@ -159,7 +153,7 @@ func (r *NoteRepository) List(ctx context.Context, filters secondary.NoteFilters
 		)
 
 		record := &secondary.NoteRecord{}
-		err := rows.Scan(&record.ID, &record.CommissionID, &record.Title, &content, &noteType, &status, &shipmentID, &conclaveID, &tomeID, &pinned, &createdAt, &updatedAt, &closedAt, &promotedFromID, &promotedFromType, &closeReason, &closedByNoteID)
+		err := rows.Scan(&record.ID, &record.CommissionID, &record.Title, &content, &noteType, &status, &shipmentID, &tomeID, &pinned, &createdAt, &updatedAt, &closedAt, &promotedFromID, &promotedFromType, &closeReason, &closedByNoteID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan note: %w", err)
 		}
@@ -168,7 +162,6 @@ func (r *NoteRepository) List(ctx context.Context, filters secondary.NoteFilters
 		record.Type = noteType.String
 		record.Status = status
 		record.ShipmentID = shipmentID.String
-		record.ConclaveID = conclaveID.String
 		record.TomeID = tomeID.String
 		record.Pinned = pinned
 		record.CreatedAt = createdAt.Format(time.RFC3339)
@@ -207,20 +200,17 @@ func (r *NoteRepository) Update(ctx context.Context, note *secondary.NoteRecord)
 		args = append(args, note.Type)
 	}
 
-	// Container move: when moving to a new container, clear all other container IDs
+	// Container move: when moving to a new container, clear the other container ID
 	// to maintain mutual exclusivity (a note can only belong to one container)
 	if note.PromoteToCommission {
 		// Promote to commission level: clear all container associations
-		query += ", shipment_id = NULL, tome_id = NULL, conclave_id = NULL"
+		query += ", shipment_id = NULL, tome_id = NULL"
 	} else if note.ShipmentID != "" {
-		query += ", shipment_id = ?, tome_id = NULL, conclave_id = NULL"
+		query += ", shipment_id = ?, tome_id = NULL"
 		args = append(args, note.ShipmentID)
 	} else if note.TomeID != "" {
-		query += ", tome_id = ?, shipment_id = NULL, conclave_id = NULL"
+		query += ", tome_id = ?, shipment_id = NULL"
 		args = append(args, note.TomeID)
-	} else if note.ConclaveID != "" {
-		query += ", conclave_id = ?, shipment_id = NULL, tome_id = NULL"
-		args = append(args, note.ConclaveID)
 	}
 
 	query += " WHERE id = ?"
@@ -308,15 +298,12 @@ func (r *NoteRepository) GetByContainer(ctx context.Context, containerType, cont
 	var query string
 	switch containerType {
 	case "shipment":
-		query = "SELECT id, commission_id, title, content, type, status, shipment_id, conclave_id, tome_id, pinned, created_at, updated_at, closed_at, promoted_from_id, promoted_from_type, close_reason, closed_by_note_id FROM notes WHERE shipment_id = ? ORDER BY created_at DESC"
-	case "conclave":
-		// Exclude notes that have been filed to a tome - they appear under the tome instead
-		query = "SELECT id, commission_id, title, content, type, status, shipment_id, conclave_id, tome_id, pinned, created_at, updated_at, closed_at, promoted_from_id, promoted_from_type, close_reason, closed_by_note_id FROM notes WHERE conclave_id = ? AND tome_id IS NULL ORDER BY created_at DESC"
+		query = "SELECT id, commission_id, title, content, type, status, shipment_id, tome_id, pinned, created_at, updated_at, closed_at, promoted_from_id, promoted_from_type, close_reason, closed_by_note_id FROM notes WHERE shipment_id = ? ORDER BY created_at DESC"
 	case "tome":
-		query = "SELECT id, commission_id, title, content, type, status, shipment_id, conclave_id, tome_id, pinned, created_at, updated_at, closed_at, promoted_from_id, promoted_from_type, close_reason, closed_by_note_id FROM notes WHERE tome_id = ? ORDER BY created_at DESC"
+		query = "SELECT id, commission_id, title, content, type, status, shipment_id, tome_id, pinned, created_at, updated_at, closed_at, promoted_from_id, promoted_from_type, close_reason, closed_by_note_id FROM notes WHERE tome_id = ? ORDER BY created_at DESC"
 	case "commission":
 		// Notes directly under commission (not in any container)
-		query = "SELECT id, commission_id, title, content, type, status, shipment_id, conclave_id, tome_id, pinned, created_at, updated_at, closed_at, promoted_from_id, promoted_from_type, close_reason, closed_by_note_id FROM notes WHERE commission_id = ? AND shipment_id IS NULL AND conclave_id IS NULL AND tome_id IS NULL ORDER BY created_at DESC"
+		query = "SELECT id, commission_id, title, content, type, status, shipment_id, tome_id, pinned, created_at, updated_at, closed_at, promoted_from_id, promoted_from_type, close_reason, closed_by_note_id FROM notes WHERE commission_id = ? AND shipment_id IS NULL AND tome_id IS NULL ORDER BY created_at DESC"
 	default:
 		return nil, fmt.Errorf("unknown container type: %s", containerType)
 	}
@@ -334,7 +321,6 @@ func (r *NoteRepository) GetByContainer(ctx context.Context, containerType, cont
 			noteType         sql.NullString
 			status           string
 			shipmentID       sql.NullString
-			conclaveID       sql.NullString
 			tomeID           sql.NullString
 			pinned           bool
 			createdAt        time.Time
@@ -347,7 +333,7 @@ func (r *NoteRepository) GetByContainer(ctx context.Context, containerType, cont
 		)
 
 		record := &secondary.NoteRecord{}
-		err := rows.Scan(&record.ID, &record.CommissionID, &record.Title, &content, &noteType, &status, &shipmentID, &conclaveID, &tomeID, &pinned, &createdAt, &updatedAt, &closedAt, &promotedFromID, &promotedFromType, &closeReason, &closedByNoteID)
+		err := rows.Scan(&record.ID, &record.CommissionID, &record.Title, &content, &noteType, &status, &shipmentID, &tomeID, &pinned, &createdAt, &updatedAt, &closedAt, &promotedFromID, &promotedFromType, &closeReason, &closedByNoteID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan note: %w", err)
 		}
@@ -356,7 +342,6 @@ func (r *NoteRepository) GetByContainer(ctx context.Context, containerType, cont
 		record.Type = noteType.String
 		record.Status = status
 		record.ShipmentID = shipmentID.String
-		record.ConclaveID = conclaveID.String
 		record.TomeID = tomeID.String
 		record.Pinned = pinned
 		record.CreatedAt = createdAt.Format(time.RFC3339)
@@ -401,16 +386,6 @@ func (r *NoteRepository) TomeExists(ctx context.Context, tomeID string) (bool, e
 	err := r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM tomes WHERE id = ?", tomeID).Scan(&count)
 	if err != nil {
 		return false, fmt.Errorf("failed to check tome existence: %w", err)
-	}
-	return count > 0, nil
-}
-
-// ConclaveExists checks if a conclave exists.
-func (r *NoteRepository) ConclaveExists(ctx context.Context, conclaveID string) (bool, error) {
-	var count int
-	err := r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM conclaves WHERE id = ?", conclaveID).Scan(&count)
-	if err != nil {
-		return false, fmt.Errorf("failed to check conclave existence: %w", err)
 	}
 	return count > 0, nil
 }

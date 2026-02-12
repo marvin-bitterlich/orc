@@ -334,7 +334,6 @@ func TestNoteRepository_GetByContainer_Shipment(t *testing.T) {
 	// Create notes for different containers
 	_, _ = db.Exec(`INSERT INTO notes (id, commission_id, title, shipment_id) VALUES ('NOTE-001', 'COMM-001', 'Ship Note 1', 'SHIP-001')`)
 	_, _ = db.Exec(`INSERT INTO notes (id, commission_id, title, shipment_id) VALUES ('NOTE-002', 'COMM-001', 'Ship Note 2', 'SHIP-001')`)
-	_, _ = db.Exec(`INSERT INTO notes (id, commission_id, title, conclave_id) VALUES ('NOTE-003', 'COMM-001', 'Conclave Note', 'CON-001')`)
 
 	notes, err := repo.GetByContainer(ctx, "shipment", "SHIP-001")
 	if err != nil {
@@ -343,23 +342,6 @@ func TestNoteRepository_GetByContainer_Shipment(t *testing.T) {
 
 	if len(notes) != 2 {
 		t.Errorf("expected 2 notes for shipment, got %d", len(notes))
-	}
-}
-
-func TestNoteRepository_GetByContainer_Conclave(t *testing.T) {
-	db := setupNoteTestDB(t)
-	repo := sqlite.NewNoteRepository(db, nil)
-	ctx := context.Background()
-
-	_, _ = db.Exec(`INSERT INTO notes (id, commission_id, title, conclave_id) VALUES ('NOTE-001', 'COMM-001', 'Conclave Note', 'CON-001')`)
-
-	notes, err := repo.GetByContainer(ctx, "conclave", "CON-001")
-	if err != nil {
-		t.Fatalf("GetByContainer failed: %v", err)
-	}
-
-	if len(notes) != 1 {
-		t.Errorf("expected 1 note for conclave, got %d", len(notes))
 	}
 }
 

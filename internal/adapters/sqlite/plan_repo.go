@@ -64,7 +64,6 @@ func (r *PlanRepository) GetByID(ctx context.Context, id string) (*secondary.Pla
 		createdAt        time.Time
 		updatedAt        time.Time
 		approvedAt       sql.NullTime
-		conclaveID       sql.NullString
 		promotedFromID   sql.NullString
 		promotedFromType sql.NullString
 		supersedesPlanID sql.NullString
@@ -73,11 +72,11 @@ func (r *PlanRepository) GetByID(ctx context.Context, id string) (*secondary.Pla
 	record := &secondary.PlanRecord{}
 	err := r.db.QueryRowContext(ctx,
 		`SELECT id, task_id, commission_id, title, description, status, content, pinned,
-			created_at, updated_at, approved_at, conclave_id, promoted_from_id, promoted_from_type, supersedes_plan_id
+			created_at, updated_at, approved_at, promoted_from_id, promoted_from_type, supersedes_plan_id
 		FROM plans WHERE id = ?`,
 		id,
 	).Scan(&record.ID, &record.TaskID, &record.CommissionID, &record.Title, &desc, &record.Status, &content, &pinned,
-		&createdAt, &updatedAt, &approvedAt, &conclaveID, &promotedFromID, &promotedFromType, &supersedesPlanID)
+		&createdAt, &updatedAt, &approvedAt, &promotedFromID, &promotedFromType, &supersedesPlanID)
 
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("plan %s not found", id)
@@ -94,7 +93,6 @@ func (r *PlanRepository) GetByID(ctx context.Context, id string) (*secondary.Pla
 	if approvedAt.Valid {
 		record.ApprovedAt = approvedAt.Time.Format(time.RFC3339)
 	}
-	record.ConclaveID = conclaveID.String
 	record.PromotedFromID = promotedFromID.String
 	record.PromotedFromType = promotedFromType.String
 	record.SupersedesPlanID = supersedesPlanID.String
@@ -105,7 +103,7 @@ func (r *PlanRepository) GetByID(ctx context.Context, id string) (*secondary.Pla
 // List retrieves plans matching the given filters.
 func (r *PlanRepository) List(ctx context.Context, filters secondary.PlanFilters) ([]*secondary.PlanRecord, error) {
 	query := `SELECT id, task_id, commission_id, title, description, status, content, pinned,
-		created_at, updated_at, approved_at, conclave_id, promoted_from_id, promoted_from_type, supersedes_plan_id
+		created_at, updated_at, approved_at, promoted_from_id, promoted_from_type, supersedes_plan_id
 		FROM plans WHERE 1=1`
 	args := []any{}
 
@@ -141,7 +139,6 @@ func (r *PlanRepository) List(ctx context.Context, filters secondary.PlanFilters
 			createdAt        time.Time
 			updatedAt        time.Time
 			approvedAt       sql.NullTime
-			conclaveID       sql.NullString
 			promotedFromID   sql.NullString
 			promotedFromType sql.NullString
 			supersedesPlanID sql.NullString
@@ -149,7 +146,7 @@ func (r *PlanRepository) List(ctx context.Context, filters secondary.PlanFilters
 
 		record := &secondary.PlanRecord{}
 		err := rows.Scan(&record.ID, &record.TaskID, &record.CommissionID, &record.Title, &desc, &record.Status, &content, &pinned,
-			&createdAt, &updatedAt, &approvedAt, &conclaveID, &promotedFromID, &promotedFromType, &supersedesPlanID)
+			&createdAt, &updatedAt, &approvedAt, &promotedFromID, &promotedFromType, &supersedesPlanID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan plan: %w", err)
 		}
@@ -162,7 +159,6 @@ func (r *PlanRepository) List(ctx context.Context, filters secondary.PlanFilters
 		if approvedAt.Valid {
 			record.ApprovedAt = approvedAt.Time.Format(time.RFC3339)
 		}
-		record.ConclaveID = conclaveID.String
 		record.PromotedFromID = promotedFromID.String
 		record.PromotedFromType = promotedFromType.String
 		record.SupersedesPlanID = supersedesPlanID.String
@@ -318,7 +314,6 @@ func (r *PlanRepository) GetActivePlanForTask(ctx context.Context, taskID string
 		createdAt        time.Time
 		updatedAt        time.Time
 		approvedAt       sql.NullTime
-		conclaveID       sql.NullString
 		promotedFromID   sql.NullString
 		promotedFromType sql.NullString
 		supersedesPlanID sql.NullString
@@ -327,11 +322,11 @@ func (r *PlanRepository) GetActivePlanForTask(ctx context.Context, taskID string
 	record := &secondary.PlanRecord{}
 	err := r.db.QueryRowContext(ctx,
 		`SELECT id, task_id, commission_id, title, description, status, content, pinned,
-			created_at, updated_at, approved_at, conclave_id, promoted_from_id, promoted_from_type, supersedes_plan_id
+			created_at, updated_at, approved_at, promoted_from_id, promoted_from_type, supersedes_plan_id
 		FROM plans WHERE task_id = ? AND status = 'draft' LIMIT 1`,
 		taskID,
 	).Scan(&record.ID, &record.TaskID, &record.CommissionID, &record.Title, &desc, &record.Status, &content, &pinned,
-		&createdAt, &updatedAt, &approvedAt, &conclaveID, &promotedFromID, &promotedFromType, &supersedesPlanID)
+		&createdAt, &updatedAt, &approvedAt, &promotedFromID, &promotedFromType, &supersedesPlanID)
 
 	if err == sql.ErrNoRows {
 		return nil, nil // No active plan is not an error
@@ -348,7 +343,6 @@ func (r *PlanRepository) GetActivePlanForTask(ctx context.Context, taskID string
 	if approvedAt.Valid {
 		record.ApprovedAt = approvedAt.Time.Format(time.RFC3339)
 	}
-	record.ConclaveID = conclaveID.String
 	record.PromotedFromID = promotedFromID.String
 	record.PromotedFromType = promotedFromType.String
 	record.SupersedesPlanID = supersedesPlanID.String

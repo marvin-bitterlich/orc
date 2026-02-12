@@ -25,7 +25,6 @@ type Task struct {
 	UpdatedAt           time.Time
 	ClaimedAt           sql.NullTime
 	CompletedAt         sql.NullTime
-	ConclaveID          sql.NullString
 	PromotedFromID      sql.NullString
 	PromotedFromType    sql.NullString
 }

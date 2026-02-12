@@ -137,35 +137,21 @@ func SeedFixtures(database *sql.DB) error {
 		}
 	}
 
-	// Conclaves (valid statuses: open, paused, closed)
-	conclaves := []struct{ id, commissionID, title, status string }{
-		{"CON-001", "COMM-001", "Architecture Discussion", "closed"},
-		{"CON-002", "COMM-001", "API Design", "open"},
-	}
-	for _, c := range conclaves {
-		if _, err := database.Exec(
-			"INSERT INTO conclaves (id, commission_id, title, status, created_at) VALUES (?, ?, ?, ?, ?)",
-			c.id, c.commissionID, c.title, c.status, now,
-		); err != nil {
-			return fmt.Errorf("seed conclaves: %w", err)
-		}
-	}
-
 	// Tomes
-	tomes := []struct{ id, commissionID, conclaveID, title string }{
-		{"TOME-001", "COMM-001", "CON-001", "Architecture Notes"},
-		{"TOME-002", "COMM-001", "CON-002", "API Exploration"},
+	tomes := []struct{ id, commissionID, title string }{
+		{"TOME-001", "COMM-001", "Architecture Notes"},
+		{"TOME-002", "COMM-001", "API Exploration"},
 	}
 	for _, t := range tomes {
 		if _, err := database.Exec(
-			"INSERT INTO tomes (id, commission_id, conclave_id, title, status, created_at) VALUES (?, ?, ?, ?, 'open', ?)",
-			t.id, t.commissionID, t.conclaveID, t.title, now,
+			"INSERT INTO tomes (id, commission_id, title, status, created_at) VALUES (?, ?, ?, 'open', ?)",
+			t.id, t.commissionID, t.title, now,
 		); err != nil {
 			return fmt.Errorf("seed tomes: %w", err)
 		}
 	}
 
-	// Notes (uses shipment_id, conclave_id, tome_id - not container_type/id)
+	// Notes (uses shipment_id, tome_id)
 	notesWithTome := []struct{ id, commissionID, tomeID, title, noteType string }{
 		{"NOTE-001", "COMM-001", "TOME-001", "Initial thoughts on architecture", "idea"},
 		{"NOTE-002", "COMM-001", "TOME-001", "Decision: Use hexagonal architecture", "decision"},

@@ -188,10 +188,6 @@ func (m *mockTaskRepository) TomeExists(ctx context.Context, tomeID string) (boo
 	return true, nil
 }
 
-func (m *mockTaskRepository) ConclaveExists(ctx context.Context, conclaveID string) (bool, error) {
-	return true, nil
-}
-
 func (m *mockTaskRepository) GetTag(ctx context.Context, taskID string) (*secondary.TagRecord, error) {
 	if tag, ok := m.tags[taskID]; ok {
 		return tag, nil

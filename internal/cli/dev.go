@@ -92,7 +92,7 @@ to prevent accidental reset of the production database.`,
 			fmt.Println("  - 3 commissions")
 			fmt.Println("  - 5 shipments")
 			fmt.Println("  - 10 tasks")
-			fmt.Println("  - 2 conclaves, 2 tomes, 4 notes")
+			fmt.Println("  - 2 tomes, 4 notes")
 
 			return nil
 		},

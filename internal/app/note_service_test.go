@@ -116,10 +116,6 @@ func (m *mockNoteRepository) GetByContainer(ctx context.Context, containerType, 
 			if n.ShipmentID == containerID {
 				result = append(result, n)
 			}
-		case "conclave":
-			if n.ConclaveID == containerID {
-				result = append(result, n)
-			}
 		case "tome":
 			if n.TomeID == containerID {
 				result = append(result, n)
@@ -141,10 +137,6 @@ func (m *mockNoteRepository) ShipmentExists(ctx context.Context, shipmentID stri
 }
 
 func (m *mockNoteRepository) TomeExists(ctx context.Context, tomeID string) (bool, error) {
-	return true, nil
-}
-
-func (m *mockNoteRepository) ConclaveExists(ctx context.Context, conclaveID string) (bool, error) {
 	return true, nil
 }
 
@@ -509,27 +501,6 @@ func TestGetNotesByContainer_Shipment(t *testing.T) {
 	}
 	if len(notes) != 1 {
 		t.Errorf("expected 1 shipment note, got %d", len(notes))
-	}
-}
-
-func TestGetNotesByContainer_Conclave(t *testing.T) {
-	service, noteRepo := newTestNoteService()
-	ctx := context.Background()
-
-	noteRepo.notes["NOTE-001"] = &secondary.NoteRecord{
-		ID:           "NOTE-001",
-		CommissionID: "COMM-001",
-		Title:        "Conclave Note",
-		ConclaveID:   "CON-001",
-	}
-
-	notes, err := service.GetNotesByContainer(ctx, "conclave", "CON-001")
-
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
-	}
-	if len(notes) != 1 {
-		t.Errorf("expected 1 conclave note, got %d", len(notes))
 	}
 }
 
