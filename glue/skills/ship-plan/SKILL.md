@@ -23,7 +23,7 @@ Transform synthesized knowledge into actionable tasks through a structured engin
 ## Documentation Discovery
 
 Look for architecture and development docs in order:
-1. `docs/reference/architecture.md` - System structure (C2/C3 mapping)
+1. `docs/architecture.md` - System structure (C2/C3 mapping)
 2. `CLAUDE.md` - Development rules and patterns
 
 If found, reference during engineering review.
@@ -182,7 +182,7 @@ I'd recommend: skip theme identification with <3 notes, just summarize directly.
 
 Map what containers and components are affected.
 
-**Reference:** If docs/reference/architecture.md exists, use it for C2/C3 structure. Otherwise, explore the codebase to identify containers and components.
+**Reference:** If docs/architecture.md exists, use it for C2/C3 structure. Otherwise, explore the codebase to identify containers and components.
 
 **Example output:**
 ```

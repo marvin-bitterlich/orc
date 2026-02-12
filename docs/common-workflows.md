@@ -9,8 +9,6 @@ This guide covers the standard patterns for working with ORC.
 
 Shipments are the primary unit of work in ORC. They progress through a simple 4-status lifecycle.
 
-See **[docs/reference/shipment-lifecycle.md](../reference/shipment-lifecycle.md)** for the complete state diagram.
-
 ### State Descriptions
 
 | State | Description |
@@ -66,6 +64,17 @@ When a shipment has accumulated exploration notes, use this to compact them into
 
 C2/C3 engineering review that pressure-tests synthesized knowledge and creates tasks. Use when ready to convert exploration into actionable implementation.
 
+## Workshop Management
+
+### Setting the Active Commission
+
+The active commission scopes the Goblin's focus and operations. It is stored in `workshops.active_commission_id`.
+
+```bash
+orc workshop set-commission COMM-001   # Set active commission
+orc workshop set-commission --clear    # Clear active commission
+```
+
 ## Goblin Workflow
 
 The Goblin (coordinator) is the human's long-running workbench pane. It manages ORC tasks and context:
@@ -104,6 +113,6 @@ Marks the shipment as closed after verification passes.
 
 ## Next Steps
 
-- [docs/reference/glue.md](../reference/glue.md) - Skills and hooks system
-- [docs/guide/troubleshooting.md](troubleshooting.md) - Common issues
-- [docs/reference/architecture.md](../reference/architecture.md) - System design
+- [docs/dev/glue.md](dev/glue.md) - Skills and hooks system
+- [docs/troubleshooting.md](troubleshooting.md) - Common issues
+- [docs/architecture.md](architecture.md) - System design

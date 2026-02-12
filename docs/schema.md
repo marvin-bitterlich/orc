@@ -1,11 +1,49 @@
-# ORC Database Schema
+# ORC Schema & Glossary
 
 **Status**: Living document
-**Last Updated**: 2026-02-08
+**Last Updated**: 2026-02-12
 
-This document contains the core entity-relationship diagram for ORC's database schema.
+Core terminology and database schema for the ORC system. Terms are defined in the glossary; entity relationships and table details follow.
 
-For the complete schema including messaging and auxiliary tables, see `internal/db/schema.sql`.
+---
+
+## Glossary
+
+**📋 Commission**
+A body of work being tracked. Top-level organizational unit. Contains shipments.
+
+**👔 El Presidente**
+The human. Strategic decision maker and boss. Commands the forest.
+
+**🏭 Factory**
+A collection of workshops, typically representing a codebase or project area.
+
+**👺 Goblin**
+Coordinator agent. The human's long-running workbench pane. Creates/manages ORC tasks with the human. Memory and policy layer (what and why).
+
+**👹 IMP**
+Disposable worker agent spawned by Claude Teams. Executes tasks using Teams primitives. Execution layer (how and who).
+
+**📝 Note**
+Captured thought within a shipment. Types: idea, question, finding, decision, concern, spec.
+
+**📐 Plan**
+C4-level implementation detail. Specifies files and functions to edit.
+
+**📦 Shipment**
+Unit of work with a 4-status lifecycle: draft, ready, in-progress, closed. Contains tasks and notes.
+
+**✔️ Task**
+Specific implementation work within a shipment. Lifecycle: open, in-progress, closed (+blocked lateral state).
+
+**📖 Tome**
+Knowledge container at commission level. Holds notes for long-running reference.
+
+**🔧 Workbench**
+Git worktree where agents work. Isolated development environment with dedicated tmux window.
+
+**🛠️ Workshop**
+Collection of workbenches for coordinated work.
 
 ---
 
@@ -130,5 +168,4 @@ Commission → Shipment → Task → Plan
 ## See Also
 
 - `internal/db/schema.sql` - Complete schema
-- `docs/reference/architecture.md` - System architecture overview
-- `docs/reference/shipment-lifecycle.md` - Shipment state machine
+- `docs/architecture.md` - System architecture overview

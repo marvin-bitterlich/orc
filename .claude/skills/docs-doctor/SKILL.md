@@ -22,7 +22,6 @@ Validate ORC documentation against code reality using parallel subagent checks.
 - After adding/removing documentation files
 - After changing CLI commands or flags
 - After modifying database schema (ER diagram)
-- After changing shipment guards (lifecycle diagram)
 - After changing the Makefile bootstrap target, `orc bootstrap` command, or orc-first-run skill
 
 ## Check Categories
@@ -30,8 +29,6 @@ Validate ORC documentation against code reality using parallel subagent checks.
 ### 1. Structural Checks
 - Internal markdown links in docs/**/*.md are valid
 - No broken cross-references between documentation files
-- `docs/guide/glossary.md` exists (not `glossary/` directory)
-- Glossary contains term definitions (no mermaid diagrams)
 
 ### 2. Lane Checks
 - README.md contains no agent instructions (CLAUDE.md's job)
@@ -44,22 +41,21 @@ Validate ORC documentation against code reality using parallel subagent checks.
 - Referenced skills exist in .claude/skills/ or glue/skills/
 
 ### 4. Schema Checks
-- Required directories exist: `docs/dev/`, `docs/guide/`, `docs/reference/`
-- Required files present per `docs/reference/docs.md` schema
-- No top-level `.md` files directly in `docs/` (all must be in subdirectories)
-- No unexpected subdirectories under `docs/`
+- Required directory exists: `docs/dev/`
+- No unexpected subdirectories under `docs/` (only `dev/` allowed)
+- Required files present per `docs/README.md` schema
+- Top-level `.md` files in `docs/` are allowed (listed in schema)
 - No orphan files outside the defined schema
 
 ### 5. Getting Started Coherence Check
-- `docs/guide/getting-started.md` describes a phased setup flow backed by real code
+- `docs/getting-started.md` describes a phased setup flow backed by real code
 - Phase 2 claims (what `make bootstrap` does) match the Makefile `bootstrap` target
 - Phase 3 claims (what `orc bootstrap` does) match `internal/cli/bootstrap_cmd.go` and `glue/skills/orc-first-run/SKILL.md`
 - CLI flags used in examples and skills match actual `--help` output (e.g., `--path` not `--local-path`)
 - The guide's description of what each phase creates/leaves behind matches code reality
 
-### 6. Diagram Checks
-- ER diagram in docs/reference/architecture.md represents core tables from internal/db/schema.sql
-- Lifecycle diagram in docs/reference/shipment-lifecycle.md represents valid subset of states from internal/core/shipment/guards.go
+### 6. ER Diagram Check
+- ER diagram in docs/architecture.md represents core tables from internal/db/schema.sql
 
 **Note:** Diagrams are intentionally simplified. Validation checks that diagram states/tables are a subset of code reality, not an exact match.
 
@@ -74,8 +70,7 @@ Main Agent (opus)
     ├── Spawn: CLI Validation Agent (haiku)
     ├── Spawn: Schema Validation Agent (haiku)
     ├── Spawn: Getting Started Coherence Agent (haiku)
-    ├── Spawn: ER Diagram Agent (haiku)
-    └── Spawn: Lifecycle Diagram Agent (haiku)
+    └── Spawn: ER Diagram Agent (haiku)
          ↓
     Collect findings
          ↓
@@ -99,24 +94,6 @@ Prompt: "Check internal documentation links.
 
 Return findings as:
 - broken_links: [{file, line, target}]
-- status: 'pass' or 'fail'"
-```
-
-### Step 1b: Spawn Glossary Check Agent
-
-```
-Prompt: "Validate glossary structure.
-
-1. Check that docs/guide/glossary.md exists
-2. Check that docs/glossary/ directory does NOT exist
-3. Read glossary.md and verify:
-   - Contains term definitions (look for **Term** pattern)
-   - No mermaid code blocks (no complex diagrams)
-
-Return findings as:
-- glossary_exists: boolean
-- glossary_dir_exists: boolean (should be false)
-- has_mermaid: boolean (should be false)
 - status: 'pass' or 'fail'"
 ```
 
@@ -166,18 +143,17 @@ Return findings as:
 ```
 Prompt: "Validate docs directory structure against the docs schema.
 
-1. Read docs/reference/docs.md to understand the expected structure
+1. Read docs/README.md to understand the expected structure
 2. Use Glob to find all .md files under docs/
 3. Check:
-   a. Required directories exist: docs/dev/, docs/guide/, docs/reference/
-   b. No .md files directly in docs/ (all must be in subdirectories)
-   c. No unexpected subdirectories under docs/ (only dev/, guide/, reference/)
+   a. Required directory exists: docs/dev/
+   b. No unexpected subdirectories under docs/ (only dev/ allowed)
+   c. Top-level .md files in docs/ are listed in the schema
    d. All files marked 'required: yes' in the schema exist
    e. Every .md file found is listed in the schema (no orphans)
 
 Return findings as:
 - missing_dirs: [list of missing required directories]
-- top_level_files: [.md files directly in docs/]
 - unexpected_dirs: [subdirectories not in schema]
 - missing_required: [{dir, file}]
 - orphan_files: [{dir, file}]
@@ -187,14 +163,14 @@ Return findings as:
 ### Step 5: Spawn Getting Started Coherence Agent
 
 ```
-Prompt: "Validate that docs/guide/getting-started.md accurately describes the bootstrap flow.
+Prompt: "Validate that docs/getting-started.md accurately describes the bootstrap flow.
 
 Cross-reference against three source-of-truth files:
 
 1. Read the Makefile 'bootstrap' target (search for '^bootstrap:')
 2. Read internal/cli/bootstrap_cmd.go
 3. Read glue/skills/orc-first-run/SKILL.md
-4. Read docs/guide/getting-started.md
+4. Read docs/getting-started.md
 
 Then check:
 
@@ -231,7 +207,7 @@ Return findings as:
 Prompt: "Validate ER diagram represents database schema.
 
 1. Read internal/db/schema.sql
-2. Read docs/reference/architecture.md, find the erDiagram mermaid block
+2. Read docs/architecture.md, find the erDiagram mermaid block
 3. Check that tables shown in diagram exist in schema (subset validation)
 4. Check that relationships shown are accurate
 
@@ -243,25 +219,7 @@ Return findings as:
 - status: 'pass' or 'fail'"
 ```
 
-### Step 7: Spawn Lifecycle Diagram Agent
-
-```
-Prompt: "Validate shipment lifecycle diagram represents valid states.
-
-1. Read internal/core/shipment/guards.go
-2. Read docs/reference/shipment-lifecycle.md, find the stateDiagram mermaid block
-3. Check that states in diagram are valid states from guards.go (subset validation)
-4. Check that transitions shown are valid according to guards
-
-Note: Diagram is intentionally simplified - not all states need to be shown.
-
-Return findings as:
-- invalid_states: [states in diagram but not in guards]
-- invalid_transitions: [transitions that guards don't allow]
-- status: 'pass' or 'fail'"
-```
-
-### Step 8: Synthesize Findings
+### Step 7: Synthesize Findings
 
 Collect all agent results and categorize:
 
@@ -273,20 +231,18 @@ Collect all agent results and categorize:
 - Diagram mismatches (which is correct?)
 - Invalid commands (docs wrong or code wrong?)
 
-### Step 9: Report and Act
+### Step 8: Report and Act
 
 **If all pass:**
 ```
 Docs Doctor: All checks passed
 
 Structural: pass
-Glossary: pass
 Lanes: pass
 CLI: pass
 Schema: pass
 Getting Started: pass
 ER Diagram: pass
-Lifecycle: pass
 ```
 
 **If issues found:**
@@ -300,7 +256,7 @@ Lanes:
   - README.md:23 contains agent instruction
 
 CLI:
-  - docs/guide/troubleshooting.md references 'orc foobar' (doesn't exist)
+  - docs/troubleshooting.md references 'orc foobar' (doesn't exist)
 
 Auto-fixing: [list what will be fixed]
 Escalating: [list what needs human decision]

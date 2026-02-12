@@ -37,7 +37,7 @@ Hexagonal (ports & adapters) with strict layers. **The linter config (`.go-arch-
 | CLI | `internal/cli/` | Thin: parse args, call services, render output. |
 | Wire | `internal/wire/` | Dependency injection only. |
 
-Run `make lint` to verify. See [docs/reference/architecture.md](docs/reference/architecture.md) for full details.
+Run `make lint` to verify. See [docs/architecture.md](docs/architecture.md) for full details.
 
 ## Common Mistakes
 
@@ -52,7 +52,7 @@ Run `make lint` to verify. See [docs/reference/architecture.md](docs/reference/a
 Shipment: `draft` -> `ready` -> `in-progress` -> `closed` (all transitions manual)
 Task: `open` -> `in-progress` -> `blocked` -> `closed` (all transitions manual)
 
-See [docs/reference/shipment-lifecycle.md](docs/reference/shipment-lifecycle.md) and [docs/guide/common-workflows.md](docs/guide/common-workflows.md).
+See [docs/common-workflows.md](docs/common-workflows.md).
 
 ## Detailed Documentation
 
@@ -60,19 +60,15 @@ See [docs/reference/shipment-lifecycle.md](docs/reference/shipment-lifecycle.md)
 - [docs/dev/checklists.md](docs/dev/checklists.md) -- Add field, add entity, add CLI command, add state
 - [docs/dev/database.md](docs/dev/database.md) -- Atlas workflow, two-database model, schema changes
 - [docs/dev/testing.md](docs/dev/testing.md) -- Table-driven tests, test pyramid, verification discipline
-- [docs/dev/config.md](docs/dev/config.md) -- Config format, actor model, infrastructure plan/apply
+- [docs/dev/config.md](docs/dev/config.md) -- Config format, infrastructure plan/apply
 - [docs/dev/deployment.md](docs/dev/deployment.md) -- Deployment workflow and checks
+- [docs/dev/release.md](docs/dev/release.md) -- Release process
+- [docs/dev/glue.md](docs/dev/glue.md) -- Skills and hooks system
 
-### For Humans
-- [docs/guide/getting-started.md](docs/guide/getting-started.md) -- Setup and first-run
-- [docs/guide/common-workflows.md](docs/guide/common-workflows.md) -- Shipment and task workflows
-- [docs/guide/glossary.md](docs/guide/glossary.md) -- Terminology
-- [docs/guide/tmux.md](docs/guide/tmux.md) -- TMux session management
-- [docs/guide/troubleshooting.md](docs/guide/troubleshooting.md) -- Common issues
-
-### Reference (for both)
-- [docs/reference/architecture.md](docs/reference/architecture.md) -- C2/C3 codebase structure
-- [docs/reference/schema.md](docs/reference/schema.md) -- Database ER diagram
-- [docs/reference/shipment-lifecycle.md](docs/reference/shipment-lifecycle.md) -- State machine diagrams
-- [docs/reference/glue.md](docs/reference/glue.md) -- Skills and hooks system
-- [docs/reference/release.md](docs/reference/release.md) -- Release process
+### General
+- [docs/getting-started.md](docs/getting-started.md) -- Setup and first-run
+- [docs/common-workflows.md](docs/common-workflows.md) -- Shipment and task workflows
+- [docs/schema.md](docs/schema.md) -- Schema, glossary, and terminology
+- [docs/tmux.md](docs/tmux.md) -- TMux session management
+- [docs/troubleshooting.md](docs/troubleshooting.md) -- Common issues
+- [docs/architecture.md](docs/architecture.md) -- C2/C3 codebase structure

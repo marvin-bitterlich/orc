@@ -1,22 +1,22 @@
 ---
 name: orc-architecture
-description: Maintain docs/reference/architecture.md with C2/C3 structure. Use when you want to document or update the codebase architecture map that ship-plan references.
+description: Maintain docs/architecture.md with C2/C3 structure. Use when you want to document or update the codebase architecture map that ship-plan references.
 ---
 
 # ORC Architecture
 
-Maintain the docs/reference/architecture.md file that documents the codebase structure using C4 model terminology. This file is the source of truth for ship-plan's C2/C3 mapping.
+Maintain the docs/architecture.md file that documents the codebase structure using C4 model terminology. This file is the source of truth for ship-plan's C2/C3 mapping.
 
 ## Usage
 
 ```
-/orc-architecture              (update docs/reference/architecture.md)
-/orc-architecture --bootstrap  (create initial docs/reference/architecture.md)
+/orc-architecture              (update docs/architecture.md)
+/orc-architecture --bootstrap  (create initial docs/architecture.md)
 ```
 
 ## When to Use
 
-- When docs/reference/architecture.md doesn't exist yet (bootstrap)
+- When docs/architecture.md doesn't exist yet (bootstrap)
 - After significant structural changes to the codebase
 - When ship-plan can't find containers/components it expects
 - Periodic maintenance to keep architecture map current
@@ -37,13 +37,13 @@ This skill maintains C2 and C3 levels. C4 is too granular for architecture docs.
 ### Step 1: Check Current State
 
 ```bash
-# Check if docs/reference/architecture.md exists
-cat docs/reference/architecture.md 2>/dev/null || echo "No docs/reference/architecture.md found"
+# Check if docs/architecture.md exists
+cat docs/architecture.md 2>/dev/null || echo "No docs/architecture.md found"
 ```
 
 If file doesn't exist:
 ```
-No docs/reference/architecture.md found. Running bootstrap mode...
+No docs/architecture.md found. Running bootstrap mode...
 ```
 
 ### Step 2: Explore Codebase
@@ -67,9 +67,9 @@ Build mental map of:
 - What components are in each container
 - How they relate to each other
 
-### Step 3: Compare with Current docs/reference/architecture.md
+### Step 3: Compare with Current docs/architecture.md
 
-If docs/reference/architecture.md exists, identify drift:
+If docs/architecture.md exists, identify drift:
 - New directories/components not documented
 - Documented items that no longer exist
 - Structural changes (moves, renames)
@@ -78,7 +78,7 @@ Present findings:
 ```
 ## Architecture Drift Detected
 
-Current docs/reference/architecture.md has:
+Current docs/architecture.md has:
 - Skills container with 12 components
 - CLI container with cmd/, internal/
 
@@ -99,7 +99,7 @@ Use orc-interview format to confirm changes:
 ```
 [Question 1/3]
 
-Found 3 new skills that aren't documented in docs/reference/architecture.md:
+Found 3 new skills that aren't documented in docs/architecture.md:
 - orc-interview
 - ship-synthesize
 - orc-architecture
@@ -112,7 +112,7 @@ These should be added to the Skills container's component list.
 4. Discuss
 ```
 
-### Step 5: Update docs/reference/architecture.md
+### Step 5: Update docs/architecture.md
 
 After confirmation, update the file:
 ```bash
@@ -123,16 +123,16 @@ After confirmation, update the file:
 
 Output:
 ```
-docs/reference/architecture.md updated:
+docs/architecture.md updated:
   ✓ Added 3 components to Skills container
   ✓ Removed 2 deprecated components
 
-View changes: cat docs/reference/architecture.md
+View changes: cat docs/architecture.md
 ```
 
 ## Bootstrap Mode
 
-When docs/reference/architecture.md doesn't exist, create it:
+When docs/architecture.md doesn't exist, create it:
 
 ### Step 1: Deep Codebase Exploration
 
@@ -148,7 +148,7 @@ ls -la cmd/ internal/ glue/ docs/ 2>/dev/null
 
 Present proposed architecture:
 ```
-## Proposed docs/reference/architecture.md
+## Proposed docs/architecture.md
 
 Based on codebase exploration:
 
@@ -171,7 +171,7 @@ Based on codebase exploration:
 | ship-synthesize/ | Knowledge compaction |
 | ... | |
 
-Create docs/reference/architecture.md with this structure?
+Create docs/architecture.md with this structure?
 [y]es / [e]dit / [n]o
 ```
 
@@ -179,10 +179,10 @@ Create docs/reference/architecture.md with this structure?
 
 After confirmation:
 ```bash
-# Write docs/reference/architecture.md with proposed content
+# Write docs/architecture.md with proposed content
 ```
 
-## docs/reference/architecture.md Template
+## docs/architecture.md Template
 
 ```markdown
 # Architecture
@@ -249,14 +249,14 @@ Last updated: [date]
 ```
 > /orc-architecture
 
-[checks for docs/reference/architecture.md - not found]
+[checks for docs/architecture.md - not found]
 
-No docs/reference/architecture.md found. Running bootstrap mode...
+No docs/architecture.md found. Running bootstrap mode...
 
 [explores codebase]
 [builds container/component map]
 
-## Proposed docs/reference/architecture.md
+## Proposed docs/architecture.md
 
 Based on codebase exploration:
 
@@ -272,10 +272,10 @@ Based on codebase exploration:
 - ship-new, ship-plan, ship-synthesize...
 - orc-interview, orc-architecture...
 
-Create docs/reference/architecture.md with this structure? [y/e/n]
+Create docs/architecture.md with this structure? [y/e/n]
 > y
 
-✓ docs/reference/architecture.md created
+✓ docs/architecture.md created
 
 This file is now the reference for ship-plan's C2/C3 mapping.
 ```

@@ -216,5 +216,5 @@ Lists skill categories:
 
 ## Next Steps
 
-- [docs/guide/common-workflows.md](../guide/common-workflows.md) - Using skills in practice
-- [docs/guide/troubleshooting.md](../guide/troubleshooting.md) - Common issues
+- [docs/common-workflows.md](../common-workflows.md) - Using skills in practice
+- [docs/troubleshooting.md](../troubleshooting.md) - Common issues

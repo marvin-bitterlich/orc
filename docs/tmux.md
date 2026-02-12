@@ -179,6 +179,6 @@ Then respawn with start command.
 
 ## Next Steps
 
-- [docs/guide/common-workflows.md](common-workflows.md) - IMP/Goblin workflows
-- [docs/reference/glue.md](../reference/glue.md) - Skills that interact with TMux
-- [docs/reference/architecture.md](../reference/architecture.md) - System design
+- [docs/common-workflows.md](common-workflows.md) - IMP/Goblin workflows
+- [docs/dev/glue.md](dev/glue.md) - Skills that interact with TMux
+- [docs/architecture.md](architecture.md) - System design

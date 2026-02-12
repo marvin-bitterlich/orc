@@ -33,13 +33,13 @@ make bootstrap
 
 Then run `/orc-first-run` in Claude Code for an interactive walkthrough.
 
-→ See [docs/guide/getting-started.md](docs/guide/getting-started.md) for detailed setup and first-run guide.
+→ See [docs/getting-started.md](docs/getting-started.md) for detailed setup and first-run guide.
 
 ## Workflows
 
 ORC follows a structured workflow with simple, manual lifecycles. Shipments progress through: draft -> ready -> in-progress -> closed.
 
--> See [docs/guide/common-workflows.md](docs/guide/common-workflows.md) for detailed workflow patterns.
+-> See [docs/common-workflows.md](docs/common-workflows.md) for detailed workflow patterns.
 
 ## Glossary
 
@@ -52,7 +52,7 @@ ORC follows a structured workflow with simple, manual lifecycles. Shipments prog
 | **IMP** | Disposable worker agent spawned by Claude Teams |
 | **Task** | Deed to be done within a shipment (open -> in-progress -> closed) |
 
--> See [docs/guide/glossary.md](docs/guide/glossary.md) for complete terminology.
+-> See [docs/schema.md](docs/schema.md) for complete terminology.
 
 ## The Cast
 
@@ -62,7 +62,7 @@ ORC follows a structured workflow with simple, manual lifecycles. Shipments prog
 
 **Workbenches** are git worktrees -- isolated workspaces where changes happen safely.
 
--> See [docs/guide/glossary.md](docs/guide/glossary.md) for role details.
+-> See [docs/schema.md](docs/schema.md) for role details.
 
 ---
 
