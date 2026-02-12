@@ -44,7 +44,7 @@ It coordinates IMPs (Implementation Agents) working in isolated workbenches (wor
 	rootCmd.AddCommand(cli.StatusCmd())
 	rootCmd.AddCommand(cli.AttachCmd())
 	rootCmd.AddCommand(cli.ConnectCmd())
-	rootCmd.AddCommand(cli.BootstrapCmd())
+	rootCmd.AddCommand(cli.HelloCmd())
 	rootCmd.AddCommand(cli.PrimeCmd())
 	rootCmd.AddCommand(cli.TestCmd())
 	rootCmd.AddCommand(cli.FocusCmd())
