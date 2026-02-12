@@ -108,3 +108,108 @@ After verification passes:
 ```bash
 /ship-complete SHIP-XXX         # Close shipment (terminal state)
 ```
+
+---
+
+## Fork-Based Deployment
+
+When a repo has `upstream_url` configured, it operates in **fork mode**. Instead of merging directly to master, changes are submitted as pull requests against the upstream (canonical) repository.
+
+Fork mode is detected automatically: if `orc repo show` returns an `upstream_url`, the `/ship-deploy` skill uses the fork workflow. The direct workflow sections above still apply to non-fork repos.
+
+### Fork Setup
+
+1. Configure the repo for fork mode:
+   ```bash
+   orc repo fork REPO-xxx --upstream-url <url> [--upstream-branch main]
+   ```
+
+2. Verify the configuration:
+   ```bash
+   orc repo show REPO-xxx
+   ```
+   Output should include `Upstream URL` and `Upstream Branch` fields.
+
+3. Ensure the `upstream` git remote exists locally:
+   ```bash
+   git remote add upstream <upstream-url>
+   git fetch upstream
+   ```
+
+### Fork Deploy Flow
+
+Pre-flight checks are the same as the direct workflow:
+
+| Check | Command | Required |
+|-------|---------|----------|
+| Clean working tree | `git status --porcelain` | Yes |
+| Lint | `make lint` | Yes |
+| Tests | `make test` | Yes |
+
+Then deploy via PR against upstream:
+
+1. Push the worktree branch to your fork:
+   ```bash
+   git push origin <branch>
+   ```
+
+2. Create a PR targeting the upstream repository:
+   ```bash
+   gh pr create \
+     --repo <upstream-owner/repo> \
+     --head <fork-owner>:<branch> \
+     --base <upstream-branch> \
+     --fill
+   ```
+
+3. URL parsing — owner/repo is extracted from remote URLs:
+   - **SSH**: `git@github.com:owner/repo.git` → `owner/repo`
+   - **HTTPS**: `https://github.com/owner/repo.git` → `owner/repo`
+
+4. There are **no local merge or post-merge steps**. Those happen after the upstream repository merges the PR.
+
+### Upstream Sync
+
+After an upstream PR is merged (or periodically to stay current), sync your fork:
+
+```bash
+git fetch upstream
+git checkout <default_branch>
+git merge upstream/<upstream_branch>
+git push origin <default_branch>
+git checkout <worktree_branch>
+git rebase <default_branch>
+```
+
+The `/ship-freshness` skill automates this — it detects fork mode and runs the upstream sync flow instead of the standard `git rebase origin/master`.
+
+### Fork Lifecycle Example
+
+Complete workflow for a fork-based shipment:
+
+```
+# 1. Setup (one-time)
+orc repo fork REPO-xxx --upstream-url git@github.com:upstream-org/repo.git
+git remote add upstream git@github.com:upstream-org/repo.git
+
+# 2. Develop (normal shipment flow)
+orc shipment create --repo REPO-xxx --name "Add feature"
+# ... work on branch, commit changes ...
+
+# 3. Deploy (creates upstream PR)
+/ship-deploy
+# → Runs pre-flight checks
+# → Pushes branch to origin (your fork)
+# → Creates PR against upstream-org/repo
+# → Outputs PR URL
+
+# 4. After upstream merges the PR
+/ship-freshness
+# → Fetches from upstream
+# → Merges upstream changes into default branch
+# → Pushes to fork origin
+# → Rebases worktree branch
+
+# 5. Complete
+/ship-complete SHIP-xxx
+```
