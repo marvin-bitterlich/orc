@@ -241,7 +241,7 @@ func (s *TaskServiceImpl) GetTasksByWorkbench(ctx context.Context, workbenchID s
 	return tasks, nil
 }
 
-// DeleteTask deletes a task and its children (plans, approvals, escalations).
+// DeleteTask deletes a task and its children (plans).
 // Requires force=true as this is an escape hatch operation.
 func (s *TaskServiceImpl) DeleteTask(ctx context.Context, taskID string, force bool) error {
 	// Check if task exists

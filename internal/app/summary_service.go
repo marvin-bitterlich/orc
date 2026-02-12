@@ -16,8 +16,6 @@ type SummaryServiceImpl struct {
 	noteService       primary.NoteService
 	workbenchService  primary.WorkbenchService
 	planService       primary.PlanService
-	approvalService   primary.ApprovalService
-	escalationService primary.EscalationService
 }
 
 // NewSummaryService creates a new SummaryService with injected dependencies.
@@ -29,8 +27,6 @@ func NewSummaryService(
 	noteService primary.NoteService,
 	workbenchService primary.WorkbenchService,
 	planService primary.PlanService,
-	approvalService primary.ApprovalService,
-	escalationService primary.EscalationService,
 ) *SummaryServiceImpl {
 	return &SummaryServiceImpl{
 		commissionService: commissionService,
@@ -40,8 +36,6 @@ func NewSummaryService(
 		noteService:       noteService,
 		workbenchService:  workbenchService,
 		planService:       planService,
-		approvalService:   approvalService,
-		escalationService: escalationService,
 	}
 }
 
@@ -275,7 +269,7 @@ func (s *SummaryServiceImpl) buildShipmentSummary(ctx context.Context, ship *pri
 	}, nil
 }
 
-// fetchTaskChildren populates the Plans, Approvals, Escalations, and Receipts for a task.
+// fetchTaskChildren populates the Plans for a task.
 func (s *SummaryServiceImpl) fetchTaskChildren(ctx context.Context, task *primary.TaskSummary) {
 	// Fetch plans for this task
 	if s.planService != nil {
@@ -289,34 +283,6 @@ func (s *SummaryServiceImpl) fetchTaskChildren(ctx context.Context, task *primar
 			}
 		}
 	}
-
-	// Fetch approvals for this task
-	if s.approvalService != nil {
-		approvals, err := s.approvalService.ListApprovals(ctx, primary.ApprovalFilters{TaskID: task.ID})
-		if err == nil {
-			for _, a := range approvals {
-				task.Approvals = append(task.Approvals, primary.ApprovalSummary{
-					ID:      a.ID,
-					Outcome: a.Outcome,
-				})
-			}
-		}
-	}
-
-	// Fetch escalations for this task
-	if s.escalationService != nil {
-		escalations, err := s.escalationService.ListEscalations(ctx, primary.EscalationFilters{TaskID: task.ID})
-		if err == nil {
-			for _, e := range escalations {
-				task.Escalations = append(task.Escalations, primary.EscalationSummary{
-					ID:            e.ID,
-					Status:        e.Status,
-					TargetActorID: e.TargetActorID,
-				})
-			}
-		}
-	}
-
 }
 
 // Ensure SummaryServiceImpl implements the interface

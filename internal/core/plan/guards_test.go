@@ -76,67 +76,6 @@ func TestCanCreatePlan(t *testing.T) {
 	}
 }
 
-func TestCanSubmitPlan(t *testing.T) {
-	tests := []struct {
-		name        string
-		ctx         SubmitPlanContext
-		wantAllowed bool
-		wantReason  string
-	}{
-		{
-			name: "can submit draft plan with content",
-			ctx: SubmitPlanContext{
-				PlanID:     "PLAN-001",
-				Status:     "draft",
-				HasContent: true,
-			},
-			wantAllowed: true,
-		},
-		{
-			name: "cannot submit draft plan without content",
-			ctx: SubmitPlanContext{
-				PlanID:     "PLAN-001",
-				Status:     "draft",
-				HasContent: false,
-			},
-			wantAllowed: false,
-			wantReason:  "cannot submit plan without content",
-		},
-		{
-			name: "cannot submit pending_review plan",
-			ctx: SubmitPlanContext{
-				PlanID:     "PLAN-001",
-				Status:     "pending_review",
-				HasContent: true,
-			},
-			wantAllowed: false,
-			wantReason:  "can only submit draft plans (current status: pending_review)",
-		},
-		{
-			name: "cannot submit approved plan",
-			ctx: SubmitPlanContext{
-				PlanID:     "PLAN-001",
-				Status:     "approved",
-				HasContent: true,
-			},
-			wantAllowed: false,
-			wantReason:  "can only submit draft plans (current status: approved)",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := CanSubmitPlan(tt.ctx)
-			if result.Allowed != tt.wantAllowed {
-				t.Errorf("Allowed = %v, want %v", result.Allowed, tt.wantAllowed)
-			}
-			if !tt.wantAllowed && result.Reason != tt.wantReason {
-				t.Errorf("Reason = %q, want %q", result.Reason, tt.wantReason)
-			}
-		})
-	}
-}
-
 func TestCanApprovePlan(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -145,33 +84,23 @@ func TestCanApprovePlan(t *testing.T) {
 		wantReason  string
 	}{
 		{
-			name: "can approve pending_review unpinned plan",
-			ctx: ApprovePlanContext{
-				PlanID:   "PLAN-001",
-				Status:   "pending_review",
-				IsPinned: false,
-			},
-			wantAllowed: true,
-		},
-		{
-			name: "cannot approve pending_review pinned plan",
-			ctx: ApprovePlanContext{
-				PlanID:   "PLAN-001",
-				Status:   "pending_review",
-				IsPinned: true,
-			},
-			wantAllowed: false,
-			wantReason:  "cannot approve pinned plan PLAN-001. Unpin first with: orc plan unpin PLAN-001",
-		},
-		{
-			name: "cannot approve draft plan",
+			name: "can approve draft unpinned plan",
 			ctx: ApprovePlanContext{
 				PlanID:   "PLAN-001",
 				Status:   "draft",
 				IsPinned: false,
 			},
+			wantAllowed: true,
+		},
+		{
+			name: "cannot approve draft pinned plan",
+			ctx: ApprovePlanContext{
+				PlanID:   "PLAN-001",
+				Status:   "draft",
+				IsPinned: true,
+			},
 			wantAllowed: false,
-			wantReason:  "can only approve plans pending review (current status: draft)",
+			wantReason:  "cannot approve pinned plan PLAN-001. Unpin first with: orc plan unpin PLAN-001",
 		},
 		{
 			name: "cannot approve already approved plan",
@@ -181,7 +110,7 @@ func TestCanApprovePlan(t *testing.T) {
 				IsPinned: false,
 			},
 			wantAllowed: false,
-			wantReason:  "can only approve plans pending review (current status: approved)",
+			wantReason:  "can only approve draft plans (current status: approved)",
 		},
 		{
 			name: "cannot approve already approved and pinned plan",
@@ -191,7 +120,7 @@ func TestCanApprovePlan(t *testing.T) {
 				IsPinned: true,
 			},
 			wantAllowed: false,
-			wantReason:  "can only approve plans pending review (current status: approved)",
+			wantReason:  "can only approve draft plans (current status: approved)",
 		},
 	}
 
@@ -245,81 +174,6 @@ func TestCanDeletePlan(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := CanDeletePlan(tt.ctx)
-			if result.Allowed != tt.wantAllowed {
-				t.Errorf("Allowed = %v, want %v", result.Allowed, tt.wantAllowed)
-			}
-			if !tt.wantAllowed && result.Reason != tt.wantReason {
-				t.Errorf("Reason = %q, want %q", result.Reason, tt.wantReason)
-			}
-		})
-	}
-}
-
-func TestCanEscalatePlan(t *testing.T) {
-	tests := []struct {
-		name        string
-		ctx         EscalatePlanContext
-		wantAllowed bool
-		wantReason  string
-	}{
-		{
-			name: "can escalate draft plan with content and reason",
-			ctx: EscalatePlanContext{
-				PlanID:     "PLAN-001",
-				Status:     "draft",
-				HasContent: true,
-				HasReason:  true,
-			},
-			wantAllowed: true,
-		},
-		{
-			name: "can escalate pending_review plan with content and reason",
-			ctx: EscalatePlanContext{
-				PlanID:     "PLAN-001",
-				Status:     "pending_review",
-				HasContent: true,
-				HasReason:  true,
-			},
-			wantAllowed: true,
-		},
-		{
-			name: "cannot escalate approved plan",
-			ctx: EscalatePlanContext{
-				PlanID:     "PLAN-001",
-				Status:     "approved",
-				HasContent: true,
-				HasReason:  true,
-			},
-			wantAllowed: false,
-			wantReason:  "can only escalate draft or pending_review plans (current status: approved)",
-		},
-		{
-			name: "cannot escalate plan without content",
-			ctx: EscalatePlanContext{
-				PlanID:     "PLAN-001",
-				Status:     "draft",
-				HasContent: false,
-				HasReason:  true,
-			},
-			wantAllowed: false,
-			wantReason:  "cannot escalate plan without content",
-		},
-		{
-			name: "cannot escalate plan without reason",
-			ctx: EscalatePlanContext{
-				PlanID:     "PLAN-001",
-				Status:     "draft",
-				HasContent: true,
-				HasReason:  false,
-			},
-			wantAllowed: false,
-			wantReason:  "escalation reason is required",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := CanEscalatePlan(tt.ctx)
 			if result.Allowed != tt.wantAllowed {
 				t.Errorf("Allowed = %v, want %v", result.Allowed, tt.wantAllowed)
 			}

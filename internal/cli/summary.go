@@ -762,86 +762,24 @@ func colorizePlanStatus(status string) string {
 	switch status {
 	case "approved":
 		return color.New(color.FgHiGreen).Sprintf("✓ %s", upper)
-	case "escalated":
-		return color.New(color.FgYellow).Sprintf("⚠ %s", upper)
-	case "pending_review":
-		return color.New(color.FgCyan).Sprint(upper)
 	default:
-		return upper // draft, superseded
+		return upper // draft
 	}
 }
 
-// colorizeApprovalOutcome formats approval outcome with semantic color and marker
-func colorizeApprovalOutcome(outcome string) string {
-	upper := strings.ToUpper(outcome)
-	switch outcome {
-	case "approved":
-		return color.New(color.FgHiGreen).Sprintf("✓ %s", upper)
-	case "escalated":
-		return color.New(color.FgYellow).Sprintf("⚠ %s", upper)
-	default:
-		return upper
-	}
-}
-
-// colorizeEscalationStatus formats escalation status with semantic color and marker
-func colorizeEscalationStatus(status string, targetActorID string) string {
-	upper := strings.ToUpper(status)
-	targetInfo := ""
-	if targetActorID != "" {
-		targetInfo = fmt.Sprintf(" (%s)", targetActorID)
-	}
-	switch status {
-	case "pending":
-		return color.New(color.FgYellow).Sprintf("⚠ %s%s", upper, targetInfo)
-	case "resolved":
-		return color.New(color.FgHiGreen).Sprintf("✓ %s%s", upper, targetInfo)
-	default:
-		return fmt.Sprintf("%s%s", upper, targetInfo)
-	}
-}
-
-// renderTaskChildren renders the child entities (plans, approvals, escalations) under a task
+// renderTaskChildren renders the child entities (plans) under a task
 func renderTaskChildren(task primary.TaskSummary, prefix string) {
-	// Count total children
-	totalChildren := len(task.Plans) + len(task.Approvals) + len(task.Escalations)
+	totalChildren := len(task.Plans)
 	if totalChildren == 0 {
 		return
 	}
 
-	childIdx := 0
-
-	// Render plans
-	for _, plan := range task.Plans {
-		isLast := childIdx == totalChildren-1
+	for i, plan := range task.Plans {
 		childPrefix := prefix + "├── "
-		if isLast {
+		if i == totalChildren-1 {
 			childPrefix = prefix + "└── "
 		}
 		fmt.Printf("%s%s %s\n", childPrefix, colorizeID(plan.ID), colorizePlanStatus(plan.Status))
-		childIdx++
-	}
-
-	// Render approvals
-	for _, approval := range task.Approvals {
-		isLast := childIdx == totalChildren-1
-		childPrefix := prefix + "├── "
-		if isLast {
-			childPrefix = prefix + "└── "
-		}
-		fmt.Printf("%s%s %s\n", childPrefix, colorizeID(approval.ID), colorizeApprovalOutcome(approval.Outcome))
-		childIdx++
-	}
-
-	// Render escalations
-	for _, esc := range task.Escalations {
-		isLast := childIdx == totalChildren-1
-		childPrefix := prefix + "├── "
-		if isLast {
-			childPrefix = prefix + "└── "
-		}
-		fmt.Printf("%s%s %s\n", childPrefix, colorizeID(esc.ID), colorizeEscalationStatus(esc.Status, esc.TargetActorID))
-		childIdx++
 	}
 }
 

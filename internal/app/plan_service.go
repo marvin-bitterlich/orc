@@ -5,34 +5,19 @@ import (
 	"fmt"
 
 	plancore "github.com/example/orc/internal/core/plan"
-	"github.com/example/orc/internal/models"
 	"github.com/example/orc/internal/ports/primary"
 	"github.com/example/orc/internal/ports/secondary"
 )
 
 // PlanServiceImpl implements the PlanService interface.
 type PlanServiceImpl struct {
-	planRepo       secondary.PlanRepository
-	approvalRepo   secondary.ApprovalRepository
-	escalationRepo secondary.EscalationRepository
-	workbenchRepo  secondary.WorkbenchRepository
-	tmuxAdapter    secondary.TMuxAdapter
+	planRepo secondary.PlanRepository
 }
 
 // NewPlanService creates a new PlanService with injected dependencies.
-func NewPlanService(
-	planRepo secondary.PlanRepository,
-	approvalRepo secondary.ApprovalRepository,
-	escalationRepo secondary.EscalationRepository,
-	workbenchRepo secondary.WorkbenchRepository,
-	tmuxAdapter secondary.TMuxAdapter,
-) *PlanServiceImpl {
+func NewPlanService(planRepo secondary.PlanRepository) *PlanServiceImpl {
 	return &PlanServiceImpl{
-		planRepo:       planRepo,
-		approvalRepo:   approvalRepo,
-		escalationRepo: escalationRepo,
-		workbenchRepo:  workbenchRepo,
-		tmuxAdapter:    tmuxAdapter,
+		planRepo: planRepo,
 	}
 }
 
@@ -73,14 +58,13 @@ func (s *PlanServiceImpl) CreatePlan(ctx context.Context, req primary.CreatePlan
 
 	// Create record
 	record := &secondary.PlanRecord{
-		ID:               nextID,
-		CommissionID:     req.CommissionID,
-		TaskID:           req.TaskID,
-		Title:            req.Title,
-		Description:      req.Description,
-		Content:          req.Content,
-		Status:           "draft",
-		SupersedesPlanID: req.SupersedesPlanID,
+		ID:           nextID,
+		CommissionID: req.CommissionID,
+		TaskID:       req.TaskID,
+		Title:        req.Title,
+		Description:  req.Description,
+		Content:      req.Content,
+		Status:       "draft",
 	}
 
 	if err := s.planRepo.Create(ctx, record); err != nil {
@@ -126,30 +110,11 @@ func (s *PlanServiceImpl) ListPlans(ctx context.Context, filters primary.PlanFil
 	return plans, nil
 }
 
-// SubmitPlan submits a plan for review (draft → pending_review).
-func (s *PlanServiceImpl) SubmitPlan(ctx context.Context, planID string) error {
+// ApprovePlan approves a plan (draft -> approved).
+func (s *PlanServiceImpl) ApprovePlan(ctx context.Context, planID string) error {
 	plan, err := s.planRepo.GetByID(ctx, planID)
 	if err != nil {
 		return err
-	}
-
-	guardResult := plancore.CanSubmitPlan(plancore.SubmitPlanContext{
-		PlanID:     planID,
-		Status:     plan.Status,
-		HasContent: plan.Content != "",
-	})
-	if err := guardResult.Error(); err != nil {
-		return err
-	}
-
-	return s.planRepo.UpdateStatus(ctx, planID, models.PlanStatusPendingReview)
-}
-
-// ApprovePlan approves a plan (pending_review → approved), creating an approval record.
-func (s *PlanServiceImpl) ApprovePlan(ctx context.Context, planID string) (*primary.Approval, error) {
-	plan, err := s.planRepo.GetByID(ctx, planID)
-	if err != nil {
-		return nil, err
 	}
 
 	guardResult := plancore.CanApprovePlan(plancore.ApprovePlanContext{
@@ -158,122 +123,10 @@ func (s *PlanServiceImpl) ApprovePlan(ctx context.Context, planID string) (*prim
 		IsPinned: plan.Pinned,
 	})
 	if err := guardResult.Error(); err != nil {
-		return nil, err
+		return err
 	}
 
-	// Create approval record
-	approvalID, err := s.approvalRepo.GetNextID(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate approval ID: %w", err)
-	}
-
-	approvalRecord := &secondary.ApprovalRecord{
-		ID:        approvalID,
-		PlanID:    planID,
-		TaskID:    plan.TaskID,
-		Mechanism: primary.ApprovalMechanismManual,
-		Outcome:   primary.ApprovalOutcomeApproved,
-	}
-	if err := s.approvalRepo.Create(ctx, approvalRecord); err != nil {
-		return nil, fmt.Errorf("failed to create approval: %w", err)
-	}
-
-	// Update plan status
-	if err := s.planRepo.Approve(ctx, planID); err != nil {
-		return nil, fmt.Errorf("failed to approve plan: %w", err)
-	}
-
-	return &primary.Approval{
-		ID:        approvalID,
-		PlanID:    planID,
-		TaskID:    plan.TaskID,
-		Mechanism: primary.ApprovalMechanismManual,
-		Outcome:   primary.ApprovalOutcomeApproved,
-	}, nil
-}
-
-// EscalatePlan escalates a plan for human review, creating approval and escalation records.
-func (s *PlanServiceImpl) EscalatePlan(ctx context.Context, req primary.EscalatePlanRequest) (*primary.EscalatePlanResponse, error) {
-	plan, err := s.planRepo.GetByID(ctx, req.PlanID)
-	if err != nil {
-		return nil, err
-	}
-
-	guardResult := plancore.CanEscalatePlan(plancore.EscalatePlanContext{
-		PlanID:     req.PlanID,
-		Status:     plan.Status,
-		HasContent: plan.Content != "",
-		HasReason:  req.Reason != "",
-	})
-	if err := guardResult.Error(); err != nil {
-		return nil, err
-	}
-
-	// Get workbench to find workshop
-	workbench, err := s.workbenchRepo.GetByID(ctx, req.OriginActorID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get workbench: %w", err)
-	}
-
-	// Create approval record (outcome=escalated)
-	approvalID, err := s.approvalRepo.GetNextID(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate approval ID: %w", err)
-	}
-
-	approvalRecord := &secondary.ApprovalRecord{
-		ID:        approvalID,
-		PlanID:    req.PlanID,
-		TaskID:    plan.TaskID,
-		Mechanism: primary.ApprovalMechanismManual,
-		Outcome:   primary.ApprovalOutcomeEscalated,
-	}
-	if err := s.approvalRepo.Create(ctx, approvalRecord); err != nil {
-		return nil, fmt.Errorf("failed to create approval: %w", err)
-	}
-
-	// Create escalation record
-	escalationID, err := s.escalationRepo.GetNextID(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate escalation ID: %w", err)
-	}
-
-	// Target is the workshop itself (no more gatehouse)
-	targetActorID := workbench.WorkshopID
-
-	escalationRecord := &secondary.EscalationRecord{
-		ID:            escalationID,
-		ApprovalID:    approvalID,
-		PlanID:        req.PlanID,
-		TaskID:        plan.TaskID,
-		Reason:        req.Reason,
-		Status:        primary.EscalationStatusPending,
-		RoutingRule:   "workshop",
-		OriginActorID: req.OriginActorID,
-		TargetActorID: targetActorID,
-	}
-	if err := s.escalationRepo.Create(ctx, escalationRecord); err != nil {
-		return nil, fmt.Errorf("failed to create escalation: %w", err)
-	}
-
-	// Update plan status to escalated
-	if err := s.planRepo.UpdateStatus(ctx, req.PlanID, models.PlanStatusEscalated); err != nil {
-		return nil, fmt.Errorf("failed to update plan status: %w", err)
-	}
-
-	// Nudge workshop (best effort - don't fail if tmux not running)
-	nudgeMsg := fmt.Sprintf("New escalation: %s - %s", escalationID, req.Reason)
-	sessionName := s.tmuxAdapter.FindSessionByWorkshopID(ctx, workbench.WorkshopID)
-	if sessionName != "" {
-		target := fmt.Sprintf("%s:1.1", sessionName) // Coordinator is window 1, pane 1
-		_ = s.tmuxAdapter.NudgeSession(ctx, target, nudgeMsg)
-	}
-
-	return &primary.EscalatePlanResponse{
-		ApprovalID:   approvalID,
-		EscalationID: escalationID,
-		TargetActor:  targetActorID,
-	}, nil
+	return s.planRepo.Approve(ctx, planID)
 }
 
 // UpdatePlan updates a plan's title, description, and/or content.
@@ -331,7 +184,6 @@ func (s *PlanServiceImpl) recordToPlan(r *secondary.PlanRecord) *primary.Plan {
 		ApprovedAt:       r.ApprovedAt,
 		PromotedFromID:   r.PromotedFromID,
 		PromotedFromType: r.PromotedFromType,
-		SupersedesPlanID: r.SupersedesPlanID,
 	}
 }
 

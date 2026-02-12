@@ -13,14 +13,8 @@ type PlanService interface {
 	// ListPlans lists plans with optional filters.
 	ListPlans(ctx context.Context, filters PlanFilters) ([]*Plan, error)
 
-	// SubmitPlan submits a plan for review (draft → pending_review).
-	SubmitPlan(ctx context.Context, planID string) error
-
-	// ApprovePlan approves a plan (pending_review → approved), creating an approval record.
-	ApprovePlan(ctx context.Context, planID string) (*Approval, error)
-
-	// EscalatePlan escalates a plan for human review, creating approval and escalation records.
-	EscalatePlan(ctx context.Context, req EscalatePlanRequest) (*EscalatePlanResponse, error)
+	// ApprovePlan approves a plan (draft -> approved).
+	ApprovePlan(ctx context.Context, planID string) error
 
 	// UpdatePlan updates a plan's title, description, and/or content.
 	UpdatePlan(ctx context.Context, req UpdatePlanRequest) error
@@ -40,12 +34,11 @@ type PlanService interface {
 
 // CreatePlanRequest contains parameters for creating a plan.
 type CreatePlanRequest struct {
-	CommissionID     string
-	TaskID           string
-	Title            string
-	Description      string
-	Content          string
-	SupersedesPlanID string // Optional - ID of plan this supersedes
+	CommissionID string
+	TaskID       string
+	Title        string
+	Description  string
+	Content      string
 }
 
 // CreatePlanResponse contains the result of creating a plan.
@@ -77,7 +70,6 @@ type Plan struct {
 	ApprovedAt       string
 	PromotedFromID   string
 	PromotedFromType string
-	SupersedesPlanID string
 }
 
 // PlanFilters contains filter options for listing plans.
@@ -85,18 +77,4 @@ type PlanFilters struct {
 	TaskID       string
 	CommissionID string
 	Status       string
-}
-
-// EscalatePlanRequest contains parameters for escalating a plan.
-type EscalatePlanRequest struct {
-	PlanID        string
-	Reason        string
-	OriginActorID string // BENCH-xxx of the escalating IMP
-}
-
-// EscalatePlanResponse contains the result of escalating a plan.
-type EscalatePlanResponse struct {
-	ApprovalID   string
-	EscalationID string
-	TargetActor  string // GATE-xxx of the target gatehouse
 }

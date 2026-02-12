@@ -73,29 +73,14 @@ type ShipmentSummary struct {
 
 // TaskSummary represents a task in the summary view.
 type TaskSummary struct {
-	ID          string
-	Title       string
-	Status      string
-	Plans       []PlanSummary
-	Approvals   []ApprovalSummary
-	Escalations []EscalationSummary
+	ID     string
+	Title  string
+	Status string
+	Plans  []PlanSummary
 }
 
 // PlanSummary represents a plan in the summary view.
 type PlanSummary struct {
 	ID     string
-	Status string // draft, pending_review, approved, escalated, superseded
-}
-
-// ApprovalSummary represents an approval in the summary view.
-type ApprovalSummary struct {
-	ID      string
-	Outcome string // approved, escalated
-}
-
-// EscalationSummary represents an escalation in the summary view.
-type EscalationSummary struct {
-	ID            string
-	Status        string // pending, resolved, dismissed
-	TargetActorID string
+	Status string // draft, approved
 }

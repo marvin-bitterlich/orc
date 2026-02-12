@@ -28,8 +28,6 @@ var planCreateCmd = &cobra.Command{
 		description, _ := cmd.Flags().GetString("description")
 		content, _ := cmd.Flags().GetString("content")
 		taskID, _ := cmd.Flags().GetString("task")
-		supersedesPlanID, _ := cmd.Flags().GetString("supersedes")
-
 		// Get commission from context or require explicit flag
 		if commissionID == "" {
 			commissionID = orcctx.GetContextCommissionID()
@@ -40,12 +38,11 @@ var planCreateCmd = &cobra.Command{
 
 		ctx := NewContext()
 		resp, err := wire.PlanService().CreatePlan(ctx, primary.CreatePlanRequest{
-			CommissionID:     commissionID,
-			TaskID:           taskID,
-			Title:            title,
-			Description:      description,
-			Content:          content,
-			SupersedesPlanID: supersedesPlanID,
+			CommissionID: commissionID,
+			TaskID:       taskID,
+			Title:        title,
+			Description:  description,
+			Content:      content,
 		})
 		if err != nil {
 			return fmt.Errorf("failed to create plan: %w", err)
@@ -103,9 +100,7 @@ var planListCmd = &cobra.Command{
 				pinnedMark = " [pinned]"
 			}
 			statusIcon := "📝"
-			if p.Status == "pending_review" {
-				statusIcon = "🔍"
-			} else if p.Status == "approved" {
+			if p.Status == "approved" {
 				statusIcon = "✅"
 			}
 			task := "-"
@@ -151,32 +146,11 @@ var planShowCmd = &cobra.Command{
 		if plan.PromotedFromID != "" {
 			fmt.Printf("Promoted from: %s (%s)\n", plan.PromotedFromID, plan.PromotedFromType)
 		}
-		if plan.SupersedesPlanID != "" {
-			fmt.Printf("Supersedes: %s\n", plan.SupersedesPlanID)
-		}
 		fmt.Printf("Created: %s\n", plan.CreatedAt)
 		if plan.ApprovedAt != "" {
 			fmt.Printf("Approved: %s\n", plan.ApprovedAt)
 		}
 
-		return nil
-	},
-}
-
-var planSubmitCmd = &cobra.Command{
-	Use:   "submit [plan-id]",
-	Short: "Submit a plan for review",
-	Args:  cobra.ExactArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		planID := args[0]
-
-		ctx := NewContext()
-		err := wire.PlanService().SubmitPlan(ctx, planID)
-		if err != nil {
-			return fmt.Errorf("failed to submit plan: %w", err)
-		}
-
-		fmt.Printf("✓ Plan %s submitted for review\n", planID)
 		return nil
 	},
 }
@@ -189,12 +163,11 @@ var planApproveCmd = &cobra.Command{
 		planID := args[0]
 
 		ctx := NewContext()
-		approval, err := wire.PlanService().ApprovePlan(ctx, planID)
-		if err != nil {
+		if err := wire.PlanService().ApprovePlan(ctx, planID); err != nil {
 			return fmt.Errorf("failed to approve plan: %w", err)
 		}
 
-		fmt.Printf("✓ Plan %s approved (approval: %s)\n", planID, approval.ID)
+		fmt.Printf("✓ Plan %s approved\n", planID)
 		return nil
 	},
 }
@@ -283,75 +256,31 @@ var planDeleteCmd = &cobra.Command{
 	},
 }
 
-var planEscalateCmd = &cobra.Command{
-	Use:   "escalate [plan-id]",
-	Short: "Escalate a plan for human review",
-	Long:  "Submit a plan for escalation to the workshop gatehouse for human review",
-	Args:  cobra.ExactArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		planID := args[0]
-		reason, _ := cmd.Flags().GetString("reason")
-
-		if reason == "" {
-			return fmt.Errorf("--reason is required for escalation")
-		}
-
-		// Get origin actor from workbench context
-		originActorID := orcctx.GetContextWorkbenchID()
-		if originActorID == "" {
-			return fmt.Errorf("no workbench context detected\nHint: Run this command from a workbench directory")
-		}
-
-		ctx := NewContext()
-		resp, err := wire.PlanService().EscalatePlan(ctx, primary.EscalatePlanRequest{
-			PlanID:        planID,
-			Reason:        reason,
-			OriginActorID: originActorID,
-		})
-		if err != nil {
-			return fmt.Errorf("failed to escalate plan: %w", err)
-		}
-
-		fmt.Printf("✓ Plan %s escalated to %s\n", planID, resp.TargetActor)
-		fmt.Printf("  Escalation: %s\n", resp.EscalationID)
-		fmt.Printf("  Approval: %s\n", resp.ApprovalID)
-		fmt.Printf("\nThe gatehouse has been notified via mail and nudge.\n")
-		return nil
-	},
-}
-
 func init() {
 	// plan create flags
 	planCreateCmd.Flags().StringP("commission", "c", "", "Commission ID (defaults to context)")
 	planCreateCmd.Flags().StringP("description", "d", "", "Plan description")
 	planCreateCmd.Flags().String("content", "", "Plan content")
 	planCreateCmd.Flags().String("task", "", "Task ID to attach plan to")
-	planCreateCmd.Flags().String("supersedes", "", "Plan ID this supersedes")
-
 	// plan list flags
 	planListCmd.Flags().StringP("commission", "c", "", "Filter by commission")
 	planListCmd.Flags().String("task", "", "Filter by task")
-	planListCmd.Flags().StringP("status", "s", "", "Filter by status (draft, pending_review, approved, escalated, superseded)")
+	planListCmd.Flags().StringP("status", "s", "", "Filter by status (draft, approved)")
 
 	// plan update flags
 	planUpdateCmd.Flags().String("title", "", "New title")
 	planUpdateCmd.Flags().StringP("description", "d", "", "New description")
 	planUpdateCmd.Flags().String("content", "", "New content")
 
-	// plan escalate flags
-	planEscalateCmd.Flags().StringP("reason", "r", "", "Reason for escalation (required)")
-
 	// Register subcommands
 	planCmd.AddCommand(planCreateCmd)
 	planCmd.AddCommand(planListCmd)
 	planCmd.AddCommand(planShowCmd)
-	planCmd.AddCommand(planSubmitCmd)
 	planCmd.AddCommand(planApproveCmd)
 	planCmd.AddCommand(planUpdateCmd)
 	planCmd.AddCommand(planPinCmd)
 	planCmd.AddCommand(planUnpinCmd)
 	planCmd.AddCommand(planDeleteCmd)
-	planCmd.AddCommand(planEscalateCmd)
 }
 
 // PlanCmd returns the plan command

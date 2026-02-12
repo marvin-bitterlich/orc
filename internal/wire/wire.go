@@ -24,7 +24,6 @@ var (
 	shipmentService                primary.ShipmentService
 	taskService                    primary.TaskService
 	noteService                    primary.NoteService
-	handoffService                 primary.HandoffService
 	tomeService                    primary.TomeService
 	operationService               primary.OperationService
 	planService                    primary.PlanService
@@ -35,8 +34,6 @@ var (
 	workshopService                primary.WorkshopService
 	workbenchService               primary.WorkbenchService
 	summaryService                 primary.SummaryService
-	approvalService                primary.ApprovalService
-	escalationService              primary.EscalationService
 	infraService                   primary.InfraService
 	logService                     primary.LogService
 	hookEventService               primary.HookEventService
@@ -68,12 +65,6 @@ func TaskService() primary.TaskService {
 func NoteService() primary.NoteService {
 	once.Do(initServices)
 	return noteService
-}
-
-// HandoffService returns the singleton HandoffService instance.
-func HandoffService() primary.HandoffService {
-	once.Do(initServices)
-	return handoffService
 }
 
 // TomeService returns the singleton TomeService instance.
@@ -134,18 +125,6 @@ func WorkbenchService() primary.WorkbenchService {
 func SummaryService() primary.SummaryService {
 	once.Do(initServices)
 	return summaryService
-}
-
-// ApprovalService returns the singleton ApprovalService instance.
-func ApprovalService() primary.ApprovalService {
-	once.Do(initServices)
-	return approvalService
-}
-
-// EscalationService returns the singleton EscalationService instance.
-func EscalationService() primary.EscalationService {
-	once.Do(initServices)
-	return escalationService
 }
 
 // InfraService returns the singleton InfraService instance.
@@ -224,12 +203,10 @@ func initServices() {
 	tagRepo := sqlite.NewTagRepository(database)
 	taskService = app.NewTaskService(taskRepo, tagRepo, shipmentRepo)
 
-	// Create note, handoff, and tome services
+	// Create note and tome services
 	noteRepo := sqlite.NewNoteRepository(database, logWriter)
-	handoffRepo := sqlite.NewHandoffRepository(database)
 	tomeRepo := sqlite.NewTomeRepository(database, logWriter)
 	noteService = app.NewNoteService(noteRepo)
-	handoffService = app.NewHandoffService(handoffRepo)
 
 	// Create tome and shipment services
 	tomeService = app.NewTomeService(tomeRepo, noteService)
@@ -259,22 +236,8 @@ func initServices() {
 	workshopService = app.NewWorkshopService(factoryRepo, workshopRepo, workbenchRepo, repoRepo, tmuxService, workspaceAdapter, executor)
 	workbenchService = app.NewWorkbenchService(workbenchRepo, workshopRepo, repoRepo, agentProvider, executor)
 
-	// Create approval and escalation repositories early (needed by plan service)
-	approvalRepo := sqlite.NewApprovalRepository(database, logWriter)
-	escalationRepo := sqlite.NewEscalationRepository(database, logWriter)
-
-	// Create plan service (needs multiple dependencies for escalation workflow)
-	planService = app.NewPlanService(
-		planRepo,
-		approvalRepo,
-		escalationRepo,
-		workbenchRepo,
-		tmuxAdapter,
-	)
-
-	approvalService = app.NewApprovalService(approvalRepo)
-
-	escalationService = app.NewEscalationService(escalationRepo)
+	// Create plan service
+	planService = app.NewPlanService(planRepo)
 
 	// Create infra service for infrastructure planning
 	infraService = app.NewInfraService(factoryRepo, workshopRepo, workbenchRepo, repoRepo, workspaceAdapter, tmuxAdapter, executor)
@@ -298,8 +261,6 @@ func initServices() {
 		noteService,
 		workbenchService,
 		planService,
-		approvalService,
-		escalationService,
 	)
 }
 

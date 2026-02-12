@@ -25,8 +25,6 @@ type Plan struct {
 
 // Plan status constants
 const (
-	PlanStatusDraft         = "draft"
-	PlanStatusPendingReview = "pending_review"
-	PlanStatusApproved      = "approved"
-	PlanStatusEscalated     = "escalated"
+	PlanStatusDraft    = "draft"
+	PlanStatusApproved = "approved"
 )

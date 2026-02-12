@@ -40,7 +40,6 @@ It coordinates IMPs (Implementation Agents) working in isolated workbenches (wor
 	rootCmd.AddCommand(cli.ShipmentCmd())
 	rootCmd.AddCommand(cli.TaskCmd())
 	rootCmd.AddCommand(cli.TagCmd())
-	rootCmd.AddCommand(cli.HandoffCmd())
 	rootCmd.AddCommand(cli.SummaryCmd())
 	rootCmd.AddCommand(cli.StatusCmd())
 	rootCmd.AddCommand(cli.AttachCmd())
@@ -54,10 +53,6 @@ It coordinates IMPs (Implementation Agents) working in isolated workbenches (wor
 	rootCmd.AddCommand(cli.NoteCmd())
 	rootCmd.AddCommand(cli.PlanCmd())
 	rootCmd.AddCommand(cli.TomeCmd())
-
-	// Approval and escalation commands
-	rootCmd.AddCommand(cli.ApprovalCmd())
-	rootCmd.AddCommand(cli.EscalationCmd())
 
 	// Repository and PR commands
 	rootCmd.AddCommand(cli.RepoCmd())

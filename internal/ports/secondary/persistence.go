@@ -344,38 +344,6 @@ type NoteFilters struct {
 	CommissionID string
 }
 
-// HandoffRepository defines the secondary port for handoff persistence.
-// Handoffs are immutable - no Update or Delete operations.
-type HandoffRepository interface {
-	// Create persists a new handoff.
-	Create(ctx context.Context, handoff *HandoffRecord) error
-
-	// GetByID retrieves a handoff by its ID.
-	GetByID(ctx context.Context, id string) (*HandoffRecord, error)
-
-	// GetLatest retrieves the most recent handoff.
-	GetLatest(ctx context.Context) (*HandoffRecord, error)
-
-	// GetLatestForWorkbench retrieves the most recent handoff for a workbench.
-	GetLatestForWorkbench(ctx context.Context, workbenchID string) (*HandoffRecord, error)
-
-	// List retrieves handoffs with optional limit.
-	List(ctx context.Context, limit int) ([]*HandoffRecord, error)
-
-	// GetNextID returns the next available handoff ID.
-	GetNextID(ctx context.Context) (string, error)
-}
-
-// HandoffRecord represents a handoff as stored in persistence.
-type HandoffRecord struct {
-	ID                 string
-	CreatedAt          string
-	HandoffNote        string
-	ActiveCommissionID string // Empty string means null
-	ActiveWorkbenchID  string // Empty string means null
-	TodosSnapshot      string // Empty string means null
-}
-
 // TomeRepository defines the secondary port for tome persistence.
 type TomeRepository interface {
 	// Create persists a new tome.
@@ -535,7 +503,6 @@ type PlanRecord struct {
 	ApprovedAt       string // Empty string means null
 	PromotedFromID   string // Empty string means null
 	PromotedFromType string // Empty string means null
-	SupersedesPlanID string // Empty string means null - FK to plans
 }
 
 // PlanFilters contains filter options for querying plans.
@@ -821,115 +788,6 @@ type WorkbenchRecord struct {
 	FocusedID     string // Empty string means null - IMP focus (CON-xxx or SHIP-xxx)
 	CreatedAt     string
 	UpdatedAt     string
-}
-
-// ApprovalRepository defines the secondary port for approval persistence.
-// Approvals are 1:1 with plans.
-type ApprovalRepository interface {
-	// Create persists a new approval.
-	Create(ctx context.Context, approval *ApprovalRecord) error
-
-	// GetByID retrieves an approval by its ID.
-	GetByID(ctx context.Context, id string) (*ApprovalRecord, error)
-
-	// GetByPlan retrieves an approval by plan ID.
-	GetByPlan(ctx context.Context, planID string) (*ApprovalRecord, error)
-
-	// List retrieves approvals matching the given filters.
-	List(ctx context.Context, filters ApprovalFilters) ([]*ApprovalRecord, error)
-
-	// Delete removes an approval from persistence.
-	Delete(ctx context.Context, id string) error
-
-	// GetNextID returns the next available approval ID.
-	GetNextID(ctx context.Context) (string, error)
-
-	// PlanExists checks if a plan exists (for validation).
-	PlanExists(ctx context.Context, planID string) (bool, error)
-
-	// TaskExists checks if a task exists (for validation).
-	TaskExists(ctx context.Context, taskID string) (bool, error)
-
-	// PlanHasApproval checks if a plan already has an approval (for 1:1 constraint).
-	PlanHasApproval(ctx context.Context, planID string) (bool, error)
-}
-
-// ApprovalRecord represents an approval as stored in persistence.
-type ApprovalRecord struct {
-	ID             string
-	PlanID         string
-	TaskID         string
-	Mechanism      string // 'subagent' or 'manual'
-	ReviewerInput  string // Empty string means null
-	ReviewerOutput string // Empty string means null
-	Outcome        string // 'approved' or 'escalated'
-	CreatedAt      string
-}
-
-// ApprovalFilters contains filter options for querying approvals.
-type ApprovalFilters struct {
-	TaskID  string
-	Outcome string
-}
-
-// EscalationRepository defines the secondary port for escalation persistence.
-type EscalationRepository interface {
-	// Create persists a new escalation.
-	Create(ctx context.Context, escalation *EscalationRecord) error
-
-	// GetByID retrieves an escalation by its ID.
-	GetByID(ctx context.Context, id string) (*EscalationRecord, error)
-
-	// List retrieves escalations matching the given filters.
-	List(ctx context.Context, filters EscalationFilters) ([]*EscalationRecord, error)
-
-	// Update updates an existing escalation.
-	Update(ctx context.Context, escalation *EscalationRecord) error
-
-	// Delete removes an escalation from persistence.
-	Delete(ctx context.Context, id string) error
-
-	// GetNextID returns the next available escalation ID.
-	GetNextID(ctx context.Context) (string, error)
-
-	// UpdateStatus updates the status of an escalation.
-	UpdateStatus(ctx context.Context, id, status string, setResolved bool) error
-
-	// Resolve resolves an escalation with resolution text.
-	Resolve(ctx context.Context, id, resolution, resolvedBy string) error
-
-	// PlanExists checks if a plan exists (for validation).
-	PlanExists(ctx context.Context, planID string) (bool, error)
-
-	// TaskExists checks if a task exists (for validation).
-	TaskExists(ctx context.Context, taskID string) (bool, error)
-
-	// ApprovalExists checks if an approval exists (for validation).
-	ApprovalExists(ctx context.Context, approvalID string) (bool, error)
-}
-
-// EscalationRecord represents an escalation as stored in persistence.
-type EscalationRecord struct {
-	ID            string
-	ApprovalID    string // Empty string means null
-	PlanID        string
-	TaskID        string
-	Reason        string
-	Status        string // 'pending', 'resolved', 'dismissed'
-	RoutingRule   string // e.g. 'workshop_gatehouse'
-	OriginActorID string
-	TargetActorID string // Empty string means null
-	Resolution    string // Empty string means null
-	ResolvedBy    string // Empty string means null
-	CreatedAt     string
-	ResolvedAt    string // Empty string means null
-}
-
-// EscalationFilters contains filter options for querying escalations.
-type EscalationFilters struct {
-	TaskID        string
-	Status        string
-	TargetActorID string
 }
 
 // WorkshopLogRepository defines the secondary port for workshop log (audit trail) persistence.

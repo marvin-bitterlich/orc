@@ -3,7 +3,6 @@ package sqlite_test
 import (
 	"context"
 	"testing"
-	"time"
 
 	"github.com/example/orc/internal/adapters/sqlite"
 	"github.com/example/orc/internal/ports/secondary"
@@ -364,52 +363,6 @@ func TestIntegration_TagAcrossEntities(t *testing.T) {
 	taggedTasks, _ = taskRepo.ListByTag(ctx, "TAG-001")
 	if len(taggedTasks) != 1 {
 		t.Errorf("expected 1 tagged task after removal, got %d", len(taggedTasks))
-	}
-}
-
-// ============================================================================
-// Handoff Continuity Tests
-// ============================================================================
-
-func TestIntegration_HandoffWithContext(t *testing.T) {
-	db := setupTestDB(t)
-	ctx := context.Background()
-
-	seedCommission(t, db, "COMM-001", "Test")
-	seedWorkbench(t, db, "BENCH-001", "COMM-001", "test-bench")
-
-	handoffRepo := sqlite.NewHandoffRepository(db)
-
-	// Create multiple handoffs for workbench
-	h1 := &secondary.HandoffRecord{
-		ID:                 "HO-001",
-		ActiveCommissionID: "COMM-001",
-		ActiveWorkbenchID:  "BENCH-001",
-		HandoffNote:        "First handoff",
-	}
-	h2 := &secondary.HandoffRecord{
-		ID:                 "HO-002",
-		ActiveCommissionID: "COMM-001",
-		ActiveWorkbenchID:  "BENCH-001",
-		HandoffNote:        "Second handoff",
-	}
-
-	if err := handoffRepo.Create(ctx, h1); err != nil {
-		t.Fatalf("Create handoff 1 failed: %v", err)
-	}
-	// Sleep to ensure different created_at timestamps (SQLite DATETIME has second precision)
-	time.Sleep(1100 * time.Millisecond)
-	if err := handoffRepo.Create(ctx, h2); err != nil {
-		t.Fatalf("Create handoff 2 failed: %v", err)
-	}
-
-	// Get latest should return most recent
-	latest, err := handoffRepo.GetLatestForWorkbench(ctx, "BENCH-001")
-	if err != nil {
-		t.Fatalf("GetLatestForWorkbench failed: %v", err)
-	}
-	if latest.ID != "HO-002" {
-		t.Errorf("expected latest handoff HO-002, got %s", latest.ID)
 	}
 }
 

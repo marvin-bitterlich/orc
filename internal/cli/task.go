@@ -513,7 +513,7 @@ var taskMoveCmd = &cobra.Command{
 var taskDeleteCmd = &cobra.Command{
 	Use:   "delete [task-id]",
 	Short: "Delete a task (escape hatch)",
-	Long: `Delete a task and all its children (plans, receipts, approvals, escalations).
+	Long: `Delete a task and all its children (plans).
 
 ⚠️  This is an escape hatch. Deleting tasks is not normal workflow.
 Use this only to remove prematurely created tasks.

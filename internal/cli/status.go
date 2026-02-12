@@ -13,8 +13,6 @@ import (
 
 // StatusCmd returns the status command
 func StatusCmd() *cobra.Command {
-	var showHandoff bool
-
 	cmd := &cobra.Command{
 		Use:   "status",
 		Short: "Show current work context from config.json",
@@ -86,25 +84,9 @@ This provides a focused view of "where am I right now?"`,
 				}
 			}
 
-			// Show latest handoff if requested
-			if showHandoff {
-				handoffs, err := wire.HandoffService().ListHandoffs(context.Background(), 1)
-				if err == nil && len(handoffs) > 0 {
-					h := handoffs[0]
-					fmt.Printf("🤝 Latest Handoff: %s\n", h.ID)
-					fmt.Printf("   Created: %s\n", h.CreatedAt)
-					fmt.Println()
-					fmt.Println("--- HANDOFF NOTE ---")
-					fmt.Println(h.HandoffNote)
-					fmt.Println("--- END HANDOFF ---")
-				}
-			}
-
 			return nil
 		},
 	}
-
-	cmd.Flags().BoolVarP(&showHandoff, "handoff", "n", false, "Show latest handoff note")
 
 	return cmd
 }

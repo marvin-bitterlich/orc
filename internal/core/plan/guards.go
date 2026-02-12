@@ -30,29 +30,14 @@ type CreatePlanContext struct {
 // ApprovePlanContext provides context for plan approval guards.
 type ApprovePlanContext struct {
 	PlanID   string
-	Status   string // "draft", "pending_review", "approved"
+	Status   string // "draft", "approved"
 	IsPinned bool
-}
-
-// SubmitPlanContext provides context for plan submission guards.
-type SubmitPlanContext struct {
-	PlanID     string
-	Status     string
-	HasContent bool
 }
 
 // DeletePlanContext provides context for plan deletion guards.
 type DeletePlanContext struct {
 	PlanID   string
 	IsPinned bool
-}
-
-// EscalatePlanContext provides context for plan escalation guards.
-type EscalatePlanContext struct {
-	PlanID     string
-	Status     string
-	HasContent bool
-	HasReason  bool
 }
 
 // CanCreatePlan evaluates whether a plan can be created.
@@ -88,36 +73,16 @@ func CanCreatePlan(ctx CreatePlanContext) GuardResult {
 	return GuardResult{Allowed: true}
 }
 
-// CanSubmitPlan evaluates whether a plan can be submitted for review.
+// CanApprovePlan evaluates whether a plan can be approved.
 // Rules:
 // - Status must be "draft"
-// - Plan must have content
-func CanSubmitPlan(ctx SubmitPlanContext) GuardResult {
+// - Plan must not be pinned
+func CanApprovePlan(ctx ApprovePlanContext) GuardResult {
+	// Check status is draft
 	if ctx.Status != "draft" {
 		return GuardResult{
 			Allowed: false,
-			Reason:  fmt.Sprintf("can only submit draft plans (current status: %s)", ctx.Status),
-		}
-	}
-	if !ctx.HasContent {
-		return GuardResult{
-			Allowed: false,
-			Reason:  "cannot submit plan without content",
-		}
-	}
-	return GuardResult{Allowed: true}
-}
-
-// CanApprovePlan evaluates whether a plan can be approved.
-// Rules:
-// - Status must be "pending_review"
-// - Plan must not be pinned
-func CanApprovePlan(ctx ApprovePlanContext) GuardResult {
-	// Check status is pending_review (must check first - other statuses can't be approved regardless of pinned)
-	if ctx.Status != "pending_review" {
-		return GuardResult{
-			Allowed: false,
-			Reason:  fmt.Sprintf("can only approve plans pending review (current status: %s)", ctx.Status),
+			Reason:  fmt.Sprintf("can only approve draft plans (current status: %s)", ctx.Status),
 		}
 	}
 
@@ -143,32 +108,5 @@ func CanDeletePlan(ctx DeletePlanContext) GuardResult {
 		}
 	}
 
-	return GuardResult{Allowed: true}
-}
-
-// CanEscalatePlan evaluates whether a plan can be escalated.
-// Rules:
-// - Status must be "draft" or "pending_review"
-// - Plan must have content
-// - Reason must be provided
-func CanEscalatePlan(ctx EscalatePlanContext) GuardResult {
-	if ctx.Status != "draft" && ctx.Status != "pending_review" {
-		return GuardResult{
-			Allowed: false,
-			Reason:  fmt.Sprintf("can only escalate draft or pending_review plans (current status: %s)", ctx.Status),
-		}
-	}
-	if !ctx.HasContent {
-		return GuardResult{
-			Allowed: false,
-			Reason:  "cannot escalate plan without content",
-		}
-	}
-	if !ctx.HasReason {
-		return GuardResult{
-			Allowed: false,
-			Reason:  "escalation reason is required",
-		}
-	}
 	return GuardResult{Allowed: true}
 }
