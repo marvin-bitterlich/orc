@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -26,6 +27,7 @@ func TmuxCmd() *cobra.Command {
 		tmuxConnectCmd(),
 		tmuxApplyCmd(),
 		tmuxEnrichCmd(),
+		tmuxArchiveWorkbenchCmd(),
 	)
 
 	return cmd
@@ -294,6 +296,64 @@ Examples:
 			fmt.Printf("  - Set window options (@orc_enriched)\n")
 
 			return nil
+		},
+	}
+
+	return cmd
+}
+
+// archiveWorkbenchRunE is the RunE function for the archive-workbench command.
+// Extracted for testability — the getwd and execCommand parameters allow injection.
+func archiveWorkbenchRunE(ctx context.Context, getwd func() (string, error), execCommand func(name string, arg ...string) *exec.Cmd) error {
+	cwd, err := getwd()
+	if err != nil {
+		return fmt.Errorf("failed to get working directory: %w", err)
+	}
+
+	workbench, err := wire.WorkbenchService().GetWorkbenchByPath(ctx, cwd)
+	if err != nil {
+		return fmt.Errorf("not in a workbench directory: %w", err)
+	}
+
+	fmt.Printf("Workbench: %s (%s)\n", workbench.ID, workbench.Name)
+	fmt.Printf("Workshop: %s\n\n", workbench.WorkshopID)
+
+	fmt.Println("Archiving workbench...")
+	if err := wire.WorkbenchService().ArchiveWorkbench(ctx, workbench.ID); err != nil {
+		return fmt.Errorf("failed to archive workbench: %w", err)
+	}
+	fmt.Printf("✓ Workbench %s archived\n\n", workbench.ID)
+
+	fmt.Println("Applying tmux changes...")
+	applyCmd := execCommand("orc", "tmux", "apply", workbench.WorkshopID, "--yes")
+	applyCmd.Stdout = os.Stdout
+	applyCmd.Stderr = os.Stderr
+	if err := applyCmd.Run(); err != nil {
+		return fmt.Errorf("failed to apply tmux changes: %w", err)
+	}
+
+	fmt.Println("\nPress Enter to close...")
+	reader := bufio.NewReader(os.Stdin)
+	_, _ = reader.ReadString('\n')
+
+	return nil
+}
+
+func tmuxArchiveWorkbenchCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "archive-workbench",
+		Short: "Archive current workbench and apply tmux changes",
+		Long: `Archive the workbench at the current directory and apply tmux changes.
+
+This is a convenience command for the statusline menu that:
+1. Detects the workbench from the current directory
+2. Archives the workbench (soft-delete)
+3. Applies tmux changes to remove the window
+
+Examples:
+  cd ~/wb/my-workbench && orc tmux archive-workbench`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return archiveWorkbenchRunE(NewContext(), os.Getwd, exec.Command)
 		},
 	}
 

@@ -528,6 +528,7 @@ func ApplyGlobalBindings() {
 	_ = BindContextMenu("MouseDown3Status", " ORC ", []MenuItem{
 		// ORC custom options
 		{Label: "Show Summary", Key: "s", Command: "display-popup -E -w 100 -h 30 -T 'ORC Summary' 'cd #{pane_current_path} && CLICOLOR_FORCE=1 orc summary | less -R -X'"},
+		{Label: "Archive Workbench", Key: "a", Command: "display-popup -E -w 80 -h 20 -T 'Archive Workbench' 'cd #{pane_current_path} && orc tmux archive-workbench'"},
 		// Separator
 		{Label: "", Key: "", Command: ""},
 		// Default tmux window options
