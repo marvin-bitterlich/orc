@@ -167,11 +167,12 @@ func (g *GotmuxAdapter) setupWorkbenchPanes(window *gotmux.Window, workbenchName
 }
 
 // GetSession returns a gotmux Session by name, or nil if not found.
+// Returns (nil, nil) when the tmux server is not running, allowing callers
+// like PlanApply to treat a dead server as "no sessions exist".
 func (g *GotmuxAdapter) GetSession(name string) (*gotmux.Session, error) {
-	sessions, err := g.tmux.ListSessions()
-	if err != nil {
-		return nil, fmt.Errorf("failed to list sessions: %w", err)
-	}
+	sessions, _ := g.tmux.ListSessions()
+	// gotmux returns an error when the tmux server isn't running.
+	// Treat this as "no sessions" — downstream CreateSession will start a new server.
 	for _, s := range sessions {
 		if s.Name == name {
 			return s, nil
