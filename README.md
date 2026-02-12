@@ -1,69 +1,165 @@
-# ORC - The Forest Factory
+<h1 align="center">✨🌲🏭 Orc - The Forest Factory 🏭🌲✨</h1>
 
-![Forest Factory](assets/orc.png)
+<table align="center"><tr>
+<td width="380"><img src="assets/orc.png" width="360"></td>
+<td>
 
-Deep in the forest stands a factory. Goblins coordinate from their workbench panes while IMPs -- disposable worker agents -- hammer out code. Shipments move through the system: bundles of tasks ready for delivery.
+Orc is a tmux-based development environment for structured AI-assisted work.
 
-ORC is a CLI for structured AI-assisted development. It tracks commissions, organizes work into containers, preserves context across sessions, and provisions isolated workspaces. The forest runs on SQLite and git worktrees.
+It provisions isolated workspaces, tracks everything in a persistent ledger, drives shipments from messy ideation to clarity, and coordinates parallel agent swarms — all from your terminal.
 
-## Why ORC
+The forest runs on SQLite and git worktrees (and Anthropic tokens 😅).
 
-- **No repo pollution** - Workbenches are git worktrees; state lives in external SQLite database
-- **Ephemeral infrastructure** - tmux sessions spin up and tear down cleanly
-- **Persistent ledger** - All work tracked in SQLite: commissions, shipments, tasks, plans
-- **Semantic health tools** - docs-doctor validates documentation against code reality
-- **Claude Teams integration** - ORC provides memory and policy; Teams provides execution
+</td>
+</tr></table>
 
-## Codebase Philosophy
+## 🎭 The Cast
 
-- **Hex architecture with linting** - Strict layer boundaries enforced by go-arch-lint
-- **Comprehensive testing** - Table-driven tests, repository tests, service tests
-- **Git hooks as gates** - Pre-commit enforces lint and tests; no bypassing quality
+**🏭 Orc** is the factory itself — the CLI and its SQLite ledger. It tracks commissions, shipments, tasks, and notes. It provisions workbenches, deploys skills, and remembers everything across sessions. Orc is the source of truth.
 
-## Getting Started
+**👺 Goblins** are coordinators — the human's long-running workbench pane. A goblin manages the big picture: planning shipments, synthesizing ideas, and keeping the ledger honest. Think of them as your foreman on the factory floor.
+
+**👹 Imps** are disposable workers — spawned by Claude Teams to execute tasks in parallel. Give them a task, they hammer it out and report back. Swarm a shipment with three imps and watch the work fly.
+
+**🔨 Workbenches** are where the work happens. Each one is a git worktree — an isolated copy of the repository where a goblin and its imps can make changes without disturbing other workbenches. One commission might have several workbenches, each focused on different work.
+
+**📜 Commissions** are the grand undertakings that give work context and purpose.
+
+**🚢 Shipments** are bundles of tasks moving through the system — the primary unit of work. They progress through `draft → ready → in-progress → closed`.
+
+## 🚀 Getting Started
 
 ```bash
-# Clone to the canonical location (required for orc doctor)
-git clone <repo-url> ~/src/orc
+git clone git@github.com:looneym/orc.git ~/src/orc
 cd ~/src/orc
 make bootstrap
 ```
 
-**Note:** ORC expects to live at `~/src/orc`. The `orc doctor` command validates this location, and some Make targets enforce it.
+Then run `orc hello` for an interactive walkthrough that creates your first commission, workshop, and shipment.
 
-Then run `orc hello` for an interactive walkthrough.
+Once you're set up, `orc summary` shows the shape of your work:
 
-→ See [docs/getting-started.md](docs/getting-started.md) for detailed setup and first-run guide.
+```
+Workshop WORK-003 (Backend Platform)
+|
+├── 👺 auth-bench [ml/auth-bench] → SHIP-042
+└── 👺 session-bench [ml/session-bench] → SHIP-043
 
-## Workflows
+COMM-003 [focused by ✨ you ✨] - Build the auth system
+│
+├── SHIP-042 [in-progress] [focused by you] - OAuth2 integration (2/5 done, 3 notes)
+│   ├── NOTE-301 [spec] - Summary: OAuth2 integration
+│   ├── TASK-101 ✅ Design token schema
+│   ├── TASK-102 ✅ Implement token store
+│   ├── TASK-103 🔨 Add refresh flow
+│   ├── TASK-104 📦 Write middleware
+│   └── TASK-105 📦 Update docs
+│
+└── SHIP-043 [ready] [focused by session-bench@BENCH-009] - Session management (0/3 done, 1 note)
+    ├── NOTE-315 [spec] - Summary: Session management
+    ├── TASK-106 📦 Design session model
+    ├── TASK-107 📦 Implement Redis adapter
+    └── TASK-108 📦 Add logout endpoint
+```
 
-ORC follows a structured workflow with simple, manual lifecycles. Shipments progress through: draft -> ready -> in-progress -> closed.
+> See [docs/getting-started.md](docs/getting-started.md) for the full setup guide.
 
--> See [docs/common-workflows.md](docs/common-workflows.md) for detailed workflow patterns.
+## 🚂 The Engine
 
-## Glossary
+Orc turns messy exploration into structured execution. A shipment moves through four phases:
 
-| Term | Description |
-|------|-------------|
-| **Commission** | Grand undertaking that gives work context and purpose |
-| **Shipment** | Bundle of tasks moving through the system (draft -> ready -> in-progress -> closed) |
-| **Workbench** | Git worktree where agents do isolated work |
-| **Goblin** | Coordinator agent -- human's long-running workbench pane |
-| **IMP** | Disposable worker agent spawned by Claude Teams |
-| **Task** | Deed to be done within a shipment (open -> in-progress -> closed) |
+### 💡 Ideate
 
--> See [docs/schema.md](docs/schema.md) for complete terminology.
+```
+/ship-new "OAuth2 integration"
+```
 
-## The Cast
+Share scattered ideas, ask questions, raise concerns. Orc captures everything as notes in the shipment ledger. Nothing is lost.
 
-**Goblins** are coordinators -- the human's long-running workbench pane. They manage ORC tasks and provide memory and policy.
+### 🔮 Synthesise
 
-**IMPs** are disposable workers -- spawned by Claude Teams to execute tasks.
+<p align="center">
+<img src="assets/ship-synthesise.png" width="380"><br>
+<em>When the notes pile up, themes emerge</em>
+</p>
 
-**Workbenches** are git worktrees -- isolated workspaces where changes happen safely.
+```
+/ship-synthesize
 
--> See [docs/schema.md](docs/schema.md) for role details.
+Themes identified:
+
+  1. Token storage strategy (4 notes)
+     NOTE-301, NOTE-305, NOTE-308, NOTE-312
+
+  2. Refresh flow edge cases (3 notes)
+     NOTE-303, NOTE-306, NOTE-310
+
+  3. Middleware design (2 notes)
+     NOTE-304, NOTE-311
+
+Select theme to explore (1-3), or [a]ll:
+```
+
+An interview walks through each theme — resolving open questions, recording decisions, discarding what's stale. What comes out the other side is a clean summary note.
+
+### 🗺️ Plan
+
+<p align="center">
+<img src="assets/ship-plan.png" width="380"><br>
+<em>Pressure-test your understanding and generate tasks</em>
+</p>
+
+```
+/ship-plan
+
+## Phase 2: Specification Gaps
+
+[Question 1/3]
+
+The summary says "support refresh tokens" but doesn't specify
+what happens when a refresh token is revoked mid-session.
+
+  1. Invalidate immediately (recommended)
+  2. Allow grace period
+  3. Skip — let imp decide
+  4. Discuss
+
+Proposed tasks:
+
+  TASK-201: Implement token store     Components: internal/auth/
+  TASK-202: Add refresh flow          Components: internal/auth/, internal/api/
+  TASK-203: Write auth middleware      Components: internal/middleware/
+  TASK-204: Update API docs           Components: docs/
+
+Create these tasks? [y/n/edit]
+```
+
+### 👹 Run
+
+<p align="center">
+<img src="assets/ship-run.png" width="380"><br>
+<em>Delegate to the imps</em>
+</p>
+
+```
+/ship-run
+
+Workers launched:
+  imp-alpha:   TASK-201, TASK-202 (2 tasks)
+  imp-bravo:   TASK-203, TASK-204 (2 tasks)
+```
+
+Imps fan out across parallel streams, each working through their assigned tasks. The goblin monitors progress. `orc summary` shows it all.
+
+> See [docs/common-workflows.md](docs/common-workflows.md) for detailed workflow patterns.
+
+## 📚 Learn More
+
+- [Getting Started](docs/getting-started.md) — Setup and first-run guide
+- [Common Workflows](docs/common-workflows.md) — Shipment and task lifecycles
+- [Schema & Glossary](docs/schema.md) — Complete terminology
+- [Architecture](docs/architecture.md) — Codebase structure (C4 model)
 
 ---
 
-*The forest hums with industry. Shipments move through workbenches. Goblins coordinate. IMPs hammer at their tasks. The system remembers everything.*
+*🌲 The forest hums with industry. Shipments move through workbenches. Goblins coordinate. Imps hammer at their tasks. The system remembers everything. 🌲*
