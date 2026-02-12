@@ -4,14 +4,9 @@
 GOBIN := $(shell go env GOPATH)/bin
 
 # Version info (injected at build time)
-VERSION := $(shell cat VERSION)
-TAG_COMMIT := $(shell git rev-list -n 1 v$(VERSION) 2>/dev/null || echo "")
-HEAD_COMMIT := $(shell git rev-parse HEAD 2>/dev/null || echo "unknown")
-FULL_VERSION := $(if $(filter $(TAG_COMMIT),$(HEAD_COMMIT)),v$(VERSION),v$(VERSION)-dev)
 COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 BUILD_TIME := $(shell date -u '+%Y-%m-%d %H:%M:%S')
-LDFLAGS := -X 'github.com/example/orc/internal/version.Version=$(FULL_VERSION)' \
-           -X 'github.com/example/orc/internal/version.Commit=$(COMMIT)' \
+LDFLAGS := -X 'github.com/example/orc/internal/version.Commit=$(COMMIT)' \
            -X 'github.com/example/orc/internal/version.BuildTime=$(BUILD_TIME)'
 
 # Default target
