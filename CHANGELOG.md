@@ -20,6 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+- Approval entity: table, indexes, repo, service, tests, CLI command, port, wire
+- Escalation entity: table, indexes, repo, service, tests, CLI command, port, wire
+- Handoff entity: table, index, repo, service, tests, CLI command, port, model, wire
+- Plan lifecycle simplified: statuses narrowed from 5 (draft, pending_review, approved, escalated, superseded) to 2 (draft, approved); removed SubmitPlan, EscalatePlan operations, supersedes_plan_id column, and related guards
 - Gatehouse entity, GATE- place IDs, and all gatehouse infrastructure (absorbed into workbench)
 - Message/mail system (replaced by Claude Teams messaging)
 - Receipt entity and all receipt CLI/service/repo/guards
