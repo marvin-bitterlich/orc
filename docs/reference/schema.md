@@ -131,5 +131,5 @@ Commission → Shipment → Task → Plan
 ## See Also
 
 - `internal/db/schema.sql` - Complete schema
-- `docs/architecture.md` - System architecture overview
-- `docs/shipment-lifecycle.md` - Shipment state machine
+- `docs/reference/architecture.md` - System architecture overview
+- `docs/reference/shipment-lifecycle.md` - Shipment state machine

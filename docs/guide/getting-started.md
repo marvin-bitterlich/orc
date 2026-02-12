@@ -135,6 +135,6 @@ orc summary
 
 Now that ORC is installed:
 
-1. **Learn the workflows** → [docs/common-workflows.md](common-workflows.md)
-2. **Understand the architecture** → [docs/architecture.md](architecture.md)
-3. **Review terminology** → [docs/glossary.md](glossary.md)
+1. **Learn the workflows** → [docs/guide/common-workflows.md](common-workflows.md)
+2. **Understand the architecture** → [docs/reference/architecture.md](../reference/architecture.md)
+3. **Review terminology** → [docs/guide/glossary.md](glossary.md)

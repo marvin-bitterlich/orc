@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 SKILLS_DIR="$PROJECT_ROOT/glue/skills"
 LOCAL_SKILLS_DIR="$PROJECT_ROOT/.claude/skills"
-ARCH_FILE="$PROJECT_ROOT/docs/architecture.md"
+ARCH_FILE="$PROJECT_ROOT/docs/reference/architecture.md"
 
 errors=()
 

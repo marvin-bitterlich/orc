@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Documentation restructure**: CLAUDE.md slimmed from ~800 lines to ~80 lines (constitution only); content extracted to docs/dev/ (checklists, database, testing, config). Docs reorganized into docs/dev/ (for agents), docs/guide/ (for humans), docs/reference/ (shared). All cross-references updated.
 - Shipment `status` CLI command no longer shows escape hatch warning (all transitions are manual now)
 - Removed dead NudgeSession code from tmux port, adapter, and implementation
 - Cleaned stale comments referencing gatehouse, approval, escalation, and other removed entities

@@ -18,7 +18,7 @@ This skill dynamically discovers how to deploy based on repo documentation:
 ### 1. Find Deployment Docs
 
 Check for deployment documentation in order:
-1. `docs/deployment.md`
+1. `docs/dev/deployment.md`
 2. `DEPLOYMENT.md`
 3. `CLAUDE.md` (look for deployment section)
 

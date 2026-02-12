@@ -27,9 +27,9 @@ Validate ORC documentation against code reality using parallel subagent checks.
 ## Check Categories
 
 ### 1. Structural Checks
-- Internal markdown links in docs/*.md are valid
+- Internal markdown links in docs/**/*.md are valid
 - No broken cross-references between documentation files
-- `docs/glossary.md` exists (not `glossary/` directory)
+- `docs/guide/glossary.md` exists (not `glossary/` directory)
 - Glossary contains term definitions (no mermaid diagrams)
 
 ### 2. Lane Checks
@@ -42,9 +42,16 @@ Validate ORC documentation against code reality using parallel subagent checks.
 - Documented flags are valid (parse --help output)
 - Referenced skills exist in .claude/skills/ or glue/skills/
 
-### 4. Diagram Checks
-- ER diagram in docs/architecture.md represents core tables from internal/db/schema.sql
-- Lifecycle diagram in docs/shipment-lifecycle.md represents valid subset of states from internal/core/shipment/guards.go
+### 4. Schema Checks
+- Required directories exist: `docs/dev/`, `docs/guide/`, `docs/reference/`
+- Required files present per `docs/reference/docs.md` schema
+- No top-level `.md` files directly in `docs/` (all must be in subdirectories)
+- No unexpected subdirectories under `docs/`
+- No orphan files outside the defined schema
+
+### 5. Diagram Checks
+- ER diagram in docs/reference/architecture.md represents core tables from internal/db/schema.sql
+- Lifecycle diagram in docs/reference/shipment-lifecycle.md represents valid subset of states from internal/core/shipment/guards.go
 
 **Note:** Diagrams are intentionally simplified. Validation checks that diagram states/tables are a subset of code reality, not an exact match.
 
@@ -57,6 +64,7 @@ Main Agent (opus)
     ├── Spawn: Structural Check Agent (haiku)
     ├── Spawn: Lane Check Agent (haiku)
     ├── Spawn: CLI Validation Agent (haiku)
+    ├── Spawn: Schema Validation Agent (haiku)
     ├── Spawn: ER Diagram Agent (haiku)
     └── Spawn: Lifecycle Diagram Agent (haiku)
          ↓
@@ -77,7 +85,7 @@ Use the Task tool with `subagent_type: "Explore"` and `model: "haiku"`:
 Prompt: "Check internal documentation links.
 
 1. Use Glob to find all .md files in docs/
-2. For each file, extract internal markdown links (links to other docs/*.md files)
+2. For each file, extract internal markdown links (links to other docs/**/*.md files)
 3. Verify each linked file exists
 
 Return findings as:
@@ -90,7 +98,7 @@ Return findings as:
 ```
 Prompt: "Validate glossary structure.
 
-1. Check that docs/glossary.md exists
+1. Check that docs/guide/glossary.md exists
 2. Check that docs/glossary/ directory does NOT exist
 3. Read glossary.md and verify:
    - Contains term definitions (look for **Term** pattern)
@@ -129,7 +137,7 @@ Return findings as:
 ```
 Prompt: "Validate CLI commands referenced in documentation.
 
-1. Read docs/*.md and extract all 'orc <command>' references
+1. Read docs/**/*.md and extract all 'orc <command>' references
 2. For each unique command, run 'orc <command> --help' to verify it exists
 3. Check documented flags match --help output
 
@@ -139,13 +147,36 @@ Return findings as:
 - status: 'pass' or 'fail'"
 ```
 
-### Step 4: Spawn ER Diagram Agent
+### Step 4: Spawn Schema Validation Agent
+
+```
+Prompt: "Validate docs directory structure against the docs schema.
+
+1. Read docs/reference/docs.md to understand the expected structure
+2. Use Glob to find all .md files under docs/
+3. Check:
+   a. Required directories exist: docs/dev/, docs/guide/, docs/reference/
+   b. No .md files directly in docs/ (all must be in subdirectories)
+   c. No unexpected subdirectories under docs/ (only dev/, guide/, reference/)
+   d. All files marked 'required: yes' in the schema exist
+   e. Every .md file found is listed in the schema (no orphans)
+
+Return findings as:
+- missing_dirs: [list of missing required directories]
+- top_level_files: [.md files directly in docs/]
+- unexpected_dirs: [subdirectories not in schema]
+- missing_required: [{dir, file}]
+- orphan_files: [{dir, file}]
+- status: 'pass' or 'fail'"
+```
+
+### Step 5: Spawn ER Diagram Agent
 
 ```
 Prompt: "Validate ER diagram represents database schema.
 
 1. Read internal/db/schema.sql
-2. Read docs/architecture.md, find the erDiagram mermaid block
+2. Read docs/reference/architecture.md, find the erDiagram mermaid block
 3. Check that tables shown in diagram exist in schema (subset validation)
 4. Check that relationships shown are accurate
 
@@ -157,13 +188,13 @@ Return findings as:
 - status: 'pass' or 'fail'"
 ```
 
-### Step 5: Spawn Lifecycle Diagram Agent
+### Step 6: Spawn Lifecycle Diagram Agent
 
 ```
 Prompt: "Validate shipment lifecycle diagram represents valid states.
 
 1. Read internal/core/shipment/guards.go
-2. Read docs/shipment-lifecycle.md, find the stateDiagram mermaid block
+2. Read docs/reference/shipment-lifecycle.md, find the stateDiagram mermaid block
 3. Check that states in diagram are valid states from guards.go (subset validation)
 4. Check that transitions shown are valid according to guards
 
@@ -175,7 +206,7 @@ Return findings as:
 - status: 'pass' or 'fail'"
 ```
 
-### Step 6: Synthesize Findings
+### Step 7: Synthesize Findings
 
 Collect all agent results and categorize:
 
@@ -187,7 +218,7 @@ Collect all agent results and categorize:
 - Diagram mismatches (which is correct?)
 - Invalid commands (docs wrong or code wrong?)
 
-### Step 7: Report and Act
+### Step 8: Report and Act
 
 **If all pass:**
 ```
@@ -197,6 +228,7 @@ Structural: pass
 Glossary: pass
 Lanes: pass
 CLI: pass
+Schema: pass
 ER Diagram: pass
 Lifecycle: pass
 ```

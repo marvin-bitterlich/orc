@@ -9,7 +9,7 @@ This guide covers the standard patterns for working with ORC.
 
 Shipments are the primary unit of work in ORC. They progress through a simple 4-status lifecycle.
 
-See **[docs/shipment-lifecycle.md](shipment-lifecycle.md)** for the complete state diagram.
+See **[docs/reference/shipment-lifecycle.md](../reference/shipment-lifecycle.md)** for the complete state diagram.
 
 ### State Descriptions
 
@@ -104,6 +104,6 @@ Marks the shipment as closed after verification passes.
 
 ## Next Steps
 
-- [docs/glue.md](glue.md) - Skills and hooks system
-- [docs/troubleshooting.md](troubleshooting.md) - Common issues
-- [docs/architecture.md](architecture.md) - System design
+- [docs/reference/glue.md](../reference/glue.md) - Skills and hooks system
+- [docs/guide/troubleshooting.md](troubleshooting.md) - Common issues
+- [docs/reference/architecture.md](../reference/architecture.md) - System design

@@ -459,5 +459,5 @@ orc task complete TASK-001
 ## Contact & Contributions
 
 **Repository**: ~/src/orc
-**Documentation**: CLAUDE.md (project context), docs/glossary.md (definitions)
+**Documentation**: CLAUDE.md (project context), docs/guide/glossary.md (definitions)
 **Status**: Active development, production use

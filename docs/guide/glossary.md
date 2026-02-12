@@ -3,7 +3,7 @@
 **Status**: Living document
 **Last Updated**: 2026-02-09
 
-A-Z definitions of ORC terminology. For schema details see [schema.md](schema.md). For lifecycle states see [shipment-lifecycle.md](shipment-lifecycle.md).
+A-Z definitions of ORC terminology. For schema details see [schema.md](../reference/schema.md). For lifecycle states see [shipment-lifecycle.md](../reference/shipment-lifecycle.md).
 
 ---
 
