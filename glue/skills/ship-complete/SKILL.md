@@ -52,7 +52,7 @@ If status is "draft":
 Cannot close SHIP-xxx: shipment is still in 'draft' status
 
 Move it to ready first:
-  orc shipment ready SHIP-xxx
+  orc shipment status SHIP-xxx --set ready
 ```
 
 If shipment is pinned:
@@ -66,7 +66,7 @@ Unpin first:
 ### Step 4: Close Shipment
 
 ```bash
-orc shipment close <SHIP-xxx>
+orc shipment complete <SHIP-xxx>
 ```
 
 ### Step 5: Clear Focus
@@ -101,7 +101,7 @@ Agent: Closing SHIP-250: Core Model Simplification
        Status: in-progress
        Ready for closure.
 
-       [runs orc shipment close SHIP-250]
+       [runs orc shipment complete SHIP-250]
        [runs orc focus --clear]
 
 Agent: Shipment closed:

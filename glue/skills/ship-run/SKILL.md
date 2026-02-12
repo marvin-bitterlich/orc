@@ -172,7 +172,7 @@ Monitor with: orc task list --shipment SHIP-xxx
 
 If shipment is in `ready` status, transition to `in-progress`:
 ```bash
-orc shipment start SHIP-xxx
+orc shipment status SHIP-xxx --set in-progress
 ```
 
 ## Guidelines

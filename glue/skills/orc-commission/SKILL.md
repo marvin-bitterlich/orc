@@ -57,7 +57,7 @@ Commission created:
   Factory: <factory-name>
 
 Next steps:
-  orc commission focus COMM-xxx    # Focus on this commission
+  orc focus COMM-xxx               # Focus on this commission
   orc shipment create "<title>"    # Create a shipment for work
   orc workshop create "<name>"     # Create a workshop if needed
 ```
@@ -79,7 +79,7 @@ Agent: Commission created:
          Factory: default
 
        Next steps:
-         orc commission focus COMM-xxx    # Focus on this commission
+         orc focus COMM-xxx               # Focus on this commission
          orc shipment create "<title>"    # Create a shipment for work
 ```
 

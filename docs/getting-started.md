@@ -81,7 +81,7 @@ If you prefer to set up your workflow manually instead of running `orc bootstrap
 orc commission create "My First Project"
 
 # Create a workshop
-orc workshop create "Development" --factory FACT-001
+orc workshop create --name "Development" --factory FACT-001
 
 # Create a workbench (git worktree)
 orc workbench create --workshop WORK-001 --repo-id REPO-001
