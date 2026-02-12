@@ -23,7 +23,7 @@ var noteCreateCmd = &cobra.Command{
 	Short: "Create a new note",
 	Long: `Create a new note in the ledger.
 
-Notes can be attached to a container (shipment, conclave, or tome) or exist
+Notes can be attached to a container (shipment or tome) or exist
 directly under the commission. If no container flag is provided, the note
 is created at the commission level.`,
 	Args: cobra.MinimumNArgs(1),
@@ -34,14 +34,10 @@ is created at the commission level.`,
 		content, _ := cmd.Flags().GetString("content")
 		noteType, _ := cmd.Flags().GetString("type")
 		shipmentID, _ := cmd.Flags().GetString("shipment")
-		conclaveID, _ := cmd.Flags().GetString("conclave")
 		tomeID, _ := cmd.Flags().GetString("tome")
 
 		// Validate entity IDs
 		if err := validateEntityID(shipmentID, "shipment"); err != nil {
-			return err
-		}
-		if err := validateEntityID(conclaveID, "conclave"); err != nil {
 			return err
 		}
 		if err := validateEntityID(tomeID, "tome"); err != nil {
@@ -81,9 +77,6 @@ is created at the commission level.`,
 		if shipmentID != "" {
 			containerID = shipmentID
 			containerType = "shipment"
-		} else if conclaveID != "" {
-			containerID = conclaveID
-			containerType = "conclave"
 		} else if tomeID != "" {
 			containerID = tomeID
 			containerType = "tome"
@@ -493,7 +486,6 @@ func init() {
 	noteCreateCmd.Flags().String("content", "", "Note content")
 	noteCreateCmd.Flags().StringP("type", "t", "", "Note type (learning, concern, finding, frq, bug, spec, roadmap, decision, question, vision, idea, exorcism, journal)")
 	noteCreateCmd.Flags().String("shipment", "", "Shipment ID to attach note to")
-	noteCreateCmd.Flags().String("conclave", "", "Conclave ID to attach note to")
 	noteCreateCmd.Flags().String("tome", "", "Tome ID to attach note to")
 
 	// note list flags
@@ -511,7 +503,6 @@ func init() {
 	// note move flags
 	noteMoveCmd.Flags().String("to-tome", "", "Move to tome")
 	noteMoveCmd.Flags().String("to-shipment", "", "Move to shipment")
-	noteMoveCmd.Flags().String("to-conclave", "", "Move to conclave")
 	noteMoveCmd.Flags().String("to-commission", "", "Promote to commission level (clears container associations)")
 
 	// note close flags

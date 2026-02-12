@@ -560,7 +560,6 @@ func init() {
 	// task move flags
 	taskMoveCmd.Flags().String("to-shipment", "", "Move to shipment")
 	taskMoveCmd.Flags().String("to-tome", "", "Move to tome")
-	taskMoveCmd.Flags().String("to-conclave", "", "Move to conclave")
 
 	// task delete flags
 	taskDeleteCmd.Flags().Bool("force", false, "Confirm deletion (required)")
