@@ -1,16 +1,16 @@
 ---
-name: bootstrap-exercise
-description: Manual integration test for the orc bootstrap first-run flow. Tests /orc-first-run skill with an isolated test factory on the dev machine.
+name: hello-exercise
+description: Manual integration test for the orc hello first-run flow. Tests /orc-first-run skill with an isolated test factory on the dev machine.
 ---
 
-# Bootstrap Exercise
+# Hello Exercise
 
-Manual integration test for the orc bootstrap first-run flow using an isolated test factory.
+Manual integration test for the orc hello first-run flow using an isolated test factory.
 
 ## Usage
 
 ```
-/bootstrap-exercise
+/hello-exercise
 ```
 
 Run this to verify the complete first-run experience works correctly without polluting your production data.
@@ -30,28 +30,28 @@ Generate a unique test factory:
 ```bash
 # Generate unique suffix
 TEST_SUFFIX=$(date +%s)
-orc factory create "Bootstrap Exercise $TEST_SUFFIX"
+orc factory create "Hello Exercise $TEST_SUFFIX"
 ```
 
 Capture the factory ID (e.g., `FACT-xxx`). Display to user:
 
 ```
-Created test factory: FACT-xxx "Bootstrap Exercise $TEST_SUFFIX"
+Created test factory: FACT-xxx "Hello Exercise $TEST_SUFFIX"
 This isolates your test from production data.
 ```
 
-### 2. Launch Bootstrap with Test Factory
+### 2. Launch Hello with Test Factory
 
-Launch orc bootstrap with the test factory:
+Launch orc hello with the test factory:
 
 ```bash
-orc bootstrap --factory FACT-xxx
+orc hello --factory FACT-xxx
 ```
 
 Explain to user:
 
 ```
-Launching orc bootstrap with test factory FACT-xxx...
+Launching orc hello with test factory FACT-xxx...
 
 This will start Claude Code with the /orc-first-run skill.
 Complete the first-run walkthrough as a new user would.
@@ -115,10 +115,10 @@ orc commission archive COMM-xxx
 Display test summary:
 
 ```
-Bootstrap Exercise Results
+Hello Exercise Results
 --------------------------
 [PASS] Test factory created (FACT-xxx)
-[PASS] Bootstrap launched with --factory flag
+[PASS] Hello launched with --factory flag
 [PASS] Commission created during first-run
 [PASS] Workshop created with correct factory
 [PASS] Workbench created

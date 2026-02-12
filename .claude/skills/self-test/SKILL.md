@@ -1,6 +1,6 @@
 ---
 name: self-test
-description: Orchestrate all ORC integration checks using Claude Teams. Runs orc doctor, then spawns parallel teammates for infra check, bootstrap check, docs-doctor, and optional VM bootstrap test.
+description: Orchestrate all ORC integration checks using Claude Teams. Runs orc doctor, then spawns parallel teammates for orc-tmux-check, orc-hello-check, docs-doctor, and optional make-bootstrap-check.
 ---
 
 # Self-Test Runner
@@ -51,10 +51,10 @@ tart:          [available / not found]
 sshpass:       [available / not found]
 
 Available checks:
-  1. Infra Check         (plan/apply lifecycle test)
-  2. Bootstrap Check     (first-run flow test)
+  1. orc-tmux-check      (plan/apply lifecycle test)
+  2. orc-hello-check     (first-run flow test)
   3. Docs Doctor         (documentation validation)
-  4. VM Bootstrap Test   [only if tart + sshpass available]
+  4. make-bootstrap-check [only if tart + sshpass available]
 ```
 
 #### Step 4: Ask user which checks to run
@@ -78,7 +78,7 @@ After user confirms, create a Claude Team and spawn one teammate per selected ch
 
 ---
 
-#### Teammate 1 -- Infra Check
+#### Teammate 1 -- orc-tmux-check
 
 Spawn a teammate with this prompt:
 
@@ -88,7 +88,7 @@ You are running the ORC infra integration check. Use ./orc (local binary) for al
 Follow these steps exactly:
 
 1. CREATE TEST FACTORY
-   ./orc factory create --name "[TEST] Self-Test Infra $(date +%s)"
+   ./orc factory create "[TEST] Self-Test Infra $(date +%s)"
    Capture the factory ID (FACT-xxx).
 
 2. CREATE TEST WORKSHOP
@@ -96,7 +96,7 @@ Follow these steps exactly:
    Capture workshop ID (WORK-xxx).
 
 3. CREATE TEST WORKBENCH
-   ./orc workbench create test-bench --workshop WORK-xxx
+   ./orc workbench create --workshop WORK-xxx --repo-id REPO-001
    Capture workbench ID (BENCH-xxx).
 
 4. CHECK INFRASTRUCTURE PLAN
@@ -108,9 +108,8 @@ Follow these steps exactly:
    Verify output shows workbenches and tmux session created.
 
 6. VERIFY FILESYSTEM STATE
-   ls -la ~/.orc/ws/WORK-xxx-*/
-   ls -la ~/.orc/ws/WORK-xxx-*/.orc/config.json
-   Confirm workbench directory and config file exist.
+   ls -la ~/wb/BENCH-xxx-*/
+   Confirm workbench directory exists.
 
 7. VERIFY TMUX STATE
    tmux list-sessions | grep "Self-Test"
@@ -124,12 +123,10 @@ Follow these steps exactly:
    Verify worktree directory removed and tmux window removed.
 
 9. DELETE DB ENTITIES
-   ./orc workbench delete BENCH-xxx --force
-   ./orc workshop delete WORK-xxx --force
    ./orc factory delete FACT-xxx --force
 
 10. VERIFY CLEANUP
-    ls ~/.orc/ws/WORK-xxx-* 2>/dev/null && echo "ERROR: Orphan directory found" || echo "OK: No orphans"
+    ls ~/wb/BENCH-xxx-* 2>/dev/null && echo "ERROR: Orphan directory found" || echo "OK: No orphans"
     tmux list-sessions 2>/dev/null | grep "Self-Test" && echo "ERROR: Session still exists" || echo "OK: Session cleaned"
 
 Report results as:
@@ -143,31 +140,31 @@ Final summary format:
 
 ---
 
-#### Teammate 2 -- Bootstrap Check
+#### Teammate 2 -- orc-hello-check
 
 Spawn a teammate with this prompt:
 
 ```
-You are running the ORC bootstrap integration check. Use ./orc (local binary) for all commands.
-This is an AUTOMATED version of the bootstrap exercise -- no user interaction required.
+You are running the ORC hello integration check. Use ./orc (local binary) for all commands.
+This is an AUTOMATED version of the hello exercise -- no user interaction required.
 
 Follow these steps exactly:
 
 1. CREATE TEST FACTORY
    TEST_SUFFIX=$(date +%s)
-   ./orc factory create "Bootstrap Check $TEST_SUFFIX"
+   ./orc factory create "Hello Check $TEST_SUFFIX"
    Capture factory ID (FACT-xxx).
 
 2. CREATE TEST COMMISSION
-   ./orc commission create "Bootstrap Test $TEST_SUFFIX" --factory FACT-xxx
+   ./orc commission create "Hello Test $TEST_SUFFIX"
    Capture commission ID (COMM-xxx).
 
 3. CREATE TEST WORKSHOP
-   ./orc workshop create --factory FACT-xxx --name "Bootstrap Workshop $TEST_SUFFIX"
+   ./orc workshop create --factory FACT-xxx --name "Hello Workshop $TEST_SUFFIX"
    Capture workshop ID (WORK-xxx).
 
 4. CREATE TEST WORKBENCH
-   ./orc workbench create "bootstrap-test-$TEST_SUFFIX" --workshop WORK-xxx
+   ./orc workbench create --workshop WORK-xxx --repo-id REPO-001
    Capture workbench ID (BENCH-xxx).
 
 5. APPLY INFRASTRUCTURE
@@ -177,7 +174,7 @@ Follow these steps exactly:
 6. RUN SUMMARY
    ./orc summary
    Verify the summary output shows the test entities and system is interactive.
-   This is the success criterion: reaching this point means the bootstrap flow works.
+   This is the success criterion: reaching this point means the hello flow works.
 
 7. CLEANUP
    # Archive in correct order
@@ -185,23 +182,21 @@ Follow these steps exactly:
    ./orc workshop archive WORK-xxx
    ./orc infra apply WORK-xxx --yes
    ./orc commission archive COMM-xxx
-   # Force delete
-   ./orc workbench delete BENCH-xxx --force
-   ./orc workshop delete WORK-xxx --force
+   # Delete remaining DB entities
    ./orc factory delete FACT-xxx --force
 
 Report results as:
   [PASS] or [FAIL] for each step with details.
-  If any step fails, attempt cleanup (archive then force delete) before reporting.
+  If any step fails, attempt cleanup (archive + infra apply) before reporting.
 
 Final summary format:
-  Bootstrap Check: PASS or FAIL
+  Hello Check: PASS or FAIL
   Details: [list of per-step results]
 ```
 
 ---
 
-#### Teammate 3 -- Docs Doctor Check
+#### Teammate 3 -- docs-doctor
 
 Spawn a teammate with this prompt:
 
@@ -225,7 +220,7 @@ Final summary format:
 
 ---
 
-#### Teammate 4 -- VM Bootstrap Test (optional, only if tart available)
+#### Teammate 4 -- make-bootstrap-check (optional, only if tart available)
 
 Only spawn this teammate if tart and sshpass were detected in preflight.
 
@@ -273,14 +268,14 @@ Preflight:
   sshpass:       [available / not found]
 
 Check Results:
-  +---------------------+--------+---------------------------+
-  | Check               | Result | Notes                     |
-  +---------------------+--------+---------------------------+
-  | Infra Check         | PASS   |                           |
-  | Bootstrap Check     | PASS   |                           |
-  | Docs Doctor         | PASS   | 1 warning (auto-fixable)  |
-  | VM Bootstrap Test   | SKIP   | tart not available        |
-  +---------------------+--------+---------------------------+
+  +----------------------+--------+---------------------------+
+  | Check                | Result | Notes                     |
+  +----------------------+--------+---------------------------+
+  | orc-tmux-check       | PASS   |                           |
+  | orc-hello-check      | PASS   |                           |
+  | Docs Doctor          | PASS   | 1 warning (auto-fixable)  |
+  | make-bootstrap-check | SKIP   | tart not available        |
+  +----------------------+--------+---------------------------+
 
 Overall: PASS (3/3 selected checks passed)
 ```
@@ -299,4 +294,4 @@ If any check fails:
 1. Report which check failed with full details from the teammate
 2. The teammate should have already attempted cleanup
 3. Suggest running `orc doctor` for diagnostics
-4. Suggest running the individual check skill for more detail (e.g., `/orc-self-test` for infra issues)
+4. Suggest running the individual check for more detail

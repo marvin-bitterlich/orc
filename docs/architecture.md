@@ -103,7 +103,7 @@ Skills specific to this repository (not deployed globally):
 
 | Skill | Description |
 |-------|-------------|
-| bootstrap-exercise | Manual test for first-run flow |
+| hello-exercise | Manual test for first-run flow |
 | bootstrap-test | Test make bootstrap in a fresh macOS VM using Tart |
 | docs-doctor | Validate ORC documentation against code reality |
 | orc-architecture | Maintain ARCHITECTURE.md |
