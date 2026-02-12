@@ -121,14 +121,19 @@ func (s *GitService) BranchExists(repoPath, branchName string) (bool, error) {
 	return verifyErr == nil, nil
 }
 
-// CreateBranch creates a new branch from a base branch.
+// CreateBranch creates a new branch from a base branch using the "origin" remote.
 func (s *GitService) CreateBranch(repoPath, branchName, baseBranch string) error {
-	// First fetch to ensure we have latest refs
-	_ = s.runGitCommand(repoPath, "fetch", "origin", baseBranch)
+	return s.CreateBranchFromRemote(repoPath, branchName, baseBranch, "origin")
+}
 
-	// Create the branch from the base
-	if err := s.runGitCommand(repoPath, "branch", branchName, "origin/"+baseBranch); err != nil {
-		// Try without origin prefix (for local base branches)
+// CreateBranchFromRemote creates a new branch from a base branch on the specified remote.
+func (s *GitService) CreateBranchFromRemote(repoPath, branchName, baseBranch, remote string) error {
+	// First fetch to ensure we have latest refs
+	_ = s.runGitCommand(repoPath, "fetch", remote, baseBranch)
+
+	// Create the branch from the remote tracking ref
+	if err := s.runGitCommand(repoPath, "branch", branchName, remote+"/"+baseBranch); err != nil {
+		// Try without remote prefix (for local base branches)
 		if err2 := s.runGitCommand(repoPath, "branch", branchName, baseBranch); err2 != nil {
 			return fmt.Errorf("failed to create branch %s: %w", branchName, err)
 		}
@@ -172,12 +177,17 @@ func (s *GitService) GetAheadBehind(repoPath string) (int, int, error) {
 	return ahead, behind, nil
 }
 
-// GetDefaultBranch returns the default branch name for a repo (usually main or master).
+// GetDefaultBranch returns the default branch name for a repo using the "origin" remote.
 func (s *GitService) GetDefaultBranch(repoPath string) (string, error) {
+	return s.GetDefaultBranchForRemote(repoPath, "origin")
+}
+
+// GetDefaultBranchForRemote returns the default branch name for a repo on the specified remote.
+func (s *GitService) GetDefaultBranchForRemote(repoPath, remote string) (string, error) {
 	// Try to get from remote HEAD
-	output, err := s.runGitCommandOutput(repoPath, "symbolic-ref", "refs/remotes/origin/HEAD")
+	output, err := s.runGitCommandOutput(repoPath, "symbolic-ref", "refs/remotes/"+remote+"/HEAD")
 	if err == nil {
-		// Parse refs/remotes/origin/main -> main
+		// Parse refs/remotes/<remote>/main -> main
 		parts := strings.Split(strings.TrimSpace(output), "/")
 		if len(parts) > 0 {
 			return parts[len(parts)-1], nil
@@ -185,18 +195,39 @@ func (s *GitService) GetDefaultBranch(repoPath string) (string, error) {
 	}
 
 	// Fallback: check if main exists
-	exists, _ := s.BranchExists(repoPath, "origin/main")
+	exists, _ := s.BranchExists(repoPath, remote+"/main")
 	if exists {
 		return "main", nil
 	}
 
 	// Fallback: check if master exists
-	exists, _ = s.BranchExists(repoPath, "origin/master")
+	exists, _ = s.BranchExists(repoPath, remote+"/master")
 	if exists {
 		return "master", nil
 	}
 
 	return "main", nil // Default to main
+}
+
+// FetchUpstream fetches the latest refs from the "upstream" remote.
+func (s *GitService) FetchUpstream(repoPath string) error {
+	if err := s.runGitCommand(repoPath, "fetch", "upstream"); err != nil {
+		return fmt.Errorf("failed to fetch upstream: %w", err)
+	}
+	return nil
+}
+
+// PushToOrigin pushes a branch to the "origin" remote.
+func (s *GitService) PushToOrigin(repoPath, branch string) error {
+	if err := s.runGitCommand(repoPath, "push", "origin", branch); err != nil {
+		return fmt.Errorf("failed to push %s to origin: %w", branch, err)
+	}
+	return nil
+}
+
+// CreateBranchFromUpstream creates a new branch from an upstream remote branch.
+func (s *GitService) CreateBranchFromUpstream(repoPath, branch, upstreamBranch string) error {
+	return s.CreateBranchFromRemote(repoPath, branch, upstreamBranch, "upstream")
 }
 
 // GenerateShipmentBranchName generates a branch name for a shipment.

@@ -37,3 +37,17 @@ func TestGitService_NewGitService(t *testing.T) {
 		t.Error("expected non-nil service")
 	}
 }
+
+// TestGitService_MethodSignatures verifies new parameterized and fork-aware methods
+// are defined with expected signatures. These use os/exec so we only verify instantiation.
+func TestGitService_MethodSignatures(t *testing.T) {
+	svc := NewGitService()
+
+	// Verify parameterized methods exist. Assignment to _ ensures the method
+	// reference compiles without triggering staticcheck QF1011.
+	_ = svc.CreateBranchFromRemote
+	_ = svc.GetDefaultBranchForRemote
+	_ = svc.FetchUpstream
+	_ = svc.PushToOrigin
+	_ = svc.CreateBranchFromUpstream
+}
