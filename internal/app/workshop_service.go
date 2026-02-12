@@ -212,11 +212,11 @@ func (s *WorkshopServiceImpl) PlanOpenWorkshop(ctx context.Context, req primary.
 		existingWindows, _ = s.tmuxAdapter.ListWindows(ctx, actualSessionName)
 	}
 
-	// 5. Compute gatehouse path and check existence
+	// 5. Compute workshop coordination directory path and check existence
 	home, _ := os.UserHomeDir()
-	gatehouseDir := coreworkshop.GatehousePath(home, req.WorkshopID, workshop.Name)
-	gatehouseDirExists := s.dirExists(gatehouseDir)
-	gatehouseConfigExists := s.fileExists(filepath.Join(gatehouseDir, ".orc", "config.json"))
+	workshopDir := coreworkshop.WorkshopDirPath(home, req.WorkshopID, workshop.Name)
+	workshopDirExists := s.dirExists(workshopDir)
+	workshopConfigExists := s.fileExists(filepath.Join(workshopDir, ".orc", "config.json"))
 
 	// 6. Get workbenches and check each one's state
 	workbenches, _ := s.workbenchRepo.List(ctx, req.WorkshopID)
@@ -243,17 +243,17 @@ func (s *WorkshopServiceImpl) PlanOpenWorkshop(ctx context.Context, req primary.
 
 	// 7. Generate plan using pure function
 	input := coreworkshop.OpenPlanInput{
-		WorkshopID:            req.WorkshopID,
-		WorkshopName:          workshop.Name,
-		FactoryID:             factory.ID,
-		FactoryName:           factory.Name,
-		SessionExists:         sessionExists,
-		ActualSessionName:     actualSessionName,
-		ExistingWindows:       existingWindows,
-		GatehouseDir:          gatehouseDir,
-		GatehouseDirExists:    gatehouseDirExists,
-		GatehouseConfigExists: gatehouseConfigExists,
-		Workbenches:           wbInputs,
+		WorkshopID:           req.WorkshopID,
+		WorkshopName:         workshop.Name,
+		FactoryID:            factory.ID,
+		FactoryName:          factory.Name,
+		SessionExists:        sessionExists,
+		ActualSessionName:    actualSessionName,
+		ExistingWindows:      existingWindows,
+		WorkshopDir:          workshopDir,
+		WorkshopDirExists:    workshopDirExists,
+		WorkshopConfigExists: workshopConfigExists,
+		Workbenches:          wbInputs,
 	}
 	corePlan := coreworkshop.GenerateOpenPlan(input)
 
@@ -281,8 +281,8 @@ func (s *WorkshopServiceImpl) ApplyOpenWorkshop(ctx context.Context, plan *prima
 
 	// 1. Create workshop directory if needed
 	home, _ := os.UserHomeDir()
-	workshopDir := coreworkshop.GatehousePath(home, plan.WorkshopID, plan.WorkshopName)
-	if plan.GatehouseOp != nil && (!plan.GatehouseOp.Exists || !plan.GatehouseOp.ConfigExists) {
+	workshopDir := coreworkshop.WorkshopDirPath(home, plan.WorkshopID, plan.WorkshopName)
+	if plan.WorkshopDirOp != nil && (!plan.WorkshopDirOp.Exists || !plan.WorkshopDirOp.ConfigExists) {
 		workshopDir = s.createWorkshopDir(plan.WorkshopID, plan.WorkshopName)
 	}
 
@@ -500,14 +500,14 @@ func (s *WorkshopServiceImpl) corePlanToPrimary(core *coreworkshop.OpenWorkshopP
 		}
 	}
 
-	// Map gatehouse op with derived status
-	if core.GatehouseOp != nil {
-		plan.GatehouseOp = &primary.GatehouseOp{
-			Path:         core.GatehouseOp.Path,
-			Exists:       core.GatehouseOp.Exists,
-			ConfigExists: core.GatehouseOp.ConfigExists,
-			Status:       boolToOpStatus(core.GatehouseOp.Exists),
-			ConfigStatus: boolToOpStatus(core.GatehouseOp.ConfigExists),
+	// Map workshop dir op with derived status
+	if core.WorkshopDirOp != nil {
+		plan.WorkshopDirOp = &primary.WorkshopDirOp{
+			Path:         core.WorkshopDirOp.Path,
+			Exists:       core.WorkshopDirOp.Exists,
+			ConfigExists: core.WorkshopDirOp.ConfigExists,
+			Status:       boolToOpStatus(core.WorkshopDirOp.Exists),
+			ConfigStatus: boolToOpStatus(core.WorkshopDirOp.ConfigExists),
 		}
 	}
 
@@ -563,20 +563,6 @@ func boolToOpStatus(exists bool) primary.OpStatus {
 	return primary.OpCreate
 }
 
-// UpdateFocusedConclaveID sets or clears the focused conclave for a workshop (Goblin focus).
-func (s *WorkshopServiceImpl) UpdateFocusedConclaveID(ctx context.Context, workshopID, conclaveID string) error {
-	return s.workshopRepo.UpdateFocusedConclaveID(ctx, workshopID, conclaveID)
-}
-
-// GetFocusedConclaveID returns the currently focused conclave ID for a workshop.
-func (s *WorkshopServiceImpl) GetFocusedConclaveID(ctx context.Context, workshopID string) (string, error) {
-	record, err := s.workshopRepo.GetByID(ctx, workshopID)
-	if err != nil {
-		return "", fmt.Errorf("workshop not found: %w", err)
-	}
-	return record.FocusedConclaveID, nil
-}
-
 // SetActiveCommission sets the active commission for a workshop (Goblin context).
 // Pass empty string to clear.
 func (s *WorkshopServiceImpl) SetActiveCommission(ctx context.Context, workshopID, commissionID string) error {
@@ -593,7 +579,6 @@ func (s *WorkshopServiceImpl) GetActiveCommission(ctx context.Context, workshopI
 }
 
 // GetActiveCommissions returns commission IDs derived from focus:
-// - Gatehouse focused_id (resolved to commission)
 // - All workbench focused_ids in workshop (resolved to commission)
 // Returns deduplicated commission IDs.
 func (s *WorkshopServiceImpl) GetActiveCommissions(ctx context.Context, workshopID string) ([]string, error) {

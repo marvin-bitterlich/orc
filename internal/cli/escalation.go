@@ -119,10 +119,8 @@ var escalationResolveCmd = &cobra.Command{
 			return fmt.Errorf("--outcome must be 'approved' or 'rejected'")
 		}
 
-		// Get resolver actor from gatehouse context
+		// Get resolver actor from workbench context
 		resolvedBy := orcctx.GetContextWorkbenchID()
-		// Note: Gatehouses use GATE-xxx IDs, but they're detected same way as workbenches
-		// If no context, allow resolution without resolver ID (for admin use)
 
 		ctx := NewContext()
 		err := wire.EscalationService().ResolveEscalation(ctx, primary.ResolveEscalationRequest{

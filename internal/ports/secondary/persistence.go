@@ -878,10 +878,6 @@ type WorkshopRepository interface {
 	// FactoryExists checks if a factory exists (for validation).
 	FactoryExists(ctx context.Context, factoryID string) (bool, error)
 
-	// UpdateFocusedConclaveID updates the focused conclave ID for a workshop (Goblin focus).
-	// Pass empty string to clear focus.
-	UpdateFocusedConclaveID(ctx context.Context, id, conclaveID string) error
-
 	// SetActiveCommissionID updates the active commission for a workshop (Goblin context).
 	// Pass empty string to clear.
 	SetActiveCommissionID(ctx context.Context, workshopID, commissionID string) error
@@ -899,7 +895,6 @@ type WorkshopRecord struct {
 	FactoryID          string
 	Name               string
 	Status             string
-	FocusedConclaveID  string // Empty string means null - Goblin focus
 	ActiveCommissionID string // Empty string means null - Goblin commission context
 	CreatedAt          string
 	UpdatedAt          string

@@ -11,23 +11,17 @@ Create a new shipment for implementation work.
 
 ```
 /ship-new "Shipment Title"
-/ship-new --from CON-xxx    (create from conclave exploration)
 /ship-new                   (will prompt for title)
 ```
 
 ## Flow
 
-### Step 1: Get Title and Source
-
-If `--from CON-xxx` provided:
-- Get conclave details: `orc conclave show CON-xxx`
-- Use conclave title as default shipment title
-- Link shipment to conclave via `--conclave` flag
+### Step 1: Get Title
 
 If title argument provided:
 - Use it as shipment title
 
-If neither:
+If not:
 - Ask: "What should this shipment implement?"
 
 ### Step 2: Detect Context
@@ -47,8 +41,6 @@ orc shipment create "<Title>" \
   --commission <COMM-xxx> \
   --description "Implementation shipment for <title>"
 ```
-
-If from conclave, add `--conclave CON-xxx`.
 
 Capture the created `SHIP-xxx` ID from output.
 

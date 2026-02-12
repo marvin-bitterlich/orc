@@ -148,7 +148,7 @@ func TestWorkshopLogRepository_List(t *testing.T) {
 
 	repo.Create(ctx, &secondary.WorkshopLogRecord{ID: "WL-0001", WorkshopID: "WORK-001", ActorID: "BENCH-014", EntityType: "task", EntityID: "TASK-001", Action: "create"})
 	repo.Create(ctx, &secondary.WorkshopLogRecord{ID: "WL-0002", WorkshopID: "WORK-001", ActorID: "BENCH-014", EntityType: "task", EntityID: "TASK-001", Action: "update"})
-	repo.Create(ctx, &secondary.WorkshopLogRecord{ID: "WL-0003", WorkshopID: "WORK-002", ActorID: "GATE-003", EntityType: "shipment", EntityID: "SHIP-001", Action: "delete"})
+	repo.Create(ctx, &secondary.WorkshopLogRecord{ID: "WL-0003", WorkshopID: "WORK-002", ActorID: "BENCH-003", EntityType: "shipment", EntityID: "SHIP-001", Action: "delete"})
 
 	t.Run("lists all logs", func(t *testing.T) {
 		list, err := repo.List(ctx, secondary.WorkshopLogFilters{})
@@ -194,7 +194,7 @@ func TestWorkshopLogRepository_List(t *testing.T) {
 	})
 
 	t.Run("filters by actor_id", func(t *testing.T) {
-		list, err := repo.List(ctx, secondary.WorkshopLogFilters{ActorID: "GATE-003"})
+		list, err := repo.List(ctx, secondary.WorkshopLogFilters{ActorID: "BENCH-003"})
 		if err != nil {
 			t.Fatalf("List failed: %v", err)
 		}

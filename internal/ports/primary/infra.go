@@ -17,7 +17,7 @@ type InfraService interface {
 	// Called before DB deletion to ensure filesystem cleanup happens first.
 	CleanupWorkbench(ctx context.Context, req CleanupWorkbenchRequest) error
 
-	// CleanupWorkshop removes all infrastructure for a workshop (workbenches, gatehouse, tmux).
+	// CleanupWorkshop removes all infrastructure for a workshop (workbenches, workshop dir, tmux).
 	// Called before DB deletion to ensure filesystem cleanup happens first.
 	CleanupWorkshop(ctx context.Context, req CleanupWorkshopRequest) error
 
@@ -40,15 +40,15 @@ type InfraPlan struct {
 	FactoryID    string
 	FactoryName  string
 
-	// Gatehouse infrastructure
-	Gatehouse *InfraGatehouseOp
+	// Workshop coordination directory
+	WorkshopDir *InfraWorkshopDirOp
 
 	// Workbench infrastructure
 	Workbenches []InfraWorkbenchOp
 
 	// Orphan infrastructure (exists on disk but not in DB)
-	OrphanWorkbenches []InfraWorkbenchOp
-	OrphanGatehouses  []InfraGatehouseOp
+	OrphanWorkbenches  []InfraWorkbenchOp
+	OrphanWorkshopDirs []InfraWorkshopDirOp
 
 	// TMux infrastructure
 	TMuxSession *InfraTMuxSessionOp
@@ -60,8 +60,8 @@ type InfraPlan struct {
 	NoDelete bool
 }
 
-// InfraGatehouseOp describes gatehouse infrastructure state.
-type InfraGatehouseOp struct {
+// InfraWorkshopDirOp describes workshop coordination directory infrastructure state.
+type InfraWorkshopDirOp struct {
 	ID           string   // WORK-XXX (workshop ID)
 	Path         string   // ~/.orc/ws/WORK-xxx-slug
 	Status       OpStatus // EXISTS or CREATE
@@ -113,7 +113,7 @@ type InfraTMuxPaneOp struct {
 type InfraApplyResponse struct {
 	WorkshopID         string
 	WorkshopName       string
-	GatehouseCreated   bool
+	WorkshopDirCreated bool
 	WorkbenchesCreated int
 	ConfigsCreated     int
 	OrphansDeleted     int
@@ -139,6 +139,6 @@ type CleanupOrphansRequest struct {
 
 // CleanupOrphansResponse contains the result of cleaning up orphans.
 type CleanupOrphansResponse struct {
-	WorkbenchesDeleted int
-	GatehousesDeleted  int
+	WorkbenchesDeleted  int
+	WorkshopDirsDeleted int
 }

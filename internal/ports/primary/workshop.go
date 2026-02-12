@@ -40,7 +40,6 @@ type WorkshopService interface {
 	GetActiveCommission(ctx context.Context, workshopID string) (string, error)
 
 	// GetActiveCommissions returns commission IDs derived from focus:
-	// - Gatehouse focused_id (resolved to commission)
 	// - All workbench focused_ids in workshop (resolved to commission)
 	// Returns deduplicated commission IDs.
 	GetActiveCommissions(ctx context.Context, workshopID string) ([]string, error)
@@ -119,16 +118,16 @@ const (
 
 // OpenWorkshopPlan describes what will be created when opening a workshop.
 type OpenWorkshopPlan struct {
-	WorkshopID   string
-	WorkshopName string
-	FactoryID    string
-	FactoryName  string
-	SessionName  string
-	DBState      *DBStatePlan
-	GatehouseOp  *GatehouseOp
-	WorkbenchOps []WorkbenchOp
-	TMuxOp       *TMuxOp
-	NothingToDo  bool
+	WorkshopID    string
+	WorkshopName  string
+	FactoryID     string
+	FactoryName   string
+	SessionName   string
+	DBState       *DBStatePlan
+	WorkshopDirOp *WorkshopDirOp
+	WorkbenchOps  []WorkbenchOp
+	TMuxOp        *TMuxOp
+	NothingToDo   bool
 }
 
 // DBStatePlan describes the database state section of the plan.
@@ -145,8 +144,8 @@ type WorkbenchDBState struct {
 	Status string
 }
 
-// GatehouseOp describes the gatehouse directory operation.
-type GatehouseOp struct {
+// WorkshopDirOp describes the workshop coordination directory operation.
+type WorkshopDirOp struct {
 	Path         string
 	Status       OpStatus
 	ConfigStatus OpStatus

@@ -63,7 +63,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `make bootstrap-dev` target for installing development dependencies (tart, sshpass, atlas)
 - `--strict` flag for `orc doctor` - treats warnings as errors (useful for CI/scripts)
 - Directory guards on dangerous Make targets (install, deploy-glue, schema-apply, bootstrap)
-- SubagentStop hook support: `orc hook SubagentStop` complements Stop hook by catching skill/subagent completion points
 - `--shell` flag for bootstrap-test: drops into interactive VM shell after bootstrap (`make bootstrap-shell`)
 - `--keep` flag for bootstrap-test: preserves VM for manual exploration
 - Bootstrap VM testing with Tart: `make bootstrap-test` spins up fresh macOS VM to validate first-run experience

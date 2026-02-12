@@ -65,7 +65,6 @@ type HookEventFilters struct {
 // Hook type constants.
 const (
 	HookTypeStop             = "Stop"
-	HookTypeSubagentStop     = "SubagentStop"
 	HookTypeUserPromptSubmit = "UserPromptSubmit"
 )
 

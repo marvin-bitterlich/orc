@@ -306,57 +306,103 @@ clean:
 # Claude Code Integration (Glue)
 #---------------------------------------------------------------------------
 
+# Manifest path for tracking deployed glue artifacts
+GLUE_MANIFEST := $(HOME)/.orc/glue-manifest.json
+
 # Deploy skills and hooks to Claude Code
 deploy-glue:
 	$(call check-dir)
-	@echo "Deploying Claude Code skills..."
-	@mkdir -p ~/.claude/skills ~/.claude/hooks
-	@for dir in glue/skills/*/; do \
+	@mkdir -p ~/.claude/skills ~/.claude/hooks ~/.orc
+	@# --- Read old manifest ---
+	@OLD_SKILLS=""; \
+	OLD_HOOKS=""; \
+	if [ -f "$(GLUE_MANIFEST)" ]; then \
+		OLD_SKILLS=$$(jq -r '.skills // [] | .[]' "$(GLUE_MANIFEST)" 2>/dev/null); \
+		OLD_HOOKS=$$(jq -r '.hooks // [] | .[]' "$(GLUE_MANIFEST)" 2>/dev/null); \
+	fi; \
+	\
+	echo "Deploying Claude Code skills..."; \
+	CURRENT_SKILLS=""; \
+	for dir in glue/skills/*/; do \
 		name=$$(basename "$$dir"); \
 		echo "  → $$name"; \
 		rm -rf ~/.claude/skills/$$name; \
 		cp -r "$$dir" ~/.claude/skills/$$name; \
-	done
-	@echo "✓ Skills deployed to ~/.claude/skills/"
-	@echo "Checking for orphan skills..."
-	@for deployed in ~/.claude/skills/*/; do \
-		[ -d "$$deployed" ] || continue; \
-		name=$$(basename "$$deployed"); \
-		if [ ! -d "glue/skills/$$name" ]; then \
-			echo "  ✗ Removing orphan: $$name"; \
-			rm -rf "$$deployed"; \
+		CURRENT_SKILLS="$$CURRENT_SKILLS $$name"; \
+	done; \
+	echo "✓ Skills deployed to ~/.claude/skills/"; \
+	\
+	echo "Checking for orphan skills..."; \
+	for old_skill in $$OLD_SKILLS; do \
+		is_current=false; \
+		for cur in $$CURRENT_SKILLS; do \
+			if [ "$$old_skill" = "$$cur" ]; then \
+				is_current=true; \
+				break; \
+			fi; \
+		done; \
+		if [ "$$is_current" = "false" ] && [ -d "$$HOME/.claude/skills/$$old_skill" ]; then \
+			echo "  ✗ Removing orphan: $$old_skill"; \
+			rm -rf "$$HOME/.claude/skills/$$old_skill"; \
 		fi; \
-	done
-	@if [ -d "glue/hooks" ] && [ "$$(ls -A glue/hooks/*.sh 2>/dev/null)" ]; then \
+	done; \
+	\
+	if [ -d "glue/hooks" ] && [ "$$(ls -A glue/hooks/*.sh 2>/dev/null)" ]; then \
 		echo "Deploying Claude Code hook scripts..."; \
 		for hook in glue/hooks/*.sh; do \
 			[ -f "$$hook" ] || continue; \
 			name=$$(basename "$$hook"); \
 			echo "  → $$name"; \
-			cp "$$hook" ~/.claude/hooks/$$name; \
-			chmod +x ~/.claude/hooks/$$name; \
+			cp "$$hook" $$HOME/.claude/hooks/$$name; \
+			chmod +x $$HOME/.claude/hooks/$$name; \
 		done; \
 		echo "✓ Hook scripts deployed to ~/.claude/hooks/"; \
-	fi
-	@if [ -f "glue/hooks.json" ]; then \
+	fi; \
+	\
+	CURRENT_HOOKS=""; \
+	if [ -f "glue/hooks.json" ]; then \
 		echo "Configuring hooks in settings.json..."; \
+		CURRENT_HOOKS=$$(jq -r 'keys[]' glue/hooks.json 2>/dev/null); \
+		for old_hook in $$OLD_HOOKS; do \
+			is_current=false; \
+			for cur in $$CURRENT_HOOKS; do \
+				if [ "$$old_hook" = "$$cur" ]; then \
+					is_current=true; \
+					break; \
+				fi; \
+			done; \
+			if [ "$$is_current" = "false" ]; then \
+				echo "  ✗ Removing orphan hook: $$old_hook"; \
+				jq "del(.hooks[\"$$old_hook\"])" \
+					$$HOME/.claude/settings.json > /tmp/settings.json && \
+					mv /tmp/settings.json $$HOME/.claude/settings.json; \
+			fi; \
+		done; \
 		jq -s '.[0].hooks = (.[0].hooks // {}) * .[1] | .[0]' \
-			~/.claude/settings.json glue/hooks.json > /tmp/settings.json && \
-			mv /tmp/settings.json ~/.claude/settings.json; \
+			$$HOME/.claude/settings.json glue/hooks.json > /tmp/settings.json && \
+			mv /tmp/settings.json $$HOME/.claude/settings.json; \
 		echo "✓ Hooks configured in settings.json"; \
-	fi
-	@if [ -d "glue/tmux" ] && [ "$$(ls -A glue/tmux 2>/dev/null)" ]; then \
+	fi; \
+	\
+	if [ -d "glue/tmux" ] && [ "$$(ls -A glue/tmux 2>/dev/null)" ]; then \
 		echo "Deploying tmux scripts..."; \
-		mkdir -p ~/.orc/tmux; \
+		mkdir -p $$HOME/.orc/tmux; \
 		for script in glue/tmux/*.sh; do \
 			[ -f "$$script" ] || continue; \
 			name=$$(basename "$$script"); \
 			echo "  → $$name"; \
-			cp "$$script" ~/.orc/tmux/$$name; \
-			chmod +x ~/.orc/tmux/$$name; \
+			cp "$$script" $$HOME/.orc/tmux/$$name; \
+			chmod +x $$HOME/.orc/tmux/$$name; \
 		done; \
 		echo "✓ TMux scripts deployed to ~/.orc/tmux/"; \
-	fi
+	fi; \
+	\
+	echo "Writing glue manifest..."; \
+	SKILLS_JSON=$$(echo "$$CURRENT_SKILLS" | tr ' ' '\n' | sed '/^$$/d' | jq -R . | jq -s .); \
+	HOOKS_JSON=$$(echo "$$CURRENT_HOOKS" | tr ' ' '\n' | sed '/^$$/d' | jq -R . | jq -s .); \
+	jq -n --argjson skills "$$SKILLS_JSON" --argjson hooks "$$HOOKS_JSON" \
+		'{skills: $$skills, hooks: $$hooks}' > "$(GLUE_MANIFEST)"; \
+	echo "✓ Manifest written to $(GLUE_MANIFEST)"
 
 #---------------------------------------------------------------------------
 # Help

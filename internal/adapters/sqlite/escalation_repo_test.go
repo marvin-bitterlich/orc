@@ -64,7 +64,7 @@ func TestEscalationRepository_Create(t *testing.T) {
 			Status:        "pending",
 			RoutingRule:   "workshop_gatehouse",
 			OriginActorID: "IMP-BENCH-001",
-			TargetActorID: "GATE-001",
+			TargetActorID: "BENCH-002",
 		}
 
 		err := repo.Create(ctx, record)
@@ -80,8 +80,8 @@ func TestEscalationRepository_Create(t *testing.T) {
 		if got.ApprovalID != "APPR-001" {
 			t.Errorf("ApprovalID = %q, want %q", got.ApprovalID, "APPR-001")
 		}
-		if got.TargetActorID != "GATE-001" {
-			t.Errorf("TargetActorID = %q, want %q", got.TargetActorID, "GATE-001")
+		if got.TargetActorID != "BENCH-002" {
+			t.Errorf("TargetActorID = %q, want %q", got.TargetActorID, "BENCH-002")
 		}
 	})
 }
@@ -138,7 +138,7 @@ func TestEscalationRepository_List(t *testing.T) {
 	db.ExecContext(ctx, "INSERT INTO plans (id, commission_id, task_id, title, status) VALUES (?, ?, ?, ?, ?)", "PLAN-002", "COMM-001", "TASK-001", "Test 2", "draft")
 
 	repo.Create(ctx, &secondary.EscalationRecord{ID: "ESC-001", PlanID: "PLAN-001", TaskID: "TASK-001", Reason: "Test 1", Status: "pending", RoutingRule: "workshop_gatehouse", OriginActorID: "IMP-BENCH-001"})
-	repo.Create(ctx, &secondary.EscalationRecord{ID: "ESC-002", PlanID: "PLAN-002", TaskID: "TASK-001", Reason: "Test 2", Status: "resolved", RoutingRule: "workshop_gatehouse", OriginActorID: "IMP-BENCH-001", TargetActorID: "GATE-001"})
+	repo.Create(ctx, &secondary.EscalationRecord{ID: "ESC-002", PlanID: "PLAN-002", TaskID: "TASK-001", Reason: "Test 2", Status: "resolved", RoutingRule: "workshop_gatehouse", OriginActorID: "IMP-BENCH-001", TargetActorID: "BENCH-002"})
 
 	t.Run("lists all escalations", func(t *testing.T) {
 		list, err := repo.List(ctx, secondary.EscalationFilters{})
@@ -164,7 +164,7 @@ func TestEscalationRepository_List(t *testing.T) {
 	})
 
 	t.Run("filters by target_actor_id", func(t *testing.T) {
-		list, err := repo.List(ctx, secondary.EscalationFilters{TargetActorID: "GATE-001"})
+		list, err := repo.List(ctx, secondary.EscalationFilters{TargetActorID: "BENCH-002"})
 		if err != nil {
 			t.Fatalf("List failed: %v", err)
 		}
@@ -292,7 +292,7 @@ func TestEscalationRepository_Resolve(t *testing.T) {
 	})
 
 	t.Run("resolves escalation", func(t *testing.T) {
-		err := repo.Resolve(ctx, "ESC-001", "Approved plan with modifications", "GATE-001")
+		err := repo.Resolve(ctx, "ESC-001", "Approved plan with modifications", "BENCH-002")
 		if err != nil {
 			t.Fatalf("Resolve failed: %v", err)
 		}
@@ -304,8 +304,8 @@ func TestEscalationRepository_Resolve(t *testing.T) {
 		if got.Resolution != "Approved plan with modifications" {
 			t.Errorf("Resolution = %q, want %q", got.Resolution, "Approved plan with modifications")
 		}
-		if got.ResolvedBy != "GATE-001" {
-			t.Errorf("ResolvedBy = %q, want %q", got.ResolvedBy, "GATE-001")
+		if got.ResolvedBy != "BENCH-002" {
+			t.Errorf("ResolvedBy = %q, want %q", got.ResolvedBy, "BENCH-002")
 		}
 		if got.ResolvedAt == "" {
 			t.Error("expected ResolvedAt to be set")
@@ -313,7 +313,7 @@ func TestEscalationRepository_Resolve(t *testing.T) {
 	})
 
 	t.Run("returns error for non-existent escalation", func(t *testing.T) {
-		err := repo.Resolve(ctx, "ESC-999", "Resolution", "GATE-001")
+		err := repo.Resolve(ctx, "ESC-999", "Resolution", "BENCH-002")
 		if err == nil {
 			t.Error("expected error, got nil")
 		}

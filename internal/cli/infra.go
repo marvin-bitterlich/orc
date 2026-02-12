@@ -74,18 +74,18 @@ func displayInfraPlan(plan *primary.InfraPlan) {
 	fmt.Printf("  Factory: %s (%s)\n", plan.FactoryID, plan.FactoryName)
 	fmt.Println()
 
-	// Gatehouse
-	fmt.Println("Gatehouse:")
-	if plan.Gatehouse != nil {
-		fmt.Printf("  %s directory: %s\n", infraStatusColor(plan.Gatehouse.Status), plan.Gatehouse.Path)
-		fmt.Printf("  %s config: %s/.orc/config.json\n", infraStatusColor(plan.Gatehouse.ConfigStatus), plan.Gatehouse.Path)
-		if plan.Gatehouse.ID != "" {
-			fmt.Printf("  DB record: %s\n", plan.Gatehouse.ID)
+	// Workshop Directory
+	fmt.Println("Workshop Directory:")
+	if plan.WorkshopDir != nil {
+		fmt.Printf("  %s directory: %s\n", infraStatusColor(plan.WorkshopDir.Status), plan.WorkshopDir.Path)
+		fmt.Printf("  %s config: %s/.orc/config.json\n", infraStatusColor(plan.WorkshopDir.ConfigStatus), plan.WorkshopDir.Path)
+		if plan.WorkshopDir.ID != "" {
+			fmt.Printf("  DB record: %s\n", plan.WorkshopDir.ID)
 		} else {
 			fmt.Printf("  DB record: %s\n", color.New(color.FgYellow).Sprint("(not created)"))
 		}
 	} else {
-		fmt.Printf("  %s (no gatehouse)\n", color.New(color.FgRed).Sprint("MISSING"))
+		fmt.Printf("  %s (no workshop directory)\n", color.New(color.FgRed).Sprint("MISSING"))
 	}
 	fmt.Println()
 
@@ -121,16 +121,16 @@ func displayInfraPlan(plan *primary.InfraPlan) {
 	fmt.Println()
 
 	// Show orphaned resources (exist on disk but not in DB)
-	if len(plan.OrphanWorkbenches) > 0 || len(plan.OrphanGatehouses) > 0 {
+	if len(plan.OrphanWorkbenches) > 0 || len(plan.OrphanWorkshopDirs) > 0 {
 		fmt.Println("Orphaned Resources (exist on disk, not in DB):")
 
-		if len(plan.OrphanGatehouses) > 0 {
-			fmt.Println("  Gatehouses:")
-			for _, gh := range plan.OrphanGatehouses {
+		if len(plan.OrphanWorkshopDirs) > 0 {
+			fmt.Println("  Workshop Dirs:")
+			for _, od := range plan.OrphanWorkshopDirs {
 				fmt.Printf("    %s %s: %s\n",
-					infraStatusColor(gh.Status),
-					gh.ID,
-					gh.Path,
+					infraStatusColor(od.Status),
+					od.ID,
+					od.Path,
 				)
 			}
 		}
@@ -249,7 +249,7 @@ func infraApplyCmd() *cobra.Command {
 
 Shows the plan first and asks for confirmation (unless --yes).
 Creates:
-  - Gatehouse directory and config
+  - Workshop coordination directory
   - Workbench worktrees (via git worktree add)
   - ORC config files in each workbench
   - TMux session and windows
@@ -302,8 +302,8 @@ Examples:
 
 			// 6. Display result
 			fmt.Println("✓ Infrastructure applied:")
-			if resp.GatehouseCreated {
-				fmt.Println("  - Gatehouse directory created")
+			if resp.WorkshopDirCreated {
+				fmt.Println("  - Workshop directory created")
 			}
 			if resp.WorkbenchesCreated > 0 {
 				fmt.Printf("  - %d workbench worktree(s) created\n", resp.WorkbenchesCreated)
@@ -322,7 +322,7 @@ Examples:
 }
 
 func checkNothingToDo(plan *primary.InfraPlan) bool {
-	if plan.Gatehouse != nil && (plan.Gatehouse.Status == primary.OpCreate || plan.Gatehouse.ConfigStatus == primary.OpCreate) {
+	if plan.WorkshopDir != nil && (plan.WorkshopDir.Status == primary.OpCreate || plan.WorkshopDir.ConfigStatus == primary.OpCreate) {
 		return false
 	}
 	for _, wb := range plan.Workbenches {
@@ -436,7 +436,7 @@ func infraCleanupCmd() *cobra.Command {
 
 Orphaned infrastructure includes:
   - Workbench directories with no matching DB record
-  - Gatehouse directories with no matching DB record
+  - Workshop directories with no matching DB record
 
 This is useful for manual recovery when the system is in an inconsistent state.
 
@@ -453,7 +453,7 @@ Examples:
 				return err
 			}
 
-			if resp.WorkbenchesDeleted == 0 && resp.GatehousesDeleted == 0 {
+			if resp.WorkbenchesDeleted == 0 && resp.WorkshopDirsDeleted == 0 {
 				fmt.Println("No orphans found")
 				return nil
 			}
@@ -462,8 +462,8 @@ Examples:
 			if resp.WorkbenchesDeleted > 0 {
 				fmt.Printf("  - %d orphan workbench(es) deleted\n", resp.WorkbenchesDeleted)
 			}
-			if resp.GatehousesDeleted > 0 {
-				fmt.Printf("  - %d orphan gatehouse(s) deleted\n", resp.GatehousesDeleted)
+			if resp.WorkshopDirsDeleted > 0 {
+				fmt.Printf("  - %d orphan workshop dir(s) deleted\n", resp.WorkshopDirsDeleted)
 			}
 
 			return nil

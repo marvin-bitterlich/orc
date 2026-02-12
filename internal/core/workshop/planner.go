@@ -9,18 +9,17 @@ import (
 // OpenPlanInput contains pre-fetched data for plan generation.
 // All values must be gathered by the caller - no I/O in the planner.
 type OpenPlanInput struct {
-	WorkshopID            string
-	WorkshopName          string
-	FactoryID             string
-	FactoryName           string
-	SessionExists         bool
-	ActualSessionName     string   // Existing session name (may differ from WorkshopID after renames)
-	ExistingWindows       []string // Window names in existing session (empty if no session)
-	GatehouseID           string   // GATE-xxx ID for goblin window naming
-	GatehouseDir          string
-	GatehouseDirExists    bool
-	GatehouseConfigExists bool
-	Workbenches           []WorkbenchPlanInput
+	WorkshopID           string
+	WorkshopName         string
+	FactoryID            string
+	FactoryName          string
+	SessionExists        bool
+	ActualSessionName    string   // Existing session name (may differ from WorkshopID after renames)
+	ExistingWindows      []string // Window names in existing session (empty if no session)
+	WorkshopDir          string
+	WorkshopDirExists    bool
+	WorkshopConfigExists bool
+	Workbenches          []WorkbenchPlanInput
 }
 
 // WorkbenchPlanInput contains pre-fetched data for a single workbench.
@@ -37,16 +36,16 @@ type WorkbenchPlanInput struct {
 
 // OpenWorkshopPlan describes what will be created when opening a workshop.
 type OpenWorkshopPlan struct {
-	WorkshopID   string
-	WorkshopName string
-	FactoryID    string
-	FactoryName  string
-	SessionName  string
-	Workbenches  []WorkbenchDBState // For DB state display
-	GatehouseOp  *GatehouseOp
-	WorkbenchOps []WorkbenchOp
-	TMuxOp       *TMuxOp
-	NothingToDo  bool
+	WorkshopID    string
+	WorkshopName  string
+	FactoryID     string
+	FactoryName   string
+	SessionName   string
+	Workbenches   []WorkbenchDBState // For DB state display
+	WorkshopDirOp *WorkshopDirOp
+	WorkbenchOps  []WorkbenchOp
+	TMuxOp        *TMuxOp
+	NothingToDo   bool
 }
 
 // WorkbenchDBState describes a workbench as stored in the database.
@@ -57,8 +56,8 @@ type WorkbenchDBState struct {
 	Status string
 }
 
-// GatehouseOp describes the gatehouse directory operation.
-type GatehouseOp struct {
+// WorkshopDirOp describes the workshop coordination directory operation.
+type WorkshopDirOp struct {
 	Path         string
 	Exists       bool
 	ConfigExists bool
@@ -117,11 +116,11 @@ func GenerateOpenPlan(input OpenPlanInput) OpenWorkshopPlan {
 		})
 	}
 
-	// Gatehouse - always include so we can display existing vs new
-	plan.GatehouseOp = &GatehouseOp{
-		Path:         input.GatehouseDir,
-		Exists:       input.GatehouseDirExists,
-		ConfigExists: input.GatehouseConfigExists,
+	// Workshop directory - always include so we can display existing vs new
+	plan.WorkshopDirOp = &WorkshopDirOp{
+		Path:         input.WorkshopDir,
+		Exists:       input.WorkshopDirExists,
+		ConfigExists: input.WorkshopConfigExists,
 	}
 
 	// Workbenches - always include all
@@ -166,10 +165,10 @@ func GenerateOpenPlan(input OpenPlanInput) OpenWorkshopPlan {
 		}
 	} else {
 		// No session - create new with all windows
-		// Goblin window name: goblin-NNN (derived from GATE-NNN)
-		goblinWindowName := "goblin-" + strings.TrimPrefix(input.GatehouseID, "GATE-")
+		// Coordinator window uses workshop ID-based naming
+		coordWindowName := "orc-" + strings.TrimPrefix(input.WorkshopID, "WORK-")
 		windows := []TMuxWindowOp{
-			{Index: 0, Name: goblinWindowName, Path: input.GatehouseDir},
+			{Index: 0, Name: coordWindowName, Path: input.WorkshopDir},
 		}
 		for i, wb := range input.Workbenches {
 			windows = append(windows, TMuxWindowOp{
@@ -186,7 +185,7 @@ func GenerateOpenPlan(input OpenPlanInput) OpenWorkshopPlan {
 	}
 
 	// Check if nothing to do - all infrastructure exists
-	gatehouseReady := input.GatehouseDirExists && input.GatehouseConfigExists
+	workshopDirReady := input.WorkshopDirExists && input.WorkshopConfigExists
 	workbenchesReady := true
 	for _, wb := range input.Workbenches {
 		if !wb.WorktreeExists || !wb.ConfigExists {
@@ -197,7 +196,7 @@ func GenerateOpenPlan(input OpenPlanInput) OpenWorkshopPlan {
 	// Session is ready if it exists AND no new windows need to be added
 	sessionReady := input.SessionExists && len(windowsToCreate) == 0
 
-	plan.NothingToDo = gatehouseReady && workbenchesReady && sessionReady
+	plan.NothingToDo = workshopDirReady && workbenchesReady && sessionReady
 
 	return plan
 }
@@ -220,8 +219,8 @@ func Slugify(name string) string {
 	return string(result)
 }
 
-// GatehousePath returns the path for a workshop's gatehouse directory.
-func GatehousePath(homeDir, workshopID, workshopName string) string {
+// WorkshopDirPath returns the path for a workshop's coordination directory.
+func WorkshopDirPath(homeDir, workshopID, workshopName string) string {
 	slug := Slugify(workshopName)
 	dirName := workshopID + "-" + slug
 	return filepath.Join(homeDir, ".orc", "ws", dirName)

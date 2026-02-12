@@ -141,7 +141,7 @@ orc infra plan WORK-xxx
 ```
 
 Show the plan output to user. This displays:
-- Gatehouse that will be created
+- Workshop coordination directory that will be created
 - Workbenches (git worktrees) that will be created
 - TMux windows that will be created
 
@@ -203,7 +203,6 @@ Output summary:
 Workshop created:
   WORK-xxx: <purpose>
   Template: <template-name> (or "manual")
-  Gatehouse: GATE-xxx
   Workbenches:
     - BENCH-xxx: <repo>-xxx (~/wb/<name>)
     - BENCH-yyy: <repo>-yyy (~/wb/<name>)

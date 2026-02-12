@@ -6,12 +6,12 @@ import (
 
 func TestGeneratePlan_Empty(t *testing.T) {
 	input := PlanInput{
-		WorkshopID:    "WORK-001",
-		WorkshopName:  "Test Workshop",
-		FactoryID:     "FACT-001",
-		FactoryName:   "default",
-		GatehouseID:   "GATE-001",
-		GatehousePath: "/home/user/.orc/ws/WORK-001-test-workshop",
+		WorkshopID:      "WORK-001",
+		WorkshopName:    "Test Workshop",
+		FactoryID:       "FACT-001",
+		FactoryName:     "default",
+		WorkshopDirID:   "WORK-001",
+		WorkshopDirPath: "/home/user/.orc/ws/WORK-001-test-workshop",
 	}
 
 	plan := GeneratePlan(input)
@@ -25,11 +25,11 @@ func TestGeneratePlan_Empty(t *testing.T) {
 	if plan.FactoryID != "FACT-001" {
 		t.Errorf("expected FactoryID 'FACT-001', got %q", plan.FactoryID)
 	}
-	if plan.Gatehouse == nil {
-		t.Fatal("expected Gatehouse to be set")
+	if plan.WorkshopDir == nil {
+		t.Fatal("expected WorkshopDir to be set")
 	}
-	if plan.Gatehouse.ID != "GATE-001" {
-		t.Errorf("expected Gatehouse.ID 'GATE-001', got %q", plan.Gatehouse.ID)
+	if plan.WorkshopDir.ID != "WORK-001" {
+		t.Errorf("expected WorkshopDir.ID 'WORK-001', got %q", plan.WorkshopDir.ID)
 	}
 	if len(plan.Workbenches) != 0 {
 		t.Errorf("expected 0 workbenches, got %d", len(plan.Workbenches))
@@ -38,14 +38,14 @@ func TestGeneratePlan_Empty(t *testing.T) {
 
 func TestGeneratePlan_WithWorkbenches(t *testing.T) {
 	input := PlanInput{
-		WorkshopID:            "WORK-001",
-		WorkshopName:          "Test Workshop",
-		FactoryID:             "FACT-001",
-		FactoryName:           "default",
-		GatehouseID:           "GATE-001",
-		GatehousePath:         "/home/user/.orc/ws/WORK-001-test",
-		GatehousePathExists:   true,
-		GatehouseConfigExists: true,
+		WorkshopID:              "WORK-001",
+		WorkshopName:            "Test Workshop",
+		FactoryID:               "FACT-001",
+		FactoryName:             "default",
+		WorkshopDirID:           "WORK-001",
+		WorkshopDirPath:         "/home/user/.orc/ws/WORK-001-test",
+		WorkshopDirPathExists:   true,
+		WorkshopDirConfigExists: true,
 		Workbenches: []WorkbenchPlanInput{
 			{
 				ID:             "BENCH-001",
@@ -97,7 +97,7 @@ func TestGeneratePlan_WithWorkbenches(t *testing.T) {
 	}
 }
 
-func TestGeneratePlan_GatehouseState(t *testing.T) {
+func TestGeneratePlan_WorkshopDirState(t *testing.T) {
 	tests := []struct {
 		name         string
 		pathExists   bool
@@ -114,23 +114,23 @@ func TestGeneratePlan_GatehouseState(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			input := PlanInput{
-				WorkshopID:            "WORK-001",
-				WorkshopName:          "Test",
-				FactoryID:             "FACT-001",
-				FactoryName:           "default",
-				GatehouseID:           "GATE-001",
-				GatehousePath:         "/home/user/.orc/ws/WORK-001-test",
-				GatehousePathExists:   tt.pathExists,
-				GatehouseConfigExists: tt.configExists,
+				WorkshopID:              "WORK-001",
+				WorkshopName:            "Test",
+				FactoryID:               "FACT-001",
+				FactoryName:             "default",
+				WorkshopDirID:           "WORK-001",
+				WorkshopDirPath:         "/home/user/.orc/ws/WORK-001-test",
+				WorkshopDirPathExists:   tt.pathExists,
+				WorkshopDirConfigExists: tt.configExists,
 			}
 
 			plan := GeneratePlan(input)
 
-			if plan.Gatehouse.Exists != tt.expectPath {
-				t.Errorf("expected Gatehouse.Exists=%v, got %v", tt.expectPath, plan.Gatehouse.Exists)
+			if plan.WorkshopDir.Exists != tt.expectPath {
+				t.Errorf("expected WorkshopDir.Exists=%v, got %v", tt.expectPath, plan.WorkshopDir.Exists)
 			}
-			if plan.Gatehouse.ConfigExists != tt.expectConfig {
-				t.Errorf("expected Gatehouse.ConfigExists=%v, got %v", tt.expectConfig, plan.Gatehouse.ConfigExists)
+			if plan.WorkshopDir.ConfigExists != tt.expectConfig {
+				t.Errorf("expected WorkshopDir.ConfigExists=%v, got %v", tt.expectConfig, plan.WorkshopDir.ConfigExists)
 			}
 		})
 	}
@@ -138,12 +138,12 @@ func TestGeneratePlan_GatehouseState(t *testing.T) {
 
 func TestGeneratePlan_WorkbenchMetadata(t *testing.T) {
 	input := PlanInput{
-		WorkshopID:    "WORK-001",
-		WorkshopName:  "Test",
-		FactoryID:     "FACT-001",
-		FactoryName:   "default",
-		GatehouseID:   "GATE-001",
-		GatehousePath: "/home/.orc/ws/WORK-001",
+		WorkshopID:      "WORK-001",
+		WorkshopName:    "Test",
+		FactoryID:       "FACT-001",
+		FactoryName:     "default",
+		WorkshopDirID:   "WORK-001",
+		WorkshopDirPath: "/home/.orc/ws/WORK-001",
 		Workbenches: []WorkbenchPlanInput{
 			{
 				ID:           "BENCH-001",
@@ -182,8 +182,8 @@ func TestGeneratePlan_TMuxSession(t *testing.T) {
 		WorkshopName:          "Test Workshop",
 		FactoryID:             "FACT-001",
 		FactoryName:           "default",
-		GatehouseID:           "GATE-001",
-		GatehousePath:         "/home/user/.orc/ws/WORK-001-test",
+		WorkshopDirID:         "WORK-001",
+		WorkshopDirPath:       "/home/user/.orc/ws/WORK-001-test",
 		TMuxSessionExists:     true,
 		TMuxActualSessionName: "test-workshop",
 		TMuxExistingWindows:   []string{"bench-1", "bench-2"},
@@ -218,8 +218,8 @@ func TestGeneratePlan_TMuxSession_WithMissingWindows(t *testing.T) {
 		WorkshopName:          "Test",
 		FactoryID:             "FACT-001",
 		FactoryName:           "default",
-		GatehouseID:           "GATE-001",
-		GatehousePath:         "/home/.orc/ws/WORK-001",
+		WorkshopDirID:         "WORK-001",
+		WorkshopDirPath:       "/home/.orc/ws/WORK-001",
 		TMuxSessionExists:     true,
 		TMuxActualSessionName: "test",
 		TMuxExistingWindows:   []string{"bench-1"}, // Only bench-1 exists
@@ -251,8 +251,8 @@ func TestGeneratePlan_TMuxSession_WithOrphanWindows(t *testing.T) {
 		WorkshopName:          "Test",
 		FactoryID:             "FACT-001",
 		FactoryName:           "default",
-		GatehouseID:           "GATE-001",
-		GatehousePath:         "/home/.orc/ws/WORK-001",
+		WorkshopDirID:         "WORK-001",
+		WorkshopDirPath:       "/home/.orc/ws/WORK-001",
 		TMuxSessionExists:     true,
 		TMuxActualSessionName: "test",
 		TMuxExistingWindows:   []string{"bench-1", "old-bench"}, // old-bench exists but not expected
@@ -280,8 +280,8 @@ func TestGeneratePlan_TMuxSession_NoSession(t *testing.T) {
 		WorkshopName:          "Test",
 		FactoryID:             "FACT-001",
 		FactoryName:           "default",
-		GatehouseID:           "GATE-001",
-		GatehousePath:         "/home/.orc/ws/WORK-001",
+		WorkshopDirID:         "WORK-001",
+		WorkshopDirPath:       "/home/.orc/ws/WORK-001",
 		TMuxSessionExists:     false,
 		TMuxActualSessionName: "",
 		TMuxExpectedWindows: []TMuxWindowInput{

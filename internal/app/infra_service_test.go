@@ -94,10 +94,6 @@ func (m *mockInfraWorkshopRepo) CountWorkbenches(ctx context.Context, workshopID
 	return 0, nil
 }
 
-func (m *mockInfraWorkshopRepo) UpdateFocusedConclaveID(ctx context.Context, workshopID, conclaveID string) error {
-	return nil
-}
-
 func (m *mockInfraWorkshopRepo) SetActiveCommissionID(ctx context.Context, workshopID, commissionID string) error {
 	return nil
 }
@@ -353,12 +349,12 @@ func TestInfraService_PlanInfra(t *testing.T) {
 		t.Errorf("expected factory ID 'FACT-001', got %q", plan.FactoryID)
 	}
 
-	if plan.Gatehouse == nil {
-		t.Fatal("expected gatehouse op to be set")
+	if plan.WorkshopDir == nil {
+		t.Fatal("expected workshop dir op to be set")
 	}
 
-	if plan.Gatehouse.ID != "WORK-001" {
-		t.Errorf("expected gatehouse ID 'WORK-001', got %q", plan.Gatehouse.ID)
+	if plan.WorkshopDir.ID != "WORK-001" {
+		t.Errorf("expected workshop dir ID 'WORK-001', got %q", plan.WorkshopDir.ID)
 	}
 
 	if len(plan.Workbenches) != 1 {
@@ -396,9 +392,9 @@ func TestInfraService_PlanInfra_OpStatusCreate(t *testing.T) {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
-	// The gatehouse path won't exist in tests, so it should be CREATE
-	if plan.Gatehouse.Status != primary.OpCreate {
-		t.Errorf("expected gatehouse status CREATE, got %s", plan.Gatehouse.Status)
+	// The workshop dir path won't exist in tests, so it should be CREATE
+	if plan.WorkshopDir.Status != primary.OpCreate {
+		t.Errorf("expected workshop dir status CREATE, got %s", plan.WorkshopDir.Status)
 	}
 
 	// The workbench path won't exist either

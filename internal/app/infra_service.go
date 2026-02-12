@@ -67,9 +67,9 @@ func (s *InfraServiceImpl) PlanInfra(ctx context.Context, req primary.InfraPlanR
 
 	// 3. Compute workshop coordination path and check existence
 	home, _ := os.UserHomeDir()
-	gatehousePath := coreworkshop.GatehousePath(home, req.WorkshopID, workshop.Name)
-	gatehousePathExists := s.dirExists(gatehousePath)
-	gatehouseConfigExists := s.fileExists(filepath.Join(gatehousePath, ".orc", "config.json"))
+	workshopDirPath := coreworkshop.WorkshopDirPath(home, req.WorkshopID, workshop.Name)
+	workshopDirPathExists := s.dirExists(workshopDirPath)
+	workshopDirConfigExists := s.fileExists(filepath.Join(workshopDirPath, ".orc", "config.json"))
 
 	// 4. Get workbenches and check each one's state
 	allWorkbenches, _ := s.workbenchRepo.List(ctx, req.WorkshopID)
@@ -103,7 +103,7 @@ func (s *InfraServiceImpl) PlanInfra(ctx context.Context, req primary.InfraPlanR
 	// 5. Scan for orphaned configs on disk (true orphans only - no DB record)
 	// Note: Archived workbenches are NOT added to orphan list - they have DB records
 	// and should not have their directories deleted by infra apply.
-	orphanWbs, orphanGhs := s.scanForOrphans(ctx, workbenches)
+	orphanWbs, orphanDirs := s.scanForOrphans(ctx, workbenches)
 
 	// 6. Fetch TMux session state
 	tmuxSessionName := ""
@@ -137,7 +137,7 @@ func (s *InfraServiceImpl) PlanInfra(ctx context.Context, req primary.InfraPlanR
 			}
 			tmuxExpectedWindows = append(tmuxExpectedWindows, coreinfra.TMuxWindowInput{
 				Name:          coordWindowName,
-				Path:          gatehousePath,
+				Path:          workshopDirPath,
 				ExpectedAgent: fmt.Sprintf("ORC@%s", req.WorkshopID),
 				ActualAgent:   coordActualAgent,
 			})
@@ -168,17 +168,17 @@ func (s *InfraServiceImpl) PlanInfra(ctx context.Context, req primary.InfraPlanR
 
 	// 7. Generate plan using pure function (all I/O already done above)
 	input := coreinfra.PlanInput{
-		WorkshopID:            req.WorkshopID,
-		WorkshopName:          workshop.Name,
-		FactoryID:             factory.ID,
-		FactoryName:           factory.Name,
-		GatehouseID:           req.WorkshopID,
-		GatehousePath:         gatehousePath,
-		GatehousePathExists:   gatehousePathExists,
-		GatehouseConfigExists: gatehouseConfigExists,
-		Workbenches:           wbInputs,
-		OrphanWorkbenches:     orphanWbs,
-		OrphanGatehouses:      orphanGhs,
+		WorkshopID:              req.WorkshopID,
+		WorkshopName:            workshop.Name,
+		FactoryID:               factory.ID,
+		FactoryName:             factory.Name,
+		WorkshopDirID:           req.WorkshopID,
+		WorkshopDirPath:         workshopDirPath,
+		WorkshopDirPathExists:   workshopDirPathExists,
+		WorkshopDirConfigExists: workshopDirConfigExists,
+		Workbenches:             wbInputs,
+		OrphanWorkbenches:       orphanWbs,
+		OrphanWorkshopDirs:      orphanDirs,
 		// TMux state
 		TMuxSessionExists:     tmuxSessionExists,
 		TMuxActualSessionName: tmuxSessionName,
@@ -196,13 +196,13 @@ func (s *InfraServiceImpl) PlanInfra(ctx context.Context, req primary.InfraPlanR
 
 // scanForOrphans scans filesystem for config.json files with place_ids not in DB.
 // Scans ~/wb/*/.orc/config.json for workbenches and ~/.orc/ws/WORK-*/.orc/config.json for workshop dirs.
-func (s *InfraServiceImpl) scanForOrphans(ctx context.Context, knownWorkbenches []*secondary.WorkbenchRecord) ([]coreinfra.WorkbenchPlanInput, []coreinfra.GatehousePlanInput) {
+func (s *InfraServiceImpl) scanForOrphans(ctx context.Context, knownWorkbenches []*secondary.WorkbenchRecord) ([]coreinfra.WorkbenchPlanInput, []coreinfra.OrphanDirPlanInput) {
 	var orphanWbs []coreinfra.WorkbenchPlanInput
-	var orphanGhs []coreinfra.GatehousePlanInput
+	var orphanDirs []coreinfra.OrphanDirPlanInput
 
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return orphanWbs, orphanGhs
+		return orphanWbs, orphanDirs
 	}
 
 	// Build set of known IDs for quick lookup
@@ -249,19 +249,18 @@ func (s *InfraServiceImpl) scanForOrphans(ctx context.Context, knownWorkbenches 
 		if err != nil || placeID == "" {
 			continue
 		}
-		// Skip non-GATE place IDs (legacy configs)
+		// Any workshop dir with a GATE- place ID is an orphan (gatehouses removed)
 		if !strings.HasPrefix(placeID, "GATE-") {
 			continue
 		}
-		// This is an orphan (gatehouses no longer exist)
-		ghPath := filepath.Dir(filepath.Dir(configPath))
-		orphanGhs = append(orphanGhs, coreinfra.GatehousePlanInput{
+		dirPath := filepath.Dir(filepath.Dir(configPath))
+		orphanDirs = append(orphanDirs, coreinfra.OrphanDirPlanInput{
 			PlaceID: placeID,
-			Path:    ghPath,
+			Path:    dirPath,
 		})
 	}
 
-	return orphanWbs, orphanGhs
+	return orphanWbs, orphanDirs
 }
 
 // readPlaceID reads the place_id from a config.json file.
@@ -318,13 +317,13 @@ func (s *InfraServiceImpl) corePlanToPrimary(core *coreinfra.Plan) *primary.Infr
 		FactoryName:  core.FactoryName,
 	}
 
-	// Map gatehouse
-	if core.Gatehouse != nil {
-		plan.Gatehouse = &primary.InfraGatehouseOp{
-			ID:           core.Gatehouse.ID,
-			Path:         core.Gatehouse.Path,
-			Status:       boolToOpStatus(core.Gatehouse.Exists),
-			ConfigStatus: boolToOpStatus(core.Gatehouse.ConfigExists),
+	// Map workshop dir
+	if core.WorkshopDir != nil {
+		plan.WorkshopDir = &primary.InfraWorkshopDirOp{
+			ID:           core.WorkshopDir.ID,
+			Path:         core.WorkshopDir.Path,
+			Status:       boolToOpStatus(core.WorkshopDir.Exists),
+			ConfigStatus: boolToOpStatus(core.WorkshopDir.ConfigExists),
 		}
 	}
 
@@ -357,11 +356,11 @@ func (s *InfraServiceImpl) corePlanToPrimary(core *coreinfra.Plan) *primary.Infr
 		})
 	}
 
-	// Map orphan gatehouses
-	for _, gh := range core.OrphanGatehouses {
-		plan.OrphanGatehouses = append(plan.OrphanGatehouses, primary.InfraGatehouseOp{
-			ID:           gh.ID,
-			Path:         gh.Path,
+	// Map orphan workshop dirs
+	for _, od := range core.OrphanWorkshopDirs {
+		plan.OrphanWorkshopDirs = append(plan.OrphanWorkshopDirs, primary.InfraWorkshopDirOp{
+			ID:           od.ID,
+			Path:         od.Path,
 			Status:       primary.OpDelete,
 			ConfigStatus: primary.OpDelete,
 		})
@@ -464,7 +463,7 @@ func (s *InfraServiceImpl) ApplyInfra(ctx context.Context, plan *primary.InfraPl
 
 	// Check if nothing to do
 	nothingToDo := true
-	if plan.Gatehouse != nil && (plan.Gatehouse.Status == primary.OpCreate || plan.Gatehouse.ConfigStatus == primary.OpCreate) {
+	if plan.WorkshopDir != nil && (plan.WorkshopDir.Status == primary.OpCreate || plan.WorkshopDir.ConfigStatus == primary.OpCreate) {
 		nothingToDo = false
 	}
 	for _, wb := range plan.Workbenches {
@@ -474,7 +473,7 @@ func (s *InfraServiceImpl) ApplyInfra(ctx context.Context, plan *primary.InfraPl
 		}
 	}
 	// Check for orphan deletions
-	if len(plan.OrphanWorkbenches) > 0 || len(plan.OrphanGatehouses) > 0 {
+	if len(plan.OrphanWorkbenches) > 0 || len(plan.OrphanWorkshopDirs) > 0 {
 		nothingToDo = false
 	}
 	// Check for TMux operations
@@ -498,12 +497,12 @@ func (s *InfraServiceImpl) ApplyInfra(ctx context.Context, plan *primary.InfraPl
 	}
 
 	// 1. Create workshop coordination directory if needed
-	if plan.Gatehouse != nil {
-		if plan.Gatehouse.Status == primary.OpCreate || plan.Gatehouse.ConfigStatus == primary.OpCreate {
-			if err := s.createWorkshopDir(plan.Gatehouse.Path); err != nil {
+	if plan.WorkshopDir != nil {
+		if plan.WorkshopDir.Status == primary.OpCreate || plan.WorkshopDir.ConfigStatus == primary.OpCreate {
+			if err := s.createWorkshopDir(plan.WorkshopDir.Path); err != nil {
 				return nil, fmt.Errorf("failed to create workshop directory: %w", err)
 			}
-			response.GatehouseCreated = true
+			response.WorkshopDirCreated = true
 			response.ConfigsCreated++
 		}
 	}
@@ -541,7 +540,7 @@ func (s *InfraServiceImpl) ApplyInfra(ctx context.Context, plan *primary.InfraPl
 	}
 
 	// 3. Handle TMux session and windows
-	// Note: Filesystem deletion of orphan workbenches/gatehouses is intentionally
+	// Note: Filesystem deletion of orphan workbenches is intentionally
 	// removed from infra apply. Use `orc infra cleanup` for orphan deletion.
 	if s.tmuxAdapter != nil && plan.TMuxSession != nil {
 		sessionName := plan.TMuxSession.SessionName
@@ -554,10 +553,10 @@ func (s *InfraServiceImpl) ApplyInfra(ctx context.Context, plan *primary.InfraPl
 		if plan.TMuxSession.Status == primary.OpCreate {
 			// Double-check session doesn't already exist (defensive check for stale plan data)
 			if !s.tmuxAdapter.SessionExists(ctx, sessionName) {
-				// Use gatehouse path as working directory
+				// Use workshop dir path as working directory
 				workingDir := ""
-				if plan.Gatehouse != nil {
-					workingDir = plan.Gatehouse.Path
+				if plan.WorkshopDir != nil {
+					workingDir = plan.WorkshopDir.Path
 				}
 				if err := s.tmuxAdapter.CreateSession(ctx, sessionName, workingDir); err != nil {
 					return nil, fmt.Errorf("failed to create tmux session: %w", err)
@@ -761,11 +760,11 @@ func (s *InfraServiceImpl) CleanupWorkshop(ctx context.Context, req primary.Clea
 		}
 	}
 
-	// Remove gatehouse directory
+	// Remove workshop coordination directory
 	home, _ := os.UserHomeDir()
-	gatehousePath := coreworkshop.GatehousePath(home, req.WorkshopID, workshop.Name)
-	if err := os.RemoveAll(gatehousePath); err != nil {
-		return fmt.Errorf("failed to remove gatehouse directory: %w", err)
+	workshopDirPath := coreworkshop.WorkshopDirPath(home, req.WorkshopID, workshop.Name)
+	if err := os.RemoveAll(workshopDirPath); err != nil {
+		return fmt.Errorf("failed to remove workshop directory: %w", err)
 	}
 
 	// Kill tmux session if exists
@@ -784,7 +783,7 @@ func (s *InfraServiceImpl) CleanupOrphans(ctx context.Context, req primary.Clean
 	response := &primary.CleanupOrphansResponse{}
 
 	// Scan for orphans (passing empty known lists to find all orphans)
-	orphanWbs, orphanGhs := s.scanForOrphans(ctx, nil)
+	orphanWbs, orphanDirs := s.scanForOrphans(ctx, nil)
 
 	// Delete orphan workbenches
 	for _, wb := range orphanWbs {
@@ -801,12 +800,12 @@ func (s *InfraServiceImpl) CleanupOrphans(ctx context.Context, req primary.Clean
 		response.WorkbenchesDeleted++
 	}
 
-	// Delete orphan gatehouses
-	for _, gh := range orphanGhs {
-		if err := os.RemoveAll(gh.Path); err != nil {
-			return nil, fmt.Errorf("failed to delete orphan gatehouse %s: %w", gh.PlaceID, err)
+	// Delete orphan workshop dirs
+	for _, od := range orphanDirs {
+		if err := os.RemoveAll(od.Path); err != nil {
+			return nil, fmt.Errorf("failed to delete orphan workshop dir %s: %w", od.PlaceID, err)
 		}
-		response.GatehousesDeleted++
+		response.WorkshopDirsDeleted++
 	}
 
 	return response, nil

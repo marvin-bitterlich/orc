@@ -113,9 +113,6 @@ Examples:
 				fmt.Printf("  Workbench: %s\n", workbenchCtx.WorkbenchID)
 			} else {
 				fmt.Printf("  Context: Goblin (orchestrator)\n")
-				if cfg != nil && config.IsGatehouse(cfg.PlaceID) {
-					fmt.Printf("  Gatehouse: %s\n", cfg.PlaceID)
-				}
 			}
 
 			fmt.Println()

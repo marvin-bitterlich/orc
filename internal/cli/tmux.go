@@ -57,7 +57,7 @@ Examples:
 			}
 
 			// Check if infra is missing
-			if plan.Gatehouse != nil && plan.Gatehouse.Status == primary.OpCreate {
+			if plan.WorkshopDir != nil && plan.WorkshopDir.Status == primary.OpCreate {
 				return fmt.Errorf("infrastructure not created for %s\nRun: orc infra apply %s", workshopID, workshopID)
 			}
 

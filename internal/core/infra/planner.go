@@ -9,18 +9,18 @@ type PlanInput struct {
 	FactoryID    string
 	FactoryName  string
 
-	// Gatehouse state
-	GatehouseID           string
-	GatehousePath         string
-	GatehousePathExists   bool
-	GatehouseConfigExists bool
+	// Workshop coordination directory state
+	WorkshopDirID           string
+	WorkshopDirPath         string
+	WorkshopDirPathExists   bool
+	WorkshopDirConfigExists bool
 
 	// Workbench state
 	Workbenches []WorkbenchPlanInput
 
 	// Orphan state (exist on disk but not in DB)
-	OrphanWorkbenches []WorkbenchPlanInput
-	OrphanGatehouses  []GatehousePlanInput
+	OrphanWorkbenches  []WorkbenchPlanInput
+	OrphanWorkshopDirs []OrphanDirPlanInput
 
 	// TMux state
 	TMuxSessionExists     bool              // Session found by ORC_WORKSHOP_ID
@@ -29,8 +29,8 @@ type PlanInput struct {
 	TMuxExpectedWindows   []TMuxWindowInput // Windows that should exist (from workbenches)
 }
 
-// GatehousePlanInput contains pre-fetched data for a single gatehouse.
-type GatehousePlanInput struct {
+// OrphanDirPlanInput contains pre-fetched data for a single orphan directory.
+type OrphanDirPlanInput struct {
 	PlaceID string // From config.json
 	Path    string
 }
@@ -52,7 +52,7 @@ type TMuxWindowInput struct {
 	Path          string          // Working directory for the window
 	Panes         []TMuxPaneInput // Pane state (if window exists)
 	ActualAgent   string          // Current @orc_agent value (empty if not set)
-	ExpectedAgent string          // Expected agent (e.g., "IMP-name@BENCH-xxx" or "GOBLIN@GATE-xxx")
+	ExpectedAgent string          // Expected agent (e.g., "IMP-name@BENCH-xxx")
 	WorkbenchID   string          // Workbench ID
 }
 
@@ -72,19 +72,19 @@ type Plan struct {
 	FactoryID    string
 	FactoryName  string
 
-	Gatehouse   *GatehouseOp
+	WorkshopDir *WorkshopDirOp
 	Workbenches []WorkbenchOp
 
 	// Orphans (exist on disk but not in DB)
-	OrphanWorkbenches []WorkbenchOp
-	OrphanGatehouses  []GatehouseOp
+	OrphanWorkbenches  []WorkbenchOp
+	OrphanWorkshopDirs []WorkshopDirOp
 
 	// TMux state
 	TMuxSession *TMuxSessionOp
 }
 
-// GatehouseOp describes gatehouse infrastructure state.
-type GatehouseOp struct {
+// WorkshopDirOp describes workshop coordination directory infrastructure state.
+type WorkshopDirOp struct {
 	ID           string
 	Path         string
 	Exists       bool
@@ -143,12 +143,12 @@ func GeneratePlan(input PlanInput) Plan {
 		FactoryName:  input.FactoryName,
 	}
 
-	// Gatehouse
-	plan.Gatehouse = &GatehouseOp{
-		ID:           input.GatehouseID,
-		Path:         input.GatehousePath,
-		Exists:       input.GatehousePathExists,
-		ConfigExists: input.GatehouseConfigExists,
+	// Workshop coordination directory
+	plan.WorkshopDir = &WorkshopDirOp{
+		ID:           input.WorkshopDirID,
+		Path:         input.WorkshopDirPath,
+		Exists:       input.WorkshopDirPathExists,
+		ConfigExists: input.WorkshopDirConfigExists,
 	}
 
 	// Workbenches
@@ -175,11 +175,11 @@ func GeneratePlan(input PlanInput) Plan {
 		})
 	}
 
-	// Orphan gatehouses
-	for _, gh := range input.OrphanGatehouses {
-		plan.OrphanGatehouses = append(plan.OrphanGatehouses, GatehouseOp{
-			ID:           gh.PlaceID,
-			Path:         gh.Path,
+	// Orphan workshop directories
+	for _, od := range input.OrphanWorkshopDirs {
+		plan.OrphanWorkshopDirs = append(plan.OrphanWorkshopDirs, WorkshopDirOp{
+			ID:           od.PlaceID,
+			Path:         od.Path,
 			Exists:       true,
 			ConfigExists: true,
 		})

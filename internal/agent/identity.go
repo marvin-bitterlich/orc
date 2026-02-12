@@ -24,7 +24,7 @@ type AgentIdentity struct {
 }
 
 // GetCurrentAgentID detects the current agent identity based on working directory context
-// Simple logic: If place_id is BENCH-XXX → IMP, if GATE-XXX → Goblin, otherwise → Goblin
+// If place_id is BENCH-XXX → IMP, otherwise → Goblin
 func GetCurrentAgentID() (*AgentIdentity, error) {
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -34,21 +34,12 @@ func GetCurrentAgentID() (*AgentIdentity, error) {
 	// Check for config in current directory
 	cfg, err := config.LoadConfig(cwd)
 	if err == nil && cfg.PlaceID != "" {
-		placeType := config.GetPlaceType(cfg.PlaceID)
-		switch placeType {
-		case config.PlaceTypeWorkbench:
+		if config.GetPlaceType(cfg.PlaceID) == config.PlaceTypeWorkbench {
 			// We're in a workbench - this is an IMP
 			return &AgentIdentity{
 				Type:   AgentTypeIMP,
 				ID:     cfg.PlaceID,
 				FullID: fmt.Sprintf("IMP-%s", cfg.PlaceID),
-			}, nil
-		case config.PlaceTypeGatehouse:
-			// We're in a gatehouse - this is a Goblin
-			return &AgentIdentity{
-				Type:   AgentTypeGoblin,
-				ID:     cfg.PlaceID,
-				FullID: fmt.Sprintf("GOBLIN-%s", cfg.PlaceID),
 			}, nil
 		}
 	}
@@ -91,7 +82,6 @@ func ParseAgentID(agentID string) (*AgentIdentity, error) {
 			FullID: agentID,
 		}, nil
 	case AgentTypeGoblin:
-		// For GOBLIN, gatehouse IDs are like GATE-003
 		return &AgentIdentity{
 			Type:   AgentTypeGoblin,
 			ID:     id,

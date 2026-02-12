@@ -144,22 +144,11 @@ func getFactoryFromWorkbench(workbenchID string) string {
 	return workshop.FactoryID
 }
 
-// WriteGatehouseContext creates a .orc/config.json file for a gatehouse (Goblin territory)
-func WriteGatehouseContext(gatehousePath, gatehouseID string) error {
-	cfg := &config.Config{
-		Version: "1.0",
-		PlaceID: gatehouseID, // GATE-XXX
-	}
-	return config.SaveConfig(gatehousePath, cfg)
-}
-
 // WriteCommissionContext creates a minimal .orc/config.json for legacy commission workspaces.
-// These are not associated with a gatehouse, so place_id is empty.
-// This is deprecated - new workflows should use workshops with gatehouses.
+// place_id is empty since these are not associated with a workbench.
 func WriteCommissionContext(workspacePath string) error {
 	cfg := &config.Config{
 		Version: "1.0",
-		// No place_id - this is a legacy commission workspace without a gatehouse
 	}
 	return config.SaveConfig(workspacePath, cfg)
 }

@@ -75,15 +75,14 @@ func (w *LogWriterAdapter) writeLog(ctx context.Context, entityType, entityID, a
 
 // resolveWorkshop resolves the workshop ID from the actor.
 // For BENCH-xxx actors, looks up the workbench's workshop.
-// For GATE-xxx actors, the gatehouse IS the workshop context.
 // Returns empty string if workshop cannot be resolved.
 func (w *LogWriterAdapter) resolveWorkshop(ctx context.Context, actorID string) string {
 	if actorID == "" {
 		return ""
 	}
 
-	// Parse actor to find workbench or gatehouse
-	// Actor IDs are like "IMP-BENCH-014" or "GOBLIN-GATE-003" or just "GOBLIN"
+	// Parse actor to find workbench
+	// Actor IDs are like "IMP-BENCH-014" or just "GOBLIN"
 	if strings.Contains(actorID, "BENCH-") {
 		// Extract workbench ID (e.g., "BENCH-014" from "IMP-BENCH-014")
 		parts := strings.Split(actorID, "-")
@@ -100,12 +99,6 @@ func (w *LogWriterAdapter) resolveWorkshop(ctx context.Context, actorID string) 
 				return ""
 			}
 		}
-	}
-
-	if strings.Contains(actorID, "GATE-") {
-		// For gatehouse actors, we'd need to look up the gatehouse's workshop
-		// For now, skip - gatehouses are typically orchestrating, not in workshop scope
-		return ""
 	}
 
 	return ""

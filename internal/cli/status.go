@@ -52,9 +52,6 @@ This provides a focused view of "where am I right now?"`,
 			// Show status based on role
 			if role == config.RoleGoblin {
 				fmt.Println("👺 ORC Status - Goblin Context")
-				if config.IsGatehouse(cfg.PlaceID) {
-					fmt.Printf("  🏰 Gatehouse: %s\n", cfg.PlaceID)
-				}
 			} else if role == config.RoleIMP {
 				fmt.Println("👹 ORC Status - IMP Context")
 				if config.IsWorkbench(cfg.PlaceID) {
