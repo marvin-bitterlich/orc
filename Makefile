@@ -255,7 +255,7 @@ bootstrap:
 		echo ""; \
 		echo "✓ ORC bootstrapped successfully!"; \
 		echo ""; \
-		echo "Next step: Run 'orc bootstrap' to start the first-run experience"; \
+		echo "Next step: Run 'orc hello' to start the first-run experience"; \
 	fi
 
 # Test bootstrap in a fresh macOS VM (requires tart)

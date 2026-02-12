@@ -13,9 +13,9 @@ Adaptive onboarding for new ORC users. Checks what already exists, creates what'
 /orc-first-run
 ```
 
-Run this via `orc bootstrap` for the complete first-run experience.
+Run this via `orc hello` for the complete first-run experience.
 
-When launched with `orc bootstrap --factory FACT-xxx`, the skill will create
+When launched with `orc hello --factory FACT-xxx`, the skill will create
 the workshop in the specified factory instead of 'default'.
 
 ## Philosophy
@@ -376,4 +376,4 @@ Replace WORK-xxx with the actual workshop ID discovered/created earlier.
 - Uses AskUserQuestion for interactive prompts
 - Chains to /orc-repo and /orc-workshop-templates as needed
 - Idempotent - safe to run multiple times
-- Designed to be launched by `orc bootstrap`
+- Designed to be launched by `orc hello`
