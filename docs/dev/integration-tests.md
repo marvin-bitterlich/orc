@@ -1,14 +1,56 @@
 # Integration Tests
 
-ORC has four integration-level validation skills that test the system beyond unit tests. This document maps what each covers, how they relate, and where the gaps are.
+ORC has four integration-level validation skills plus an environment health check that test the system beyond unit tests. This document maps what each covers, how they relate, and where the gaps are.
+
+## /self-test — Unified Runner
+
+**Invocation:** `/self-test`
+**Automated:** Yes (agent-driven, team-based parallel execution)
+
+`/self-test` is the single command that runs all integration checks. It orchestrates the individual skills so you don't have to run them separately.
+
+### Flow
+
+1. **Preflight** — Runs `orc doctor` to validate environment health. Detects whether Tart is available (needed for bootstrap-test).
+2. **Confirmation** — Presents a summary of which checks will run and asks for human confirmation before proceeding.
+3. **Parallel execution** — Spawns a team of agents that run the individual checks concurrently (infra check, bootstrap-test if Tart available, bootstrap-exercise, docs-doctor).
+4. **Summary report** — Collects results from all teammates and presents a unified pass/fail summary.
+
+### When to Use
+
+Run `/self-test` as the default way to validate ORC. It replaces the need to remember and run individual skills. The individual skills still work standalone (see below) but the runner is the preferred entry point.
 
 ## Coverage Map
+
+### orc doctor
+
+**Command:** `orc doctor`
+**Automated:** Yes (CLI command, no agent needed)
+
+Validates the ORC environment and glue deployment. This is also run as the preflight step inside `/self-test`.
+
+| What | Verified |
+|------|----------|
+| Directory structure | `~/.orc/`, `~/.orc/ws/`, `~/.orc/orc.db`, `~/wb/` exist |
+| ORC repo freshness | `~/src/orc` exists, is a git repo, commits behind `origin/master` |
+| Glue skills sync | `glue/skills/` matches `~/.claude/skills/` (missing or stale) |
+| Glue hooks sync | `glue/hooks/` matches `~/.claude/hooks/` (missing or stale) |
+| TMux scripts sync | `glue/tmux/` matches `~/.orc/tmux/` (missing or stale) |
+| Hook configuration | `glue/hooks.json` matches hooks in `~/.claude/settings.json` |
+| Binary installation | `orc` found in PATH |
+| Binary freshness | Local `./orc` built from current git commit (when in ORC repo) |
+
+**Flags:** `--quiet` (exit code only), `--strict` (treat warnings as errors).
+
+**Not covered:** Runtime behavior — doctor validates the environment is correctly set up, not that ORC features work end-to-end.
 
 ### orc-self-test
 
 **Skill location:** `.claude/skills/orc-self-test/`
 **Invocation:** `/orc-self-test`
 **Automated:** Yes (agent-driven, no human interaction needed)
+
+> **Note:** This check is now run as the "infra check" teammate inside `/self-test`. The standalone skill still works but the runner is the preferred entry point.
 
 Tests the plan/apply infrastructure pattern end-to-end:
 
@@ -101,6 +143,8 @@ tart delete orc-bootstrap-test-XXXX
 **Invocation:** `/bootstrap-exercise`
 **Automated:** Semi-manual (agent creates test factory, human walks through first-run)
 
+> **Note:** This check is now run as a teammate inside `/self-test`, which automates what was previously a semi-manual exercise. The standalone skill still works but the runner is the preferred entry point.
+
 Tests the `orc bootstrap` → `/orc-first-run` skill chain on the dev machine:
 
 | What | Verified |
@@ -136,29 +180,34 @@ Validates documentation accuracy against code reality:
 
 ## Coverage Matrix
 
-What ORC subsystems are exercised by which integration test:
+What ORC subsystems are exercised by which integration check:
 
-| Subsystem | self-test | bootstrap-test | bootstrap-exercise | docs-doctor |
-|-----------|:---------:|:--------------:|:------------------:|:-----------:|
-| Factory CRUD | x | x | x | |
-| Workshop CRUD | x | x | x | |
-| Workbench CRUD | x | | x | |
-| Infra plan/apply | x | | | |
-| TMux sessions | x | | | |
-| Commission CRUD | | x | x | |
-| Shipment lifecycle | | | | |
-| Task lifecycle | | | | |
-| Note/Tome CRUD | | | | |
-| Plan CRUD | | | | |
-| Focus system | | | | |
-| Status transitions | | | | |
-| orc bootstrap cmd | | | x | |
-| make bootstrap | | x | | |
-| First-run skill | | | x | |
-| CLI surface accuracy | | | | x |
-| Docs correctness | | | | x |
-| ship-* skill chain | | | | |
-| deploy workflow | | | | |
+| Subsystem | orc doctor | self-test | bootstrap-test | bootstrap-exercise | docs-doctor |
+|-----------|:----------:|:---------:|:--------------:|:------------------:|:-----------:|
+| Environment health | x | | | | |
+| Glue deployment sync | x | | | | |
+| Binary/PATH | x | | x | | |
+| Factory CRUD | | x | x | x | |
+| Workshop CRUD | | x | x | x | |
+| Workbench CRUD | | x | | x | |
+| Infra plan/apply | | x | | | |
+| TMux sessions | | x | | | |
+| Commission CRUD | | | x | x | |
+| Shipment lifecycle | | | | | |
+| Task lifecycle | | | | | |
+| Note/Tome CRUD | | | | | |
+| Plan CRUD | | | | | |
+| Focus system | | | | | |
+| Status transitions | | | | | |
+| orc bootstrap cmd | | | | x | |
+| make bootstrap | | | x | | |
+| First-run skill | | | | x | |
+| CLI surface accuracy | | | | | x |
+| Docs correctness | | | | | x |
+| ship-* skill chain | | | | | |
+| deploy workflow | | | | | |
+
+`/self-test` orchestrates all five checks (doctor + the four skills) in a single run. Running `/self-test` gives you full coverage across all columns.
 
 ## Gaps
 
@@ -175,12 +224,17 @@ Subsystems with no integration-level coverage:
 
 ## When to Run
 
-| Skill | When |
+**Primary:** Run `/self-test`. It orchestrates all checks and gives a unified summary. This is the recommended approach for most situations.
+
+**Individual checks** (when you only need to validate a specific area):
+
+| Check | When |
 |-------|------|
-| `orc-self-test` | After changes to infra, plan/apply, tmux, or entity CRUD |
-| `bootstrap-test` | Before releases, after Makefile/PATH changes |
-| `bootstrap-exercise` | After changes to orc-first-run skill or bootstrap command |
-| `docs-doctor` | Before merging to master (recommended in CLAUDE.md) |
+| `orc doctor` | Quick environment sanity check (also runs as /self-test preflight) |
+| `/orc-self-test` | After changes to infra, plan/apply, tmux, or entity CRUD |
+| `/bootstrap-test` | Before releases, after Makefile/PATH changes (requires Tart) |
+| `/bootstrap-exercise` | After changes to orc-first-run skill or bootstrap command |
+| `/docs-doctor` | Before merging to master (recommended in CLAUDE.md) |
 
 ## Relationship to Unit Tests
 

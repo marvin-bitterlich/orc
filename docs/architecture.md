@@ -109,6 +109,7 @@ Skills specific to this repository (not deployed globally):
 | orc-architecture | Maintain ARCHITECTURE.md |
 | orc-self-test | Integration self-testing |
 | release | Cut semantic version releases |
+| self-test | Orchestrate all ORC integration checks via Claude Teams |
 
 ### Database (internal/db/, schema/)
 

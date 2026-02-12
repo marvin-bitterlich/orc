@@ -22,7 +22,7 @@ Skills: `/release`, `/ship-deploy` (see [docs/dev/deployment.md](docs/dev/deploy
 
 ## Pre-Commit Checks (Enforced by Hook)
 
-All commits must pass `make lint` (check-test-presence, check-coverage, schema-check, golangci-lint, go-arch-lint). Emergency bypass: `git commit --no-verify` (audited). Before merging to master, run `/docs-doctor`.
+All commits must pass `make lint` (check-test-presence, check-coverage, schema-check, check-skills, golangci-lint, go-arch-lint). Emergency bypass: `git commit --no-verify` (audited). Before merging to master, run `/docs-doctor`. See [docs/dev/git-hooks.md](docs/dev/git-hooks.md) for full details on what each hook checks and why.
 
 ## Architecture Boundaries
 
@@ -61,6 +61,7 @@ See [docs/common-workflows.md](docs/common-workflows.md).
 - [docs/dev/database.md](docs/dev/database.md) -- Atlas workflow, two-database model, schema changes
 - [docs/dev/testing.md](docs/dev/testing.md) -- Table-driven tests, test pyramid, verification discipline
 - [docs/dev/integration-tests.md](docs/dev/integration-tests.md) -- Integration test skills: coverage map and gaps
+- [docs/dev/git-hooks.md](docs/dev/git-hooks.md) -- Git hook enforcement: what each hook checks and why
 - [docs/dev/config.md](docs/dev/config.md) -- Config format, infrastructure plan/apply
 - [docs/dev/deployment.md](docs/dev/deployment.md) -- Deployment workflow and checks
 - [docs/dev/release.md](docs/dev/release.md) -- Release process
