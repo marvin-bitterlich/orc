@@ -287,3 +287,116 @@ func TestRepoRepository_UpdateStatus(t *testing.T) {
 		}
 	})
 }
+
+func TestRepoRepository_UpstreamFields(t *testing.T) {
+	db := setupTestDB(t)
+	repo := sqlite.NewRepoRepository(db)
+	ctx := context.Background()
+
+	t.Run("creates repository with upstream fields", func(t *testing.T) {
+		record := &secondary.RepoRecord{
+			ID:             "REPO-001",
+			Name:           "forked-repo",
+			URL:            "git@github.com:me/forked.git",
+			DefaultBranch:  "main",
+			UpstreamURL:    "git@github.com:upstream/original.git",
+			UpstreamBranch: "develop",
+		}
+
+		err := repo.Create(ctx, record)
+		if err != nil {
+			t.Fatalf("Create failed: %v", err)
+		}
+
+		got, err := repo.GetByID(ctx, "REPO-001")
+		if err != nil {
+			t.Fatalf("GetByID failed: %v", err)
+		}
+		if got.UpstreamURL != "git@github.com:upstream/original.git" {
+			t.Errorf("UpstreamURL = %q, want %q", got.UpstreamURL, "git@github.com:upstream/original.git")
+		}
+		if got.UpstreamBranch != "develop" {
+			t.Errorf("UpstreamBranch = %q, want %q", got.UpstreamBranch, "develop")
+		}
+	})
+
+	t.Run("creates repository without upstream fields", func(t *testing.T) {
+		record := &secondary.RepoRecord{
+			ID:   "REPO-002",
+			Name: "no-upstream",
+		}
+
+		err := repo.Create(ctx, record)
+		if err != nil {
+			t.Fatalf("Create failed: %v", err)
+		}
+
+		got, err := repo.GetByID(ctx, "REPO-002")
+		if err != nil {
+			t.Fatalf("GetByID failed: %v", err)
+		}
+		if got.UpstreamURL != "" {
+			t.Errorf("UpstreamURL = %q, want empty", got.UpstreamURL)
+		}
+		if got.UpstreamBranch != "" {
+			t.Errorf("UpstreamBranch = %q, want empty", got.UpstreamBranch)
+		}
+	})
+
+	t.Run("updates upstream fields on existing repo", func(t *testing.T) {
+		err := repo.Update(ctx, &secondary.RepoRecord{
+			ID:             "REPO-002",
+			UpstreamURL:    "git@github.com:upstream/repo.git",
+			UpstreamBranch: "main",
+		})
+		if err != nil {
+			t.Fatalf("Update failed: %v", err)
+		}
+
+		got, err := repo.GetByID(ctx, "REPO-002")
+		if err != nil {
+			t.Fatalf("GetByID failed: %v", err)
+		}
+		if got.UpstreamURL != "git@github.com:upstream/repo.git" {
+			t.Errorf("UpstreamURL = %q, want %q", got.UpstreamURL, "git@github.com:upstream/repo.git")
+		}
+		if got.UpstreamBranch != "main" {
+			t.Errorf("UpstreamBranch = %q, want %q", got.UpstreamBranch, "main")
+		}
+	})
+
+	t.Run("upstream fields round-trip through GetByName", func(t *testing.T) {
+		got, err := repo.GetByName(ctx, "forked-repo")
+		if err != nil {
+			t.Fatalf("GetByName failed: %v", err)
+		}
+		if got.UpstreamURL != "git@github.com:upstream/original.git" {
+			t.Errorf("UpstreamURL = %q, want %q", got.UpstreamURL, "git@github.com:upstream/original.git")
+		}
+		if got.UpstreamBranch != "develop" {
+			t.Errorf("UpstreamBranch = %q, want %q", got.UpstreamBranch, "develop")
+		}
+	})
+
+	t.Run("upstream fields round-trip through List", func(t *testing.T) {
+		repos, err := repo.List(ctx, secondary.RepoFilters{})
+		if err != nil {
+			t.Fatalf("List failed: %v", err)
+		}
+
+		// Find forked-repo in the list
+		var found *secondary.RepoRecord
+		for _, r := range repos {
+			if r.Name == "forked-repo" {
+				found = r
+				break
+			}
+		}
+		if found == nil {
+			t.Fatal("forked-repo not found in list")
+		}
+		if found.UpstreamURL != "git@github.com:upstream/original.git" {
+			t.Errorf("UpstreamURL = %q, want %q", found.UpstreamURL, "git@github.com:upstream/original.git")
+		}
+	})
+}

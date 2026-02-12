@@ -22,13 +22,19 @@ func NewRepoRepository(db *sql.DB) *RepoRepository {
 
 // Create persists a new repository.
 func (r *RepoRepository) Create(ctx context.Context, repo *secondary.RepoRecord) error {
-	var url, localPath sql.NullString
+	var url, localPath, upstreamURL, upstreamBranch sql.NullString
 
 	if repo.URL != "" {
 		url = sql.NullString{String: repo.URL, Valid: true}
 	}
 	if repo.LocalPath != "" {
 		localPath = sql.NullString{String: repo.LocalPath, Valid: true}
+	}
+	if repo.UpstreamURL != "" {
+		upstreamURL = sql.NullString{String: repo.UpstreamURL, Valid: true}
+	}
+	if repo.UpstreamBranch != "" {
+		upstreamBranch = sql.NullString{String: repo.UpstreamBranch, Valid: true}
 	}
 
 	defaultBranch := repo.DefaultBranch
@@ -37,8 +43,8 @@ func (r *RepoRepository) Create(ctx context.Context, repo *secondary.RepoRecord)
 	}
 
 	_, err := r.db.ExecContext(ctx,
-		"INSERT INTO repos (id, name, url, local_path, default_branch, status) VALUES (?, ?, ?, ?, ?, ?)",
-		repo.ID, repo.Name, url, localPath, defaultBranch, "active",
+		"INSERT INTO repos (id, name, url, local_path, default_branch, upstream_url, upstream_branch, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+		repo.ID, repo.Name, url, localPath, defaultBranch, upstreamURL, upstreamBranch, "active",
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create repo: %w", err)
@@ -50,19 +56,21 @@ func (r *RepoRepository) Create(ctx context.Context, repo *secondary.RepoRecord)
 // GetByID retrieves a repository by its ID.
 func (r *RepoRepository) GetByID(ctx context.Context, id string) (*secondary.RepoRecord, error) {
 	var (
-		url           sql.NullString
-		localPath     sql.NullString
-		defaultBranch string
-		status        string
-		createdAt     time.Time
-		updatedAt     time.Time
+		url            sql.NullString
+		localPath      sql.NullString
+		upstreamURL    sql.NullString
+		upstreamBranch sql.NullString
+		defaultBranch  string
+		status         string
+		createdAt      time.Time
+		updatedAt      time.Time
 	)
 
 	record := &secondary.RepoRecord{}
 	err := r.db.QueryRowContext(ctx,
-		"SELECT id, name, url, local_path, default_branch, status, created_at, updated_at FROM repos WHERE id = ?",
+		"SELECT id, name, url, local_path, default_branch, upstream_url, upstream_branch, status, created_at, updated_at FROM repos WHERE id = ?",
 		id,
-	).Scan(&record.ID, &record.Name, &url, &localPath, &defaultBranch, &status, &createdAt, &updatedAt)
+	).Scan(&record.ID, &record.Name, &url, &localPath, &defaultBranch, &upstreamURL, &upstreamBranch, &status, &createdAt, &updatedAt)
 
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("repository %s not found", id)
@@ -74,6 +82,8 @@ func (r *RepoRepository) GetByID(ctx context.Context, id string) (*secondary.Rep
 	record.URL = url.String
 	record.LocalPath = localPath.String
 	record.DefaultBranch = defaultBranch
+	record.UpstreamURL = upstreamURL.String
+	record.UpstreamBranch = upstreamBranch.String
 	record.Status = status
 	record.CreatedAt = createdAt.Format(time.RFC3339)
 	record.UpdatedAt = updatedAt.Format(time.RFC3339)
@@ -84,19 +94,21 @@ func (r *RepoRepository) GetByID(ctx context.Context, id string) (*secondary.Rep
 // GetByName retrieves a repository by its unique name.
 func (r *RepoRepository) GetByName(ctx context.Context, name string) (*secondary.RepoRecord, error) {
 	var (
-		url           sql.NullString
-		localPath     sql.NullString
-		defaultBranch string
-		status        string
-		createdAt     time.Time
-		updatedAt     time.Time
+		url            sql.NullString
+		localPath      sql.NullString
+		upstreamURL    sql.NullString
+		upstreamBranch sql.NullString
+		defaultBranch  string
+		status         string
+		createdAt      time.Time
+		updatedAt      time.Time
 	)
 
 	record := &secondary.RepoRecord{}
 	err := r.db.QueryRowContext(ctx,
-		"SELECT id, name, url, local_path, default_branch, status, created_at, updated_at FROM repos WHERE name = ?",
+		"SELECT id, name, url, local_path, default_branch, upstream_url, upstream_branch, status, created_at, updated_at FROM repos WHERE name = ?",
 		name,
-	).Scan(&record.ID, &record.Name, &url, &localPath, &defaultBranch, &status, &createdAt, &updatedAt)
+	).Scan(&record.ID, &record.Name, &url, &localPath, &defaultBranch, &upstreamURL, &upstreamBranch, &status, &createdAt, &updatedAt)
 
 	if err == sql.ErrNoRows {
 		return nil, nil // Return nil, nil for "not found" to distinguish from errors
@@ -108,6 +120,8 @@ func (r *RepoRepository) GetByName(ctx context.Context, name string) (*secondary
 	record.URL = url.String
 	record.LocalPath = localPath.String
 	record.DefaultBranch = defaultBranch
+	record.UpstreamURL = upstreamURL.String
+	record.UpstreamBranch = upstreamBranch.String
 	record.Status = status
 	record.CreatedAt = createdAt.Format(time.RFC3339)
 	record.UpdatedAt = updatedAt.Format(time.RFC3339)
@@ -117,7 +131,7 @@ func (r *RepoRepository) GetByName(ctx context.Context, name string) (*secondary
 
 // List retrieves repositories matching the given filters.
 func (r *RepoRepository) List(ctx context.Context, filters secondary.RepoFilters) ([]*secondary.RepoRecord, error) {
-	query := "SELECT id, name, url, local_path, default_branch, status, created_at, updated_at FROM repos WHERE 1=1"
+	query := "SELECT id, name, url, local_path, default_branch, upstream_url, upstream_branch, status, created_at, updated_at FROM repos WHERE 1=1"
 	args := []any{}
 
 	if filters.Status != "" {
@@ -136,16 +150,18 @@ func (r *RepoRepository) List(ctx context.Context, filters secondary.RepoFilters
 	var repos []*secondary.RepoRecord
 	for rows.Next() {
 		var (
-			url           sql.NullString
-			localPath     sql.NullString
-			defaultBranch string
-			status        string
-			createdAt     time.Time
-			updatedAt     time.Time
+			url            sql.NullString
+			localPath      sql.NullString
+			upstreamURL    sql.NullString
+			upstreamBranch sql.NullString
+			defaultBranch  string
+			status         string
+			createdAt      time.Time
+			updatedAt      time.Time
 		)
 
 		record := &secondary.RepoRecord{}
-		err := rows.Scan(&record.ID, &record.Name, &url, &localPath, &defaultBranch, &status, &createdAt, &updatedAt)
+		err := rows.Scan(&record.ID, &record.Name, &url, &localPath, &defaultBranch, &upstreamURL, &upstreamBranch, &status, &createdAt, &updatedAt)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan repository: %w", err)
 		}
@@ -153,6 +169,8 @@ func (r *RepoRepository) List(ctx context.Context, filters secondary.RepoFilters
 		record.URL = url.String
 		record.LocalPath = localPath.String
 		record.DefaultBranch = defaultBranch
+		record.UpstreamURL = upstreamURL.String
+		record.UpstreamBranch = upstreamBranch.String
 		record.Status = status
 		record.CreatedAt = createdAt.Format(time.RFC3339)
 		record.UpdatedAt = updatedAt.Format(time.RFC3339)
@@ -181,6 +199,16 @@ func (r *RepoRepository) Update(ctx context.Context, repo *secondary.RepoRecord)
 	if repo.DefaultBranch != "" {
 		query += ", default_branch = ?"
 		args = append(args, repo.DefaultBranch)
+	}
+
+	if repo.UpstreamURL != "" {
+		query += ", upstream_url = ?"
+		args = append(args, sql.NullString{String: repo.UpstreamURL, Valid: true})
+	}
+
+	if repo.UpstreamBranch != "" {
+		query += ", upstream_branch = ?"
+		args = append(args, sql.NullString{String: repo.UpstreamBranch, Valid: true})
 	}
 
 	query += " WHERE id = ?"

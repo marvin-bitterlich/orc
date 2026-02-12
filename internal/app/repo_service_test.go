@@ -70,6 +70,12 @@ func (m *mockRepoRepository) Update(ctx context.Context, repo *secondary.RepoRec
 	if repo.DefaultBranch != "" {
 		existing.DefaultBranch = repo.DefaultBranch
 	}
+	if repo.UpstreamURL != "" {
+		existing.UpstreamURL = repo.UpstreamURL
+	}
+	if repo.UpstreamBranch != "" {
+		existing.UpstreamBranch = repo.UpstreamBranch
+	}
 	return nil
 }
 
