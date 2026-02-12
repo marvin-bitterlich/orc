@@ -21,7 +21,11 @@ docs/
 
 | File | Required | Description |
 |------|----------|-------------|
+| `checklists.md` | yes | Add Field, Add Entity, Add CLI, Add State checklists |
+| `config.md` | yes | Config format, actor model, infrastructure plan/apply |
+| `database.md` | yes | Atlas workflow, two-database model, schema changes |
 | `deployment.md` | yes | Deployment checklist and merge-to-master process |
+| `testing.md` | yes | Table-driven tests, test pyramid, verification discipline |
 
 ### docs/guide/ — User Guide
 

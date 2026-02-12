@@ -178,7 +178,7 @@ Commission (coordination scope)
 ```bash
 orc shipment create "Title" --commission COMM-XXX
 orc task create "Task description" --shipment SHIP-XXX
-orc task close TASK-XXX
+orc task complete TASK-XXX
 orc summary                    # Hierarchical view with pinned items
 ```
 

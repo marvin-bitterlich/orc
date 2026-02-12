@@ -15,8 +15,8 @@ Shipments and tasks use simple, manual lifecycles. All transitions are decided b
 stateDiagram-v2
     [*] --> draft: create shipment
     draft --> ready: Goblin marks ready
-    ready --> in_progress: Goblin starts work
-    in_progress --> closed: Goblin closes
+    ready --> in-progress: Goblin starts work
+    in-progress --> closed: Goblin closes
     closed --> [*]
 ```
 
@@ -61,8 +61,8 @@ stateDiagram-v2
 `blocked` is a boolean flag, not a status. Any non-closed task can be marked blocked/unblocked independently of its lifecycle status.
 
 ```bash
-orc task block TASK-xxx     # Mark as blocked
-orc task unblock TASK-xxx   # Remove blocked flag
+orc task pause TASK-xxx     # Mark as blocked
+orc task resume TASK-xxx   # Remove blocked flag
 ```
 
 ---
