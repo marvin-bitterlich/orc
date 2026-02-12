@@ -60,6 +60,7 @@ See [docs/common-workflows.md](docs/common-workflows.md).
 - [docs/dev/checklists.md](docs/dev/checklists.md) -- Add field, add entity, add CLI command, add state
 - [docs/dev/database.md](docs/dev/database.md) -- Atlas workflow, two-database model, schema changes
 - [docs/dev/testing.md](docs/dev/testing.md) -- Table-driven tests, test pyramid, verification discipline
+- [docs/dev/integration-tests.md](docs/dev/integration-tests.md) -- Integration test skills: coverage map and gaps
 - [docs/dev/config.md](docs/dev/config.md) -- Config format, infrastructure plan/apply
 - [docs/dev/deployment.md](docs/dev/deployment.md) -- Deployment workflow and checks
 - [docs/dev/release.md](docs/dev/release.md) -- Release process

@@ -21,6 +21,7 @@ docs/
     ├── database.md
     ├── deployment.md
     ├── glue.md
+    ├── integration-tests.md
     ├── release.md
     └── testing.md
 ```
@@ -56,6 +57,7 @@ docs/
 | `testing.md` | yes | Table-driven tests, test pyramid, verification discipline |
 | `release.md` | yes | Release process and versioning |
 | `glue.md` | no | Glue system documentation |
+| `integration-tests.md` | no | Integration test skills: coverage map, gaps, and when to run |
 
 ---
 
